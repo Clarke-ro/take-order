@@ -1,0 +1,131 @@
+# V1 Scope: Multi-Channel Business Operating App
+
+## What this app is (plain language)
+
+Imagine you run a small business — skincare, clothing, accessories, whatever it is — and you sell through Instagram, TikTok, Snapchat, and WhatsApp all at once. Customers see your posts, message you, negotiate a bit, agree on a price, and pay you however they can. Right now, all of that lives in your head and in scattered chat threads. You don't really know your exact sales for the week, what's actually left in stock, which platform is bringing in the most buyers, or whether you're even making a profit after costs.
+
+This app becomes the one place that keeps up with all of that for you — without asking you to change how you already run your business, and without ever needing to read your personal chats.
+
+**How it works, step by step:**
+
+1. **You describe your business in a normal conversation.** No forms — you just tell the app what you sell and where: "I sell skincare, mostly on Instagram and WhatsApp, sometimes TikTok."
+
+2. **You build a simple catalog inside the app.** Every product you sell gets logged once — a photo, a name, the price you sell it for, what it costs you to make or buy (so the app can eventually tell you your real profit, not just revenue), and how many you have in stock. This is the one bit of manual setup, and it pays for everything else.
+
+3. **When someone wants to buy, you send them a Take Order link.** Say a customer messages you on WhatsApp or comments on a TikTok saying they want the black dress. You open the app, pick the item from your catalog (or create it on the spot if it's new), set the price you agreed on, decide if they're paying in full, paying a deposit, or just reserving it for now, and tag which platform this conversation came from. The app generates a link. You send that link to the buyer, wherever you're already talking to them.
+
+4. **The buyer completes the order themselves.** They open the link, upload a photo of what they're ordering (a screenshot of your story, or their own reference photo), fill in any details like size or color, and pay — or don't, if it's a reservation. Nothing about this touches your personal chats at all; it all happens on that one page.
+
+5. **The moment they pay, everything updates automatically.** Your inventory reflects it, your sales record reflects it, and the app knows exactly which product sold, at what price, and which platform the customer came from — because you told it, not because it guessed.
+
+6. **You get a clear picture of your business without opening five apps.** One dashboard shows your sales, your best and worst-performing products, which platform is actually driving buyers (not just views), and what your real profit looks like once costs are factored in.
+
+7. **The app tells you what the numbers mean, and checks in with you where you already are.** Instead of just showing charts, it says things like "Your black dress is your best seller this week — consider restocking" or "TikTok sent you the most link clicks, but WhatsApp Status converts better." These updates land in a message to you directly, so you don't have to remember to open the app.
+
+8. **You send your own receipts, and stay in control of every message.** Once an order is paid, the app prepares a clean receipt — you review it and send it yourself, the same way you already talk to your customers. The app never messages anyone on your behalf.
+
+## One-line description
+A chat-first app where a seller catalogs their products, generates a simple order-and-payment link for every sale agreed anywhere (DM, comment, in person), and gets an automatically updated picture of sales, inventory, and channel performance — without ever connecting to or reading their personal chat accounts.
+
+## Target user
+A solo or small-team seller running commerce across WhatsApp, Instagram, TikTok, and/or Snapchat — usually from a personal account shared with friends and family — with no formal inventory, sales, or profit tracking today.
+
+---
+
+## Core v1 features
+
+### 1. Chat-based onboarding
+- Seller describes their business in natural language
+- App identifies relevant setup steps based on the platforms mentioned
+
+### 2. Product catalog
+- Seller logs each product once: photo, name, selling price, cost price (optional but needed for real profit tracking), initial stock quantity, and any variants (size, color)
+- This catalog is the foundation everything else in the app builds on — it does not depend on any platform connection to exist
+
+### 3. Take Order link generator
+- Seller selects a catalog item (or adds one on the spot), sets the final agreed price, chooses a payment mode — full payment, deposit (with amount/percentage), or reserve with no payment — and tags which platform the conversation came from
+- App generates a unique, single-transaction link the seller sends to the buyer through whatever chat they're already using
+
+### 4. Buyer-facing order page
+- Buyer opens the link, uploads a reference image (screenshot of the seller's post or their own photo), fills in requested details (size, color, delivery info), and completes payment through an integrated provider (or submits with no payment, for reservations)
+- No account creation required for the buyer
+
+### 5. Order status and inventory tracking
+- Every order carries a status: **Reserved** (no payment yet), **Deposit paid** (balance owed), or **Fully paid**
+- Stock levels update based on status — reserved items are flagged separately from confirmed sales, so a stalled reservation never falsely shows as sold
+- Customers are recognized across orders using the phone number collected at checkout, enabling repeat-buyer and order-frequency tracking
+
+### 6. Fulfillment tracking
+- Seller manually updates delivery status per order (e.g., Shipped, Delivered) — no automatic delivery signal exists, so this stays a simple manual toggle
+- Time-to-fulfillment is calculated automatically from order and status timestamps
+
+### 7. Receipts
+- App auto-generates a receipt once an order is fully paid
+- Seller reviews and sends it themselves through their existing chat — the app never messages the buyer directly
+
+### 8. Dashboard
+- Sales over time, revenue, and outstanding deposits (all derived directly from order and payment records)
+- Best-selling, slow-moving, and stagnant products
+- Profit margins, where cost price has been entered
+- Channel performance: link opens vs. completed orders vs. paid orders, broken down by the platform tag the seller set at link creation
+- Time/seasonal patterns in ordering (derived from order timestamps, needs enough order volume to be meaningful)
+
+### 9. Recommendation layer and WhatsApp digest
+- Plain-language insight cards, e.g. "Your black dress outsold everything else this week" or "TikTok links are getting opened but not converting — check price or presentation"
+- Delivered periodically to the seller's own WhatsApp as a business-initiated update (via the app's own approved WhatsApp Business messaging — this is the app sending the seller their own summary, not reading or automating the seller's customer conversations)
+- Confidence/volume thresholds prevent false "go all-in" or "drop this" signals on low-sample products
+
+### 10. Peer benchmarking (later in v1, once enough sellers are active)
+- Anonymized, aggregated comparison against similar businesses — genuinely needs a critical mass of users before it's meaningful, so this activates once volume supports it rather than at launch
+
+---
+
+## How the app actually works (plain description of the mechanics)
+
+**Setup phase:**
+The seller has a short onboarding conversation, then builds their catalog — entering each product once with its price, cost, stock count, and any variants. This catalog lives entirely inside the app; nothing here requires connecting to any outside platform.
+
+**The sale itself:**
+Whenever a sale is agreed anywhere — a DM, a comment thread, in person — the seller opens the app, picks the item, sets the final price and payment mode, tags the platform, and gets a link back. That link is the entire connection between "a sale happened" and "the app knows about it." The seller hands the link over exactly the way they'd hand over a phone number or a payment reference — it's just one more thing they paste into the conversation.
+
+**What happens when the buyer opens the link:**
+The buyer lands on a page showing the order details the seller set, uploads their reference image, fills in any remaining fields, and either pays (routed through a payment provider like Paystack, Flutterwave, or a mobile money integration) or submits as a reservation with no payment. When payment happens, the payment provider confirms it back to the app automatically and near-instantly — this is what triggers the order's status to update, without the seller or app needing to check anything manually.
+
+**What happens after payment:**
+The moment an order is marked paid, three things happen automatically and immediately: the product's stock count adjusts, the order is added to the seller's sales record with its price and tagged platform attached, and a receipt is generated and made ready for the seller to send. None of this requires the app to interpret or guess anything — every piece of information came from a human directly entering it, either the seller at link creation or the buyer at checkout.
+
+**How the dashboard and insights get built:**
+The dashboard is just a live, aggregated view of the order and catalog data already described above — sales by product, by time period, by platform tag. No separate tracking system runs alongside this; the order records are the data. Once there's enough order history, the recommendation layer looks for patterns in that same data (a product trending up, a platform sending clicks but few completed orders) and turns them into plain-language suggestions, sent to the seller periodically.
+
+**Why this avoids the personal/business account problem entirely:**
+At no point does the app request access to the seller's WhatsApp, Instagram, Snapchat, or TikTok messages. It never reads a conversation, never scans a chat for context, and never needs to distinguish personal messages from business ones — because it was never given access to either. The only messaging the app itself sends is the periodic summary update to the seller's own number, which is a standard, compliant business notification rather than any kind of customer-facing automation.
+
+**Where platform connections come in (v1.5, not launch-blocking):**
+Separately from all of the above, a seller can optionally connect ad accounts (Meta Ads, TikTok Ads) or switch social accounts (Instagram, TikTok) to Business/Creator type to pull in engagement and ad-performance stats. This is entirely additive — it enriches the dashboard with extra context but nothing in the core sales/inventory/order system depends on it. Snapchat has no equivalent personal-account data access and stays limited to whatever the seller enters manually, unless they separately run a Snapchat Business account.
+
+---
+
+## Explicitly out of scope for v1
+- Automated parsing or reading of chat conversations on any platform, for any purpose
+- Any form of image-matching or AI-guessing of what a buyer is requesting — the buyer states it directly via upload and fields
+- Full accounting/bookkeeping system beyond revenue, cost, and profit-per-product
+- Automated bulk/broadcast messaging to customers
+- Ad account and social account connections (move to v1.5)
+- Peer benchmarking before there's a meaningful number of active sellers
+
+## Build sequencing
+1. Catalog (products, prices, cost, stock)
+2. Take Order link generator + buyer-facing order page + payment integration
+3. Order status model (reserved/deposit/fully paid) and inventory tie-in
+4. Dashboard: sales, product performance, channel attribution (all derived from steps 1–3)
+5. Receipts
+6. Fulfillment status tracking
+7. Recommendation layer + WhatsApp digest push
+8. Peer benchmarking (once volume supports it)
+9. v1.5: ad account and social account connections (Meta-first, phased)
+
+## Key risks to validate early
+- **Payment provider reliability inside in-app browsers** — test checkout flows directly within TikTok's, Instagram's, and Snapchat's in-app webviews before committing to a provider, since some in-app browsers have had compatibility issues with certain checkout scripts
+- **Deposit/reservation follow-through** — reserved orders that never convert to payment need a clear expiry or follow-up process, or they'll clutter inventory counts
+- **Adoption of the cost-price field** — profit tracking depends on sellers actually entering cost data; if they skip it, the app should clearly show revenue-only rather than presenting an incomplete profit figure as if it were complete
+- **WhatsApp digest delivery compliance** — sending the seller their own summary still requires proper WhatsApp Business API setup and template approval, even though it's not customer-facing automation
