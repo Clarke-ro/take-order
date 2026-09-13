@@ -1,0 +1,1 @@
+- [Generated client types](generated-client-types.md) — Orval fetch helpers need iterable DOM types in the composite API client.

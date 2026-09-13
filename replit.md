@@ -1,6 +1,6 @@
-# [Project name]
+# Duka
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Duka helps small multi-channel sellers manage products, share buyer order links, and understand sales, inventory, and channel performance in one workspace.
 
 ## Run & Operate
 
@@ -22,23 +22,35 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/duka/src/App.tsx` — seller workspace and public buyer flow
+- `artifacts/duka/src/index.css` — Duka visual theme and responsive layout
+- `artifacts/api-server/src/routes/duka.ts` — catalog, orders, buyer links, and dashboard API
+- `lib/api-spec/openapi.yaml` — API contract source of truth
+- `lib/db/src/schema/products.ts` and `lib/db/src/schema/orders.ts` — PostgreSQL schema
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Seller actions are deliberately channel-agnostic: Duka records where a conversation started, but never reads personal chats.
+- Public buyer links use a short token and do not require a buyer account.
+- Inventory decrements only when an order becomes fully paid; reservations remain visible without pretending they are sales.
+- The first build keeps payment-provider wiring behind the buyer submission boundary so the product loop can be exercised before provider credentials are connected.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Dashboard with revenue, paid orders, outstanding deposit balances, best seller, channel performance, and plain-language insights.
+- Catalog CRUD for products, costs, stock, variants, and category.
+- Take Order link generation with full payment, deposit, or reservation modes and channel attribution.
+- Public buyer checkout/reservation page with buyer contact details, notes, and reference image input.
+- Order status and fulfillment tracking with copied buyer links.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+The visual direction should stay calm, confident, and useful for a solo seller who does not want enterprise software.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- After changing `lib/api-spec/openapi.yaml`, run `pnpm --filter @workspace/api-spec run codegen`.
+- Use the shared API server workflow for `/api`; the Duka web app uses the root preview path.
 
 ## Pointers
 
