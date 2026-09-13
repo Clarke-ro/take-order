@@ -16,6 +16,8 @@ tags:
     description: Seller orders and buyer checkout
   - name: dashboard
     description: Business summaries
+  - name: expenses
+    description: Operating expense tracking
 paths:
   /healthz:
     get:
@@ -199,6 +201,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
+  /expenses:
+    get:
+      operationId: listExpenses
+      tags: [expenses]
+      summary: List operating expenses
+      responses:
+        "200":
+          description: Operating expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Expense"
+    post:
+      operationId: createExpense
+      tags: [expenses]
+      summary: Record an operating expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "201":
+          description: Created operating expense
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+  /expenses/{id}:
+    patch:
+      operationId: updateExpense
+      tags: [expenses]
+      summary: Update an operating expense
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseUpdate"
+      responses:
+        "200":
+          description: Updated operating expense
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+    delete:
+      operationId: deleteExpense
+      tags: [expenses]
+      summary: Delete an operating expense
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Operating expense deleted
 components:
   parameters:
     IdParam:
@@ -318,9 +380,11 @@ components:
         paymentAction: { type: string, enum: [pay, reserve] }
     DashboardSummary:
       type: object
-      required: [revenue, expenses, profit, cashBalance, orders, outstanding, bestSeller, channelPerformance, dailyPerformance, productPerformance, insights]
+      required: [revenue, productCosts, operatingExpenses, expenses, profit, cashBalance, orders, outstanding, bestSeller, channelPerformance, dailyPerformance, productPerformance, insights]
       properties:
         revenue: { type: number }
+        productCosts: { type: number }
+        operatingExpenses: { type: number }
         expenses: { type: number }
         profit: { type: number }
         cashBalance: { type: number }
@@ -354,11 +418,13 @@ components:
         conversionRate: { type: number }
     DailyPerformance:
       type: object
-      required: [date, label, revenue, expenses, profit, orders]
+      required: [date, label, revenue, productCosts, operatingExpenses, expenses, profit, orders]
       properties:
         date: { type: string }
         label: { type: string }
         revenue: { type: number }
+        productCosts: { type: number }
+        operatingExpenses: { type: number }
         expenses: { type: number }
         profit: { type: number }
         orders: { type: integer }
@@ -373,4 +439,32 @@ components:
         stock: { type: integer }
         margin: { type: number }
         costTracked: { type: boolean }
+    Expense:
+      type: object
+      required: [id, title, category, amount, date, note, createdAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        category: { type: string, enum: [rent, delivery, advertising, supplies, fees, other] }
+        amount: { type: number }
+        date: { type: string }
+        note: { type: ["string", "null"] }
+        createdAt: { type: string }
+    ExpenseInput:
+      type: object
+      required: [title, category, amount, date]
+      properties:
+        title: { type: string, minLength: 1 }
+        category: { type: string, enum: [rent, delivery, advertising, supplies, fees, other] }
+        amount: { type: number, minimum: 0 }
+        date: { type: string }
+        note: { type: string }
+    ExpenseUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        category: { type: string, enum: [rent, delivery, advertising, supplies, fees, other] }
+        amount: { type: number, minimum: 0 }
+        date: { type: string }
+        note: { type: ["string", "null"] }
 

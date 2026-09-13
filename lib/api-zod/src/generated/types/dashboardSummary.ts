@@ -11,6 +11,8 @@ import type { ProductPerformance } from './productPerformance';
 
 export interface DashboardSummary {
   revenue: number;
+  productCosts: number;
+  operatingExpenses: number;
   expenses: number;
   profit: number;
   cashBalance: number;

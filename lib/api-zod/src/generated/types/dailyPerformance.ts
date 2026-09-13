@@ -10,6 +10,8 @@ export interface DailyPerformance {
   date: string;
   label: string;
   revenue: number;
+  productCosts: number;
+  operatingExpenses: number;
   expenses: number;
   profit: number;
   orders: number;

@@ -1,12 +1,15 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
-import { db, ordersTable, productsTable } from "@workspace/db";
+import { db, expensesTable, ordersTable, productsTable } from "@workspace/db";
 import {
   CreateProductBody,
   CreateProductResponse,
   CreateOrderBody,
   CreateOrderResponse,
+  CreateExpenseBody,
+  CreateExpenseResponse,
+  DeleteExpenseParams,
   DeleteProductParams,
   GetDashboardSummaryResponse,
   GetOrderParams,
@@ -15,12 +18,16 @@ import {
   GetPublicOrderResponse,
   ListOrdersResponse,
   ListProductsResponse,
+  ListExpensesResponse,
   SubmitPublicOrderBody,
   SubmitPublicOrderParams,
   SubmitPublicOrderResponse,
   UpdateOrderBody,
   UpdateOrderParams,
   UpdateOrderResponse,
+  UpdateExpenseBody,
+  UpdateExpenseParams,
+  UpdateExpenseResponse,
   UpdateProductBody,
   UpdateProductParams,
   UpdateProductResponse,
@@ -54,6 +61,15 @@ function orderResponse(order: typeof ordersTable.$inferSelect) {
     amount: Number(order.amount),
     depositAmount: toNumber(order.depositAmount),
     createdAt: order.createdAt.toISOString(),
+  };
+}
+
+function expenseResponse(expense: typeof expensesTable.$inferSelect) {
+  return {
+    ...expense,
+    amount: Number(expense.amount),
+    date: expense.expenseDate,
+    createdAt: expense.createdAt.toISOString(),
   };
 }
 
@@ -159,6 +175,82 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
     .returning();
   if (!product) {
     res.status(404).json({ error: "Product not found" });
+    return;
+  }
+  res.sendStatus(204);
+});
+
+router.get("/expenses", async (_req, res): Promise<void> => {
+  const expenses = await db.select().from(expensesTable).orderBy(desc(expensesTable.expenseDate), desc(expensesTable.id));
+  res.json(ListExpensesResponse.parse(expenses.map(expenseResponse)));
+});
+
+router.post("/expenses", async (req, res): Promise<void> => {
+  const parsed = CreateExpenseBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [expense] = await db
+    .insert(expensesTable)
+    .values({
+      title: parsed.data.title.trim(),
+      category: parsed.data.category,
+      amount: parsed.data.amount.toFixed(2),
+      expenseDate: parsed.data.date,
+      note: parsed.data.note?.trim() || null,
+    })
+    .returning();
+  res.status(201).json(CreateExpenseResponse.parse(expenseResponse(expense)));
+});
+
+router.patch("/expenses/:id", async (req, res): Promise<void> => {
+  const params = UpdateExpenseParams.safeParse(req.params);
+  const parsed = UpdateExpenseBody.safeParse(req.body);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const update: {
+    title?: string;
+    category?: string;
+    amount?: string;
+    expenseDate?: string;
+    note?: string | null;
+  } = {};
+  if (parsed.data.title !== undefined) update.title = parsed.data.title.trim();
+  if (parsed.data.category !== undefined) update.category = parsed.data.category;
+  if (parsed.data.amount !== undefined) update.amount = parsed.data.amount.toFixed(2);
+  if (parsed.data.date !== undefined) update.expenseDate = parsed.data.date;
+  if (parsed.data.note !== undefined) update.note = parsed.data.note?.trim() || null;
+  const [expense] = await db
+    .update(expensesTable)
+    .set(update)
+    .where(eq(expensesTable.id, params.data.id))
+    .returning();
+  if (!expense) {
+    res.status(404).json({ error: "Expense not found" });
+    return;
+  }
+  res.json(UpdateExpenseResponse.parse(expenseResponse(expense)));
+});
+
+router.delete("/expenses/:id", async (req, res): Promise<void> => {
+  const params = DeleteExpenseParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [expense] = await db
+    .delete(expensesTable)
+    .where(eq(expensesTable.id, params.data.id))
+    .returning();
+  if (!expense) {
+    res.status(404).json({ error: "Expense not found" });
     return;
   }
   res.sendStatus(204);
@@ -299,9 +391,10 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
 });
 
 router.get("/dashboard/summary", async (_req, res): Promise<void> => {
-  const [products, orders] = await Promise.all([
+  const [products, orders, operatingExpenseRows] = await Promise.all([
     db.select().from(productsTable),
     db.select().from(ordersTable),
+    db.select().from(expensesTable),
   ]);
   const productMap = new Map(products.map((product) => [product.id, product]));
   const paidOrders = orders.filter((order) => order.status === "paid" || order.status === "deposit_paid");
@@ -309,10 +402,12 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     (sum, order) => sum + (order.status === "deposit_paid" ? Number(order.depositAmount ?? 0) : Number(order.amount)),
     0,
   );
-  const expenses = paidOrders.reduce((sum, order) => {
+  const productCosts = paidOrders.reduce((sum, order) => {
     const product = productMap.get(order.productId);
     return sum + (product?.cost == null ? 0 : Number(product.cost));
   }, 0);
+  const operatingExpenses = operatingExpenseRows.reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const expenses = productCosts + operatingExpenses;
   const profit = revenue - expenses;
   const outstanding = orders
     .filter((order) => order.status === "deposit_paid")
@@ -353,14 +448,20 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
       (sum, order) => sum + (order.status === "deposit_paid" ? Number(order.depositAmount ?? 0) : Number(order.amount)),
       0,
     );
-    const dayExpenses = dayOrders.reduce((sum, order) => {
+    const dayProductCosts = dayOrders.reduce((sum, order) => {
       const product = productMap.get(order.productId);
       return sum + (product?.cost == null ? 0 : Number(product.cost));
     }, 0);
+    const dayOperatingExpenses = operatingExpenseRows
+      .filter((expense) => expense.expenseDate === date)
+      .reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const dayExpenses = dayProductCosts + dayOperatingExpenses;
     return {
       date,
       label: day.toLocaleDateString("en-US", { weekday: "short" }),
       revenue: dayRevenue,
+      productCosts: dayProductCosts,
+      operatingExpenses: dayOperatingExpenses,
       expenses: dayExpenses,
       profit: dayRevenue - dayExpenses,
       orders: dayOrders.length,
@@ -390,10 +491,13 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     bestSeller !== "No sales yet" ? `${bestSeller} is your best performer this week.` : "Create a Take Order link to start collecting your first sale.",
     lowStock ? `${lowStock.name} is down to ${lowStock.stock} left — consider restocking.` : "Your stock levels are healthy across the catalog.",
     outstanding > 0 ? `You have GH₵${outstanding.toFixed(0)} in outstanding balances to follow up.` : "No outstanding balances right now.",
-    expenses > 0 ? `Tracked product costs are GH₵${expenses.toFixed(0)}, leaving GH₵${profit.toFixed(0)} in gross profit.` : "Add cost prices to your catalog to unlock profit tracking.",
+    productCosts > 0 ? `Product costs are GH₵${productCosts.toFixed(0)}. Add operating expenses to see your true net profit.` : "Add cost prices to your catalog to unlock gross margin tracking.",
+    operatingExpenses > 0 ? `Operating expenses are GH₵${operatingExpenses.toFixed(0)}, included in your cash balance and net profit.` : "Record rent, delivery, ads, or other operating expenses to keep cash flow complete.",
   ];
   res.json(GetDashboardSummaryResponse.parse({
     revenue,
+    productCosts,
+    operatingExpenses,
     expenses,
     profit,
     cashBalance: revenue - expenses,

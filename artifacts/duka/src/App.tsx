@@ -13,11 +13,12 @@ import {
 } from 'recharts';
 import {
   getGetPublicOrderQueryKey, getListOrdersQueryKey,
-  getListProductsQueryKey, useCreateOrder, useCreateProduct, useDeleteProduct,
+  getListProductsQueryKey, getGetDashboardSummaryQueryKey, getListExpensesQueryKey,
+  useCreateExpense, useCreateOrder, useCreateProduct, useDeleteExpense, useDeleteProduct,
   useGetDashboardSummary, useGetPublicOrder, useHealthCheck, useListOrders, useListProducts,
-  useSubmitPublicOrder, useUpdateOrder, useUpdateProduct
+  useListExpenses, useSubmitPublicOrder, useUpdateExpense, useUpdateOrder, useUpdateProduct
 } from '@workspace/api-client-react';
-import type { Order, OrderInput, Product, ProductInput, PublicOrderInput } from '@workspace/api-client-react';
+import type { Expense, ExpenseInput, ExpenseUpdate, Order, OrderInput, Product, ProductInput, PublicOrderInput } from '@workspace/api-client-react';
 import NotFound from '@/pages/not-found';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -26,7 +27,10 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 const queryClient = new QueryClient();
 const money = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
 const moneyExact = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0);
-const dateShort = (value: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(value));
+const dateShort = (value: string) => {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value);
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+};
 const channelName = (value: string) => value.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 const initials = (name: string) => name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 
@@ -52,6 +56,7 @@ function Sidebar() {
     { href: '/orders', label: 'Orders', icon: ShoppingBag },
     { href: '/reports', label: 'Reports', icon: BarChart3 },
     { href: '/clients', label: 'Clients', icon: Users },
+    { href: '/expenses', label: 'Expenses', icon: Receipt },
     { href: '/take-order', label: 'Take an order', icon: Link2 },
   ];
   return <aside className="desktop-sidebar fixed inset-y-0 left-0 z-30 flex w-[246px] flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))]">
@@ -79,7 +84,7 @@ function Sidebar() {
 
 function MobileTopbar() {
   const [open, setOpen] = useState(false);
-  const nav = [{ href: '/', label: 'Overview' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/take-order', label: 'Take an order' }, { href: '/connect', label: 'Connect tools' }];
+  const nav = [{ href: '/', label: 'Overview' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/expenses', label: 'Expenses' }, { href: '/take-order', label: 'Take an order' }, { href: '/connect', label: 'Connect tools' }];
   return <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md"><Link href="/" className="flex items-center gap-2 font-display text-[20px] font-bold tracking-[-.04em]"><span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><Store size={17} /></span>duka</Link><button data-testid="button-mobile-menu" onClick={() => setOpen(!open)} className="rounded-lg p-2 hover:bg-black/5">{open ? <X size={20} /> : <Menu size={20} />}</button>{open && <div className="absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">{nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-sm hover:bg-[hsl(var(--muted))]">{item.label}</Link>)}</div>}</div>;
 }
 
@@ -167,7 +172,9 @@ function Overview() {
   const dateContext = firstDay && lastDay ? `${firstDay} – ${lastDay}` : 'Your latest reporting window';
   const statCards = [
     { label: 'Revenue', value: money(summary?.revenue), note: 'completed order value', icon: TrendingUp, tone: 'gold' },
-    { label: 'Expenses', value: money(summary?.expenses), note: 'tracked operating costs', icon: ArrowDownRight, tone: 'rose' },
+    { label: 'Product costs', value: money(summary?.productCosts), note: 'cost of items sold', icon: Package, tone: 'rose' },
+    { label: 'Operating expenses', value: money(summary?.operatingExpenses), note: 'running the shop', icon: Receipt, tone: 'blue' },
+    { label: 'Combined expenses', value: money(summary?.expenses), note: 'product + operating costs', icon: ArrowDownRight, tone: 'rose' },
     { label: 'Profit', value: money(summary?.profit), note: 'revenue less expenses', icon: BarChart3, tone: 'mint' },
     { label: 'Cash balance', value: money(summary?.cashBalance), note: 'available balance', icon: WalletCards, tone: 'blue' },
   ] as const;
@@ -177,7 +184,7 @@ function Overview() {
         {statCards.map((stat, index) => <Card key={stat.label} className="rise-in kpi-card p-5" style={{ animationDelay: `${index * 55}ms` }} data-testid={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`}><div className="flex items-start justify-between"><div><div className="text-[11px] font-semibold uppercase tracking-[.06em] text-[hsl(var(--muted-foreground))]">{stat.label}</div><div className="mt-4 font-display text-[clamp(25px,3vw,32px)] font-bold tracking-[-.055em]">{stat.value}</div></div><div className={cn('flex h-9 w-9 items-center justify-center rounded-[11px]', stat.tone === 'gold' && 'bg-[hsl(42_81%_67%/.26)] text-[hsl(31_64%_34%)]', stat.tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', stat.tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]', stat.tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]')}><stat.icon size={16} /></div></div><div className="mt-2 text-[11px] text-[hsl(var(--muted-foreground))]">{stat.note}</div></Card>)}
       </div>
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
-        <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Daily movement across the last seven days</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{period}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow">{daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Expenses" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
+        <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and operating expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{period}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow">{daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Operating expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Combined expenses" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
         <AlertsRail outstanding={summary?.outstanding ?? 0} lowStock={lowStock} missingCosts={missingCosts} productLoading={productsQuery.isLoading} />
       </div>
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)]">
@@ -313,6 +320,93 @@ function ProductModal({ product, onClose }: { product?: Product; onClose: () => 
   const change = (key: keyof ProductFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const save = (event: React.FormEvent) => { event.preventDefault(); const data: ProductInput = { name: form.name.trim(), category: form.category, price: Number(form.price), cost: form.cost === '' ? null : Number(form.cost), stock: Number(form.stock), variants: form.variants.split(',').map((item) => item.trim()).filter(Boolean), accent: form.accent }; if (!data.name || Number.isNaN(data.price)) return; const onSuccess = () => { queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() }); onClose(); }; product ? update.mutate({ id: product.id, data }, { onSuccess }) : create.mutate({ data }, { onSuccess }); };
   return <div className="fixed inset-0 z-50 flex items-end justify-center bg-[hsl(220_30%_17%/.45)] p-0 backdrop-blur-sm sm:items-center sm:p-5"><div className="max-h-[92dvh] w-full max-w-[560px] overflow-y-auto rounded-t-[20px] bg-[hsl(var(--card))] p-6 shadow-2xl sm:rounded-[20px] sm:p-8"><div className="flex items-start justify-between"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">{product ? 'Edit item' : 'New item'}</div><h2 className="mt-2 font-display text-2xl font-bold tracking-[-.04em]">{product ? 'Update your item.' : 'Add to your catalog.'}</h2></div><button onClick={onClose} data-testid="button-close-product-modal" className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><X size={18} /></button></div><form onSubmit={save} className="mt-7 space-y-5"><div><label className="field-label">Item name</label><input data-testid="input-product-name" autoFocus required value={form.name} onChange={(e) => change('name', e.target.value)} placeholder="e.g. Linen wrap top" className="field-input" /></div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Category</label><select data-testid="select-product-category" value={form.category} onChange={(e) => change('category', e.target.value)} className="field-input"><option>Apparel</option><option>Accessories</option><option>Home</option><option>Beauty</option><option>Food & drink</option><option>Other</option></select></div><div><label className="field-label">Stock on hand</label><input data-testid="input-product-stock" type="number" min="0" required value={form.stock} onChange={(e) => change('stock', e.target.value)} className="field-input" /></div></div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Selling price</label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-price" type="number" min="0" step=".01" required value={form.price} onChange={(e) => change('price', e.target.value)} className="field-input pl-7" /></div></div><div><label className="field-label">Cost <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-cost" type="number" min="0" step=".01" value={form.cost} onChange={(e) => change('cost', e.target.value)} placeholder="Not tracked" className="field-input pl-7" /></div></div></div><div><label className="field-label">Variants <span className="font-normal text-[hsl(var(--muted-foreground))]">(comma separated)</span></label><input data-testid="input-product-variants" value={form.variants} onChange={(e) => change('variants', e.target.value)} placeholder="Small, Medium, Large" className="field-input" /></div><div><label className="field-label">Accent color</label><div className="flex gap-2">{['#E6B85C', '#8BBDA9', '#D79AA9', '#96A8CE', '#D99566'].map((color) => <button type="button" key={color} onClick={() => change('accent', color)} data-testid={`button-accent-${color.slice(1)}`} className={cn('h-8 w-8 rounded-full border-2 transition-transform', form.accent === color ? 'scale-110 border-[hsl(var(--foreground))]' : 'border-transparent')} style={{ backgroundColor: color }} />)}</div></div><div className="flex justify-end gap-3 border-t border-[hsl(var(--border))] pt-5"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending}>{pending && <Loader2 size={15} className="animate-spin" />}{product ? 'Save changes' : 'Add item'}</Button></div></form></div></div>;
+}
+
+type ExpenseFormState = { title: string; category: ExpenseInput['category']; amount: string; date: string; note: string };
+const expenseCategories: Array<{ value: ExpenseInput['category']; label: string }> = [
+  { value: 'rent', label: 'Rent' },
+  { value: 'delivery', label: 'Delivery' },
+  { value: 'advertising', label: 'Advertising' },
+  { value: 'supplies', label: 'Supplies' },
+  { value: 'fees', label: 'Fees' },
+  { value: 'other', label: 'Other' },
+];
+const todayForInput = () => new Date().toISOString().slice(0, 10);
+const blankExpense: ExpenseFormState = { title: '', category: 'other', amount: '', date: todayForInput(), note: '' };
+const expenseCategoryLabel = (value: Expense['category']) => expenseCategories.find((item) => item.value === value)?.label ?? 'Other';
+
+function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const create = useCreateExpense();
+  const update = useUpdateExpense();
+  const [form, setForm] = useState<ExpenseFormState>(expense
+    ? { title: expense.title, category: expense.category, amount: String(expense.amount), date: expense.date.slice(0, 10), note: expense.note ?? '' }
+    : blankExpense);
+  const [error, setError] = useState('');
+  const pending = create.isPending || update.isPending;
+  const change = (key: keyof ExpenseFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    const amount = Number(form.amount);
+    if (!form.title.trim() || !form.date || !Number.isFinite(amount) || amount < 0) {
+      setError('Add a title, date, and a valid non-negative amount.');
+      return;
+    }
+    const note = form.note.trim();
+    const data: ExpenseInput = { title: form.title.trim(), category: form.category, amount, date: form.date, ...(note ? { note } : {}) };
+    const onSuccess = () => {
+      queryClient.invalidateQueries({ queryKey: getListExpensesQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+      onClose();
+    };
+    if (expense) update.mutate({ id: expense.id, data: { ...data, note: note || null } as ExpenseUpdate }, { onSuccess });
+    else create.mutate({ data }, { onSuccess });
+  };
+  return <div className="fixed inset-0 z-50 flex items-end justify-center bg-[hsl(220_30%_17%/.45)] p-0 backdrop-blur-sm sm:items-center sm:p-5">
+    <div className="max-h-[92dvh] w-full max-w-[560px] overflow-y-auto rounded-t-[20px] bg-[hsl(var(--card))] p-6 shadow-2xl sm:rounded-[20px] sm:p-8">
+      <div className="flex items-start justify-between"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">{expense ? 'Edit expense' : 'New expense'}</div><h2 className="mt-2 font-display text-2xl font-bold tracking-[-.04em]">{expense ? 'Keep the record accurate.' : 'Record a shop expense.'}</h2><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Operating expenses stay separate from product costs in your dashboard.</p></div><button onClick={onClose} data-testid="button-close-expense-modal" className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><X size={18} /></button></div>
+      <form onSubmit={save} className="mt-7 space-y-5">
+        <div><label className="field-label" htmlFor="expense-title">What was it for?</label><input id="expense-title" data-testid="input-expense-title" autoFocus required value={form.title} onChange={(event) => change('title', event.target.value)} placeholder="e.g. Monthly studio rent" className="field-input" /></div>
+        <div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label" htmlFor="expense-category">Category</label><select id="expense-category" data-testid="select-expense-category" value={form.category} onChange={(event) => change('category', event.target.value)} className="field-input">{expenseCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div><div><label className="field-label" htmlFor="expense-amount">Amount</label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input id="expense-amount" data-testid="input-expense-amount" required type="number" min="0" step=".01" value={form.amount} onChange={(event) => change('amount', event.target.value)} placeholder="0.00" className="field-input pl-7" /></div></div></div>
+        <div><label className="field-label" htmlFor="expense-date">Date paid</label><input id="expense-date" data-testid="input-expense-date" required type="date" value={form.date} onChange={(event) => change('date', event.target.value)} className="field-input" /></div>
+        <div><label className="field-label" htmlFor="expense-note">Note <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="expense-note" data-testid="input-expense-note" rows={3} value={form.note} onChange={(event) => change('note', event.target.value)} placeholder="Add context for your future self" className="field-input resize-none leading-5" /></div>
+        {(error || create.isError || update.isError) && <div className="rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" data-testid="status-expense-form-error">{error || 'This expense could not be saved. Try again.'}</div>}
+        <div className="flex justify-end gap-3 border-t border-[hsl(var(--border))] pt-5"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending} data-testid="button-save-expense">{pending && <Loader2 size={15} className="animate-spin" />}{expense ? 'Save changes' : 'Save expense'}</Button></div>
+      </form>
+    </div>
+  </div>;
+}
+
+function Expenses() {
+  const query = useListExpenses();
+  const deleteExpense = useDeleteExpense();
+  const queryClient = useQueryClient();
+  const [modal, setModal] = useState<'new' | Expense | null>(null);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const expenses = useMemo(() => (query.data ?? []).filter((expense) => {
+    const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
+    return matchesCategory && `${expense.title} ${expense.note ?? ''} ${expense.category}`.toLowerCase().includes(search.trim().toLowerCase());
+  }), [query.data, search, categoryFilter]);
+  const total = (query.data ?? []).reduce((sum, expense) => sum + expense.amount, 0);
+  const visibleTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const remove = (expense: Expense) => {
+    if (window.confirm(`Delete ${expense.title}?`)) {
+      deleteExpense.mutate({ id: expense.id }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListExpensesQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        },
+      });
+    }
+  };
+  return <Shell><PageHeading eyebrow="Keep the full picture" title="Expenses" description="Record the running costs of your shop. These stay separate from product costs so profit means what you think it means." action={<Button onClick={() => setModal('new')} data-testid="button-new-expense"><Plus size={16} />Add expense</Button>} />
+    <div className="mb-5 grid gap-4 md:grid-cols-3"><Card className="p-5"><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">All operating expenses</div><div className="mt-3 font-display text-3xl font-bold tracking-[-.06em]">{moneyExact(total)}</div><div className="mt-2 text-[11px] text-[hsl(var(--muted-foreground))]">{query.data?.length ?? 0} recorded expenses</div></Card><Card className="p-5"><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Showing now</div><div className="mt-3 font-display text-3xl font-bold tracking-[-.06em]">{moneyExact(visibleTotal)}</div><div className="mt-2 text-[11px] text-[hsl(var(--muted-foreground))]">{expenses.length} matching entries</div></Card><Card className="flex items-center gap-4 p-5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/25 text-[hsl(var(--accent-foreground))]"><CircleDollarSign size={18} /></div><div><div className="text-sm font-bold">A clearer profit view</div><p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Operating expenses flow into combined expenses, not gross margin.</p></div></Card></div>
+    <Card className="overflow-hidden"><div className="flex flex-col gap-3 border-b border-[hsl(var(--border))] p-5 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={16} /><input data-testid="input-search-expenses" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search expenses" className="field-input pl-9" /></div><select data-testid="select-filter-expenses" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="field-input sm:max-w-[220px]"><option value="all">All categories</option>{expenseCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>
+      {query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : expenses.length ? <div className="divide-y divide-[hsl(var(--border))]">{expenses.map((expense) => <div key={expense.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6" data-testid={`row-expense-${expense.id}`}><div className="min-w-0"><div className="flex items-center gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Receipt size={16} /></div><div className="min-w-0"><div className="truncate text-sm font-semibold">{expense.title}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{expenseCategoryLabel(expense.category)} · {dateShort(expense.date)}{expense.note ? ` · ${expense.note}` : ''}</div></div></div></div><div className="flex items-center justify-between gap-4 sm:justify-end"><div className="font-mono-ui text-sm font-bold">{moneyExact(expense.amount)}</div><div className="flex gap-1"><button onClick={() => setModal(expense)} data-testid={`button-edit-expense-${expense.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><Pencil size={15} /></button><button onClick={() => remove(expense)} disabled={deleteExpense.isPending} data-testid={`button-delete-expense-${expense.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--destructive))]/10 hover:text-[hsl(var(--destructive))]"><Trash2 size={15} /></button></div></div></div>)}</div> : <div className="p-6"><EmptyState icon={Receipt} title={search || categoryFilter !== 'all' ? 'No matching expenses' : 'No operating expenses yet'} description={search || categoryFilter !== 'all' ? 'Try another search or category.' : 'Record rent, delivery, supplies, and other costs that keep your shop moving.'} action={<Button onClick={() => setModal('new')}><Plus size={15} />Add your first expense</Button>} /></div>}
+    </Card>
+    {modal && <ExpenseModal expense={modal === 'new' ? undefined : modal} onClose={() => setModal(null)} />}
+  </Shell>;
 }
 
 function Catalog() {
@@ -557,6 +651,6 @@ function Connect() {
 }
 function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3 5 6v5c0 4.5 3 8.2 7 10 4-1.8 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>; }
 
-function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/take-order" component={TakeOrder} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
+function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={TakeOrder} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
 function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
 export default App;

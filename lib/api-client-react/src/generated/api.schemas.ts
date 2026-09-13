@@ -221,6 +221,8 @@ export interface DailyPerformance {
   date: string;
   label: string;
   revenue: number;
+  productCosts: number;
+  operatingExpenses: number;
   expenses: number;
   profit: number;
   orders: number;
@@ -238,6 +240,8 @@ export interface ProductPerformance {
 
 export interface DashboardSummary {
   revenue: number;
+  productCosts: number;
+  operatingExpenses: number;
   expenses: number;
   profit: number;
   cashBalance: number;
@@ -248,5 +252,73 @@ export interface DashboardSummary {
   insights: string[];
   dailyPerformance: DailyPerformance[];
   productPerformance: ProductPerformance[];
+}
+
+export type ExpenseCategory = typeof ExpenseCategory[keyof typeof ExpenseCategory];
+
+
+export const ExpenseCategory = {
+  rent: 'rent',
+  delivery: 'delivery',
+  advertising: 'advertising',
+  supplies: 'supplies',
+  fees: 'fees',
+  other: 'other',
+} as const;
+
+export interface Expense {
+  id: number;
+  title: string;
+  category: ExpenseCategory;
+  amount: number;
+  date: string;
+  /** @nullable */
+  note: string | null;
+  createdAt: string;
+}
+
+export type ExpenseInputCategory = typeof ExpenseInputCategory[keyof typeof ExpenseInputCategory];
+
+
+export const ExpenseInputCategory = {
+  rent: 'rent',
+  delivery: 'delivery',
+  advertising: 'advertising',
+  supplies: 'supplies',
+  fees: 'fees',
+  other: 'other',
+} as const;
+
+export interface ExpenseInput {
+  /** @minLength 1 */
+  title: string;
+  category: ExpenseInputCategory;
+  /** @minimum 0 */
+  amount: number;
+  date: string;
+  note?: string;
+}
+
+export type ExpenseUpdateCategory = typeof ExpenseUpdateCategory[keyof typeof ExpenseUpdateCategory];
+
+
+export const ExpenseUpdateCategory = {
+  rent: 'rent',
+  delivery: 'delivery',
+  advertising: 'advertising',
+  supplies: 'supplies',
+  fees: 'fees',
+  other: 'other',
+} as const;
+
+export interface ExpenseUpdate {
+  /** @minLength 1 */
+  title?: string;
+  category?: ExpenseUpdateCategory;
+  /** @minimum 0 */
+  amount?: number;
+  date?: string;
+  /** @nullable */
+  note?: string | null;
 }
 

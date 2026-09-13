@@ -298,6 +298,8 @@ export const SubmitPublicOrderResponse = zod.object({
  */
 export const GetDashboardSummaryResponse = zod.object({
   "revenue": zod.number(),
+  "productCosts": zod.number(),
+  "operatingExpenses": zod.number(),
   "expenses": zod.number(),
   "profit": zod.number(),
   "cashBalance": zod.number(),
@@ -317,6 +319,8 @@ export const GetDashboardSummaryResponse = zod.object({
   "date": zod.string(),
   "label": zod.string(),
   "revenue": zod.number(),
+  "productCosts": zod.number(),
+  "operatingExpenses": zod.number(),
   "expenses": zod.number(),
   "profit": zod.number(),
   "orders": zod.number().int()
@@ -331,5 +335,88 @@ export const GetDashboardSummaryResponse = zod.object({
   "costTracked": zod.boolean()
 }))
 })
+
+
+/**
+ * @summary List operating expenses
+ */
+export const ListExpensesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.enum(['rent', 'delivery', 'advertising', 'supplies', 'fees', 'other']),
+  "amount": zod.number(),
+  "date": zod.string(),
+  "note": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+export const ListExpensesResponse = zod.array(ListExpensesResponseItem)
+
+
+/**
+ * @summary Record an operating expense
+ */
+
+export const createExpenseBodyAmountMin = 0;
+
+
+
+export const CreateExpenseBody = zod.object({
+  "title": zod.string().min(1),
+  "category": zod.enum(['rent', 'delivery', 'advertising', 'supplies', 'fees', 'other']),
+  "amount": zod.number().min(createExpenseBodyAmountMin),
+  "date": zod.string(),
+  "note": zod.string().optional()
+})
+
+export const CreateExpenseResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.enum(['rent', 'delivery', 'advertising', 'supplies', 'fees', 'other']),
+  "amount": zod.number(),
+  "date": zod.string(),
+  "note": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update an operating expense
+ */
+export const UpdateExpenseParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+
+export const updateExpenseBodyAmountMin = 0;
+
+
+
+export const UpdateExpenseBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "category": zod.enum(['rent', 'delivery', 'advertising', 'supplies', 'fees', 'other']).optional(),
+  "amount": zod.number().min(updateExpenseBodyAmountMin).optional(),
+  "date": zod.string().optional(),
+  "note": zod.string().nullish()
+})
+
+export const UpdateExpenseResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "category": zod.enum(['rent', 'delivery', 'advertising', 'supplies', 'fees', 'other']),
+  "amount": zod.number(),
+  "date": zod.string(),
+  "note": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete an operating expense
+ */
+export const DeleteExpenseParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteExpenseResponse = zod.void()
 
 
