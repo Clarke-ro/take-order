@@ -1,8 +1,8 @@
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import {
-  ArrowUpRight, BarChart3, Boxes, Check, ChevronDown, Clipboard, Copy, ExternalLink,
+  ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Boxes, Check, CheckCircle2, Clipboard, Copy, ExternalLink,
   LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal, Package, Pencil, Plus, RefreshCw,
   Search, Settings2, ShoppingBag, Sparkles, Store, Trash2, TrendingUp, Truck, X
 } from 'lucide-react';
@@ -27,8 +27,20 @@ const initials = (name: string) => name.split(' ').map((part) => part[0]).join('
 
 function cn(...classes: Array<string | false | undefined>) { return classes.filter(Boolean).join(' '); }
 
+type SellerProfile = { sellerName: string; businessName: string; description: string; channels: string[] };
+const ONBOARDING_KEY = 'duka-onboarding-profile';
+const ONBOARDING_DONE_KEY = 'duka-onboarding-complete';
+const readSellerProfile = (): SellerProfile | null => {
+  try {
+    const value = window.localStorage.getItem(ONBOARDING_KEY);
+    return value ? JSON.parse(value) as SellerProfile : null;
+  } catch { return null; }
+};
+const finishOnboarding = () => window.localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
+
 function Sidebar() {
   const [location] = useLocation();
+  const seller = readSellerProfile();
   const links = [
     { href: '/', label: 'Overview', icon: LayoutDashboard },
     { href: '/catalog', label: 'Catalog', icon: Boxes },
@@ -54,7 +66,7 @@ function Sidebar() {
       <div className="flex items-center gap-2 text-[11px] font-semibold text-white/75"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /> All systems ready</div>
       <p className="mt-2 text-[11px] leading-relaxed text-white/40">Your links are live and ready to share.</p>
     </div>
-    <div className="flex items-center gap-3 border-t border-white/10 px-6 py-5"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-[11px] font-bold text-white">AM</div><div className="min-w-0"><div className="truncate text-[12px] font-semibold">Amina Mensah</div><div className="truncate text-[10px] text-white/40">The Sunday Edit</div></div><MoreHorizontal className="ml-auto text-white/35" size={16} /></div>
+     <div className="flex items-center gap-3 border-t border-white/10 px-6 py-5"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-[11px] font-bold text-white">{initials(seller?.sellerName || 'Amina Mensah')}</div><div className="min-w-0"><div className="truncate text-[12px] font-semibold">{seller?.sellerName || 'Amina Mensah'}</div><div className="truncate text-[10px] text-white/40">{seller?.businessName || 'The Sunday Edit'}</div></div><MoreHorizontal className="ml-auto text-white/35" size={16} /></div>
   </aside>;
 }
 
@@ -81,6 +93,56 @@ function Skeleton({ className = '' }: { className?: string }) { return <div clas
 function EmptyState({ icon: Icon, title, description, action }: { icon: typeof Package; title: string; description: string; action?: ReactNode }) { return <div className="flex flex-col items-center justify-center rounded-[16px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card))] px-6 py-16 text-center"><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Icon size={22} /></div><h3 className="font-display text-lg font-bold">{title}</h3><p className="mt-2 max-w-[340px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{description}</p>{action && <div className="mt-5">{action}</div>}</div>; }
 function ErrorState({ retry }: { retry: () => void }) { return <div className="rounded-[16px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 p-8 text-center"><p className="font-semibold">Something could not load.</p><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">Give it another try or check your connection.</p><Button className="mt-5" variant="outline" onClick={retry}><RefreshCw size={15} />Try again</Button></div>; }
 function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'gold' | 'mint' | 'rose' | 'blue' }) { return <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold capitalize', tone === 'gold' && 'bg-[hsl(42_81%_67%/.23)] text-[hsl(31_64%_34%)]', tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]', tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]', tone === 'neutral' && 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{children}</span>; }
+
+const onboardingChannels = ['WhatsApp', 'Instagram', 'TikTok', 'Snapchat', 'In person', 'Other'];
+function Onboarding() {
+  const [, setLocation] = useLocation();
+  const [step, setStep] = useState(0);
+  const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [] });
+  useEffect(() => {
+    window.localStorage.setItem(ONBOARDING_KEY, JSON.stringify(profile));
+  }, [profile]);
+  const update = (key: keyof SellerProfile, value: string) => setProfile((current) => ({ ...current, [key]: value }));
+  const toggleChannel = (channel: string) => setProfile((current) => ({ ...current, channels: current.channels.includes(channel) ? current.channels.filter((item) => item !== channel) : [...current.channels, channel] }));
+  const skip = () => { finishOnboarding(); setLocation('/'); };
+  const next = () => {
+    if (step === 0 && profile.description.trim()) setStep(1);
+    else if (step === 1 && profile.sellerName.trim() && profile.businessName.trim()) setStep(2);
+    else if (step === 2) { finishOnboarding(); setStep(3); }
+  };
+  const canContinue = step === 0 ? Boolean(profile.description.trim()) : step === 1 ? Boolean(profile.sellerName.trim() && profile.businessName.trim()) : true;
+  return <div className="onboarding-shell min-h-[100dvh] px-5 py-5 sm:px-8 sm:py-8">
+    <header className="mx-auto flex max-w-[980px] items-center justify-between">
+      <Link href="/" className="flex items-center gap-2 font-display text-xl font-bold tracking-[-.04em]" data-testid="link-onboarding-logo"><span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><Store size={16} /></span>duka</Link>
+      {step < 3 && <button onClick={skip} data-testid="button-skip-onboarding" className="soft-focus rounded-full px-3 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--card))] hover:text-[hsl(var(--foreground))]">Skip setup</button>}
+    </header>
+    <main className="onboarding-grid mx-auto mt-10 grid max-w-[980px] gap-8 rounded-[26px] border border-[hsl(var(--border))] bg-[hsl(var(--card))]/75 p-5 shadow-[0_18px_60px_hsl(224_27%_17%/.08)] backdrop-blur-sm sm:mt-14 sm:p-10 lg:grid-cols-[.86fr_1.14fr] lg:p-14">
+      <div className="flex flex-col justify-between">
+        <div><div className="font-mono-ui text-[10px] font-bold uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">A small start</div><h1 className="mt-4 max-w-[390px] font-display text-[clamp(38px,6vw,67px)] font-bold leading-[.92] tracking-[-.07em]">{step === 3 ? 'Your shop has a home.' : 'Let’s make the busy bits lighter.'}</h1><p className="mt-5 max-w-[380px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{step === 3 ? 'Your workspace is ready. Start with one product, then add the tools that help you understand where sales come from.' : 'Tell Duka a little about how you sell. We’ll turn it into a short setup, not another admin project.'}</p></div>
+        <div className="mt-10 hidden rounded-[16px] border border-[hsl(var(--border))] bg-[hsl(var(--background))]/70 p-4 lg:block"><div className="flex items-center gap-2 text-xs font-semibold"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]" />Private by default</div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Duka never reads personal chats. You decide what becomes an order.</p></div>
+      </div>
+      <div className="rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 sm:p-7">
+        {step < 3 && <div className="mb-8 flex items-center gap-2" aria-label="Setup progress">{[0, 1, 2].map((item) => <span key={item} className={cn('h-1.5 flex-1 rounded-full', item <= step ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(var(--muted))]')} />)}</div>}
+        {step === 0 && <div className="page-in"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">First, in your own words</div><h2 className="mt-3 font-display text-2xl font-bold tracking-[-.04em]">What do you sell, and where do buyers find you?</h2><p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">Write it like you would tell a friend. We’ll use this to shape your checklist.</p><textarea autoFocus data-testid="input-onboarding-description" value={profile.description} onChange={(event) => update('description', event.target.value)} placeholder="I sell handmade jewellery, mostly through Instagram and WhatsApp." rows={6} className="field-input mt-6 resize-none leading-6" /><div className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]"><CheckCircle2 size={14} className="mt-0.5 shrink-0 text-[hsl(var(--accent-foreground))]" />No account connections are needed for setup.</div></div>}
+        {step === 1 && <div className="page-in"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Make it yours</div><h2 className="mt-3 font-display text-2xl font-bold tracking-[-.04em]">What should we call your workspace?</h2><p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">This stays on this device for now and helps Duka speak like it belongs to you.</p><div className="mt-7 space-y-5"><div><label className="field-label" htmlFor="onboarding-seller-name">Your name</label><input autoFocus id="onboarding-seller-name" data-testid="input-onboarding-seller-name" value={profile.sellerName} onChange={(event) => update('sellerName', event.target.value)} placeholder="e.g. Amina Mensah" className="field-input" /></div><div><label className="field-label" htmlFor="onboarding-business-name">Business or shop name</label><input id="onboarding-business-name" data-testid="input-onboarding-business-name" value={profile.businessName} onChange={(event) => update('businessName', event.target.value)} placeholder="e.g. The Sunday Edit" className="field-input" /></div></div></div>}
+        {step === 2 && <div className="page-in"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">One useful detail</div><h2 className="mt-3 font-display text-2xl font-bold tracking-[-.04em]">Where do you usually sell?</h2><p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">Pick any that fit. These are just workspace preferences; Duka does not connect or read them.</p><div className="mt-7 grid grid-cols-2 gap-2">{onboardingChannels.map((channel) => <label key={channel} className={cn('flex cursor-pointer items-center gap-3 rounded-[12px] border p-3 text-xs font-semibold transition-colors', profile.channels.includes(channel) ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]')}><input type="checkbox" data-testid={`input-onboarding-channel-${channel.toLowerCase().replaceAll(' ', '-')}`} checked={profile.channels.includes(channel)} onChange={() => toggleChannel(channel)} className="sr-only" /><span className={cn('flex h-5 w-5 items-center justify-center rounded-full border text-[10px]', profile.channels.includes(channel) ? 'border-[hsl(var(--sidebar-primary))] bg-[hsl(var(--sidebar-primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))]')}>{profile.channels.includes(channel) && <Check size={12} />}</span>{channel}</label>)}</div></div>}
+        {step === 3 && <div className="page-in"><div className="flex h-12 w-12 items-center justify-center rounded-[15px] bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))]"><Check size={23} /></div><div className="mt-7 font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Setup complete</div><h2 className="mt-3 font-display text-3xl font-bold tracking-[-.05em]">A good first week starts with one item.</h2><p className="mt-3 text-sm leading-6 text-[hsl(var(--muted-foreground))]">Your preferences are saved locally. Choose the next useful step and Duka will keep the rest tidy.</p><div className="mt-7 space-y-2"><Link href="/catalog" data-testid="link-onboarding-add-item" className="flex items-center gap-3 rounded-[13px] border border-[hsl(var(--border))] p-4 transition-colors hover:bg-[hsl(var(--muted))]"><span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(42_81%_67%/.3)] font-mono-ui text-xs font-bold">01</span><span className="flex-1"><span className="block text-sm font-bold">Add your first catalog item</span><span className="mt-1 block text-xs text-[hsl(var(--muted-foreground))]">Name, price, cost, and stock — that’s the foundation.</span></span><ArrowRight size={16} /></Link><Link href="/connect" data-testid="link-onboarding-connect-tools" className="flex items-center gap-3 rounded-[13px] border border-[hsl(var(--border))] p-4 transition-colors hover:bg-[hsl(var(--muted))]"><span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(157_42%_45%/.16)] font-mono-ui text-xs font-bold">02</span><span className="flex-1"><span className="block text-sm font-bold">Review optional tools</span><span className="mt-1 block text-xs text-[hsl(var(--muted-foreground))]">Save the channels and payment tools you use.</span></span><ArrowRight size={16} /></Link></div><Button onClick={() => setLocation('/')} className="mt-7 w-full" data-testid="button-open-workspace">Open my workspace <ArrowRight size={15} /></Button></div>}
+        {step < 3 && <div className="mt-8 flex items-center justify-between border-t border-[hsl(var(--border))] pt-5"><button onClick={() => step === 0 ? skip() : setStep(step - 1)} data-testid="button-onboarding-back" className="soft-focus inline-flex items-center gap-2 rounded-[10px] px-2 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]">{step === 0 ? 'Not now' : <><ArrowLeft size={14} />Back</>}</button><Button onClick={next} disabled={!canContinue} data-testid="button-onboarding-continue">{step === 2 ? 'Finish setup' : 'Continue'}<ArrowRight size={15} /></Button></div>}
+      </div>
+    </main>
+  </div>;
+}
+
+function HomeRoute() {
+  const [, setLocation] = useLocation();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (window.localStorage.getItem(ONBOARDING_DONE_KEY) !== 'true') setLocation('/onboarding');
+    else setReady(true);
+  }, [setLocation]);
+  if (!ready) return <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6"><div className="w-full max-w-[320px]"><Skeleton className="mx-auto h-10 w-10 rounded-[14px]" /><Skeleton className="mx-auto mt-6 h-8 w-48" /><Skeleton className="mx-auto mt-3 h-3 w-60" /></div></div>;
+  return <Overview />;
+}
 
 function Overview() {
   const summaryQuery = useGetDashboardSummary();
@@ -157,11 +219,28 @@ function PublicOrderPage() {
 
 function Connect() {
   const health = useHealthCheck();
-  const tools = [{ name: 'WhatsApp', detail: 'Share buyer links in a chat', color: '#8BBDA9', status: 'Ready' }, { name: 'Instagram', detail: 'Track orders from DMs', color: '#D79AA9', status: 'Ready' }, { name: 'TikTok', detail: 'Keep short-form sales tidy', color: '#96A8CE', status: 'Optional' }];
-  return <Shell><PageHeading eyebrow="Keep your tools close" title="Connect" description="Duka works alongside the places your buyers already know. No chat reading, just a clean place to track what happened." /><div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]"><Card className="p-6 sm:p-8"><div className="flex items-center justify-between"><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Channel connections</div><span className="flex items-center gap-1.5 text-[10px] font-semibold text-[hsl(var(--muted-foreground))]"><span className={cn('h-2 w-2 rounded-full', health.isError ? 'bg-[hsl(var(--destructive))]' : 'bg-[hsl(var(--accent))]')} />{health.isError ? 'Check connection' : 'Workspace online'}</span></div><div className="mt-6 divide-y divide-[hsl(var(--border))]">{tools.map((tool) => <div key={tool.name} className="flex items-center gap-4 py-5 first:pt-0 last:pb-0"><div className="flex h-11 w-11 items-center justify-center rounded-[14px]" style={{ backgroundColor: `${tool.color}50` }}><Link2 size={19} /></div><div className="min-w-0 flex-1"><div className="text-sm font-bold">{tool.name}</div><div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{tool.detail}</div></div><StatusPill tone={tool.status === 'Ready' ? 'mint' : 'neutral'}>{tool.status}</StatusPill><button data-testid={`button-connect-${tool.name.toLowerCase()}`} onClick={() => window.alert(`${tool.name} connection is managed through your existing channel.`)} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><ChevronDown size={16} /></button></div>)}</div></Card><Card className="bg-[hsl(var(--primary))] p-7 text-[hsl(var(--primary-foreground))]"><div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[hsl(var(--sidebar-primary))] text-[hsl(var(--sidebar-primary-foreground))]"><ShieldIcon /></div><h2 className="mt-6 font-display text-2xl font-bold tracking-[-.04em]">Your conversations stay yours.</h2><p className="mt-4 text-sm leading-6 text-white/60">Duka never reads personal chats. You choose when to create a link, then see the resulting order here — enough context to act, without the noise.</p><div className="mt-8 flex items-center gap-2 text-xs font-semibold text-[hsl(var(--sidebar-primary))]"><Check size={15} /> Private by default</div></Card></div></Shell>;
+  const tools = [
+    { name: 'WhatsApp', detail: 'Share buyer links in a chat', color: '#25D366', mark: 'W', group: 'Social' },
+    { name: 'Instagram', detail: 'Keep sales from DMs easy to trace', color: '#D45A8D', mark: 'I', group: 'Social' },
+    { name: 'TikTok', detail: 'Tag short-form sales as they happen', color: '#252525', mark: 'T', group: 'Social' },
+    { name: 'Facebook Ads', detail: 'Add campaign context to your numbers', color: '#4774D8', mark: 'F', group: 'Social' },
+    { name: 'Snapchat', detail: 'Keep your manual channel notes close', color: '#F4D20A', mark: 'S', group: 'Social' },
+    { name: 'Paystack', detail: 'Save the payment tool you use', color: '#123B5D', mark: 'P', group: 'Payments' },
+    { name: 'Mobile Money', detail: 'Remember your preferred payout rail', color: '#F39A10', mark: 'M', group: 'Payments' },
+    { name: 'X', detail: 'Keep sales from X in your view', color: '#171717', mark: 'X', group: 'Social' },
+  ];
+  const [connected, setConnected] = useState<string[]>(() => {
+    try { return JSON.parse(window.localStorage.getItem('duka-connected-tools') || '[]') as string[]; } catch { return []; }
+  });
+  const toggle = (name: string) => setConnected((current) => {
+    const next = current.includes(name) ? current.filter((item) => item !== name) : [...current, name];
+    window.localStorage.setItem('duka-connected-tools', JSON.stringify(next));
+    return next;
+  });
+  return <Shell><div className="mx-auto max-w-[1060px]"><div className="mx-auto max-w-[640px] text-center"><div className="font-mono-ui text-[10px] font-bold uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">Optional setup</div><h1 className="mt-3 font-display text-[clamp(36px,5vw,58px)] font-bold leading-[.95] tracking-[-.065em]">Let’s get your tools in one view.</h1><p className="mx-auto mt-4 max-w-[560px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">Choose the places you already sell or get paid. This saves a local preference for now — it does not authorize an integration.</p><div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[hsl(var(--accent))]/35 bg-[hsl(var(--accent))]/10 px-3 py-2 text-[11px] font-semibold text-[hsl(var(--accent-foreground))]"><ShieldIcon />Duka never reads personal chats.</div></div><div className="mt-10 flex items-center justify-between border-b border-[hsl(var(--border))] pb-3"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Your channels and tools</div><span className="flex items-center gap-1.5 text-[10px] font-semibold text-[hsl(var(--muted-foreground))]"><span className={cn('h-2 w-2 rounded-full', health.isError ? 'bg-[hsl(var(--destructive))]' : 'bg-[hsl(var(--accent))]')} />{health.isError ? 'Workspace check unavailable' : 'Workspace ready'}</span></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{tools.map((tool, index) => { const isConnected = connected.includes(tool.name); return <button key={tool.name} onClick={() => toggle(tool.name)} aria-pressed={isConnected} data-testid={`button-connect-${tool.name.toLowerCase().replaceAll(' ', '-')}`} className={cn('tool-tile soft-focus group rounded-[17px] border p-4 text-left', isConnected ? 'border-[hsl(var(--accent))]/55 bg-[hsl(var(--accent))]/10' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:border-[hsl(var(--muted-foreground))]/45')}><div className="flex items-start justify-between"><div className="tool-mark flex h-11 w-11 items-center justify-center rounded-[13px] text-base font-bold" style={{ backgroundColor: tool.color, color: tool.name === 'Snapchat' ? '#1d2a29' : '#fff' }}>{tool.mark}</div><span className={cn('rounded-full px-2 py-1 text-[9px] font-bold', isConnected ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{isConnected ? 'Connected' : 'Not connected'}</span></div><div className="mt-5 flex items-end justify-between gap-2"><div><div className="text-sm font-bold">{tool.name}</div><div className="mt-1 text-[11px] leading-4 text-[hsl(var(--muted-foreground))]">{tool.detail}</div></div><span className="font-mono-ui text-[9px] uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]">{tool.group}</span></div></button>; })}</div><div className="mt-8 grid gap-4 lg:grid-cols-[1.15fr_.85fr]"><Card className="flex gap-4 p-5"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Link2 size={17} /></div><div><h2 className="text-sm font-bold">A connection is never required to sell.</h2><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Create Take Order links, collect details, and track inventory without connecting a social or payment account. These tiles are simply your setup checklist until real integrations are attached.</p></div></Card><Card className="p-5"><div className="flex items-center gap-2 text-xs font-bold"><Check size={15} className="text-[hsl(var(--accent-foreground))]" />{connected.length ? `${connected.length} tool preference${connected.length === 1 ? '' : 's'} saved` : 'No tool preferences yet'}</div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">You can change these choices any time. They stay on this device.</p></Card></div></div></Shell>;
 }
 function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3 5 6v5c0 4.5 3 8.2 7 10 4-1.8 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>; }
 
-function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/" component={Overview} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/take-order" component={TakeOrder} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
+function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/take-order" component={TakeOrder} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
 function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
 export default App;

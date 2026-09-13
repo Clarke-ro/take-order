@@ -287,6 +287,20 @@ button { cursor: pointer; }
 .field-input { width: 100%; border: 1px solid hsl(var(--input)); border-radius: 10px; background: hsl(var(--card)); color: hsl(var(--foreground)); padding: .65rem .8rem; font-size: .8125rem; outline: none; transition: border-color .18s, box-shadow .18s; }
 .field-input:focus { border-color: hsl(var(--ring)); box-shadow: 0 0 0 3px hsl(var(--ring) / .12); }
 .field-input::placeholder { color: hsl(var(--muted-foreground) / .7); }
+.onboarding-shell {
+  background:
+    radial-gradient(circle at 10% 8%, hsl(42 81% 67% / .17), transparent 28rem),
+    radial-gradient(circle at 90% 82%, hsl(157 42% 45% / .12), transparent 26rem),
+    hsl(var(--background));
+}
+.onboarding-grid {
+  background-image: linear-gradient(hsl(var(--foreground) / .045) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground) / .045) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.tool-tile { transition: transform .2s ease, border-color .2s ease, background-color .2s ease; }
+.tool-tile:hover { transform: translateY(-2px); }
+.tool-mark { box-shadow: 0 5px 0 hsl(224 27% 17% / .08); }
+.soft-focus:focus-visible { outline: 3px solid hsl(var(--ring) / .32); outline-offset: 3px; }
 .sidebar-scroll::-webkit-scrollbar { width: 4px; }
 .sidebar-scroll::-webkit-scrollbar-thumb { background: hsl(220 20% 32%); border-radius: 9px; }
 @media (max-width: 767px) {
