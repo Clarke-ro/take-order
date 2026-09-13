@@ -23,6 +23,7 @@ import NotFound from '@/pages/not-found';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { AnalyticsStateMarker, getAnalyticsViewState } from '@/lib/analytics-state';
 
 const queryClient = new QueryClient();
 const money = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
@@ -170,6 +171,11 @@ function Overview() {
   const firstDay = daily[0]?.label;
   const lastDay = daily[daily.length - 1]?.label;
   const dateContext = firstDay && lastDay ? `${firstDay} – ${lastDay}` : 'Your latest reporting window';
+  const analyticsState = getAnalyticsViewState({
+    isLoading: summaryQuery.isLoading,
+    isError: summaryQuery.isError,
+    summary,
+  });
   const statCards = [
     { label: 'Revenue', value: money(summary?.revenue), note: 'completed order value', icon: TrendingUp, tone: 'gold' },
     { label: 'Product costs', value: money(summary?.productCosts), note: 'cost of items sold', icon: Package, tone: 'rose' },
@@ -178,7 +184,7 @@ function Overview() {
     { label: 'Profit', value: money(summary?.profit), note: 'revenue less expenses', icon: BarChart3, tone: 'mint' },
     { label: 'Cash balance', value: money(summary?.cashBalance), note: 'available balance', icon: WalletCards, tone: 'blue' },
   ] as const;
-  return <Shell><PageHeading eyebrow={`Business pulse · ${dateContext}`} title="Know where your shop stands." description="A focused read on cash, stock, and the channels bringing buyers through." action={<div className="flex flex-wrap items-center gap-2"><div className="period-chip" aria-label="Reporting period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{period}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
+  return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading eyebrow={`Business pulse · ${dateContext}`} title="Know where your shop stands." description="A focused read on cash, stock, and the channels bringing buyers through." action={<div className="flex flex-wrap items-center gap-2"><div className="period-chip" aria-label="Reporting period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{period}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
     {summaryQuery.isLoading ? <OverviewSkeleton /> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((stat, index) => <Card key={stat.label} className="rise-in kpi-card p-5" style={{ animationDelay: `${index * 55}ms` }} data-testid={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`}><div className="flex items-start justify-between"><div><div className="text-[11px] font-semibold uppercase tracking-[.06em] text-[hsl(var(--muted-foreground))]">{stat.label}</div><div className="mt-4 font-display text-[clamp(25px,3vw,32px)] font-bold tracking-[-.055em]">{stat.value}</div></div><div className={cn('flex h-9 w-9 items-center justify-center rounded-[11px]', stat.tone === 'gold' && 'bg-[hsl(42_81%_67%/.26)] text-[hsl(31_64%_34%)]', stat.tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', stat.tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]', stat.tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]')}><stat.icon size={16} /></div></div><div className="mt-2 text-[11px] text-[hsl(var(--muted-foreground))]">{stat.note}</div></Card>)}
@@ -192,7 +198,7 @@ function Overview() {
         <ChannelPerformance channels={channels} />
       </div>
       <RecentTransactions />
-    </>}</Shell>;
+    </>}</div></Shell>;
 }
 
 function OverviewSkeleton() {

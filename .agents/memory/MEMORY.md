@@ -1,1 +1,2 @@
 - [Generated client types](generated-client-types.md) — Orval fetch helpers need iterable DOM types in the composite API client.
+- [API contract codegen](api-codegen.md) — Regenerate API package outputs before trusting server typechecks after contract changes.
