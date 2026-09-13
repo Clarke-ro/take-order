@@ -212,15 +212,41 @@ export interface ChannelPerformance {
   channel: string;
   revenue: number;
   orders: number;
+  paidOrders: number;
   opens: number;
+  conversionRate: number;
+}
+
+export interface DailyPerformance {
+  date: string;
+  label: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+  orders: number;
+}
+
+export interface ProductPerformance {
+  name: string;
+  category: string;
+  revenue: number;
+  orders: number;
+  stock: number;
+  margin: number;
+  costTracked: boolean;
 }
 
 export interface DashboardSummary {
   revenue: number;
+  expenses: number;
+  profit: number;
+  cashBalance: number;
   orders: number;
   outstanding: number;
   bestSeller: string;
   channelPerformance: ChannelPerformance[];
   insights: string[];
+  dailyPerformance: DailyPerformance[];
+  productPerformance: ProductPerformance[];
 }
 

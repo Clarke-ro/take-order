@@ -2,10 +2,15 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import {
-  ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Boxes, Check, CheckCircle2, Clipboard, Copy, ExternalLink,
-  LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal, Package, Pencil, Plus, RefreshCw,
-  Search, Settings2, ShoppingBag, Sparkles, Store, Trash2, TrendingUp, Truck, X
+  AlertTriangle, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Boxes, Check,
+  CheckCircle2, CircleDollarSign, Clipboard, Copy, ExternalLink, Eye, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
+  Package, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Settings2, ShoppingBag, Sparkles, Store,
+  Trash2, TrendingUp, Truck, Users, WalletCards, X
 } from 'lucide-react';
+import {
+  CartesianGrid, Cell, Legend as RechartsLegend, Line, LineChart, Pie, PieChart, ResponsiveContainer,
+  Tooltip as RechartsTooltip, XAxis, YAxis
+} from 'recharts';
 import {
   getGetPublicOrderQueryKey, getListOrdersQueryKey,
   getListProductsQueryKey, useCreateOrder, useCreateProduct, useDeleteProduct,
@@ -45,6 +50,8 @@ function Sidebar() {
     { href: '/', label: 'Overview', icon: LayoutDashboard },
     { href: '/catalog', label: 'Catalog', icon: Boxes },
     { href: '/orders', label: 'Orders', icon: ShoppingBag },
+    { href: '/reports', label: 'Reports', icon: BarChart3 },
+    { href: '/clients', label: 'Clients', icon: Users },
     { href: '/take-order', label: 'Take an order', icon: Link2 },
   ];
   return <aside className="desktop-sidebar fixed inset-y-0 left-0 z-30 flex w-[246px] flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))]">
@@ -72,7 +79,7 @@ function Sidebar() {
 
 function MobileTopbar() {
   const [open, setOpen] = useState(false);
-  const nav = [{ href: '/', label: 'Overview' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/take-order', label: 'Take an order' }, { href: '/connect', label: 'Connect tools' }];
+  const nav = [{ href: '/', label: 'Overview' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/take-order', label: 'Take an order' }, { href: '/connect', label: 'Connect tools' }];
   return <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md"><Link href="/" className="flex items-center gap-2 font-display text-[20px] font-bold tracking-[-.04em]"><span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><Store size={17} /></span>duka</Link><button data-testid="button-mobile-menu" onClick={() => setOpen(!open)} className="rounded-lg p-2 hover:bg-black/5">{open ? <X size={20} /> : <Menu size={20} />}</button>{open && <div className="absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">{nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-sm hover:bg-[hsl(var(--muted))]">{item.label}</Link>)}</div>}</div>;
 }
 
@@ -146,24 +153,150 @@ function HomeRoute() {
 
 function Overview() {
   const summaryQuery = useGetDashboardSummary();
+  const productsQuery = useListProducts();
+  const period = 'Last 7 days';
   const summary = summaryQuery.data;
   const channels = summary?.channelPerformance ?? [];
-  return <Shell><PageHeading eyebrow="Monday, June 24" title="A clear week starts here." description="Your shop at a glance, with the useful bits pulled forward." action={<Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link>} />
-    {summaryQuery.isLoading ? <div className="grid gap-4 md:grid-cols-4">{[1, 2, 3, 4].map((i) => <Card key={i} className="h-[138px] p-5"><Skeleton className="h-3 w-20" /><Skeleton className="mt-5 h-8 w-28" /><Skeleton className="mt-3 h-3 w-32" /></Card>)}</div> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[{ label: 'Revenue this week', value: money(summary?.revenue), note: 'from completed orders', icon: TrendingUp, tone: 'gold' }, { label: 'Orders', value: summary?.orders ?? 0, note: 'across all channels', icon: ShoppingBag, tone: 'mint' }, { label: 'Outstanding', value: money(summary?.outstanding), note: 'deposits to follow up', icon: Clipboard, tone: 'rose' }, { label: 'Best seller', value: summary?.bestSeller || '—', note: 'most ordered item', icon: Sparkles, tone: 'blue' }].map((stat, index) => <Card key={stat.label} className="rise-in relative overflow-hidden p-5" style={{ animationDelay: `${index * 60}ms` }} data-testid={`card-stat-${stat.label.toLowerCase().replaceAll(' ', '-')}`}><div className="flex items-start justify-between"><div className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))]">{stat.label}</div><div className={cn('flex h-8 w-8 items-center justify-center rounded-[10px]', stat.tone === 'gold' && 'bg-[hsl(42_81%_67%/.25)] text-[hsl(31_64%_34%)]', stat.tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]', stat.tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', stat.tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]')}><stat.icon size={15} /></div></div><div className="mt-4 truncate font-display text-[25px] font-bold tracking-[-.04em]">{stat.value}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{stat.note}</div></Card>)}</div>
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_.9fr]">
-        <Card className="p-6"><div className="flex items-start justify-between"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Channel performance</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.03em]">Where buyers are finding you</h2></div><BarChart3 className="text-[hsl(var(--muted-foreground))]" size={19} /></div><div className="mt-7 space-y-5">{channels.length ? channels.map((channel, index) => { const max = Math.max(...channels.map((c) => c.revenue), 1); return <div key={channel.channel} data-testid={`row-channel-${channel.channel}`}><div className="mb-2 flex items-center justify-between text-xs"><span className="font-semibold">{channelName(channel.channel)}</span><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{money(channel.revenue)} · {channel.orders} orders</span></div><div className="h-2 overflow-hidden rounded-full bg-[hsl(var(--muted))]"><div className={cn('h-full rounded-full transition-all', index === 0 ? 'bg-[hsl(var(--chart-1))]' : index === 1 ? 'bg-[hsl(var(--chart-2))]' : 'bg-[hsl(var(--chart-4))]')} style={{ width: `${Math.max(9, (channel.revenue / max) * 100)}%` }} /></div></div>; }) : <p className="py-8 text-sm text-[hsl(var(--muted-foreground))]">Channel data will appear after your first order.</p>}</div></Card>
-        <Card className="overflow-hidden"><div className="bg-[hsl(var(--primary))] p-6 text-[hsl(var(--primary-foreground))]"><div className="flex items-center gap-2 text-[hsl(var(--sidebar-primary))]"><Sparkles size={16} /><span className="font-mono-ui text-[10px] uppercase tracking-[.15em]">Duka notes</span></div><h2 className="mt-3 font-display text-xl font-bold tracking-[-.03em]">A little context for the week.</h2></div><div className="divide-y divide-[hsl(var(--border))]">{summary?.insights?.length ? summary.insights.slice(0, 4).map((insight, index) => <div key={insight} className="flex gap-3 p-5 text-sm leading-5" data-testid={`text-insight-${index}`}><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">0{index + 1}</span><span>{insight}</span></div>) : <div className="p-6 text-sm text-[hsl(var(--muted-foreground))]">Your first insight is waiting on a little more activity.</div>}</div></Card>
+  const daily = summary?.dailyPerformance ?? [];
+  const productPerformance = summary?.productPerformance ?? [];
+  const products = productsQuery.data ?? [];
+  const lowStock = products.filter((product) => product.stock <= 3);
+  const missingCosts = products.filter((product) => product.cost == null);
+  const firstDay = daily[0]?.label;
+  const lastDay = daily[daily.length - 1]?.label;
+  const dateContext = firstDay && lastDay ? `${firstDay} – ${lastDay}` : 'Your latest reporting window';
+  const statCards = [
+    { label: 'Revenue', value: money(summary?.revenue), note: 'completed order value', icon: TrendingUp, tone: 'gold' },
+    { label: 'Expenses', value: money(summary?.expenses), note: 'tracked operating costs', icon: ArrowDownRight, tone: 'rose' },
+    { label: 'Profit', value: money(summary?.profit), note: 'revenue less expenses', icon: BarChart3, tone: 'mint' },
+    { label: 'Cash balance', value: money(summary?.cashBalance), note: 'available balance', icon: WalletCards, tone: 'blue' },
+  ] as const;
+  return <Shell><PageHeading eyebrow={`Business pulse · ${dateContext}`} title="Know where your shop stands." description="A focused read on cash, stock, and the channels bringing buyers through." action={<div className="flex flex-wrap items-center gap-2"><div className="period-chip" aria-label="Reporting period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{period}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
+    {summaryQuery.isLoading ? <OverviewSkeleton /> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {statCards.map((stat, index) => <Card key={stat.label} className="rise-in kpi-card p-5" style={{ animationDelay: `${index * 55}ms` }} data-testid={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`}><div className="flex items-start justify-between"><div><div className="text-[11px] font-semibold uppercase tracking-[.06em] text-[hsl(var(--muted-foreground))]">{stat.label}</div><div className="mt-4 font-display text-[clamp(25px,3vw,32px)] font-bold tracking-[-.055em]">{stat.value}</div></div><div className={cn('flex h-9 w-9 items-center justify-center rounded-[11px]', stat.tone === 'gold' && 'bg-[hsl(42_81%_67%/.26)] text-[hsl(31_64%_34%)]', stat.tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', stat.tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]', stat.tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]')}><stat.icon size={16} /></div></div><div className="mt-2 text-[11px] text-[hsl(var(--muted-foreground))]">{stat.note}</div></Card>)}
       </div>
-      <RecentOrders />
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
+        <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Daily movement across the last seven days</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{period}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow">{daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Expenses" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
+        <AlertsRail outstanding={summary?.outstanding ?? 0} lowStock={lowStock} missingCosts={missingCosts} productLoading={productsQuery.isLoading} />
+      </div>
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)]">
+        <ProductPerformance products={productPerformance} />
+        <ChannelPerformance channels={channels} />
+      </div>
+      <RecentTransactions />
     </>}</Shell>;
 }
 
-function RecentOrders() {
+function OverviewSkeleton() {
+  return <div className="space-y-5" aria-label="Loading overview"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((i) => <Card key={i} className="h-[145px] p-5"><Skeleton className="h-3 w-20" /><Skeleton className="mt-6 h-8 w-32" /><Skeleton className="mt-3 h-3 w-36" /></Card>)}</div><div className="grid gap-5 xl:grid-cols-[1.7fr_.8fr]"><Card className="h-[370px] p-6"><Skeleton className="h-4 w-36" /><Skeleton className="mt-3 h-3 w-52" /><Skeleton className="mt-8 h-[260px] w-full" /></Card><Card className="h-[370px] p-6"><Skeleton className="h-4 w-28" /><Skeleton className="mt-6 h-16 w-full" /><Skeleton className="mt-3 h-16 w-full" /><Skeleton className="mt-3 h-16 w-full" /></Card></div></div>;
+}
+
+function Reports() {
+  const summaryQuery = useGetDashboardSummary();
+  const summary = summaryQuery.data;
+  const productPerformance = summary?.productPerformance ?? [];
+  const categoryData = useMemo(() => {
+    const grouped = productPerformance.reduce<Record<string, number>>((result, item) => {
+      const category = item.category?.trim() || 'Uncategorised';
+      result[category] = (result[category] ?? 0) + (item.revenue || 0);
+      return result;
+    }, {});
+    return Object.entries(grouped)
+      .map(([name, value]) => ({ name, value }))
+      .sort((left, right) => right.value - left.value);
+  }, [productPerformance]);
+  const totalCategoryRevenue = categoryData.reduce((total, item) => total + item.value, 0);
+  const rankedProducts = useMemo(() => [...productPerformance].sort((left, right) => right.revenue - left.revenue), [productPerformance]);
+  const palette = ['#c9943d', '#438879', '#b66b77', '#6c82b4', '#d99566', '#7f8f68'];
+
+  return <Shell>
+    <PageHeading
+      eyebrow="Business reports · All recorded activity"
+      title="See what is selling."
+      description="A clear read on tracked profitability and product demand. This report uses the activity currently recorded in Duka; it does not infer quantities or historical trends."
+      action={<div className="reports-period-note" data-testid="text-reports-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />Current snapshot</div>}
+    />
+    {summaryQuery.isLoading ? <ReportsSkeleton /> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <div className="space-y-5">
+      <section className="reports-metric-grid" aria-label="Profitability summary">
+        <Card className="reports-primary-metric reports-profit-card rise-in p-5 sm:p-6" data-testid="card-report-tracked-profit">
+          <div className="flex items-start justify-between gap-4"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-white/55">Tracked profit</div><div className="mt-4 font-display text-[clamp(32px,5vw,50px)] font-bold leading-none tracking-[-.07em] text-white" data-testid="text-report-profit">{money(summary?.profit)}</div></div><div className="reports-metric-mark reports-metric-mark-light"><TrendingUp size={18} /></div></div>
+          <p className="mt-5 max-w-[270px] text-xs leading-5 text-white/55">Revenue less recorded operating expenses. Product costs are reflected only where costs are tracked.</p>
+        </Card>
+        <Card className="reports-primary-metric rise-in p-5 sm:p-6" style={{ animationDelay: '55ms' }} data-testid="card-report-cash-balance">
+          <div className="flex items-start justify-between gap-4"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash balance</div><div className="mt-4 font-display text-[clamp(32px,5vw,50px)] font-bold leading-none tracking-[-.07em]" data-testid="text-report-cash-balance">{money(summary?.cashBalance)}</div></div><div className="reports-metric-mark reports-metric-mark-blue"><WalletCards size={18} /></div></div>
+          <p className="mt-5 max-w-[270px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">Available balance in the current workspace snapshot, including amounts already collected.</p>
+        </Card>
+        <Card className="reports-context-card rise-in p-5 sm:p-6" style={{ animationDelay: '110ms' }} data-testid="card-report-context">
+          <div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Snapshot context</div>
+          <div className="mt-4 grid grid-cols-2 gap-4"><div><div className="font-display text-2xl font-bold tracking-[-.05em]">{money(summary?.revenue)}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">recorded revenue</div></div><div><div className="font-display text-2xl font-bold tracking-[-.05em]">{summary?.orders ?? 0}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">recorded orders</div></div></div>
+          <div className="mt-5 border-t border-[hsl(var(--border))] pt-4 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]"><strong className="text-[hsl(var(--foreground))]">{summary?.bestSeller || 'No leading item yet'}</strong>{summary?.bestSeller ? ' is the current best seller by recorded performance.' : ' Add an order to start building this view.'}</div>
+        </Card>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,.88fr)_minmax(0,1.12fr)]">
+        <Card className="overflow-hidden" data-testid="card-report-category-breakdown">
+          <div className="reports-panel-heading"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Where revenue sits</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Category breakdown</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Revenue share from product performance</p></div><BarChart3 size={18} className="text-[hsl(var(--muted-foreground))]" /></div>
+          <div className="reports-donut-area">
+            {categoryData.length && totalCategoryRevenue > 0 ? <ResponsiveContainer width="100%" height="100%"><PieChart>
+              <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="47%" innerRadius="54%" outerRadius="73%" paddingAngle={2} stroke="hsl(var(--card))" strokeWidth={3} isAnimationActive={false} label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={{ stroke: '#9aa1a8', strokeWidth: 1 }}>
+                {categoryData.map((item, index) => <Cell key={item.name} fill={palette[index % palette.length]} />)}
+              </Pie>
+              <RechartsTooltip formatter={(value: number) => moneyExact(value)} contentStyle={{ borderRadius: 10, border: '1px solid hsl(42 20% 86%)', background: 'hsl(48 40% 99%)', fontSize: 12 }} itemStyle={{ color: 'hsl(224 27% 17%)' }} isAnimationActive={false} />
+              <RechartsLegend verticalAlign="bottom" height={30} iconType="circle" wrapperStyle={{ fontSize: 11, color: '#68717d' }} />
+            </PieChart></ResponsiveContainer> : <ChartEmpty message="Category revenue will appear after your first recorded sale." />}
+          </div>
+          <div className="border-t border-[hsl(var(--border))] px-5 py-4 text-[11px] leading-5 text-[hsl(var(--muted-foreground))] sm:px-6"><strong className="text-[hsl(var(--foreground))]">{categoryData.length ? `${categoryData.length} ${categoryData.length === 1 ? 'category' : 'categories'}` : 'No categories yet'}</strong>{categoryData.length ? ' represented in the current product-performance snapshot.' : ' Product categories will be grouped here once revenue is recorded.'}</div>
+        </Card>
+        <Card className="overflow-hidden" data-testid="card-report-selling-items">
+          <div className="reports-panel-heading"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Product performance</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Top-selling items</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Ranked by recorded revenue, not quantity sold</p></div><Package size={18} className="text-[hsl(var(--muted-foreground))]" /></div>
+          {rankedProducts.length ? <div className="reports-table-wrap"><table className="reports-table"><thead><tr><th>Item</th><th>Category</th><th className="text-right">Orders</th><th className="text-right">Revenue</th><th>Margin / cost</th><th className="text-right">Stock</th><th>Detail</th></tr></thead><tbody>{rankedProducts.map((item, index) => {
+            const share = totalCategoryRevenue ? (item.revenue / totalCategoryRevenue) * 100 : 0;
+            return <tr key={`${item.name}-${index}`} data-testid={`row-report-item-${index}`}><td><div className="font-semibold">{item.name}</div></td><td><span className="reports-category-tag">{item.category || 'Uncategorised'}</span></td><td className="text-right font-mono-ui text-xs">{item.orders}</td><td className="text-right font-mono-ui text-xs font-bold">{money(item.revenue)}</td><td>{item.costTracked ? <span className="reports-cost-status reports-cost-tracked">{item.margin.toFixed(1)}% margin</span> : <span className="reports-cost-status reports-cost-missing">Cost not tracked</span>}</td><td className="text-right font-mono-ui text-xs">{item.stock}</td><td className="text-[11px] text-[hsl(var(--muted-foreground))]">{share ? `${share.toFixed(1)}% of recorded revenue` : 'No revenue recorded'}</td></tr>;
+          })}</tbody></table></div> : <div className="p-6"><EmptyState icon={PackageSearch} title="No selling pattern yet" description="Once product performance is recorded, your highest-revenue items will appear here." /></div>}
+        </Card>
+      </section>
+      <div className="flex items-start gap-3 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/55 px-4 py-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]" data-testid="text-report-data-note"><CircleDollarSign size={15} className="mt-0.5 shrink-0 text-[hsl(var(--accent-foreground))]" /><span><strong className="text-[hsl(var(--foreground))]">A note on this report:</strong> Duka currently records orders, revenue, stock, and optional product costs. It does not store item quantity or historical comparison data, so this page intentionally uses “orders” and “detail” rather than invented sales trends.</span></div>
+    </div>}
+  </Shell>;
+}
+
+function ReportsSkeleton() {
+  return <div className="space-y-5" aria-label="Loading reports"><div className="reports-metric-grid"><Card className="h-[220px] p-6"><Skeleton className="h-3 w-24" /><Skeleton className="mt-7 h-12 w-40" /><Skeleton className="mt-6 h-3 w-56" /></Card><Card className="h-[220px] p-6"><Skeleton className="h-3 w-24" /><Skeleton className="mt-7 h-12 w-40" /><Skeleton className="mt-6 h-3 w-56" /></Card><Card className="h-[220px] p-6"><Skeleton className="h-3 w-28" /><Skeleton className="mt-7 h-8 w-full" /><Skeleton className="mt-5 h-3 w-40" /></Card></div><div className="grid gap-5 xl:grid-cols-[.88fr_1.12fr]"><Card className="h-[465px] p-6"><Skeleton className="h-4 w-36" /><Skeleton className="mt-3 h-3 w-52" /><Skeleton className="mx-auto mt-10 h-56 w-56 rounded-full" /></Card><Card className="h-[465px] p-6"><Skeleton className="h-4 w-44" /><Skeleton className="mt-3 h-3 w-64" /><Skeleton className="mt-9 h-10 w-full" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div></div>;
+}
+
+function AnalyticsTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name?: string; value?: number; color?: string }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return <div className="chart-tooltip"><div className="mb-2 font-semibold">{label}</div>{payload.map((entry) => <div key={entry.name} className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} /><span className="text-[hsl(var(--muted-foreground))]">{entry.name}</span><strong className="ml-auto pl-5">{money(entry.value)}</strong></div>)}</div>;
+}
+
+function ChartEmpty({ message }: { message: string }) {
+  return <div className="flex h-full items-center justify-center rounded-[12px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--background))] px-6 text-center text-sm text-[hsl(var(--muted-foreground))]">{message}</div>;
+}
+
+function AlertsRail({ outstanding, lowStock, missingCosts, productLoading }: { outstanding: number; lowStock: Product[]; missingCosts: Product[]; productLoading: boolean }) {
+  const alerts = [
+    { icon: Receipt, tone: 'rose', title: outstanding > 0 ? `${money(outstanding)} outstanding` : 'No outstanding deposits', detail: outstanding > 0 ? 'Follow up on deposits before they go cold.' : 'Your deposits are all accounted for.', href: '/orders', action: outstanding > 0 ? 'Review orders' : 'Open orders' },
+    { icon: PackageSearch, tone: 'gold', title: productLoading ? 'Checking stock levels' : `${lowStock.length} low-stock ${lowStock.length === 1 ? 'item' : 'items'}`, detail: lowStock.length ? lowStock.slice(0, 2).map((item) => item.name).join(' · ') : 'Nothing needs a restock right now.', href: '/catalog', action: 'Review catalog' },
+    { icon: CircleDollarSign, tone: 'blue', title: productLoading ? 'Checking cost prices' : `${missingCosts.length} missing cost ${missingCosts.length === 1 ? 'price' : 'prices'}`, detail: missingCosts.length ? 'Add costs to keep margin reporting honest.' : 'All catalog costs are tracked.', href: '/catalog', action: 'Add costs' },
+  ];
+  return <Card className="overflow-hidden"><div className="border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div className="flex items-center gap-2"><AlertTriangle size={16} className="text-[hsl(var(--chart-3))]" /><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Action rail</div></div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Worth a look</h2></div><div className="divide-y divide-[hsl(var(--border))]">{alerts.map((alert) => <Link href={alert.href} key={alert.title} className="alert-row group flex gap-3 px-5 py-4 sm:px-6" data-testid={`link-alert-${alert.tone}`}><div className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]', alert.tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', alert.tone === 'gold' && 'bg-[hsl(42_81%_67%/.25)] text-[hsl(31_64%_34%)]', alert.tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]')}><alert.icon size={15} /></div><div className="min-w-0 flex-1"><div className="text-sm font-semibold">{alert.title}</div><p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">{alert.detail}</p><div className="mt-2 text-[10px] font-bold text-[hsl(var(--primary))] group-hover:underline">{alert.action}<ArrowUpRight size={12} className="ml-1 inline" /></div></div></Link>)}</div></Card>;
+}
+
+function ProductPerformance({ products }: { products: Array<{ name: string; category: string; revenue: number; orders: number; stock: number; margin: number; costTracked: boolean }> }) {
+  const ranked = [...products].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  return <Card className="overflow-hidden"><div className="flex items-start justify-between border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Product performance</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">What is carrying the week</h2></div><Package size={18} className="text-[hsl(var(--muted-foreground))]" /></div>{ranked.length ? <div className="divide-y divide-[hsl(var(--border))]">{ranked.map((product, index) => <div key={product.name} className="px-5 py-4 sm:px-6" data-testid={`row-product-performance-${index}`}><div className="flex items-center justify-between gap-4"><div className="min-w-0"><div className="truncate text-sm font-semibold">{product.name}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{product.category} · {product.orders} {product.orders === 1 ? 'order' : 'orders'}</div></div><div className="text-right"><div className="font-mono-ui text-xs font-bold">{money(product.revenue)}</div><div className={cn('mt-1 text-[10px] font-semibold', product.costTracked ? 'text-[hsl(var(--accent-foreground))]' : 'text-[hsl(var(--chart-3))]')}>{product.costTracked ? `${product.margin.toFixed(1)}% margin` : 'Cost price missing'}</div></div></div><div className="mt-3 flex items-center gap-3"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[hsl(var(--muted))]"><div className="h-full rounded-full bg-[hsl(var(--chart-1))]" style={{ width: `${Math.min(100, Math.max(0, product.margin))}%` }} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{product.stock} in stock</span></div></div>)}</div> : <div className="p-8"><ChartEmpty message="Product performance will appear after your first sale." /></div>}</Card>;
+}
+
+function ChannelPerformance({ channels }: { channels: Array<{ channel: string; revenue: number; orders: number; paidOrders: number; opens: number; conversionRate: number }> }) {
+  const maxOpens = Math.max(...channels.map((channel) => channel.opens), 1);
+  return <Card className="overflow-hidden"><div className="flex items-start justify-between border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Channel conversion</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Turn attention into orders</h2></div><Eye size={18} className="text-[hsl(var(--muted-foreground))]" /></div>{channels.length ? <div className="divide-y divide-[hsl(var(--border))]">{channels.map((channel, index) => <div key={channel.channel} className="px-5 py-4 sm:px-6" data-testid={`row-channel-${channel.channel}`}><div className="flex items-center justify-between"><span className="text-sm font-semibold">{channelName(channel.channel)}</span><span className="font-mono-ui text-xs font-bold">{channel.conversionRate.toFixed(1)}%</span></div><div className="mt-3 flex items-center gap-3"><div className="relative h-2 flex-1 overflow-hidden rounded-full bg-[hsl(var(--muted))]"><div className="h-full rounded-full" style={{ width: `${Math.max(5, (channel.opens / maxOpens) * 100)}%`, backgroundColor: index % 2 ? 'hsl(var(--chart-2))' : 'hsl(var(--chart-4))' }} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{channel.opens} opens</span></div><div className="mt-2 flex gap-4 text-[11px] text-[hsl(var(--muted-foreground))]"><span><strong className="text-[hsl(var(--foreground))]">{channel.paidOrders}</strong> paid</span><span><strong className="text-[hsl(var(--foreground))]">{channel.orders}</strong> orders</span><span className="ml-auto">{money(channel.revenue)}</span></div></div>)}</div> : <div className="p-8"><ChartEmpty message="Channel conversion will appear after you share a link." /></div>}</Card>;
+}
+
+function RecentTransactions() {
   const query = useListOrders();
-  const orders = (query.data ?? []).slice(0, 4);
-  return <Card className="mt-5 overflow-hidden"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-6 py-5"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Latest activity</div><h2 className="mt-1 font-display text-xl font-bold tracking-[-.03em]">Recent orders</h2></div><Link href="/orders" data-testid="link-see-all-orders"><Button variant="ghost">See all <ArrowUpRight size={15} /></Button></Link></div>{query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : orders.length ? <div className="divide-y divide-[hsl(var(--border))]">{orders.map((order) => <OrderRow key={order.id} order={order} compact />)}</div> : <div className="p-8"><EmptyState icon={ShoppingBag} title="No orders yet" description="Create a shareable order link and your first buyer can get started." action={<Link href="/take-order"><Button><Plus size={15} />Create a link</Button></Link>} /></div>}</Card>;
+  const orders = (query.data ?? []).slice(0, 6);
+  return <Card className="mt-5 overflow-hidden"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Latest activity</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Recent transactions</h2></div><Link href="/orders" data-testid="link-see-all-orders"><Button variant="ghost">See all <ArrowUpRight size={15} /></Button></Link></div>{query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="overflow-x-auto"><table className="w-full min-w-[690px] text-left"><thead className="bg-[hsl(var(--background))] text-[10px] uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]"><tr><th className="px-5 py-3 font-semibold sm:px-6">Transaction</th><th className="px-4 py-3 font-semibold">Channel</th><th className="px-4 py-3 font-semibold">Date</th><th className="px-4 py-3 text-right font-semibold">Amount</th><th className="px-5 py-3 text-right font-semibold sm:px-6">Status</th></tr></thead><tbody className="divide-y divide-[hsl(var(--border))]">{orders.map((order) => <tr key={order.id} className="transaction-row" data-testid={`row-transaction-${order.id}`}><td className="px-5 py-4 sm:px-6"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-[10px] font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-sm font-semibold">{order.productName}</div><div className="mt-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{order.customerName || 'Buyer pending'}</div></div></div></td><td className="px-4 py-4 text-sm">{channelName(order.channel)}</td><td className="px-4 py-4 text-sm text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</td><td className="px-4 py-4 text-right font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</td><td className="px-5 py-4 text-right sm:px-6"><StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>{order.status.replace('_', ' ')}</StatusPill></td></tr>)}</tbody></table></div> : <div className="p-8"><EmptyState icon={ShoppingBag} title="No transactions yet" description="Create a shareable order link and your first buyer can get started." action={<Link href="/take-order"><Button><Plus size={15} />Create a link</Button></Link>} /></div>}</Card>;
 }
 
 function OrderRow({ order, compact = false }: { order: Order; compact?: boolean }) {
@@ -190,12 +323,195 @@ function Catalog() {
   return <Shell><PageHeading eyebrow="Your products" title="Catalog" description="The items behind every buyer link. Keep the basics tidy; Duka will carry the rest." action={<Button onClick={() => setModal('new')} data-testid="button-new-product"><Plus size={16} />Add item</Button>} /><div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative max-w-[340px] flex-1"><Search className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={16} /><input data-testid="input-search-products" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search your catalog" className="field-input pl-9" /></div><div className="text-[11px] text-[hsl(var(--muted-foreground))]">{products.length} {products.length === 1 ? 'item' : 'items'}</div></div>{query.isLoading ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map((i) => <Card key={i} className="h-[220px] p-5"><Skeleton className="h-24 w-full" /><Skeleton className="mt-5 h-4 w-32" /><Skeleton className="mt-3 h-3 w-20" /></Card>)}</div> : query.isError ? <ErrorState retry={() => query.refetch()} /> : products.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{products.map((product, index) => <Card key={product.id} className="rise-in overflow-hidden" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`}><div className="relative h-[122px] p-5" style={{ backgroundColor: `${product.accent}38` }}><div className="absolute right-4 top-4 rounded-full bg-[hsl(var(--card))]/70 px-2.5 py-1 font-mono-ui text-[9px] font-bold uppercase tracking-[.12em]">{product.category}</div><div className="absolute bottom-4 left-5 flex h-10 w-10 items-center justify-center rounded-[12px] bg-[hsl(var(--card))]/75 font-display text-lg font-bold">{initials(product.name)}</div></div><div className="p-5"><div className="flex items-start justify-between gap-3"><div><h3 className="font-display text-lg font-bold tracking-[-.03em]">{product.name}</h3><div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{product.variants.length ? product.variants.join(' · ') : 'One size'}</div></div><div className="text-right"><div className="font-mono-ui text-sm font-bold">{moneyExact(product.price)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{product.stock} in stock</div></div></div><div className="mt-5 flex items-center justify-between border-t border-[hsl(var(--border))] pt-4"><span className={cn('text-[11px] font-semibold', product.stock < 5 ? 'text-[hsl(var(--destructive))]' : 'text-[hsl(var(--muted-foreground))]')}>{product.stock < 5 ? 'Running low' : 'In stock'}{product.cost != null && <span className="ml-2 font-normal">· {money(product.price - product.cost)} margin</span>}</span><div className="flex gap-1"><button onClick={() => setModal(product)} data-testid={`button-edit-product-${product.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]"><Pencil size={15} /></button><button onClick={() => remove(product)} disabled={deleteProduct.isPending} data-testid={`button-delete-product-${product.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--destructive))]/10 hover:text-[hsl(var(--destructive))]"><Trash2 size={15} /></button></div></div></div></Card>)}</div> : <EmptyState icon={Package} title={search ? 'No matching items' : 'Your catalog is waiting'} description={search ? 'Try a different name or category.' : 'Add your first item to start sending buyers a link.'} action={!search && <Button onClick={() => setModal('new')}><Plus size={15} />Add your first item</Button>} />}{modal && <ProductModal product={modal === 'new' ? undefined : modal} onClose={() => setModal(null)} />}</Shell>;
 }
 
-function Orders() {
+function LegacyOrders() {
   const query = useListOrders(); const update = useUpdateOrder(); const [filter, setFilter] = useState('all'); const [search, setSearch] = useState(''); const queryClient = useQueryClient();
   const orders = useMemo(() => (query.data ?? []).filter((order) => (filter === 'all' || order.status === filter || order.fulfillment === filter) && `${order.customerName} ${order.productName} ${order.token}`.toLowerCase().includes(search.toLowerCase())), [query.data, filter, search]);
   const updateOrder = (order: Order, data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => update.mutate({ id: order.id, data }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }) });
   const copyLink = async (token: string) => { await navigator.clipboard?.writeText(`${window.location.origin}/o/${token}`); };
   return <Shell><PageHeading eyebrow="Keep things moving" title="Orders" description="Payment, fulfillment, and the next useful action for every buyer." action={<Link href="/take-order"><Button><Plus size={16} />Take an order</Button></Link>} /><div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="relative max-w-[360px] flex-1"><Search className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={16} /><input data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" className="field-input pl-9" /></div><div className="flex flex-wrap gap-2">{['all', 'reserved', 'deposit_paid', 'paid', 'shipped'].map((value) => <button key={value} onClick={() => setFilter(value)} data-testid={`button-filter-${value}`} className={cn('rounded-full px-3 py-2 text-[10px] font-bold capitalize transition-colors', filter === value ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{value.replace('_', ' ')}</button>)}</div></div>{query.isLoading ? <Card className="space-y-5 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></Card> : query.isError ? <ErrorState retry={() => query.refetch()} /> : orders.length ? <Card className="overflow-hidden"><div className="hidden grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] gap-4 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-6 py-3 text-[10px] font-bold uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))] md:grid"><span>Buyer</span><span>Payment</span><span>Fulfillment</span><span>Placed</span><span /></div>{orders.map((order) => <div key={order.id} className="grid gap-3 border-b border-[hsl(var(--border))] px-5 py-4 last:border-0 md:grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] md:items-center md:gap-4 md:px-6" data-testid={`row-orders-order-${order.id}`}><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-[10px] font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName} · {channelName(order.channel)}</div></div></div><div className="flex items-center justify-between md:block"><span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Payment</span><button data-testid={`button-payment-${order.id}`} onClick={() => updateOrder(order, { status: order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved' })}><StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>{order.status.replace('_', ' ')}</StatusPill></button></div><div className="flex items-center justify-between md:block"><span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Delivery</span><button data-testid={`button-fulfillment-${order.id}`} onClick={() => updateOrder(order, { fulfillment: order.fulfillment === 'pending' ? 'shipped' : order.fulfillment === 'shipped' ? 'delivered' : 'pending' })}><StatusPill tone={order.fulfillment === 'delivered' ? 'mint' : order.fulfillment === 'shipped' ? 'blue' : 'neutral'}>{order.fulfillment}</StatusPill></button></div><div className="hidden font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))] md:block">{dateShort(order.createdAt)}<div className="mt-1 text-[12px] font-bold text-[hsl(var(--foreground))]">{moneyExact(order.amount)}</div></div><div className="flex justify-end gap-1"><button onClick={() => copyLink(order.token)} data-testid={`button-copy-link-${order.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" title="Copy buyer link"><Copy size={15} /></button><Link href={`/o/${order.token}`} data-testid={`link-open-order-${order.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><ExternalLink size={15} /></Link></div></div>)}</Card> : <EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} />}</Shell>;
+}
+
+function Orders() {
+  const [location] = useLocation();
+  const query = useListOrders();
+  const update = useUpdateOrder();
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('customer') ?? '');
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  useEffect(() => {
+    setSearch(new URLSearchParams(window.location.search).get('customer') ?? '');
+  }, [location]);
+  const allOrders = query.data ?? [];
+  const orders = useMemo(() => allOrders.filter((order) => {
+    const matchesFilter = filter === 'all' || order.status === filter || order.fulfillment === filter;
+    const haystack = `${order.customerName} ${order.productName} ${order.token} ${order.customerPhone ?? ''}`.toLowerCase();
+    return matchesFilter && haystack.includes(search.trim().toLowerCase());
+  }), [allOrders, filter, search]);
+  const collectedFor = (order: Order) => order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0;
+  const metrics = useMemo(() => {
+    const orderValue = allOrders.reduce((sum, order) => sum + order.amount, 0);
+    const collected = allOrders.reduce((sum, order) => sum + collectedFor(order), 0);
+    const paidOrders = allOrders.filter((order) => order.status === 'paid').length;
+    return { orderValue, collected, outstanding: Math.max(0, orderValue - collected), paidOrders, collectionRate: orderValue ? (collected / orderValue) * 100 : 0, average: allOrders.length ? orderValue / allOrders.length : 0 };
+  }, [allOrders]);
+  const channelMix = useMemo(() => {
+    const counts = allOrders.reduce<Record<string, number>>((result, order) => {
+      result[order.channel] = (result[order.channel] ?? 0) + 1;
+      return result;
+    }, {});
+    return Object.entries(counts).sort(([, left], [, right]) => right - left);
+  }, [allOrders]);
+  const maxChannelOrders = Math.max(1, ...channelMix.map(([, count]) => count));
+  const updateOrder = (order: Order, data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => {
+    update.mutate({ id: order.id, data }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }) });
+  };
+  const copyLink = async (order: Order) => {
+    await navigator.clipboard?.writeText(`${window.location.origin}/o/${order.token}`);
+    setCopiedId(order.id);
+    window.setTimeout(() => setCopiedId((current) => current === order.id ? null : current), 1800);
+  };
+  const filterOptions = [
+    { value: 'all', label: 'All orders' },
+    { value: 'reserved', label: 'Reserved' },
+    { value: 'deposit_paid', label: 'Deposit paid' },
+    { value: 'paid', label: 'Paid' },
+    { value: 'pending', label: 'To ship' },
+    { value: 'shipped', label: 'Shipped' },
+    { value: 'delivered', label: 'Delivered' },
+  ];
+  const paymentLabel = (order: Order) => order.status === 'deposit_paid' ? 'Deposit paid' : order.status === 'paid' ? 'Paid in full' : 'Awaiting payment';
+  const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value;
+  const pendingFulfillment = allOrders.filter((order) => order.fulfillment === 'pending').length;
+
+  return <Shell>
+    <PageHeading eyebrow="Transaction workspace" title="Orders, in motion." description="See what came in, what is collected, and the next handoff for every buyer." action={<Link href="/take-order" data-testid="link-take-order-orders"><Button><Plus size={16} />Take an order</Button></Link>} />
+    <section className="orders-snapshot" aria-label="Order performance summary">
+      <Card className="orders-lead-card rise-in p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Live order value</div><div className="mt-3 font-display text-[clamp(32px,5vw,48px)] font-bold leading-none tracking-[-.065em]" data-testid="text-live-order-value">{money(metrics.orderValue)}</div><p className="mt-3 max-w-[300px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">Across {allOrders.length} {allOrders.length === 1 ? 'order' : 'orders'} currently in your workspace.</p></div>
+          <div className="orders-snapshot-mark"><TrendingUp size={19} /></div>
+        </div>
+        <div className="mt-7 flex items-center gap-3 border-t border-[hsl(var(--border))] pt-4 text-[11px]"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" /><span><strong>{money(metrics.collected)}</strong> collected</span><span className="ml-auto text-[hsl(var(--muted-foreground))]">{money(metrics.outstanding)} outstanding</span></div>
+      </Card>
+      <Card className="rise-in p-5 sm:p-6" style={{ animationDelay: '55ms' }}><div className="orders-metric-top"><div className="orders-metric-icon orders-icon-gold"><Receipt size={16} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">volume</span></div><div className="mt-6 font-display text-3xl font-bold tracking-[-.06em]" data-testid="text-total-orders">{allOrders.length}</div><div className="mt-2 text-xs font-semibold">Total orders</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{metrics.paidOrders} paid in full</p></Card>
+      <Card className="rise-in p-5 sm:p-6" style={{ animationDelay: '110ms' }}><div className="orders-metric-top"><div className="orders-metric-icon orders-icon-mint"><BarChart3 size={16} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">per order</span></div><div className="mt-6 font-display text-3xl font-bold tracking-[-.06em]" data-testid="text-average-order-value">{money(metrics.average)}</div><div className="mt-2 text-xs font-semibold">Average order value</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Based on live order value</p></Card>
+      <Card className="rise-in p-5 sm:p-6" style={{ animationDelay: '165ms' }}><div className="orders-metric-top"><div className="orders-metric-icon orders-icon-blue"><CircleDollarSign size={16} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">collected</span></div><div className="mt-6 font-display text-3xl font-bold tracking-[-.06em]" data-testid="text-collection-rate">{metrics.collectionRate.toFixed(1)}%</div><div className="mt-2 text-xs font-semibold">Collection rate</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Paid amount against order value</p></Card>
+    </section>
+    <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,.75fr)]">
+      <Card className="overflow-hidden">
+        <div className="orders-panel-heading"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Revenue sources</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.04em]">Where orders start</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Share of {allOrders.length} live {allOrders.length === 1 ? 'order' : 'orders'}, by channel.</p></div><div className="orders-channel-total"><span>{channelMix.length}</span><small>channels</small></div></div>
+        {query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-7 w-full" /><Skeleton className="h-7 w-4/5" /><Skeleton className="h-7 w-3/5" /></div> : channelMix.length ? <div className="space-y-4 px-5 pb-6 sm:px-6">{channelMix.slice(0, 5).map(([channel, count], index) => <div key={channel} data-testid={`row-channel-mix-${channel}`}><div className="flex items-center justify-between gap-3 text-xs"><span className="font-semibold">{channelName(channel)}</span><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{count} · {((count / allOrders.length) * 100).toFixed(0)}%</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-[hsl(var(--muted))]"><div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${(count / maxChannelOrders) * 100}%`, backgroundColor: index === 0 ? 'hsl(var(--chart-1))' : index % 2 ? 'hsl(var(--chart-2))' : 'hsl(var(--chart-4))' }} /></div></div>)}</div> : <div className="p-6"><ChartEmpty message="Channel mix will appear when buyers use a link." /></div>}
+      </Card>
+      <Card className="orders-signal-card p-5 sm:p-6"><div className="flex items-center gap-2"><Sparkles size={16} className="text-[hsl(var(--chart-1))]" /><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Next useful move</div></div><h2 className="mt-3 font-display text-xl font-bold tracking-[-.04em]">{metrics.outstanding > 0 ? 'Follow up on collection.' : pendingFulfillment ? 'Move a delivery forward.' : 'Your desk is caught up.'}</h2><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{metrics.outstanding > 0 ? `${money(metrics.outstanding)} is still outstanding across ${allOrders.filter((order) => order.status !== 'paid').length} orders.` : pendingFulfillment ? `${pendingFulfillment} ${pendingFulfillment === 1 ? 'order is' : 'orders are'} ready for a fulfillment update.` : 'Payment and fulfillment have no pending handoffs.'}</p><div className="orders-signal-rule" /><div className="flex items-center justify-between text-[11px]"><span className="text-[hsl(var(--muted-foreground))]">Orders to ship</span><strong data-testid="text-orders-to-ship">{pendingFulfillment}</strong></div><div className="mt-3 flex items-center justify-between text-[11px]"><span className="text-[hsl(var(--muted-foreground))]">Delivered</span><strong data-testid="text-orders-delivered">{allOrders.filter((order) => order.fulfillment === 'delivered').length}</strong></div></Card>
+    </section>
+    <section className="mt-5">
+      <Card className="overflow-hidden">
+        <div className="orders-workspace-heading"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Orders / transactions</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.04em]">The handoff desk</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Click a payment or delivery status to advance it.</p></div><div className="orders-result-count" data-testid="text-orders-result-count"><strong>{orders.length}</strong> of {allOrders.length}</div></div>
+        <div className="orders-controls"><div className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={16} /><input aria-label="Search orders" data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search buyer, product, phone, or link token" className="field-input pl-9" /></div><div className="orders-filter-label">Filter by stage</div><div className="orders-filter-scroll" role="group" aria-label="Order filters">{filterOptions.map((option) => <button type="button" key={option.value} onClick={() => setFilter(option.value)} aria-pressed={filter === option.value} data-testid={`button-filter-${option.value}`} className={cn('orders-filter-button', filter === option.value && 'is-active')}>{option.label}</button>)}</div></div>
+        {query.isLoading ? <div className="space-y-4 p-5 sm:p-6" aria-label="Loading orders"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div> : query.isError ? <div className="p-5 sm:p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="orders-table-wrap"><div className="orders-table-head"><span>Buyer / item</span><span>Payment</span><span>Fulfillment</span><span>Order value</span><span>Placed</span><span className="sr-only">Actions</span></div>{orders.map((order) => <div key={order.id} className="orders-table-row" data-testid={`row-orders-order-${order.id}`}><div className="orders-buyer-cell"><div className="orders-avatar">{initials(order.customerName || order.productName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 truncate text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName} <span className="mx-1 opacity-50">·</span> {channelName(order.channel)} <span className="mx-1 opacity-50">·</span> {order.linkOpens} opens</div></div></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Payment</span><button type="button" disabled={update.isPending} aria-label={`Advance payment status for ${order.customerName || order.productName}`} title="Advance payment status" data-testid={`button-payment-${order.id}`} onClick={() => { const status: 'reserved' | 'deposit_paid' | 'paid' = order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved'; updateOrder(order, { status }); }}><StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>{paymentLabel(order)}</StatusPill></button></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Fulfillment</span><button type="button" disabled={update.isPending} aria-label={`Advance fulfillment status for ${order.customerName || order.productName}`} title="Advance fulfillment status" data-testid={`button-fulfillment-${order.id}`} onClick={() => { const fulfillment: 'pending' | 'shipped' | 'delivered' = order.fulfillment === 'pending' ? 'shipped' : order.fulfillment === 'shipped' ? 'delivered' : 'pending'; updateOrder(order, { fulfillment }); }}><StatusPill tone={order.fulfillment === 'delivered' ? 'mint' : order.fulfillment === 'shipped' ? 'blue' : 'neutral'}>{fulfillmentLabel(order.fulfillment)}</StatusPill></button></div><div className="orders-value-cell"><span className="orders-mobile-label">Order value</span><div className="font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{moneyExact(collectedFor(order))} collected</div></div><div className="orders-date-cell"><span className="orders-mobile-label">Placed</span><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</span></div><div className="orders-actions"><button type="button" onClick={() => copyLink(order)} data-testid={`button-copy-link-${order.id}`} className="soft-focus orders-icon-button" title="Copy buyer link" aria-label={`Copy buyer link for ${order.customerName || order.productName}`}>{copiedId === order.id ? <Check size={15} /> : <Copy size={15} />}</button><Link href={`/o/${order.token}`} data-testid={`link-open-order-${order.id}`} className="soft-focus orders-icon-button" title="Open buyer preview" aria-label={`Open buyer preview for ${order.customerName || order.productName}`}><ExternalLink size={15} /></Link></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} action={!search && filter === 'all' ? <Link href="/take-order" data-testid="link-create-first-order"><Button><Plus size={15} />Create a link</Button></Link> : undefined} /></div>}
+      </Card>
+    </section>
+  </Shell>;
+}
+
+type ClientSummary = {
+  key: string;
+  displayName: string;
+  phone: string;
+  orders: Order[];
+  orderCount: number;
+  collected: number;
+  outstanding: number;
+  latestPurchase: string;
+  latestChannel: string;
+};
+
+function Clients() {
+  const query = useListOrders();
+  const [search, setSearch] = useState('');
+  const clients = useMemo<ClientSummary[]>(() => {
+    const grouped = new Map<string, ClientSummary>();
+    (query.data ?? []).forEach((order) => {
+      const phone = order.customerPhone?.trim() ?? '';
+      const name = order.customerName?.trim() ?? '';
+      const identity = phone || name;
+      const key = identity ? `${phone ? 'phone' : 'name'}:${identity.toLowerCase()}` : `pending:${order.id}`;
+      const collected = order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0;
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.orders.push(order);
+        existing.orderCount += 1;
+        existing.collected += collected;
+        existing.outstanding += Math.max(0, order.amount - collected);
+        if (new Date(order.createdAt).getTime() > new Date(existing.latestPurchase).getTime()) {
+          existing.latestPurchase = order.createdAt;
+          existing.latestChannel = order.channel;
+          if (name) existing.displayName = name;
+        }
+        if (!existing.phone && phone) existing.phone = phone;
+      } else {
+        grouped.set(key, {
+          key,
+          displayName: name || 'Buyer pending',
+          phone,
+          orders: [order],
+          orderCount: 1,
+          collected,
+          outstanding: Math.max(0, order.amount - collected),
+          latestPurchase: order.createdAt,
+          latestChannel: order.channel,
+        });
+      }
+    });
+    return [...grouped.values()].sort((left, right) => {
+      const latestDifference = new Date(right.latestPurchase).getTime() - new Date(left.latestPurchase).getTime();
+      return latestDifference || right.collected - left.collected;
+    });
+  }, [query.data]);
+  const filteredClients = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return clients;
+    return clients.filter((client) => `${client.displayName} ${client.phone}`.toLowerCase().includes(term));
+  }, [clients, search]);
+  const totalCollected = clients.reduce((sum, client) => sum + client.collected, 0);
+  const repeatClients = clients.filter((client) => client.orderCount > 1).length;
+
+  return <Shell>
+    <PageHeading
+      eyebrow="Customer memory · order history"
+      title="Clients"
+      description="A living list of the people behind your orders, ready when it is time to welcome them back."
+      action={<div className="clients-header-note"><Users size={15} /><span>Built from your order history</span></div>}
+    />
+    {query.isLoading ? <ClientsSkeleton /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : !clients.length ? <EmptyState icon={Users} title="Your client list starts with an order" description="When a buyer shares their details, Duka will keep their purchase history together here." action={<Link href="/take-order" data-testid="link-clients-empty-order"><Button><Plus size={15} />Take an order</Button></Link>} /> : <>
+      <section className="clients-overview" aria-label="Client summary">
+        <Card className="clients-intro-card rise-in p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Return visits</div><div className="mt-3 font-display text-[clamp(32px,5vw,48px)] font-bold leading-none tracking-[-.065em]" data-testid="text-client-count">{clients.length}</div><p className="mt-3 max-w-[300px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">{repeatClients ? `${repeatClients} ${repeatClients === 1 ? 'client has' : 'clients have'} ordered more than once.` : 'Every new buyer begins a relationship here.'}</p></div>
+            <div className="clients-summary-mark"><Users size={19} /></div>
+          </div>
+          <div className="mt-7 flex items-center gap-3 border-t border-[hsl(var(--border))] pt-4 text-[11px]"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" /><span><strong>{money(totalCollected)}</strong> collected</span><span className="ml-auto text-[hsl(var(--muted-foreground))]">{clients.reduce((sum, client) => sum + client.orderCount, 0)} orders</span></div>
+        </Card>
+        <Card className="rise-in p-5 sm:p-6" style={{ animationDelay: '55ms' }}><div className="clients-metric-top"><div className="clients-metric-icon clients-icon-gold"><Receipt size={16} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">people</span></div><div className="mt-6 font-display text-3xl font-bold tracking-[-.06em]" data-testid="text-total-clients">{clients.length}</div><div className="mt-2 text-xs font-semibold">Known clients</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Grouped by phone or name</p></Card>
+        <Card className="rise-in p-5 sm:p-6" style={{ animationDelay: '110ms' }}><div className="clients-metric-top"><div className="clients-metric-icon clients-icon-mint"><TrendingUp size={16} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">per client</span></div><div className="mt-6 font-display text-3xl font-bold tracking-[-.06em]" data-testid="text-average-client-spend">{money(clients.length ? totalCollected / clients.length : 0)}</div><div className="mt-2 text-xs font-semibold">Average collected</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Across known buyers</p></Card>
+      </section>
+      <section className="mt-5">
+        <Card className="overflow-hidden">
+          <div className="clients-workspace-heading">
+            <div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Clients / repeat buyers</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.04em]">People worth remembering</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Sorted by the latest purchase. Select a client to see their orders.</p></div>
+            <div className="clients-result-count" data-testid="text-clients-result-count"><strong>{filteredClients.length}</strong> of {clients.length}</div>
+          </div>
+          <div className="clients-controls"><div className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={16} /><input aria-label="Search clients" data-testid="input-search-clients" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by client name or phone" className="field-input pl-9" /></div><span className="clients-search-hint">Search is based on buyer details</span></div>
+          {filteredClients.length ? <div className="clients-table-wrap"><div className="clients-table-head"><span>Client</span><span>Total orders</span><span>Collected</span><span>Last purchase</span><span>Latest detail</span><span className="sr-only">Details</span></div>{filteredClients.map((client) => <div className="clients-table-row" key={client.key} data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="clients-buyer-cell"><div className="clients-avatar">{initials(client.displayName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold" data-testid={`text-client-name-${client.key}`}>{client.displayName}</div><div className="mt-1 truncate text-[11px] text-[hsl(var(--muted-foreground))]">{client.phone || (client.orders[0]?.productName ? `Buyer details pending · ${client.orders[0].productName}` : 'Buyer details pending')}</div></div></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Total orders</span><span className="font-mono-ui text-xs font-bold">{client.orderCount}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Collected</span><div><div className="font-mono-ui text-xs font-bold">{moneyExact(client.collected)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{client.outstanding ? `${moneyExact(client.outstanding)} outstanding` : 'Up to date'}</div></div></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Last purchase</span><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{dateShort(client.latestPurchase)}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Latest detail</span><span className="text-right text-xs text-[hsl(var(--muted-foreground))]">{client.outstanding ? `${moneyExact(client.outstanding)} outstanding` : channelName(client.latestChannel)}</span></div><div className="clients-actions"><Link href={`/orders?customer=${encodeURIComponent(client.displayName)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link">View <ArrowRight size={13} /></Link></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={Search} title="No clients match" description="Try a different name or phone number." /></div>}
+        </Card>
+      </section>
+    </>}
+  </Shell>;
+}
+
+function ClientsSkeleton() {
+  return <div className="space-y-5" aria-label="Loading clients"><div className="clients-overview"><Card className="h-[190px] p-5"><Skeleton className="h-3 w-24" /><Skeleton className="mt-6 h-10 w-28" /><Skeleton className="mt-3 h-3 w-48" /></Card><Card className="h-[190px] p-5"><Skeleton className="h-9 w-9 rounded-[11px]" /><Skeleton className="mt-6 h-8 w-20" /><Skeleton className="mt-3 h-3 w-32" /></Card><Card className="h-[190px] p-5"><Skeleton className="h-9 w-9 rounded-[11px]" /><Skeleton className="mt-6 h-8 w-24" /><Skeleton className="mt-3 h-3 w-36" /></Card></div><Card className="h-[360px] p-5"><Skeleton className="h-5 w-48" /><Skeleton className="mt-3 h-3 w-72" /><Skeleton className="mt-8 h-11 w-full" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div>;
 }
 
 function TakeOrder() {
@@ -241,6 +557,6 @@ function Connect() {
 }
 function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3 5 6v5c0 4.5 3 8.2 7 10 4-1.8 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>; }
 
-function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/take-order" component={TakeOrder} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
+function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/take-order" component={TakeOrder} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
 function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
 export default App;

@@ -318,9 +318,12 @@ components:
         paymentAction: { type: string, enum: [pay, reserve] }
     DashboardSummary:
       type: object
-      required: [revenue, orders, outstanding, bestSeller, channelPerformance, insights]
+      required: [revenue, expenses, profit, cashBalance, orders, outstanding, bestSeller, channelPerformance, dailyPerformance, productPerformance, insights]
       properties:
         revenue: { type: number }
+        expenses: { type: number }
+        profit: { type: number }
+        cashBalance: { type: number }
         orders: { type: integer }
         outstanding: { type: number }
         bestSeller: { type: string }
@@ -331,12 +334,43 @@ components:
         insights:
           type: array
           items: { type: string }
+        dailyPerformance:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyPerformance"
+        productPerformance:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductPerformance"
     ChannelPerformance:
       type: object
-      required: [channel, revenue, orders, opens]
+      required: [channel, revenue, orders, paidOrders, opens, conversionRate]
       properties:
         channel: { type: string }
         revenue: { type: number }
         orders: { type: integer }
+        paidOrders: { type: integer }
         opens: { type: integer }
+        conversionRate: { type: number }
+    DailyPerformance:
+      type: object
+      required: [date, label, revenue, expenses, profit, orders]
+      properties:
+        date: { type: string }
+        label: { type: string }
+        revenue: { type: number }
+        expenses: { type: number }
+        profit: { type: number }
+        orders: { type: integer }
+    ProductPerformance:
+      type: object
+      required: [name, category, revenue, orders, stock, margin, costTracked]
+      properties:
+        name: { type: string }
+        category: { type: string }
+        revenue: { type: number }
+        orders: { type: integer }
+        stock: { type: integer }
+        margin: { type: number }
+        costTracked: { type: boolean }
 

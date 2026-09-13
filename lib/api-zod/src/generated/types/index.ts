@@ -7,6 +7,7 @@
  */
 
 export * from './channelPerformance';
+export * from './dailyPerformance';
 export * from './dashboardSummary';
 export * from './healthStatus';
 export * from './order';
@@ -21,6 +22,7 @@ export * from './orderUpdateFulfillment';
 export * from './orderUpdateStatus';
 export * from './product';
 export * from './productInput';
+export * from './productPerformance';
 export * from './productUpdate';
 export * from './publicOrder';
 export * from './publicOrderInput';

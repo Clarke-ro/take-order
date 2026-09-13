@@ -298,6 +298,9 @@ export const SubmitPublicOrderResponse = zod.object({
  */
 export const GetDashboardSummaryResponse = zod.object({
   "revenue": zod.number(),
+  "expenses": zod.number(),
+  "profit": zod.number(),
+  "cashBalance": zod.number(),
   "orders": zod.number().int(),
   "outstanding": zod.number(),
   "bestSeller": zod.string(),
@@ -305,9 +308,28 @@ export const GetDashboardSummaryResponse = zod.object({
   "channel": zod.string(),
   "revenue": zod.number(),
   "orders": zod.number().int(),
-  "opens": zod.number().int()
+  "paidOrders": zod.number().int(),
+  "opens": zod.number().int(),
+  "conversionRate": zod.number()
 })),
-  "insights": zod.array(zod.string())
+  "insights": zod.array(zod.string()),
+  "dailyPerformance": zod.array(zod.object({
+  "date": zod.string(),
+  "label": zod.string(),
+  "revenue": zod.number(),
+  "expenses": zod.number(),
+  "profit": zod.number(),
+  "orders": zod.number().int()
+})),
+  "productPerformance": zod.array(zod.object({
+  "name": zod.string(),
+  "category": zod.string(),
+  "revenue": zod.number(),
+  "orders": zod.number().int(),
+  "stock": zod.number().int(),
+  "margin": zod.number(),
+  "costTracked": zod.boolean()
+}))
 })
 
 

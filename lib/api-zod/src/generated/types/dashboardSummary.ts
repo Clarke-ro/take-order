@@ -6,12 +6,19 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ChannelPerformance } from './channelPerformance';
+import type { DailyPerformance } from './dailyPerformance';
+import type { ProductPerformance } from './productPerformance';
 
 export interface DashboardSummary {
   revenue: number;
+  expenses: number;
+  profit: number;
+  cashBalance: number;
   orders: number;
   outstanding: number;
   bestSeller: string;
   channelPerformance: ChannelPerformance[];
   insights: string[];
+  dailyPerformance: DailyPerformance[];
+  productPerformance: ProductPerformance[];
 }

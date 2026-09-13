@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ChannelPerformance {
-  channel: string;
+export interface DailyPerformance {
+  date: string;
+  label: string;
   revenue: number;
+  expenses: number;
+  profit: number;
   orders: number;
-  paidOrders: number;
-  opens: number;
-  conversionRate: number;
 }
