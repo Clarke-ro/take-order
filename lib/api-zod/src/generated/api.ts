@@ -145,13 +145,20 @@ export const ListOrdersResponse = zod.array(ListOrdersResponseItem)
  */
 export const createOrderBodyAmountMin = 0;
 
+export const createOrderBodyItemsItemAmountMin = 0;
+
+
 export const createOrderBodyDepositAmountMin = 0;
 
 
 
 export const CreateOrderBody = zod.object({
+  "productId": zod.number().int().optional(),
+  "amount": zod.number().min(createOrderBodyAmountMin).optional(),
+  "items": zod.array(zod.object({
   "productId": zod.number().int(),
-  "amount": zod.number().min(createOrderBodyAmountMin),
+  "amount": zod.number().min(createOrderBodyItemsItemAmountMin)
+})).min(1).optional(),
   "depositAmount": zod.number().min(createOrderBodyDepositAmountMin).nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
   "channel": zod.enum(['whatsapp', 'instagram', 'tiktok', 'snapchat', 'in_person'])
@@ -253,7 +260,13 @@ export const GetPublicOrderResponse = zod.object({
   "depositAmount": zod.number().nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
   "status": zod.enum(['reserved', 'deposit_paid', 'paid']),
+  "variants": zod.array(zod.string()),
+  "items": zod.array(zod.object({
+  "productId": zod.number().int(),
+  "productName": zod.string(),
+  "amount": zod.number(),
   "variants": zod.array(zod.string())
+}))
 })
 
 

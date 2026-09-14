@@ -7,11 +7,14 @@
  */
 import type { OrderInputChannel } from './orderInputChannel';
 import type { OrderInputPaymentMode } from './orderInputPaymentMode';
+import type { OrderItemInput } from './orderItemInput';
 
 export interface OrderInput {
-  productId: number;
+  productId?: number;
   /** @minimum 0 */
-  amount: number;
+  amount?: number;
+  /** @minItems 1 */
+  items?: OrderItemInput[];
   /**
      * @minimum 0
      * @nullable

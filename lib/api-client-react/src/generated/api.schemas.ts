@@ -107,6 +107,12 @@ export interface Order {
   buyerDetails?: string | null;
 }
 
+export interface OrderItemInput {
+  productId: number;
+  /** @minimum 0 */
+  amount: number;
+}
+
 export type OrderInputPaymentMode = typeof OrderInputPaymentMode[keyof typeof OrderInputPaymentMode];
 
 
@@ -128,9 +134,11 @@ export const OrderInputChannel = {
 } as const;
 
 export interface OrderInput {
-  productId: number;
+  productId?: number;
   /** @minimum 0 */
-  amount: number;
+  amount?: number;
+  /** @minItems 1 */
+  items?: OrderItemInput[];
   /**
      * @minimum 0
      * @nullable
@@ -181,6 +189,13 @@ export const PublicOrderStatus = {
   paid: 'paid',
 } as const;
 
+export interface PublicOrderItem {
+  productId: number;
+  productName: string;
+  amount: number;
+  variants: string[];
+}
+
 export interface PublicOrder {
   token: string;
   productName: string;
@@ -190,6 +205,7 @@ export interface PublicOrder {
   paymentMode: PublicOrderPaymentMode;
   status: PublicOrderStatus;
   variants: string[];
+  items: PublicOrderItem[];
 }
 
 export type PublicOrderInputPaymentAction = typeof PublicOrderInputPaymentAction[keyof typeof PublicOrderInputPaymentAction];

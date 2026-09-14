@@ -400,3 +400,89 @@ test("re-opening a paid order cannot replace its historical product cost", async
     assert.equal(stored.productCost, "18.00");
   });
 });
+
+test("multi-item order links preserve item prices and compound the checkout total", async () => {
+  await withDatabaseTransaction(async (database, baseUrl) => {
+    const [firstProduct] = await database
+      .insert(productsTable)
+      .values({
+        name: "Multi-item first fixture",
+        category: "Test",
+        price: "35.00",
+        cost: "10.00",
+        stock: 10,
+        variants: ["Small", "Large"],
+        accent: "#0F6E6B",
+      })
+      .returning();
+    const [secondProduct] = await database
+      .insert(productsTable)
+      .values({
+        name: "Multi-item second fixture",
+        category: "Test",
+        price: "65.00",
+        cost: "20.00",
+        stock: 10,
+        variants: [],
+        accent: "#2F5BFF",
+      })
+      .returning();
+
+    const created = await requestJson(baseUrl, "/api/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        items: [
+          { productId: firstProduct.id, amount: 40 },
+          { productId: secondProduct.id, amount: 70 },
+        ],
+        paymentMode: "full",
+        channel: "whatsapp",
+      }),
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.amount, 110);
+
+    const publicOrder = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+    );
+    assert.equal(publicOrder.status, 200);
+    assert.deepEqual(
+      publicOrder.body.items.map((item: { productName: string; amount: number }) => ({
+        productName: item.productName,
+        amount: item.amount,
+      })),
+      [
+        { productName: "Multi-item first fixture", amount: 40 },
+        { productName: "Multi-item second fixture", amount: 70 },
+      ],
+    );
+    assert.equal(publicOrder.body.amount, 110);
+
+    const checkedOut = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ama",
+          customerPhone: "0241234567",
+          paymentAction: "pay",
+        }),
+      },
+    );
+    assert.equal(checkedOut.status, 200);
+    assert.equal(checkedOut.body.status, "paid");
+
+    const [firstAfterCheckout] = await database
+      .select({ stock: productsTable.stock })
+      .from(productsTable)
+      .where(eq(productsTable.id, firstProduct.id));
+    const [secondAfterCheckout] = await database
+      .select({ stock: productsTable.stock })
+      .from(productsTable)
+      .where(eq(productsTable.id, secondProduct.id));
+    assert.equal(firstAfterCheckout.stock, 9);
+    assert.equal(secondAfterCheckout.stock, 9);
+  });
+});

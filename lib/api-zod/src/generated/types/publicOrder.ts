@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PublicOrderItem } from './publicOrderItem';
 import type { PublicOrderPaymentMode } from './publicOrderPaymentMode';
 import type { PublicOrderStatus } from './publicOrderStatus';
 
@@ -17,4 +18,5 @@ export interface PublicOrder {
   paymentMode: PublicOrderPaymentMode;
   status: PublicOrderStatus;
   variants: string[];
+  items: PublicOrderItem[];
 }

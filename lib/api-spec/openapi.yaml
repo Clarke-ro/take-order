@@ -343,12 +343,23 @@ components:
         linkOpens: { type: integer }
         referenceImage: { type: ["string", "null"] }
         buyerDetails: { type: ["string", "null"] }
-    OrderInput:
+    OrderItemInput:
       type: object
-      required: [productId, amount, paymentMode, channel]
+      required: [productId, amount]
       properties:
         productId: { type: integer }
         amount: { type: number, minimum: 0 }
+    OrderInput:
+      type: object
+      required: [paymentMode, channel]
+      properties:
+        productId: { type: integer }
+        amount: { type: number, minimum: 0 }
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderItemInput"
         depositAmount: { type: ["number", "null"], minimum: 0 }
         paymentMode: { type: string, enum: [full, deposit, reserve] }
         channel: { type: string, enum: [whatsapp, instagram, tiktok, snapchat, in_person] }
@@ -359,7 +370,7 @@ components:
         fulfillment: { type: string, enum: [pending, shipped, delivered] }
     PublicOrder:
       type: object
-      required: [token, productName, amount, paymentMode, status, variants]
+      required: [token, productName, amount, paymentMode, status, variants, items]
       properties:
         token: { type: string }
         productName: { type: string }
@@ -367,6 +378,20 @@ components:
         depositAmount: { type: ["number", "null"] }
         paymentMode: { type: string, enum: [full, deposit, reserve] }
         status: { type: string, enum: [reserved, deposit_paid, paid] }
+        variants:
+          type: array
+          items: { type: string }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicOrderItem"
+    PublicOrderItem:
+      type: object
+      required: [productId, productName, amount, variants]
+      properties:
+        productId: { type: integer }
+        productName: { type: string }
+        amount: { type: number }
         variants:
           type: array
           items: { type: string }

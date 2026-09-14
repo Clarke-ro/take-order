@@ -19,4 +19,5 @@
 
 export * from "./products";
 export * from "./orders";
+export * from "./order-items";
 export * from "./expenses";

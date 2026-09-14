@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import {
   expensesTable,
+  orderItemsTable,
   ordersTable,
   productsTable,
 } from "@workspace/db/schema";
@@ -78,7 +79,12 @@ function expenseResponse(expense: typeof expensesTable.$inferSelect) {
 
 function publicOrderResponse(
   order: typeof ordersTable.$inferSelect,
-  product: typeof productsTable.$inferSelect | undefined,
+  items: Array<{
+    productId: number;
+    productName: string;
+    amount: number;
+    variants: string[];
+  }>,
 ) {
   return {
     token: order.token,
@@ -87,8 +93,44 @@ function publicOrderResponse(
     depositAmount: toNumber(order.depositAmount),
     paymentMode: order.paymentMode,
     status: order.status,
-    variants: product?.variants ?? [],
+    variants: items[0]?.variants ?? [],
+    items,
   };
+}
+
+async function publicItemsForOrder(order: typeof ordersTable.$inferSelect) {
+  const storedItems = await database
+    .select()
+    .from(orderItemsTable)
+    .where(eq(orderItemsTable.orderId, order.id))
+    .orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+
+  if (storedItems.length === 0) {
+    const [product] = await database
+      .select()
+      .from(productsTable)
+      .where(eq(productsTable.id, order.productId));
+    return [{
+      productId: order.productId,
+      productName: order.productName,
+      amount: Number(order.amount),
+      variants: product?.variants ?? [],
+    }];
+  }
+
+  const productIds = [...new Set(storedItems.map((item) => item.productId))];
+  const products = await database
+    .select()
+    .from(productsTable)
+    .where(inArray(productsTable.id, productIds));
+  const productsById = new Map(products.map((product) => [product.id, product]));
+
+  return storedItems.map((item) => ({
+    productId: item.productId,
+    productName: item.productName,
+    amount: Number(item.amount),
+    variants: productsById.get(item.productId)?.variants ?? [],
+  }));
 }
 
 async function adjustStock(productId: number, direction: number) {
@@ -101,6 +143,23 @@ async function adjustStock(productId: number, direction: number) {
     .update(productsTable)
     .set({ stock: Math.max(0, product.stock + direction) })
     .where(eq(productsTable.id, productId));
+}
+
+async function adjustOrderStock(order: typeof ordersTable.$inferSelect, direction: number) {
+  const items = await database
+    .select({ productId: orderItemsTable.productId })
+    .from(orderItemsTable)
+    .where(eq(orderItemsTable.orderId, order.id))
+    .orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+
+  if (items.length === 0) {
+    await adjustStock(order.productId, direction);
+    return;
+  }
+
+  for (const item of items) {
+    await adjustStock(item.productId, direction);
+  }
 }
 
 const isSaleStatus = (status: string) =>
@@ -117,11 +176,19 @@ async function productCostForSale(
   ) {
     return undefined;
   }
-  const [product] = await database
-    .select({ cost: productsTable.cost })
+  const items = await database
+    .select({ productId: orderItemsTable.productId })
+    .from(orderItemsTable)
+    .where(eq(orderItemsTable.orderId, existing.id))
+    .orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+  const productIds = items.length > 0 ? items.map((item) => item.productId) : [existing.productId];
+  const products = await database
+    .select({ id: productsTable.id, cost: productsTable.cost })
     .from(productsTable)
-    .where(eq(productsTable.id, existing.productId));
-  return product?.cost ?? null;
+    .where(inArray(productsTable.id, [...new Set(productIds)]));
+  const costs = productIds.map((productId) => products.find((product) => product.id === productId)?.cost ?? null);
+  if (costs.some((cost) => cost === null)) return null;
+  return costs.reduce((total, cost) => total + Number(cost), 0).toFixed(2);
 }
 
 router.get("/products", async (_req, res): Promise<void> => {
@@ -291,22 +358,42 @@ router.post("/orders", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [product] = await database
+  const requestedItems = parsed.data.items?.length
+    ? parsed.data.items
+    : parsed.data.productId != null && parsed.data.amount != null
+      ? [{ productId: parsed.data.productId, amount: parsed.data.amount }]
+      : null;
+  if (!requestedItems?.length) {
+    res.status(400).json({ error: "At least one order item is required" });
+    return;
+  }
+  const productIds = [...new Set(requestedItems.map((item) => item.productId))];
+  const products = await database
     .select()
     .from(productsTable)
-    .where(eq(productsTable.id, parsed.data.productId));
-  if (!product) {
+    .where(inArray(productsTable.id, productIds));
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  const missingProduct = requestedItems.find((item) => !productsById.has(item.productId));
+  if (missingProduct) {
     res.status(404).json({ error: "Product not found" });
     return;
   }
+  const totalAmount = requestedItems.reduce((total, item) => total + item.amount, 0);
+  if (parsed.data.depositAmount != null && parsed.data.depositAmount > totalAmount) {
+    res.status(400).json({ error: "Deposit cannot exceed the order total" });
+    return;
+  }
+  const firstProduct = productsById.get(requestedItems[0].productId)!;
   const [order] = await database
     .insert(ordersTable)
     .values({
       token: randomBytes(4).toString("hex"),
-      productId: product.id,
-      productName: product.name,
+      productId: firstProduct.id,
+      productName: requestedItems.length === 1
+        ? firstProduct.name
+        : `${firstProduct.name} + ${requestedItems.length - 1} more`,
       channel: parsed.data.channel,
-      amount: parsed.data.amount.toFixed(2),
+      amount: totalAmount.toFixed(2),
       depositAmount: parsed.data.depositAmount == null ? null : parsed.data.depositAmount.toFixed(2),
       paymentMode: parsed.data.paymentMode,
       status: "reserved",
@@ -314,6 +401,15 @@ router.post("/orders", async (req, res): Promise<void> => {
       customerName: "Waiting for buyer",
     })
     .returning();
+  await database.insert(orderItemsTable).values(
+    requestedItems.map((item, position) => ({
+      orderId: order.id,
+      productId: item.productId,
+      productName: productsById.get(item.productId)!.name,
+      amount: item.amount.toFixed(2),
+      position,
+    })),
+  );
   res.status(201).json(CreateOrderResponse.parse(orderResponse(order)));
 });
 
@@ -359,7 +455,7 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
     .where(eq(ordersTable.id, params.data.id))
     .returning();
   const stockDelta = stockDeltaForOrderStatusChange(existing.status, parsed.data.status ?? existing.status);
-  if (stockDelta) await adjustStock(existing.productId, stockDelta);
+  if (stockDelta) await adjustOrderStock(existing, stockDelta);
   res.json(UpdateOrderResponse.parse(orderResponse(order)));
 });
 
@@ -379,8 +475,8 @@ router.get("/public/orders/:token", async (req, res): Promise<void> => {
     .set({ linkOpens: order.linkOpens + 1 })
     .where(eq(ordersTable.id, order.id))
     .returning();
-  const [product] = await database.select().from(productsTable).where(eq(productsTable.id, order.productId));
-  res.json(GetPublicOrderResponse.parse(publicOrderResponse(updated, product)));
+  const items = await publicItemsForOrder(updated);
+  res.json(GetPublicOrderResponse.parse(publicOrderResponse(updated, items)));
 });
 
 router.post("/public/orders/:token", async (req, res): Promise<void> => {
@@ -418,7 +514,7 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
     })
     .where(eq(ordersTable.id, existing.id))
     .returning();
-  if (nextStatus === "paid" && existing.status !== "paid") await adjustStock(existing.productId, -1);
+  if (nextStatus === "paid" && existing.status !== "paid") await adjustOrderStock(existing, -1);
   res.json(SubmitPublicOrderResponse.parse(orderResponse(order)));
 });
 
