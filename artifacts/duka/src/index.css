@@ -269,6 +269,12 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    font-family: var(--app-font-sans);
+    font-size: 1rem;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.55;
+    letter-spacing: 0;
   }
 }
 
@@ -282,10 +288,10 @@
 :root { color-scheme: light; }
 .dark { color-scheme: dark; }
 html, body, #root { min-height: 100%; }
-body { background: hsl(var(--background)); }
+body { background: hsl(var(--background)); font-family: var(--app-font-sans); font-size: 1rem; font-style: normal; font-weight: 400; line-height: 1.55; letter-spacing: 0; opacity: 1; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
-.duka-shell, #root { color: hsl(var(--foreground)); }
+.duka-shell, #root { color: hsl(var(--foreground)); font-style: normal; opacity: 1; }
 .page-content h1, .page-content h2, .page-content h3 { color: hsl(var(--foreground)); }
 .metric-value, .catalog-number, .catalog-stock, .orders-result-count, .reports-table, .orders-table-row { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum", "lnum"; }
 .metric-value { font-size: 1.75rem; font-weight: 600; color: hsl(var(--foreground)); }
@@ -293,6 +299,12 @@ button { cursor: pointer; }
 .font-mono-ui.font-bold { font-weight: 500; }
 .duka-shell { min-height: 100dvh; background: hsl(var(--background)); }
 .page-content { max-width: 1600px; }
+.page-content .orders-panel-heading p,
+.page-content .orders-workspace-heading p,
+.page-content .orders-signal-card > p,
+.page-content .reports-panel-heading p,
+.page-content .catalog-toolbar p,
+.page-content .clients-workspace-heading p { font-size: .875rem; line-height: 1.55; opacity: 1; }
 .period-chip { display: inline-flex; align-items: center; gap: .5rem; border: 1px solid hsl(var(--border)); border-radius: 999px; background: hsl(var(--card)); padding: .65rem .85rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .625rem; line-height: 1; }
 .kpi-card { transition: border-color .2s ease; }
 .kpi-card:hover { border-color: hsl(var(--primary) / .28); }
@@ -303,17 +315,17 @@ button { cursor: pointer; }
 .overview-insight-card { overflow: hidden; border-radius: 18px; border-color: hsl(220 18% 87%); background: hsl(var(--card)); }
 .overview-insight-card > div:first-child { padding: 1.35rem 1.5rem 1.25rem; background: hsl(var(--card)); }
 .overview-insight-card > div:first-child > div > div:first-child { color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; letter-spacing: .16em; }
-.overview-insight-card > div:first-child h2 { margin-top: .55rem; color: hsl(var(--foreground) / .92); font-size: 1.2rem; font-weight: 600; letter-spacing: -.04em; line-height: 1.15; }
+.overview-insight-card > div:first-child h2 { margin-top: .55rem; color: hsl(var(--foreground)); font-size: 1.2rem; font-weight: 600; letter-spacing: -.04em; line-height: 1.15; }
 .overview-insight-card > div:first-child svg { margin-top: .1rem; color: hsl(var(--muted-foreground) / .78); }
 .overview-insight-card [data-testid^="row-product-performance-"],
 .overview-insight-card [data-testid^="row-channel-"] { min-height: 112px; padding-top: 1.25rem; padding-bottom: 1.35rem; background: hsl(var(--card)); transition: background-color .18s ease; }
 .overview-insight-card [data-testid^="row-product-performance-"]:hover,
 .overview-insight-card [data-testid^="row-channel-"]:hover { background: hsl(var(--muted) / .34); }
 .overview-product-card [data-testid^="row-product-performance-"] > div:first-child > div:first-child > div:first-child,
-.overview-channel-card [data-testid^="row-channel-"] > div:first-child > span:first-child { color: hsl(var(--foreground) / .9); font-size: .82rem; font-weight: 600; letter-spacing: -.012em; }
+.overview-channel-card [data-testid^="row-channel-"] > div:first-child > span:first-child { color: hsl(var(--foreground)); font-size: .82rem; font-weight: 600; letter-spacing: -.012em; }
 .overview-product-card [data-testid^="row-product-performance-"] > div:first-child > div:first-child > div:last-child { margin-top: .35rem; color: hsl(var(--muted-foreground)); font-size: .75rem; line-height: 1.35; }
 .overview-product-card [data-testid^="row-product-performance-"] > div:first-child > div:last-child > div:first-child,
-.overview-channel-card [data-testid^="row-channel-"] > div:first-child > span:last-child { color: hsl(var(--foreground) / .84); font-size: .73rem; font-weight: 600; }
+.overview-channel-card [data-testid^="row-channel-"] > div:first-child > span:last-child { color: hsl(var(--foreground)); font-size: .73rem; font-weight: 600; }
 .overview-product-card [data-testid^="row-product-performance-"] > div:first-child > div:last-child > div:last-child { margin-top: .35rem; font-size: .7rem; font-weight: 600; }
 .overview-product-card [data-testid^="row-product-performance-"] > div:last-child,
 .overview-channel-card [data-testid^="row-channel-"] > div:nth-child(2) { margin-top: 1rem; }
@@ -322,8 +334,8 @@ button { cursor: pointer; }
 .overview-product-card [data-testid^="row-product-performance-"] > div:last-child > span,
 .overview-channel-card [data-testid^="row-channel-"] > div:nth-child(2) > span { color: hsl(var(--muted-foreground)); font-size: .7rem; }
 .overview-channel-card [data-testid^="row-channel-"] > div:last-child { margin-top: .85rem; color: hsl(var(--muted-foreground)); font-size: .75rem; }
-.overview-channel-card [data-testid^="row-channel-"] > div:last-child strong { color: hsl(var(--foreground) / .82); font-weight: 600; }
-.overview-channel-card [data-testid^="row-channel-"] > div:last-child span:last-child { color: hsl(var(--foreground) / .72); font-family: var(--app-font-mono); font-size: .7rem; }
+.overview-channel-card [data-testid^="row-channel-"] > div:last-child strong { color: hsl(var(--foreground)); font-weight: 600; }
+.overview-channel-card [data-testid^="row-channel-"] > div:last-child span:last-child { color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .7rem; }
 .chart-tooltip { min-width: 150px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .7rem .8rem; color: hsl(var(--foreground)); box-shadow: none; font-size: .75rem; }
 .chart-tooltip > div + div { margin-top: .3rem; }
 .page-in { animation: page-in .45s ease both; }

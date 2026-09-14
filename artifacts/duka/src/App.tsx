@@ -139,7 +139,7 @@ function Shell({ children }: { children: ReactNode }) {
 }
 
 function PageHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description?: string; action?: ReactNode }) {
-  return <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><div className="font-mono-ui text-[10px] font-bold uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">{eyebrow}</div><h1 className="mt-2 font-display text-[clamp(30px,4vw,48px)] font-bold leading-[.98] tracking-[-.055em] text-[hsl(var(--foreground))]">{title}</h1>{description && <p className="mt-3 max-w-[540px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{description}</p>}</div>{action}</div>;
+  return <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><div className="font-mono-ui text-[10px] font-bold uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">{eyebrow}</div><h1 className="mt-2 font-display text-[clamp(30px,4vw,48px)] font-bold leading-[.98] tracking-[-.055em] text-[hsl(var(--foreground))]">{title}</h1>{description && <p className="mt-3 max-w-[540px] text-base leading-7 text-[hsl(var(--muted-foreground))]">{description}</p>}</div>{action}</div>;
 }
 
 function Button({ children, variant = 'primary', className, ...props }: { children: ReactNode; variant?: 'primary' | 'soft' | 'outline' | 'danger' | 'ghost'; className?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
