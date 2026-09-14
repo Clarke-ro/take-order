@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import test from "node:test";
+import { eq } from "drizzle-orm";
 import {
   expensesTable,
   ordersTable,
   productsTable,
 } from "@workspace/db/schema";
-import type { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { GetDashboardSummaryResponse } from "@workspace/api-zod";
 import { createApp } from "../app.js";
 
@@ -29,6 +30,55 @@ function createSeededDatabase(seed: Seed): typeof db {
       };
     },
   } as unknown as typeof db;
+}
+
+const transactionRollback = Symbol("transaction rollback");
+
+async function withDatabaseTransaction(
+  run: (database: typeof db, baseUrl: string) => Promise<void>,
+): Promise<void> {
+  try {
+    await db.transaction(async (transaction) => {
+      const server = createServer(
+        createApp(transaction as unknown as typeof db),
+      );
+      await new Promise<void>((resolve) => server.listen(0, resolve));
+
+      try {
+        const address = server.address();
+        assert(address && typeof address !== "string");
+        await run(
+          transaction as unknown as typeof db,
+          `http://127.0.0.1:${address.port}`,
+        );
+      } finally {
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        );
+      }
+
+      throw transactionRollback;
+    });
+  } catch (error) {
+    if (error !== transactionRollback) {
+      throw error;
+    }
+  }
+}
+
+async function requestJson(
+  baseUrl: string,
+  path: string,
+  init?: RequestInit,
+): Promise<{ status: number; body: any }> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      ...init?.headers,
+    },
+  });
+  return { status: response.status, body: await response.json() };
 }
 
 async function requestSummary(seed: Seed): Promise<{
@@ -54,6 +104,10 @@ async function requestSummary(seed: Seed): Promise<{
     );
   }
 }
+
+test.after(async () => {
+  await pool.end();
+});
 
 const emptySeed: Seed = {
   products: [],
@@ -143,4 +197,152 @@ test("GET /dashboard/summary adapts seeded database records into the response co
       costTracked: true,
     },
   ]);
+});
+
+test("buyer deposit checkout and seller payment preserve the original product cost", async () => {
+  await withDatabaseTransaction(async (database, baseUrl) => {
+    const [product] = await database
+      .insert(productsTable)
+      .values({
+        name: "Historical cost deposit fixture",
+        category: "Test",
+        price: "100.00",
+        cost: "12.50",
+        stock: 10,
+        variants: [],
+        accent: "#0F6E6B",
+      })
+      .returning();
+
+    const created = await requestJson(baseUrl, "/api/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        productId: product.id,
+        amount: 100,
+        depositAmount: 40,
+        paymentMode: "deposit",
+        channel: "whatsapp",
+      }),
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.status, "reserved");
+    assert.equal(created.body.productCost, null);
+
+    const checkedOut = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ama",
+          customerPhone: "0241234567",
+          paymentAction: "pay",
+        }),
+      },
+    );
+    assert.equal(checkedOut.status, 200);
+    assert.equal(checkedOut.body.status, "deposit_paid");
+    assert.equal(checkedOut.body.productCost, 12.5);
+
+    await database
+      .update(productsTable)
+      .set({ cost: "99.00" })
+      .where(eq(productsTable.id, product.id));
+
+    const fullyPaid = await requestJson(
+      baseUrl,
+      `/api/orders/${created.body.id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status: "paid" }),
+      },
+    );
+    assert.equal(fullyPaid.status, 200);
+    assert.equal(fullyPaid.body.status, "paid");
+    assert.equal(fullyPaid.body.productCost, 12.5);
+
+    const [stored] = await database
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.id, created.body.id));
+    assert.equal(stored.productCost, "12.50");
+  });
+});
+
+test("re-opening a paid order cannot replace its historical product cost", async () => {
+  await withDatabaseTransaction(async (database, baseUrl) => {
+    const [product] = await database
+      .insert(productsTable)
+      .values({
+        name: "Historical cost reopen fixture",
+        category: "Test",
+        price: "100.00",
+        cost: "18.00",
+        stock: 10,
+        variants: [],
+        accent: "#0F6E6B",
+      })
+      .returning();
+
+    const created = await requestJson(baseUrl, "/api/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        productId: product.id,
+        amount: 100,
+        paymentMode: "full",
+        channel: "instagram",
+      }),
+    });
+    assert.equal(created.status, 201);
+
+    const paid = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Kojo",
+          customerPhone: "0247654321",
+          paymentAction: "pay",
+        }),
+      },
+    );
+    assert.equal(paid.status, 200);
+    assert.equal(paid.body.status, "paid");
+    assert.equal(paid.body.productCost, 18);
+
+    await database
+      .update(productsTable)
+      .set({ cost: "76.00" })
+      .where(eq(productsTable.id, product.id));
+
+    const reopened = await requestJson(
+      baseUrl,
+      `/api/orders/${created.body.id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status: "reserved" }),
+      },
+    );
+    assert.equal(reopened.status, 200);
+    assert.equal(reopened.body.productCost, 18);
+
+    const paidAgain = await requestJson(
+      baseUrl,
+      `/api/orders/${created.body.id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status: "paid" }),
+      },
+    );
+    assert.equal(paidAgain.status, 200);
+    assert.equal(paidAgain.body.status, "paid");
+    assert.equal(paidAgain.body.productCost, 18);
+
+    const [stored] = await database
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.id, created.body.id));
+    assert.equal(stored.productCost, "18.00");
+  });
 });

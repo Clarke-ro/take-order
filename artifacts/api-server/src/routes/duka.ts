@@ -110,7 +110,11 @@ async function productCostForSale(
   existing: typeof ordersTable.$inferSelect,
   nextStatus: string,
 ): Promise<string | null | undefined> {
-  if (isSaleStatus(existing.status) || !isSaleStatus(nextStatus)) {
+  if (
+    existing.productCost !== null ||
+    isSaleStatus(existing.status) ||
+    !isSaleStatus(nextStatus)
+  ) {
     return undefined;
   }
   const [product] = await database

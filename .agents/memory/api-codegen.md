@@ -3,8 +3,8 @@ name: API contract codegen
 description: Keep generated API package outputs synchronized before server validation.
 ---
 
-Run the API spec codegen before trusting server typechecks after contract or analytics response changes.
+Regenerate API specs and changed workspace package declarations before trusting server typechecks after contract, schema, or analytics response changes.
 
-**Why:** The workspace can resolve a package's checked-in dist declarations while the source-generated API files contain newer fields, producing misleading missing-export and response-shape errors.
+**Why:** The workspace can resolve checked-in dist declarations while source files contain newer fields, producing misleading missing-export and response-shape errors.
 
-**How to apply:** Use the api-spec codegen script, then run the root typecheck and the affected artifact tests.
+**How to apply:** Run the relevant package build/codegen (including `tsc --build` for changed declaration packages), then run the root typecheck and affected artifact tests.
