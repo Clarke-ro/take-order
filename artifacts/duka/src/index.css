@@ -746,14 +746,18 @@ div[class*="h-2"] > div[style] {
   color: hsl(var(--sidebar-foreground)) !important;
 }
 
-.desktop-sidebar [class*="bg-white"] {
-  background: hsl(var(--muted)) !important;
-}
-
 .desktop-sidebar [class*="border-white"] {
   border-color: hsl(var(--sidebar-border)) !important;
 }
 
 .desktop-sidebar [class*="hover:bg-white"]:hover {
   background: hsl(var(--muted)) !important;
+}
+
+[class*="border-[hsl(var(--accent))]/35"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class*="rounded-full"][class*="bg-[hsl(var(--accent))]/20"] {
+  color: hsl(var(--foreground)) !important;
 }
