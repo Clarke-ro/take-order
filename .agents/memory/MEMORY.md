@@ -3,3 +3,4 @@
 - [Mock payment flow](mock-payments.md) — Buyer payments are explicitly demo-only until a real provider is selected.
 - [Take Order palette system](palette-system.md) — Keep seller and buyer surfaces on the Ink/Paper monochrome system.
 - [Take Order typography system](typography-system.md) — Use Inter for interface and display text; reserve IBM Plex Mono for utility metadata.
+- [Cardless dashboard stats](cardless-dashboard-stats.md) — Prefer open Insight-style stat sections with flat tracks over wrapping every metric group in a card.
