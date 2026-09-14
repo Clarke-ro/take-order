@@ -285,8 +285,11 @@ html, body, #root { min-height: 100%; }
 body { background: hsl(var(--background)); }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
+.duka-shell, #root { color: hsl(var(--foreground) / .8); }
+.page-content h1, .page-content h2, .page-content h3 { color: hsl(var(--foreground) / .9); }
 .metric-value, .catalog-number, .catalog-stock, .orders-result-count, .reports-table, .orders-table-row { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum", "lnum"; }
-.metric-value { font-size: 1.75rem; font-weight: 600; color: hsl(var(--foreground) / .9); }
+.metric-value { font-size: 1.75rem; font-weight: 600; color: hsl(var(--foreground) / .95); }
+.catalog-number strong, .catalog-stock strong, .orders-value-cell .font-mono-ui, .reports-table .font-mono-ui.font-bold { color: hsl(var(--foreground) / .92); }
 .font-mono-ui.font-bold { font-weight: 500; }
 .duka-shell { min-height: 100dvh; background: hsl(var(--background)); }
 .page-content { max-width: 1600px; }
