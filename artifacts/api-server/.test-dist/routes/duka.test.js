@@ -15453,7 +15453,12 @@ var ListOrdersResponseItem = objectType({
   "createdAt": stringType(),
   "linkOpens": numberType().int(),
   "referenceImage": stringType().nullish(),
-  "buyerDetails": stringType().nullish()
+  "buyerDetails": stringType().nullish(),
+  "items": arrayType(objectType({
+    "productId": numberType().int(),
+    "productName": stringType(),
+    "amount": numberType()
+  }))
 });
 var ListOrdersResponse = arrayType(ListOrdersResponseItem);
 var createOrderBodyAmountMin = 0;
@@ -15487,7 +15492,12 @@ var CreateOrderResponse = objectType({
   "createdAt": stringType(),
   "linkOpens": numberType().int(),
   "referenceImage": stringType().nullish(),
-  "buyerDetails": stringType().nullish()
+  "buyerDetails": stringType().nullish(),
+  "items": arrayType(objectType({
+    "productId": numberType().int(),
+    "productName": stringType(),
+    "amount": numberType()
+  }))
 });
 var GetOrderParams = objectType({
   "id": coerce.number().int()
@@ -15509,7 +15519,12 @@ var GetOrderResponse = objectType({
   "createdAt": stringType(),
   "linkOpens": numberType().int(),
   "referenceImage": stringType().nullish(),
-  "buyerDetails": stringType().nullish()
+  "buyerDetails": stringType().nullish(),
+  "items": arrayType(objectType({
+    "productId": numberType().int(),
+    "productName": stringType(),
+    "amount": numberType()
+  }))
 });
 var UpdateOrderParams = objectType({
   "id": coerce.number().int()
@@ -15535,7 +15550,12 @@ var UpdateOrderResponse = objectType({
   "createdAt": stringType(),
   "linkOpens": numberType().int(),
   "referenceImage": stringType().nullish(),
-  "buyerDetails": stringType().nullish()
+  "buyerDetails": stringType().nullish(),
+  "items": arrayType(objectType({
+    "productId": numberType().int(),
+    "productName": stringType(),
+    "amount": numberType()
+  }))
 });
 var GetPublicOrderParams = objectType({
   "token": coerce.string()
@@ -15583,7 +15603,12 @@ var SubmitPublicOrderResponse = objectType({
   "createdAt": stringType(),
   "linkOpens": numberType().int(),
   "referenceImage": stringType().nullish(),
-  "buyerDetails": stringType().nullish()
+  "buyerDetails": stringType().nullish(),
+  "items": arrayType(objectType({
+    "productId": numberType().int(),
+    "productName": stringType(),
+    "amount": numberType()
+  }))
 });
 var GetDashboardSummaryResponse = objectType({
   "revenue": numberType(),
@@ -15874,13 +15899,18 @@ function createDukaRouter(database) {
       variants: product.variants ?? []
     };
   }
-  function orderResponse(order) {
+  function orderResponse(order, items = []) {
     return {
       ...order,
       amount: Number(order.amount),
       productCost: toNumber(order.productCost),
       depositAmount: toNumber(order.depositAmount),
-      createdAt: order.createdAt.toISOString()
+      createdAt: order.createdAt.toISOString(),
+      items: items.length > 0 ? items : [{
+        productId: order.productId,
+        productName: order.productName,
+        amount: Number(order.amount)
+      }]
     };
   }
   function expenseResponse(expense) {
@@ -15890,6 +15920,29 @@ function createDukaRouter(database) {
       date: expense.expenseDate,
       createdAt: expense.createdAt.toISOString()
     };
+  }
+  async function sellerItemsForOrder(order) {
+    const storedItems = await database.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+    return storedItems.map((item) => ({
+      productId: item.productId,
+      productName: item.productName,
+      amount: Number(item.amount)
+    }));
+  }
+  async function sellerItemsForOrders(orders) {
+    if (orders.length === 0) return /* @__PURE__ */ new Map();
+    const rows = await database.select().from(orderItemsTable).where(inArray(orderItemsTable.orderId, orders.map((order) => order.id))).orderBy(asc(orderItemsTable.orderId), asc(orderItemsTable.position), asc(orderItemsTable.id));
+    const byOrder = /* @__PURE__ */ new Map();
+    for (const item of rows) {
+      const current = byOrder.get(item.orderId) ?? [];
+      current.push({
+        productId: item.productId,
+        productName: item.productName,
+        amount: Number(item.amount)
+      });
+      byOrder.set(item.orderId, current);
+    }
+    return byOrder;
   }
   function publicOrderResponse(order, items) {
     return {
@@ -16067,7 +16120,8 @@ function createDukaRouter(database) {
   });
   router2.get("/orders", async (_req, res) => {
     const orders = await database.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
-    res.json(ListOrdersResponse.parse(orders.map(orderResponse)));
+    const itemsByOrder = await sellerItemsForOrders(orders);
+    res.json(ListOrdersResponse.parse(orders.map((order) => orderResponse(order, itemsByOrder.get(order.id)))));
   });
   router2.post("/orders", async (req, res) => {
     const parsed = CreateOrderBody.safeParse(req.body);
@@ -16115,7 +16169,8 @@ function createDukaRouter(database) {
         position
       }))
     );
-    res.status(201).json(CreateOrderResponse.parse(orderResponse(order)));
+    const items = await sellerItemsForOrder(order);
+    res.status(201).json(CreateOrderResponse.parse(orderResponse(order, items)));
   });
   router2.get("/orders/:id", async (req, res) => {
     const params = GetOrderParams.safeParse(req.params);
@@ -16128,7 +16183,8 @@ function createDukaRouter(database) {
       res.status(404).json({ error: "Order not found" });
       return;
     }
-    res.json(GetOrderResponse.parse(orderResponse(order)));
+    const items = await sellerItemsForOrder(order);
+    res.json(GetOrderResponse.parse(orderResponse(order, items)));
   });
   router2.patch("/orders/:id", async (req, res) => {
     const params = UpdateOrderParams.safeParse(req.params);
@@ -16153,7 +16209,8 @@ function createDukaRouter(database) {
     ).where(eq(ordersTable.id, params.data.id)).returning();
     const stockDelta = stockDeltaForOrderStatusChange(existing.status, parsed.data.status ?? existing.status);
     if (stockDelta) await adjustOrderStock(existing, stockDelta);
-    res.json(UpdateOrderResponse.parse(orderResponse(order)));
+    const items = await sellerItemsForOrder(order);
+    res.json(UpdateOrderResponse.parse(orderResponse(order, items)));
   });
   router2.get("/public/orders/:token", async (req, res) => {
     const params = GetPublicOrderParams.safeParse(req.params);
@@ -16630,6 +16687,18 @@ test("multi-item order links preserve item prices and compound the checkout tota
     });
     assert2.equal(created.status, 201);
     assert2.equal(created.body.amount, 110);
+    const listed = await requestJson(baseUrl, "/api/orders");
+    const listedOrder = listed.body.find((order) => order.id === created.body.id);
+    assert2.deepEqual(
+      listedOrder.items.map((item) => ({
+        productName: item.productName,
+        amount: item.amount
+      })),
+      [
+        { productName: "Multi-item first fixture", amount: 40 },
+        { productName: "Multi-item second fixture", amount: 70 }
+      ]
+    );
     const publicOrder = await requestJson(
       baseUrl,
       `/api/public/orders/${created.body.token}`

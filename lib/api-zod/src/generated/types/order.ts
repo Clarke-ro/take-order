@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { OrderFulfillment } from './orderFulfillment';
+import type { OrderLineItem } from './orderLineItem';
 import type { OrderPaymentMode } from './orderPaymentMode';
 import type { OrderStatus } from './orderStatus';
 
@@ -32,4 +33,5 @@ export interface Order {
   referenceImage?: string | null;
   /** @nullable */
   buyerDetails?: string | null;
+  items: OrderLineItem[];
 }

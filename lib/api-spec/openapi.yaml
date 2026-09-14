@@ -324,7 +324,7 @@ components:
         accent: { type: string }
     Order:
       type: object
-      required: [id, token, productId, productName, customerName, channel, amount, productCost, paymentMode, status, fulfillment, createdAt, linkOpens]
+      required: [id, token, productId, productName, customerName, channel, amount, productCost, paymentMode, status, fulfillment, createdAt, linkOpens, items]
       properties:
         id: { type: integer }
         token: { type: string }
@@ -343,12 +343,23 @@ components:
         linkOpens: { type: integer }
         referenceImage: { type: ["string", "null"] }
         buyerDetails: { type: ["string", "null"] }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderLineItem"
     OrderItemInput:
       type: object
       required: [productId, amount]
       properties:
         productId: { type: integer }
         amount: { type: number, minimum: 0 }
+    OrderLineItem:
+      type: object
+      required: [productId, productName, amount]
+      properties:
+        productId: { type: integer }
+        productName: { type: string }
+        amount: { type: number }
     OrderInput:
       type: object
       required: [paymentMode, channel]

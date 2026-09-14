@@ -442,6 +442,19 @@ test("multi-item order links preserve item prices and compound the checkout tota
     assert.equal(created.status, 201);
     assert.equal(created.body.amount, 110);
 
+    const listed = await requestJson(baseUrl, "/api/orders");
+    const listedOrder = listed.body.find((order: { id: number }) => order.id === created.body.id);
+    assert.deepEqual(
+      listedOrder.items.map((item: { productName: string; amount: number }) => ({
+        productName: item.productName,
+        amount: item.amount,
+      })),
+      [
+        { productName: "Multi-item first fixture", amount: 40 },
+        { productName: "Multi-item second fixture", amount: 70 },
+      ],
+    );
+
     const publicOrder = await requestJson(
       baseUrl,
       `/api/public/orders/${created.body.token}`,

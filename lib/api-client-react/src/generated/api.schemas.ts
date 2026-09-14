@@ -82,6 +82,12 @@ export const OrderFulfillment = {
   delivered: 'delivered',
 } as const;
 
+export interface OrderLineItem {
+  productId: number;
+  productName: string;
+  amount: number;
+}
+
 export interface Order {
   id: number;
   token: string;
@@ -105,6 +111,7 @@ export interface Order {
   referenceImage?: string | null;
   /** @nullable */
   buyerDetails?: string | null;
+  items: OrderLineItem[];
 }
 
 export interface OrderItemInput {

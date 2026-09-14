@@ -135,7 +135,12 @@ export const ListOrdersResponseItem = zod.object({
   "createdAt": zod.string(),
   "linkOpens": zod.number().int(),
   "referenceImage": zod.string().nullish(),
-  "buyerDetails": zod.string().nullish()
+  "buyerDetails": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().int(),
+  "productName": zod.string(),
+  "amount": zod.number()
+}))
 })
 export const ListOrdersResponse = zod.array(ListOrdersResponseItem)
 
@@ -181,7 +186,12 @@ export const CreateOrderResponse = zod.object({
   "createdAt": zod.string(),
   "linkOpens": zod.number().int(),
   "referenceImage": zod.string().nullish(),
-  "buyerDetails": zod.string().nullish()
+  "buyerDetails": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().int(),
+  "productName": zod.string(),
+  "amount": zod.number()
+}))
 })
 
 
@@ -209,7 +219,12 @@ export const GetOrderResponse = zod.object({
   "createdAt": zod.string(),
   "linkOpens": zod.number().int(),
   "referenceImage": zod.string().nullish(),
-  "buyerDetails": zod.string().nullish()
+  "buyerDetails": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().int(),
+  "productName": zod.string(),
+  "amount": zod.number()
+}))
 })
 
 
@@ -242,7 +257,12 @@ export const UpdateOrderResponse = zod.object({
   "createdAt": zod.string(),
   "linkOpens": zod.number().int(),
   "referenceImage": zod.string().nullish(),
-  "buyerDetails": zod.string().nullish()
+  "buyerDetails": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().int(),
+  "productName": zod.string(),
+  "amount": zod.number()
+}))
 })
 
 
@@ -307,7 +327,12 @@ export const SubmitPublicOrderResponse = zod.object({
   "createdAt": zod.string(),
   "linkOpens": zod.number().int(),
   "referenceImage": zod.string().nullish(),
-  "buyerDetails": zod.string().nullish()
+  "buyerDetails": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().int(),
+  "productName": zod.string(),
+  "amount": zod.number()
+}))
 })
 
 

@@ -49,6 +49,12 @@ export function createDukaRouter(database: typeof db): IRouter {
 const toNumber = (value: string | number | null): number | null =>
   value == null ? null : Number(value);
 
+type SellerOrderItem = {
+  productId: number;
+  productName: string;
+  amount: number;
+};
+
 function productResponse(product: typeof productsTable.$inferSelect) {
   return {
     ...product,
@@ -58,13 +64,18 @@ function productResponse(product: typeof productsTable.$inferSelect) {
   };
 }
 
-function orderResponse(order: typeof ordersTable.$inferSelect) {
+function orderResponse(order: typeof ordersTable.$inferSelect, items: SellerOrderItem[] = []) {
   return {
     ...order,
     amount: Number(order.amount),
     productCost: toNumber(order.productCost),
     depositAmount: toNumber(order.depositAmount),
     createdAt: order.createdAt.toISOString(),
+    items: items.length > 0 ? items : [{
+      productId: order.productId,
+      productName: order.productName,
+      amount: Number(order.amount),
+    }],
   };
 }
 
@@ -75,6 +86,40 @@ function expenseResponse(expense: typeof expensesTable.$inferSelect) {
     date: expense.expenseDate,
     createdAt: expense.createdAt.toISOString(),
   };
+}
+
+async function sellerItemsForOrder(order: typeof ordersTable.$inferSelect): Promise<SellerOrderItem[]> {
+  const storedItems = await database
+    .select()
+    .from(orderItemsTable)
+    .where(eq(orderItemsTable.orderId, order.id))
+    .orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+
+  return storedItems.map((item) => ({
+    productId: item.productId,
+    productName: item.productName,
+    amount: Number(item.amount),
+  }));
+}
+
+async function sellerItemsForOrders(orders: Array<typeof ordersTable.$inferSelect>) {
+  if (orders.length === 0) return new Map<number, SellerOrderItem[]>();
+  const rows = await database
+    .select()
+    .from(orderItemsTable)
+    .where(inArray(orderItemsTable.orderId, orders.map((order) => order.id)))
+    .orderBy(asc(orderItemsTable.orderId), asc(orderItemsTable.position), asc(orderItemsTable.id));
+  const byOrder = new Map<number, SellerOrderItem[]>();
+  for (const item of rows) {
+    const current = byOrder.get(item.orderId) ?? [];
+    current.push({
+      productId: item.productId,
+      productName: item.productName,
+      amount: Number(item.amount),
+    });
+    byOrder.set(item.orderId, current);
+  }
+  return byOrder;
 }
 
 function publicOrderResponse(
@@ -349,7 +394,8 @@ router.delete("/expenses/:id", async (req, res): Promise<void> => {
 
 router.get("/orders", async (_req, res): Promise<void> => {
   const orders = await database.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
-  res.json(ListOrdersResponse.parse(orders.map(orderResponse)));
+  const itemsByOrder = await sellerItemsForOrders(orders);
+  res.json(ListOrdersResponse.parse(orders.map((order) => orderResponse(order, itemsByOrder.get(order.id)))));
 });
 
 router.post("/orders", async (req, res): Promise<void> => {
@@ -410,7 +456,8 @@ router.post("/orders", async (req, res): Promise<void> => {
       position,
     })),
   );
-  res.status(201).json(CreateOrderResponse.parse(orderResponse(order)));
+  const items = await sellerItemsForOrder(order);
+  res.status(201).json(CreateOrderResponse.parse(orderResponse(order, items)));
 });
 
 router.get("/orders/:id", async (req, res): Promise<void> => {
@@ -424,7 +471,8 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Order not found" });
     return;
   }
-  res.json(GetOrderResponse.parse(orderResponse(order)));
+  const items = await sellerItemsForOrder(order);
+  res.json(GetOrderResponse.parse(orderResponse(order, items)));
 });
 
 router.patch("/orders/:id", async (req, res): Promise<void> => {
@@ -456,7 +504,8 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
     .returning();
   const stockDelta = stockDeltaForOrderStatusChange(existing.status, parsed.data.status ?? existing.status);
   if (stockDelta) await adjustOrderStock(existing, stockDelta);
-  res.json(UpdateOrderResponse.parse(orderResponse(order)));
+  const items = await sellerItemsForOrder(order);
+  res.json(UpdateOrderResponse.parse(orderResponse(order, items)));
 });
 
 router.get("/public/orders/:token", async (req, res): Promise<void> => {

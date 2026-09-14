@@ -22,6 +22,7 @@ export * from './orderInput';
 export * from './orderInputChannel';
 export * from './orderInputPaymentMode';
 export * from './orderItemInput';
+export * from './orderLineItem';
 export * from './orderPaymentMode';
 export * from './orderStatus';
 export * from './orderUpdate';
