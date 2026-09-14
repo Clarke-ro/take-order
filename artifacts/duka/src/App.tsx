@@ -792,7 +792,7 @@ type BuyerOrderSurfaceProps = {
   productName: string;
   amount: number;
   paymentMode: 'full' | 'deposit' | 'reserve';
-  depositAmount: number | null;
+  depositAmount: number | null | undefined;
   variants: string[];
   children: ReactNode;
 };
