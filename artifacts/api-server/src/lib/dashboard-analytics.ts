@@ -11,6 +11,7 @@ export type AnalyticsOrder = {
   productName: string;
   channel: string;
   amount: string | number;
+  productCost?: string | number | null;
   depositAmount: string | number | null;
   status: string;
   createdAt: Date;
@@ -90,6 +91,20 @@ const orderRevenue = (order: AnalyticsOrder) =>
 const productCost = (product: AnalyticsProduct | undefined) =>
   product?.cost == null ? 0 : Number(product.cost);
 
+const orderProductCost = (
+  order: AnalyticsOrder,
+  product: AnalyticsProduct | undefined,
+) => (order.productCost === undefined
+  ? productCost(product)
+  : order.productCost == null
+    ? 0
+    : Number(order.productCost));
+
+const orderCostTracked = (
+  order: AnalyticsOrder,
+  product: AnalyticsProduct | undefined,
+) => order.productCost === undefined ? product?.cost != null : order.productCost != null;
+
 export function calculateDashboardSummary(
   products: AnalyticsProduct[],
   orders: AnalyticsOrder[],
@@ -100,7 +115,8 @@ export function calculateDashboardSummary(
   const paidOrders = orders.filter(isPaidOrder);
   const revenue = paidOrders.reduce((sum, order) => sum + orderRevenue(order), 0);
   const productCosts = paidOrders.reduce(
-    (sum, order) => sum + productCost(productMap.get(order.productId)),
+    (sum, order) =>
+      sum + orderProductCost(order, productMap.get(order.productId)),
     0,
   );
   const operatingExpenses = operatingExpenseRows.reduce(
@@ -157,7 +173,8 @@ export function calculateDashboardSummary(
       0,
     );
     const dayProductCosts = dayOrders.reduce(
-      (sum, order) => sum + productCost(productMap.get(order.productId)),
+      (sum, order) =>
+        sum + orderProductCost(order, productMap.get(order.productId)),
       0,
     );
     const dayOperatingExpenses = operatingExpenseRows
@@ -186,19 +203,23 @@ export function calculateDashboardSummary(
         0,
       );
       const productExpenses =
-        productOrders.length * productCost(product);
+        productOrders.reduce(
+          (sum, order) => sum + orderProductCost(order, product),
+          0,
+        );
+      const costTracked =
+        product.cost != null ||
+        productOrders.some((order) => orderCostTracked(order, product));
       return {
         name: product.name,
         category: product.category,
         revenue: productRevenue,
         orders: productOrders.length,
         stock: product.stock,
-        margin: product.cost == null
-          ? 0
-          : productRevenue
+        margin: costTracked && productRevenue
           ? ((productRevenue - productExpenses) / productRevenue) * 100
           : 0,
-        costTracked: product.cost != null,
+        costTracked,
       };
     })
     .sort((a, b) => b.revenue - a.revenue);

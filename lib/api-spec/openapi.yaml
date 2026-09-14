@@ -324,7 +324,7 @@ components:
         accent: { type: string }
     Order:
       type: object
-      required: [id, token, productId, productName, customerName, channel, amount, paymentMode, status, fulfillment, createdAt, linkOpens]
+      required: [id, token, productId, productName, customerName, channel, amount, productCost, paymentMode, status, fulfillment, createdAt, linkOpens]
       properties:
         id: { type: integer }
         token: { type: string }
@@ -334,6 +334,7 @@ components:
         customerPhone: { type: ["string", "null"] }
         channel: { type: string }
         amount: { type: number }
+        productCost: { type: ["number", "null"] }
         depositAmount: { type: ["number", "null"] }
         paymentMode: { type: string, enum: [full, deposit, reserve] }
         status: { type: string, enum: [reserved, deposit_paid, paid] }

@@ -11,6 +11,7 @@ export const ordersTable = pgTable("orders", {
   customerPhone: text("customer_phone"),
   channel: text("channel").notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  productCost: numeric("product_cost", { precision: 12, scale: 2 }),
   depositAmount: numeric("deposit_amount", { precision: 12, scale: 2 }),
   paymentMode: text("payment_mode").notNull(),
   status: text("status").notNull().default("reserved"),

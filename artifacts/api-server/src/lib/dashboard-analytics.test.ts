@@ -202,6 +202,45 @@ test("keeps a seven-day trend aligned with revenue, costs, and expenses by date"
   });
 });
 
+test("keeps paid and deposit margins on their sale-time cost after catalog edits", () => {
+  const saleOrders = [
+    order({
+      productId: 1,
+      status: "paid",
+      amount: "100.00",
+      productCost: "20.00",
+      createdAt: now,
+    }),
+    order({
+      productId: 1,
+      status: "deposit_paid",
+      amount: "80.00",
+      depositAmount: "30.00",
+      productCost: "20.00",
+      createdAt: new Date("2026-09-12T12:00:00.000Z"),
+    }),
+  ];
+  const originalSummary = calculateDashboardSummary(
+    [{ ...products[0], cost: "20.00" }],
+    saleOrders,
+    [],
+    now,
+  );
+  const editedSummary = calculateDashboardSummary(
+    [{ ...products[0], cost: "80.00" }],
+    saleOrders,
+    [],
+    now,
+  );
+
+  assert.equal(originalSummary.productCosts, 40);
+  assert.equal(editedSummary.productCosts, 40);
+  assert.equal(editedSummary.dailyPerformance.at(-2)?.productCosts, 20);
+  assert.equal(editedSummary.dailyPerformance.at(-1)?.productCosts, 20);
+  assert.equal(editedSummary.productPerformance[0]?.margin, (90 / 130) * 100);
+  assert.equal(editedSummary.productPerformance[0]?.costTracked, true);
+});
+
 test("returns safe empty analytics when there is no activity", () => {
   const summary = calculateDashboardSummary([], [], [], now);
 

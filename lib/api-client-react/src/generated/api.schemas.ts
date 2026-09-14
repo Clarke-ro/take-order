@@ -93,6 +93,8 @@ export interface Order {
   channel: string;
   amount: number;
   /** @nullable */
+  productCost: number | null;
+  /** @nullable */
   depositAmount?: number | null;
   paymentMode: OrderPaymentMode;
   status: OrderStatus;

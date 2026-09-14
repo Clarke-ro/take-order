@@ -55,6 +55,7 @@ function orderResponse(order: typeof ordersTable.$inferSelect) {
   return {
     ...order,
     amount: Number(order.amount),
+    productCost: toNumber(order.productCost),
     depositAmount: toNumber(order.depositAmount),
     createdAt: order.createdAt.toISOString(),
   };
@@ -94,6 +95,23 @@ async function adjustStock(productId: number, direction: number) {
     .update(productsTable)
     .set({ stock: Math.max(0, product.stock + direction) })
     .where(eq(productsTable.id, productId));
+}
+
+const isSaleStatus = (status: string) =>
+  status === "paid" || status === "deposit_paid";
+
+async function productCostForSale(
+  existing: typeof ordersTable.$inferSelect,
+  nextStatus: string,
+): Promise<string | null | undefined> {
+  if (isSaleStatus(existing.status) || !isSaleStatus(nextStatus)) {
+    return undefined;
+  }
+  const [product] = await db
+    .select({ cost: productsTable.cost })
+    .from(productsTable)
+    .where(eq(productsTable.id, existing.productId));
+  return product?.cost ?? null;
 }
 
 router.get("/products", async (_req, res): Promise<void> => {
@@ -319,9 +337,15 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Order not found" });
     return;
   }
+  const nextStatus = parsed.data.status ?? existing.status;
+  const saleProductCost = await productCostForSale(existing, nextStatus);
   const [order] = await db
     .update(ordersTable)
-    .set(parsed.data)
+    .set(
+      saleProductCost === undefined
+        ? parsed.data
+        : { ...parsed.data, productCost: saleProductCost },
+    )
     .where(eq(ordersTable.id, params.data.id))
     .returning();
   const stockDelta = stockDeltaForOrderStatusChange(existing.status, parsed.data.status ?? existing.status);
@@ -371,6 +395,7 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
     : existing.paymentMode === "deposit"
       ? "deposit_paid"
       : "paid";
+  const saleProductCost = await productCostForSale(existing, nextStatus);
   const [order] = await db
     .update(ordersTable)
     .set({
@@ -379,6 +404,7 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
       buyerDetails: parsed.data.buyerDetails ?? null,
       referenceImage: parsed.data.referenceImage ?? null,
       status: nextStatus,
+      ...(saleProductCost === undefined ? {} : { productCost: saleProductCost }),
     })
     .where(eq(ordersTable.id, existing.id))
     .returning();
