@@ -314,7 +314,7 @@ button { cursor: pointer; }
 .soft-focus:focus-visible { outline: 3px solid hsl(var(--ring) / .32); outline-offset: 3px; }
 .sidebar-scroll::-webkit-scrollbar { width: 4px; }
 .sidebar-scroll::-webkit-scrollbar-thumb { background: hsl(220 20% 32%); border-radius: 9px; }
-.orders-snapshot { display: grid; grid-template-columns: minmax(1.35fr, 1.55fr) repeat(3, minmax(145px, .82fr)); gap: 1rem; }
+.orders-snapshot { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
 .orders-lead-card { background: linear-gradient(135deg, hsl(220 30% 17%) 0%, hsl(220 28% 22%) 100%); border-color: hsl(220 23% 26%); color: hsl(45 33% 96%); box-shadow: 0 12px 30px hsl(220 30% 17% / .13); }
 .orders-lead-card p, .orders-lead-card .text-\[hsl\(var\(--muted-foreground\)\)\] { color: hsl(42 25% 91% / .63); }
 .orders-snapshot-mark { display: flex; height: 42px; width: 42px; align-items: center; justify-content: center; border-radius: 13px; background: hsl(42 81% 67% / .2); color: hsl(42 81% 67%); }
@@ -356,7 +356,7 @@ button { cursor: pointer; }
 .orders-icon-button:hover { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
 .orders-icon-button:first-child { color: hsl(var(--accent-foreground)); }
 .orders-table-row button:disabled { cursor: wait; opacity: .55; }
-.clients-overview { display: grid; grid-template-columns: minmax(1.35fr, 1.55fr) repeat(2, minmax(175px, .82fr)); gap: 1rem; }
+.clients-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .clients-intro-card { background: linear-gradient(135deg, hsl(220 30% 17%) 0%, hsl(220 28% 22%) 100%); border-color: hsl(220 23% 26%); color: hsl(45 33% 96%); box-shadow: 0 12px 30px hsl(220 30% 17% / .13); }
 .clients-intro-card p, .clients-intro-card .text-\[hsl\(var\(--muted-foreground\)\)\] { color: hsl(42 25% 91% / .63); }
 .clients-summary-mark { display: flex; height: 42px; width: 42px; align-items: center; justify-content: center; border-radius: 13px; background: hsl(42 81% 67% / .2); color: hsl(42 81% 67%); }
@@ -384,7 +384,7 @@ button { cursor: pointer; }
 .clients-view-link { display: inline-flex; align-items: center; gap: .35rem; border-radius: 999px; background: hsl(var(--muted)); padding: .48rem .68rem; color: hsl(var(--foreground)); font-size: .64rem; font-weight: 700; transition: background-color .18s, color .18s; }
 .clients-view-link:hover { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .reports-period-note { display: inline-flex; align-items: center; gap: .5rem; border: 1px solid hsl(var(--border)); border-radius: 999px; background: hsl(var(--card)); padding: .65rem .85rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .6rem; line-height: 1; }
-.reports-metric-grid { display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,1fr) minmax(280px,.95fr); gap: 1rem; }
+.reports-metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .reports-primary-metric { min-height: 220px; }
 .reports-profit-card { border-color: hsl(220 23% 26%); background: linear-gradient(135deg, hsl(220 30% 17%) 0%, hsl(220 28% 22%) 100%); box-shadow: 0 12px 30px hsl(220 30% 17% / .13); }
 .reports-profit-card p { color: hsl(42 25% 91% / .62); }
@@ -407,7 +407,7 @@ button { cursor: pointer; }
 .reports-cost-status { display: inline-flex; white-space: nowrap; border-radius: 999px; padding: .35rem .5rem; font-size: .6rem; font-weight: 700; }
 .reports-cost-tracked { background: hsl(157 42% 45% / .14); color: hsl(165 34% 28%); }
 .reports-cost-missing { background: hsl(345 39% 58% / .14); color: hsl(345 39% 40%); }
-.catalog-summary { display: grid; grid-template-columns: minmax(280px, 1.45fr) repeat(3, minmax(140px, .75fr)); gap: 1rem; }
+.catalog-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
 .catalog-summary-lead { border-color: hsl(220 23% 26%); background: linear-gradient(135deg, hsl(220 30% 17%) 0%, hsl(220 28% 23%) 100%); color: hsl(45 33% 96%); box-shadow: 0 12px 30px hsl(220 30% 17% / .13); }
 .catalog-summary-kicker, .catalog-toolbar-kicker { color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .58rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
 .catalog-summary-lead .catalog-summary-kicker { color: hsl(42 25% 91% / .58); }

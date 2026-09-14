@@ -37,6 +37,25 @@ const initials = (name: string) => name.split(' ').map((part) => part[0]).join('
 
 function cn(...classes: Array<string | false | undefined>) { return classes.filter(Boolean).join(' '); }
 
+const brandAssets = {
+  icon: '/branding/takeorder-icon.png',
+  inverted: '/branding/mono-inverted.png',
+  app: '/branding/mono-app.png',
+  wordmark: '/branding/takeorder-wordmark.png',
+} as const;
+
+function BrandMark({ variant = 'app', className = '' }: { variant?: keyof typeof brandAssets; className?: string }) {
+  return <img src={brandAssets[variant]} alt="" aria-hidden="true" className={cn('object-contain', className)} />;
+}
+
+function BrandWordmark({ inverted = false, className = '' }: { inverted?: boolean; className?: string }) {
+  return <img src={brandAssets.wordmark} alt="Duka" className={cn('object-contain', inverted && 'brightness-0 invert', className)} />;
+}
+
+function BrandLockup({ inverted = false, markVariant, className = '' }: { inverted?: boolean; markVariant?: 'icon' | 'inverted' | 'app'; className?: string }) {
+  return <div className={cn('flex items-center gap-3', className)}><BrandMark variant={markVariant ?? (inverted ? 'inverted' : 'app')} className="h-9 w-9 shrink-0 rounded-[12px]" /><BrandWordmark inverted={inverted} className="h-7 w-auto" /></div>;
+}
+
 type SellerProfile = { sellerName: string; businessName: string; description: string; channels: string[] };
 const ONBOARDING_KEY = 'duka-onboarding-profile';
 const ONBOARDING_DONE_KEY = 'duka-onboarding-complete';
@@ -61,9 +80,9 @@ function Sidebar() {
     { href: '/take-order', label: 'Take an order', icon: Link2 },
   ];
   return <aside className="desktop-sidebar fixed inset-y-0 left-0 z-30 flex w-[246px] flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))]">
-    <div className="flex items-center gap-3 px-7 py-7">
-      <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-[hsl(var(--sidebar-primary))] text-[hsl(var(--sidebar-primary-foreground))] shadow-[0_5px_0_hsl(42_81%_50%/.2)]"><Store size={19} strokeWidth={2.4} /></div>
-      <div><div className="font-display text-[21px] font-bold tracking-[-.04em]">duka</div><div className="font-mono-ui text-[9px] uppercase tracking-[.18em] text-white/45">seller workspace</div></div>
+    <div className="px-7 py-7">
+      <BrandLockup inverted className="gap-3" />
+      <div className="mt-2 pl-12 font-mono-ui text-[9px] uppercase tracking-[.18em] text-white/45">seller workspace</div>
     </div>
     <div className="mx-5 mb-5 h-px bg-white/10" />
     <div className="px-4 text-[10px] font-semibold uppercase tracking-[.16em] text-white/35">Workspace</div>
@@ -86,7 +105,7 @@ function Sidebar() {
 function MobileTopbar() {
   const [open, setOpen] = useState(false);
   const nav = [{ href: '/', label: 'Overview' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/expenses', label: 'Expenses' }, { href: '/take-order', label: 'Take an order' }, { href: '/connect', label: 'Connect tools' }];
-  return <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md"><Link href="/" className="flex items-center gap-2 font-display text-[20px] font-bold tracking-[-.04em]"><span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><Store size={17} /></span>duka</Link><button data-testid="button-mobile-menu" onClick={() => setOpen(!open)} className="rounded-lg p-2 hover:bg-black/5">{open ? <X size={20} /> : <Menu size={20} />}</button>{open && <div className="absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">{nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-sm hover:bg-[hsl(var(--muted))]">{item.label}</Link>)}</div>}</div>;
+  return <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md"><Link href="/" aria-label="Duka overview"><BrandLockup className="gap-2" /></Link><button data-testid="button-mobile-menu" onClick={() => setOpen(!open)} className="rounded-lg p-2 hover:bg-black/5">{open ? <X size={20} /> : <Menu size={20} />}</button>{open && <div className="absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">{nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-sm hover:bg-[hsl(var(--muted))]">{item.label}</Link>)}</div>}</div>;
 }
 
 function Shell({ children }: { children: ReactNode }) {
@@ -106,8 +125,8 @@ function Skeleton({ className = '' }: { className?: string }) { return <div clas
 function EmptyState({ icon: Icon, title, description, action }: { icon: typeof Package; title: string; description: string; action?: ReactNode }) { return <div className="flex flex-col items-center justify-center rounded-[16px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card))] px-6 py-16 text-center"><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Icon size={22} /></div><h3 className="font-display text-lg font-bold">{title}</h3><p className="mt-2 max-w-[340px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{description}</p>{action && <div className="mt-5">{action}</div>}</div>; }
 function ErrorState({ retry }: { retry: () => void }) { return <div className="rounded-[16px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 p-8 text-center"><p className="font-semibold">Something could not load.</p><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">Give it another try or check your connection.</p><Button className="mt-5" variant="outline" onClick={retry}><RefreshCw size={15} />Try again</Button></div>; }
 function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'gold' | 'mint' | 'rose' | 'blue' }) { return <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold capitalize', tone === 'gold' && 'bg-[hsl(42_81%_67%/.23)] text-[hsl(31_64%_34%)]', tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]', tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]', tone === 'neutral' && 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{children}</span>; }
-function MetricCard({ label, value, note, dataTestId, className = '' }: { label: string; value: ReactNode; note: ReactNode; dataTestId?: string; className?: string }) {
-  return <Card className={cn('p-5', className)} data-testid={dataTestId}><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">{label}</div><div className="mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">{value}</div><div className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">{note}</div></Card>;
+function MetricCard({ label, value, note, dataTestId, className = '', style }: { label: string; value: ReactNode; note: ReactNode; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
+  return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">{label}</div><div className="mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">{value}</div><div className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">{note}</div></Card>;
 }
 function InsightCard({ icon: Icon, title, description, className = '', dataTestId }: { icon: typeof CircleDollarSign; title: string; description: string; className?: string; dataTestId?: string }) {
   return <Card className={cn('flex items-center gap-4 p-5', className)} data-testid={dataTestId}><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/25 text-[hsl(var(--accent-foreground))]"><Icon size={18} /></div><div><div className="text-sm font-bold">{title}</div><p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">{description}</p></div></Card>;
@@ -132,7 +151,7 @@ function Onboarding() {
   const canContinue = step === 0 ? Boolean(profile.description.trim()) : step === 1 ? Boolean(profile.sellerName.trim() && profile.businessName.trim()) : true;
   return <div className="onboarding-shell min-h-[100dvh] px-5 py-5 sm:px-8 sm:py-8">
     <header className="mx-auto flex max-w-[980px] items-center justify-between">
-      <Link href="/" className="flex items-center gap-2 font-display text-xl font-bold tracking-[-.04em]" data-testid="link-onboarding-logo"><span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><Store size={16} /></span>duka</Link>
+      <Link href="/" data-testid="link-onboarding-logo" aria-label="Duka overview"><BrandLockup markVariant="icon" className="gap-2" /></Link>
       {step < 3 && <button onClick={skip} data-testid="button-skip-onboarding" className="soft-focus rounded-full px-3 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--card))] hover:text-[hsl(var(--foreground))]">Skip setup</button>}
     </header>
     <main className="onboarding-grid mx-auto mt-10 grid max-w-[980px] gap-8 rounded-[26px] border border-[hsl(var(--border))] bg-[hsl(var(--card))]/75 p-5 shadow-[0_18px_60px_hsl(224_27%_17%/.08)] backdrop-blur-sm sm:mt-14 sm:p-10 lg:grid-cols-[.86fr_1.14fr] lg:p-14">
@@ -403,7 +422,7 @@ function Expenses() {
     }
   };
   return <Shell><PageHeading eyebrow="Keep the full picture" title="Expenses" description="Record the running costs of your shop. These stay separate from product costs so profit means what you think it means." action={<Button onClick={() => setModal('new')} data-testid="button-new-expense"><Plus size={16} />Add expense</Button>} />
-    <div className="mb-5 grid gap-4 md:grid-cols-3"><Card className="p-5"><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">All operating expenses</div><div className="mt-3 font-display text-3xl font-bold tracking-[-.06em]">{moneyExact(total)}</div><div className="mt-2 text-[11px] text-[hsl(var(--muted-foreground))]">{query.data?.length ?? 0} recorded expenses</div></Card><Card className="p-5"><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Showing now</div><div className="mt-3 font-display text-3xl font-bold tracking-[-.06em]">{moneyExact(visibleTotal)}</div><div className="mt-2 text-[11px] text-[hsl(var(--muted-foreground))]">{expenses.length} matching entries</div></Card><Card className="flex items-center gap-4 p-5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/25 text-[hsl(var(--accent-foreground))]"><CircleDollarSign size={18} /></div><div><div className="text-sm font-bold">A clearer profit view</div><p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Operating expenses flow into combined expenses, not gross margin.</p></div></Card></div>
+    <div className="mb-5 grid gap-4 md:grid-cols-3"><MetricCard dataTestId="card-expenses-total" label="All operating expenses" value={moneyExact(total)} note={`${query.data?.length ?? 0} recorded expenses`} /><MetricCard dataTestId="card-expenses-visible" label="Showing now" value={moneyExact(visibleTotal)} note={`${expenses.length} matching entries`} /><InsightCard dataTestId="card-expenses-profit-note" icon={CircleDollarSign} title="A clearer profit view" description="Operating expenses flow into combined expenses, not gross margin." /></div>
     <Card className="overflow-hidden"><div className="flex flex-col gap-3 border-b border-[hsl(var(--border))] p-5 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={16} /><input data-testid="input-search-expenses" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search expenses" className="field-input pl-9" /></div><select data-testid="select-filter-expenses" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="field-input sm:max-w-[220px]"><option value="all">All categories</option>{expenseCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>
       {query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : expenses.length ? <div className="divide-y divide-[hsl(var(--border))]">{expenses.map((expense) => <div key={expense.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6" data-testid={`row-expense-${expense.id}`}><div className="min-w-0"><div className="flex items-center gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Receipt size={16} /></div><div className="min-w-0"><div className="truncate text-sm font-semibold">{expense.title}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{expenseCategoryLabel(expense.category)} · {dateShort(expense.date)}{expense.note ? ` · ${expense.note}` : ''}</div></div></div></div><div className="flex items-center justify-between gap-4 sm:justify-end"><div className="font-mono-ui text-sm font-bold">{moneyExact(expense.amount)}</div><div className="flex gap-1"><button onClick={() => setModal(expense)} data-testid={`button-edit-expense-${expense.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><Pencil size={15} /></button><button onClick={() => remove(expense)} disabled={deleteExpense.isPending} data-testid={`button-delete-expense-${expense.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--destructive))]/10 hover:text-[hsl(var(--destructive))]"><Trash2 size={15} /></button></div></div></div>)}</div> : <div className="p-6"><EmptyState icon={Receipt} title={search || categoryFilter !== 'all' ? 'No matching expenses' : 'No operating expenses yet'} description={search || categoryFilter !== 'all' ? 'Try another search or category.' : 'Record rent, delivery, supplies, and other costs that keep your shop moving.'} action={<Button onClick={() => setModal('new')}><Plus size={15} />Add your first expense</Button>} /></div>}
     </Card>
@@ -422,14 +441,10 @@ function Catalog() {
   return <Shell>
     <PageHeading eyebrow="Your products" title="Catalog" description="A calm inventory desk for the items behind every buyer link." action={<Button onClick={() => setModal('new')} data-testid="button-new-product"><Plus size={16} />Add item</Button>} />
     <section className="catalog-summary" aria-label="Catalog summary">
-      <Card className="catalog-summary-lead p-5 sm:p-6">
-        <div className="catalog-summary-kicker">Inventory value</div>
-        <div className="catalog-summary-value metric-value">{money(inventoryValue)}</div>
-        <p>Current selling value across {query.data?.length ?? 0} catalog {(query.data?.length ?? 0) === 1 ? 'item' : 'items'}.</p>
-      </Card>
-      <Card className="catalog-summary-stat p-5"><div className="catalog-summary-stat-label">Items</div><div className="catalog-summary-stat-value metric-value">{query.data?.length ?? 0}</div><div className="catalog-summary-stat-note">in your catalog</div></Card>
-      <Card className="catalog-summary-stat p-5"><div className="catalog-summary-stat-label">Low stock</div><div className={cn('catalog-summary-stat-value metric-value', lowStock > 0 && 'is-alert')}>{lowStock}</div><div className="catalog-summary-stat-note">{lowStock ? 'need attention' : 'all levels look good'}</div></Card>
-      <Card className="catalog-summary-stat p-5"><div className="catalog-summary-stat-label">Categories</div><div className="catalog-summary-stat-value metric-value">{categories}</div><div className="catalog-summary-stat-note">across your shop</div></Card>
+      <MetricCard className="rise-in" dataTestId="card-catalog-inventory-value" label="Inventory value" value={money(inventoryValue)} note={`Current selling value across ${query.data?.length ?? 0} catalog ${(query.data?.length ?? 0) === 1 ? 'item' : 'items'}.`} />
+      <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-catalog-items" label="Items" value={query.data?.length ?? 0} note="In your catalog" />
+      <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-catalog-low-stock" label="Low stock" value={<span className={cn(lowStock > 0 && 'text-[hsl(var(--destructive))]')}>{lowStock}</span>} note={lowStock ? 'Need attention' : 'All levels look good'} />
+      <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-catalog-categories" label="Categories" value={categories} note="Across your shop" />
     </section>
     <Card className="catalog-workspace mt-5 overflow-hidden">
       <div className="catalog-toolbar">
@@ -518,16 +533,10 @@ function Orders() {
   return <Shell>
     <PageHeading eyebrow="Transaction workspace" title="Orders, in motion." description="See what came in, what is collected, and the next handoff for every buyer." action={<Link href="/take-order" data-testid="link-take-order-orders"><Button><Plus size={16} />Take an order</Button></Link>} />
     <section className="orders-snapshot" aria-label="Order performance summary">
-      <Card className="orders-lead-card rise-in p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Live order value</div><div className="mt-3 font-display text-[clamp(32px,5vw,48px)] font-bold leading-none tracking-[-.065em]" data-testid="text-live-order-value">{money(metrics.orderValue)}</div><p className="mt-3 max-w-[300px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">Across {allOrders.length} {allOrders.length === 1 ? 'order' : 'orders'} currently in your workspace.</p></div>
-          <div className="orders-snapshot-mark"><TrendingUp size={19} /></div>
-        </div>
-        <div className="mt-7 flex items-center gap-3 border-t border-[hsl(var(--border))] pt-4 text-[11px]"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" /><span><strong>{money(metrics.collected)}</strong> collected</span><span className="ml-auto text-[hsl(var(--muted-foreground))]">{money(metrics.outstanding)} outstanding</span></div>
-      </Card>
-      <Card className="rise-in p-5 sm:p-6" style={{ animationDelay: '55ms' }}><div className="orders-metric-top"><div className="orders-metric-icon orders-icon-gold"><Receipt size={16} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">volume</span></div><div className="mt-6 font-display text-3xl font-bold tracking-[-.06em]" data-testid="text-total-orders">{allOrders.length}</div><div className="mt-2 text-xs font-semibold">Total orders</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{metrics.paidOrders} paid in full</p></Card>
-      <Card className="rise-in p-5 sm:p-6" style={{ animationDelay: '110ms' }}><div className="orders-metric-top"><div className="orders-metric-icon orders-icon-mint"><BarChart3 size={16} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">per order</span></div><div className="mt-6 font-display text-3xl font-bold tracking-[-.06em]" data-testid="text-average-order-value">{money(metrics.average)}</div><div className="mt-2 text-xs font-semibold">Average order value</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Based on live order value</p></Card>
-      <Card className="rise-in p-5 sm:p-6" style={{ animationDelay: '165ms' }}><div className="orders-metric-top"><div className="orders-metric-icon orders-icon-blue"><CircleDollarSign size={16} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">collected</span></div><div className="mt-6 font-display text-3xl font-bold tracking-[-.06em]" data-testid="text-collection-rate">{metrics.collectionRate.toFixed(1)}%</div><div className="mt-2 text-xs font-semibold">Collection rate</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Paid amount against order value</p></Card>
+      <MetricCard className="rise-in" dataTestId="card-orders-live-value" label="Live order value" value={<span data-testid="text-live-order-value">{money(metrics.orderValue)}</span>} note={`${money(metrics.collected)} collected · ${money(metrics.outstanding)} outstanding`} />
+      <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-orders-total" label="Total orders" value={<span data-testid="text-total-orders">{allOrders.length}</span>} note={`${metrics.paidOrders} paid in full`} />
+      <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-orders-average" label="Average order value" value={<span data-testid="text-average-order-value">{money(metrics.average)}</span>} note="Based on live order value" />
+      <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-orders-collection-rate" label="Collection rate" value={<span data-testid="text-collection-rate">{metrics.collectionRate.toFixed(1)}%</span>} note="Paid amount against order value" />
     </section>
     <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,.75fr)]">
       <Card className="overflow-hidden">
@@ -617,15 +626,9 @@ function Clients() {
     />
     {query.isLoading ? <ClientsSkeleton /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : !clients.length ? <EmptyState icon={Users} title="Your client list starts with an order" description="When a buyer shares their details, Duka will keep their purchase history together here." action={<Link href="/take-order" data-testid="link-clients-empty-order"><Button><Plus size={15} />Take an order</Button></Link>} /> : <>
       <section className="clients-overview" aria-label="Client summary">
-        <Card className="clients-intro-card rise-in p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Return visits</div><div className="mt-3 font-display text-[clamp(32px,5vw,48px)] font-bold leading-none tracking-[-.065em]" data-testid="text-client-count">{clients.length}</div><p className="mt-3 max-w-[300px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">{repeatClients ? `${repeatClients} ${repeatClients === 1 ? 'client has' : 'clients have'} ordered more than once.` : 'Every new buyer begins a relationship here.'}</p></div>
-            <div className="clients-summary-mark"><Users size={19} /></div>
-          </div>
-          <div className="mt-7 flex items-center gap-3 border-t border-[hsl(var(--border))] pt-4 text-[11px]"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" /><span><strong>{money(totalCollected)}</strong> collected</span><span className="ml-auto text-[hsl(var(--muted-foreground))]">{clients.reduce((sum, client) => sum + client.orderCount, 0)} orders</span></div>
-        </Card>
-        <Card className="rise-in p-5 sm:p-6" style={{ animationDelay: '55ms' }}><div className="clients-metric-top"><div className="clients-metric-icon clients-icon-gold"><Receipt size={16} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">people</span></div><div className="mt-6 font-display text-3xl font-bold tracking-[-.06em]" data-testid="text-total-clients">{clients.length}</div><div className="mt-2 text-xs font-semibold">Known clients</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Grouped by phone or name</p></Card>
-        <Card className="rise-in p-5 sm:p-6" style={{ animationDelay: '110ms' }}><div className="clients-metric-top"><div className="clients-metric-icon clients-icon-mint"><TrendingUp size={16} /></div><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">per client</span></div><div className="mt-6 font-display text-3xl font-bold tracking-[-.06em]" data-testid="text-average-client-spend">{money(clients.length ? totalCollected / clients.length : 0)}</div><div className="mt-2 text-xs font-semibold">Average collected</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Across known buyers</p></Card>
+        <MetricCard className="rise-in" dataTestId="card-clients-return-visits" label="Return visits" value={<span data-testid="text-client-count">{clients.length}</span>} note={repeatClients ? `${repeatClients} ${repeatClients === 1 ? 'client has' : 'clients have'} ordered more than once.` : 'Every new buyer begins a relationship here.'} />
+        <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-clients-known" label="Known clients" value={<span data-testid="text-total-clients">{clients.length}</span>} note={`${money(totalCollected)} collected across ${clients.reduce((sum, client) => sum + client.orderCount, 0)} orders`} />
+        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-clients-average" label="Average collected" value={<span data-testid="text-average-client-spend">{money(clients.length ? totalCollected / clients.length : 0)}</span>} note="Across known buyers" />
       </section>
       <section className="mt-5">
         <Card className="overflow-hidden">
