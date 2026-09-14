@@ -308,6 +308,9 @@ button { cursor: pointer; }
 .period-chip { display: inline-flex; align-items: center; gap: .5rem; border: 1px solid hsl(var(--border)); border-radius: 999px; background: hsl(var(--card)); padding: .65rem .85rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .625rem; line-height: 1; }
 .kpi-card { transition: border-color .2s ease; }
 .kpi-card:hover { border-color: hsl(var(--primary) / .28); }
+.overview-secondary-card { padding: .8rem 1rem; }
+.overview-secondary-card .metric-value { margin-top: .4rem; font-size: 1.15rem; letter-spacing: -.045em; }
+.overview-secondary-card > div:last-child { margin-top: .15rem; font-size: .65rem; line-height: 1.35; }
 .alert-row { transition: background-color .18s ease; }
 .alert-row:hover { background: hsl(var(--muted) / .58); }
 .transaction-row { transition: background-color .18s ease; }
