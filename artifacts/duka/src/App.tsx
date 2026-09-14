@@ -246,7 +246,7 @@ function Overview() {
     { label: 'Active users', value: totalOpens, note: `${activeChannels} active channels` },
   ] as const;
   const secondaryStatCards = [
-    { label: 'Collected', value: money(summary?.revenue), note: `${summary?.orders ?? 0} paid orders` },
+    { label: 'Outstanding balances', value: money(summary?.outstanding), note: `${waitingPayments} waiting payments` },
     { label: 'Orders', value: summary?.orders ?? 0, note: `${shippedOrders} shipped` },
     { label: 'Shares', value: '—', note: 'Connect a channel to track' },
     { label: 'Likes', value: '—', note: 'Connect a channel to track' },
