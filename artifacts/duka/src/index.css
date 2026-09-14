@@ -345,6 +345,8 @@ button { cursor: pointer; }
 .overview-stat-section .product-performance-track { height: .5rem; overflow: hidden; border-radius: 999px; background: hsl(var(--muted)); }
 .overview-stat-section .product-performance-fill { height: 100%; border-radius: inherit; background: hsl(301 76% 42%); transition: width .35s ease; }
 .overview-stat-section .channel-performance-row > div:nth-child(2) > div:first-child { background: hsl(var(--muted)); }
+.overview-product-card .product-performance-row { min-height: 0; }
+.overview-product-card [data-testid^="row-product-performance-"] > .product-performance-track { height: .5rem; margin-top: .5rem; }
 .overview-product-card .product-performance-value { flex-shrink: 0; }
 .overview-channel-card [data-testid^="row-channel-"] > div:last-child { margin-top: .85rem; color: hsl(var(--muted-foreground)); font-size: .75rem; }
 .overview-channel-card [data-testid^="row-channel-"] > div:last-child strong { color: hsl(var(--foreground)); font-weight: 600; }
