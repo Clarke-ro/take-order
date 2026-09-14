@@ -355,6 +355,8 @@ button { cursor: pointer; }
 .overview-channel-card [data-testid^="row-channel-"] > div:last-child { margin-top: .85rem; color: hsl(var(--muted-foreground)); font-size: .75rem; }
 .overview-channel-card [data-testid^="row-channel-"] > div:last-child strong { color: hsl(var(--foreground)); font-weight: 600; }
 .overview-channel-card [data-testid^="row-channel-"] > div:last-child span:last-child { color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .7rem; }
+.overview-product-card .product-performance-fill { display: block; background: #C8873B; }
+.overview-channel-card .channel-performance-fill { display: block; background: #268BFF; }
 .chart-tooltip { min-width: 150px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .7rem .8rem; color: hsl(var(--foreground)); box-shadow: none; font-size: .75rem; }
 .chart-tooltip > div + div { margin-top: .3rem; }
 .page-in { animation: page-in .45s ease both; }
