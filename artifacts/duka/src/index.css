@@ -88,33 +88,33 @@
   --sidebar: 0 0% 7%;
   --sidebar-foreground: 0 0% 100%;
   --sidebar-border: 0 0% 18%;
-  --sidebar-primary: 168 100% 35%;
+  --sidebar-primary: 0 0% 100%;
   --sidebar-primary-foreground: 0 0% 7%;
   --sidebar-accent: 0 0% 14%;
   --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-ring: 168 100% 35%;
+  --sidebar-ring: 0 0% 100%;
   --popover: 0 0% 100%;
   --popover-foreground: 0 0% 7%;
   --popover-border: 0 0% 90%;
-  --primary: 168 100% 35%;
-  --primary-foreground: 0 0% 7%;
+  --primary: 0 0% 7%;
+  --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 7%;
   --secondary-foreground: 0 0% 100%;
   --muted: 0 0% 96%;
   --muted-foreground: 0 0% 53%;
-  --accent: 168 100% 35%;
-  --accent-foreground: 0 0% 7%;
+  --accent: 0 0% 7%;
+  --accent-foreground: 0 0% 100%;
   --destructive: 0 0% 7%;
   --destructive-foreground: 0 0% 100%;
   --input: 0 0% 86%;
-  --ring: 168 100% 35%;
-  --chart-1: 168 100% 35%;
+  --ring: 0 0% 7%;
+  --chart-1: 0 0% 7%;
   --chart-2: 0 0% 7%;
-  --chart-3: 168 100% 31%;
+  --chart-3: 0 0% 100%;
   --chart-4: 0 0% 53%;
   --chart-5: 0 0% 90%;
-  --accent-hover: 168 100% 31%;
-  --teal-tint: 166 100% 95%;
+  --accent-hover: 0 0% 18%;
+  --teal-tint: 0 0% 96%;
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: 'Inter', sans-serif;
   --app-font-mono: 'IBM Plex Mono', monospace;
@@ -211,35 +211,35 @@
   --sidebar: 0 0% 4%;
   --sidebar-foreground: 0 0% 100%;
   --sidebar-border: 0 0% 18%;
-  --sidebar-primary: 168 100% 35%;
+  --sidebar-primary: 0 0% 100%;
   --sidebar-primary-foreground: 0 0% 7%;
   --sidebar-accent: 0 0% 14%;
   --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-ring: 168 100% 35%;
+  --sidebar-ring: 0 0% 100%;
   --popover: 0 0% 10%;
   --popover-foreground: 0 0% 100%;
   --popover-border: 0 0% 24%;
-  --primary: 168 100% 35%;
+  --primary: 0 0% 100%;
   --primary-foreground: 0 0% 7%;
   --secondary: 0 0% 100%;
   --secondary-foreground: 0 0% 7%;
   --muted: 0 0% 16%;
   --muted-foreground: 0 0% 66%;
-  --accent: 168 100% 35%;
+  --accent: 0 0% 100%;
   --accent-foreground: 0 0% 7%;
   --destructive: 0 0% 100%;
   --destructive-foreground: 0 0% 7%;
 
   /* Used as the border around inputs. Dark mode: Should be a border that is light enough to have high contrast when rendered on a --card background. More contrast than standard --border */
   --input: 0 0% 32%;
-  --ring: 168 100% 35%;
-  --chart-1: 168 100% 35%;
+  --ring: 0 0% 100%;
+  --chart-1: 0 0% 100%;
   --chart-2: 0 0% 100%;
-  --chart-3: 168 100% 31%;
+  --chart-3: 0 0% 7%;
   --chart-4: 0 0% 66%;
   --chart-5: 0 0% 24%;
-  --accent-hover: 168 100% 31%;
-  --teal-tint: 166 80% 16%;
+  --accent-hover: 0 0% 86%;
+  --teal-tint: 0 0% 16%;
 
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
@@ -618,7 +618,7 @@ button { cursor: pointer; }
   }
 }
 
-/* Take Order palette: Ink Black, Paper White, and Soul Teal. */
+/* Take Order palette: Ink Black and Paper White. */
 .onboarding-shell {
   background: hsl(var(--background)) !important;
 }
