@@ -335,7 +335,7 @@ button { cursor: pointer; }
 .overview-channel-card [data-testid^="row-channel-"] > div:nth-child(2) > span { color: hsl(var(--muted-foreground)); font-size: .7rem; }
 .overview-product-card .product-performance-row { min-height: 128px; }
 .overview-product-card [data-testid^="row-product-performance-"] .product-performance-track { height: .55rem; overflow: hidden; border-radius: 999px; background: hsl(var(--muted)); }
-.overview-product-card [data-testid^="row-product-performance-"] .product-performance-fill { height: 100%; border-radius: inherit; background: #E60023; transition: width .35s ease; }
+.overview-product-card [data-testid^="row-product-performance-"] .product-performance-fill { height: 100%; border-radius: inherit; background: hsl(var(--primary)); transition: width .35s ease; }
 .overview-product-card .product-performance-stats span:last-child { font-weight: 600; }
 .overview-stat-section { min-width: 0; }
 .overview-stat-heading { min-height: 84px; }
@@ -343,7 +343,7 @@ button { cursor: pointer; }
 .overview-stat-section .product-performance-row,
 .overview-stat-section .channel-performance-row { min-width: 0; }
 .overview-stat-section .product-performance-track { height: .5rem; overflow: hidden; border-radius: 999px; background: hsl(var(--muted)); }
-.overview-stat-section .product-performance-fill { height: 100%; border-radius: inherit; background: #E60023; transition: width .35s ease; }
+.overview-stat-section .product-performance-fill { height: 100%; border-radius: inherit; background: hsl(var(--primary)); transition: width .35s ease; }
 .overview-stat-section .channel-performance-row > div:nth-child(2) > div:first-child { background: hsl(var(--muted)); }
 .overview-product-card .product-performance-row { min-height: 0; }
 .overview-product-card [data-testid^="row-product-performance-"] > .product-performance-track { height: .5rem; margin-top: .5rem; }
