@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -115,8 +115,8 @@
   --chart-5: 0 0% 90%;
   --accent-hover: 166 87% 46%;
   --teal-tint: 166 100% 95%;
-  --app-font-sans: 'Manrope', sans-serif;
-  --app-font-serif: 'Space Grotesk', sans-serif;
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-serif: 'Inter', sans-serif;
   --app-font-mono: 'IBM Plex Mono', monospace;
   --radius: 0.5rem; /* 8px */
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
