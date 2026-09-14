@@ -350,7 +350,7 @@ button { cursor: pointer; }
 .orders-filter-scroll::-webkit-scrollbar { display: none; }
 .orders-filter-button { white-space: nowrap; border: 1px solid transparent; border-radius: 999px; background: hsl(var(--muted)); padding: .52rem .72rem; color: hsl(var(--muted-foreground)); font-size: .64rem; font-weight: 700; transition: background-color .18s, color .18s, border-color .18s; }
 .orders-filter-button:hover { border-color: hsl(var(--border)); color: hsl(var(--foreground)); }
-.orders-filter-button.is-active { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.orders-filter-button.is-active { border-color: hsl(var(--primary) / .22); background: hsl(var(--primary) / .08); color: hsl(var(--primary)); }
 .orders-table-wrap { overflow-x: auto; }
 .orders-table-head, .orders-table-row { display: grid; grid-template-columns: minmax(220px, 1.45fr) minmax(126px, .86fr) minmax(112px, .78fr) minmax(118px, .8fr) minmax(82px, .55fr) 72px; min-width: 820px; gap: 1rem; align-items: center; }
 .orders-table-head { background: hsl(var(--muted) / .5); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
