@@ -220,27 +220,36 @@ function HomeRoute() {
 function Overview() {
   const summaryQuery = useGetDashboardSummary();
   const productsQuery = useListProducts();
+  const ordersQuery = useListOrders();
   const period = 'Last 7 days';
   const summary = summaryQuery.data;
   const channels = summary?.channelPerformance ?? [];
   const daily = summary?.dailyPerformance ?? [];
   const productPerformance = summary?.productPerformance ?? [];
   const products = productsQuery.data ?? [];
+  const orders = ordersQuery.data ?? [];
   const lowStock = products.filter((product) => product.stock <= 3);
   const missingCosts = products.filter((product) => product.cost == null);
+  const totalOpens = channels.reduce((sum, channel) => sum + channel.opens, 0);
+  const activeChannels = channels.filter((channel) => channel.opens > 0).length;
+  const namedClients = new Set(orders.map((order) => order.customerName?.trim()).filter(Boolean)).size;
+  const waitingPayments = orders.filter((order) => order.status === 'reserved' || order.status === 'deposit_paid').length;
+  const shippedOrders = orders.filter((order) => order.fulfillment === 'shipped' || order.fulfillment === 'delivered').length;
+  const paidConversion = orders.length ? Math.round(((summary?.orders ?? 0) / orders.length) * 100) : 0;
   const firstDay = daily[0]?.label;
   const lastDay = daily[daily.length - 1]?.label;
   const dateContext = firstDay && lastDay ? `${firstDay} – ${lastDay}` : 'Your latest reporting window';
-  const legacyCostNote = summary?.legacyOrders
-    ? `${summary.legacyOrders} legacy ${summary.legacyOrders === 1 ? 'sale' : 'sales'} use estimated costs`
-    : 'cost of items sold';
-  const statCards = [
+  const primaryStatCards = [
+    { label: 'Sales', value: ordersQuery.isLoading ? '—' : orders.length, note: `${paidConversion}% paid conversion` },
     { label: 'Revenue', value: money(summary?.revenue), note: 'completed order value' },
-    { label: 'Product costs', value: money(summary?.productCosts), note: legacyCostNote },
-    { label: 'Operating expenses', value: money(summary?.operatingExpenses), note: 'running the shop' },
-    { label: 'Combined expenses', value: money(summary?.expenses), note: 'product + operating costs' },
-    { label: 'Profit', value: money(summary?.profit), note: summary?.legacyOrders ? 'includes estimated legacy costs' : 'revenue less expenses' },
-    { label: 'Cash balance', value: money(summary?.cashBalance), note: 'available balance' },
+    { label: 'New clients', value: ordersQuery.isLoading ? '—' : namedClients, note: `${namedClients} named buyers` },
+    { label: 'Active users', value: totalOpens, note: `${activeChannels} active channels` },
+  ] as const;
+  const secondaryStatCards = [
+    { label: 'Sales', value: ordersQuery.isLoading ? '—' : orders.length, note: `${waitingPayments} waiting payments` },
+    { label: 'Orders', value: summary?.orders ?? 0, note: `${shippedOrders} shipped` },
+    { label: 'Shares', value: '—', note: 'Connect a channel to track' },
+    { label: 'Likes', value: '—', note: 'Connect a channel to track' },
   ] as const;
   const analyticsState = getAnalyticsViewState({
     isLoading: summaryQuery.isLoading,
@@ -249,8 +258,11 @@ function Overview() {
   });
   return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading eyebrow={`Business pulse · ${dateContext}`} title="Know where your shop stands." description="A focused read on cash, stock, and the channels bringing buyers through." action={<div className="flex flex-wrap items-center gap-2"><div className="period-chip" aria-label="Reporting period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{period}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
     {summaryQuery.isLoading ? <OverviewSkeleton /> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {statCards.map((stat, index) => <MetricCard key={stat.label} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} note={stat.note} />)}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {primaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} note={stat.note} />)}
+      </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {secondaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${(index + 4) * 55}ms` }} dataTestId={`card-kpi-secondary-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} note={stat.note} />)}
       </div>
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
         <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and operating expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{period}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow">{daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Operating expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Combined expenses" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
