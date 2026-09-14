@@ -35,6 +35,28 @@ const dateShort = (value: string) => {
 const channelName = (value: string) => value.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 const chartFills = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'] as const;
 const initials = (name: string) => name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+const productImageFor = (name: string) => {
+  const value = name.toLowerCase();
+  const kind = value.includes('shoe') || value.includes('sneaker') ? 'shoe' : value.includes('bag') || value.includes('handbag') ? 'bag' : value.includes('soap') ? 'soap' : value.includes('dress') || value.includes('jacket') || value.includes('shirt') ? 'wear' : 'object';
+  const palettes = [
+    ['#dce7ed', '#6b8294', '#f5f7f4'],
+    ['#eee1d4', '#a15f4e', '#fff8ef'],
+    ['#e2e6da', '#667254', '#f8f8f1'],
+    ['#e6def0', '#78658f', '#fbf8ff'],
+  ];
+  const [background, foreground, highlight] = palettes[[...name].reduce((sum, char) => sum + char.charCodeAt(0), 0) % palettes.length]!;
+  const shape = kind === 'shoe'
+    ? `<path d="M171 180c18 3 44 8 64 24 17 13 41 18 65 22 19 3 29 14 26 27-3 13-18 21-40 21H142c-25 0-39-12-36-27 3-14 18-21 38-28 17-6 21-24 27-39Z" fill="${foreground}"/><path d="M123 247h192c-5 18-21 27-47 27H143c-20 0-31-9-20-27Z" fill="${highlight}" opacity=".85"/>`
+    : kind === 'bag'
+      ? `<path d="M134 132h132l14 145H120l14-145Z" fill="${foreground}"/><path d="M170 138c0-37 60-37 60 0" fill="none" stroke="${highlight}" stroke-width="12" stroke-linecap="round"/><path d="M151 167h98" stroke="${highlight}" stroke-width="7" opacity=".8"/>`
+      : kind === 'soap'
+        ? `<rect x="133" y="121" width="134" height="151" rx="28" fill="${foreground}"/><path d="M154 154c35-21 72 15 91-15" fill="none" stroke="${highlight}" stroke-width="13" stroke-linecap="round"/><circle cx="188" cy="220" r="16" fill="${highlight}" opacity=".8"/>`
+        : kind === 'wear'
+          ? `<path d="m151 126 44-24h34l44 24 31 45-35 24-18-26v97H155v-97l-18 26-35-24 49-45Z" fill="${foreground}"/><path d="M195 103c0 24 34 24 34 0" fill="none" stroke="${highlight}" stroke-width="9" stroke-linecap="round"/>`
+          : `<path d="M116 226c13-67 54-103 109-103s96 36 109 103c5 26-12 47-39 47H155c-27 0-44-21-39-47Z" fill="${foreground}"/><circle cx="225" cy="175" r="31" fill="${highlight}" opacity=".8"/><path d="M144 246h162" stroke="${highlight}" stroke-width="10" stroke-linecap="round"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 360"><defs><linearGradient id="wash" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${background}"/><stop offset="1" stop-color="${highlight}"/></linearGradient></defs><rect width="450" height="360" fill="url(#wash)"/><circle cx="54" cy="48" r="72" fill="${highlight}" opacity=".45"/><circle cx="405" cy="312" r="94" fill="${foreground}" opacity=".08"/>${shape}<path d="M64 309h322" stroke="${foreground}" stroke-width="2" opacity=".16"/></svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
 
 function cn(...classes: Array<string | false | undefined>) { return classes.filter(Boolean).join(' '); }
 
@@ -918,6 +940,7 @@ type BuyerOrderItem = {
   productName: string;
   amount: number;
   variants: string[];
+  imageUrl?: string;
 };
 
 function BuyerOrderSurface({ businessName, description, productName, amount, paymentMode, depositAmount, variants = [], items, children }: BuyerOrderSurfaceProps) {
@@ -946,17 +969,23 @@ function BuyerOrderSurface({ businessName, description, productName, amount, pay
         <div className="truncate text-sm font-bold">{businessName}</div>
       </div>
     </div>
-    <div className="mt-10 text-center" onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={handleTouchEnd}>
+      <div className="mt-10 text-center" onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={handleTouchEnd}>
       <div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Your order</div>
-      <div className="mt-3 flex items-center justify-center gap-2">
+      <div className="mt-5 flex items-center justify-center gap-2">
         <button type="button" aria-label="Previous item" onClick={() => move(-1)} disabled={displayItems.length < 2} className="rounded-full p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] disabled:invisible"><ArrowLeft size={16} /></button>
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-[clamp(32px,8vw,48px)] font-bold leading-none tracking-[-.06em]">{activeItem.productName}</h1>
-          <div className="mt-4 font-mono-ui text-xl">{moneyExact(activeItem.amount)}</div>
+          <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-[hsl(var(--muted))] shadow-[0_14px_30px_hsl(220_25%_20%/.12)]">
+            <img src={activeItem.imageUrl || productImageFor(activeItem.productName)} alt={`${activeItem.productName} product preview`} className="h-full w-full object-cover" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/15 to-transparent" />
+          </div>
         </div>
         <button type="button" aria-label="Next item" onClick={() => move(1)} disabled={displayItems.length < 2} className="rounded-full p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] disabled:invisible"><ArrowRight size={16} /></button>
       </div>
       {displayItems.length > 1 && <div className="mt-3 flex items-center justify-center gap-2"><span className="text-[10px] text-[hsl(var(--muted-foreground))]">Swipe to browse</span><span className="flex gap-1">{displayItems.map((item, index) => <span key={`${item.productId}-${index}`} className={cn('h-1.5 w-1.5 rounded-full', index === activeIndex ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(var(--border))')} />)}</span></div>}
+      <div className="mt-5">
+        <h1 className="font-display text-2xl font-bold leading-tight tracking-[-.04em]">{activeItem.productName}</h1>
+        <div className="mt-2 font-mono-ui text-xl">{moneyExact(activeItem.amount)}</div>
+      </div>
       {description && <p className="mx-auto mt-3 max-w-[360px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}
     </div>
     <Card className="mt-9 p-6 sm:p-8">
