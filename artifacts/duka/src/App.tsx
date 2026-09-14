@@ -163,6 +163,20 @@ const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 're
 function MetricCard({ label, value, note, dataTestId, className = '', style }: { label: string; value: ReactNode; note: ReactNode; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
   return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">{label}</div><div className="mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">{value}</div><div className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{note}</div></Card>;
 }
+function OverviewSparkline({ values, bars = false }: { values: number[]; bars?: boolean }) {
+  const safeValues = values.length ? values : [0, 0, 0, 0, 0, 0, 0];
+  const max = Math.max(...safeValues, 1);
+  const min = Math.min(...safeValues);
+  const range = Math.max(max - min, 1);
+  const points = safeValues.map((value, index) => `${(index / Math.max(safeValues.length - 1, 1)) * 100},${30 - ((value - min) / range) * 25}`).join(' ');
+  return <svg className={cn('overview-sparkline', bars && 'is-bars')} viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">{bars ? safeValues.map((value, index) => <rect key={`${value}-${index}`} x={`${(index / safeValues.length) * 100 + 1}`} y={`${30 - (value / max) * 25}`} width={`${Math.max(2, 70 / safeValues.length)}`} height={`${Math.max(2, (value / max) * 25)}`} rx="1.5" />) : <polyline points={points} />}</svg>;
+}
+function OverviewStatCard({ label, value, detail, values, bars = false, dataTestId }: { label: string; value: ReactNode; detail: ReactNode; values: number[]; bars?: boolean; dataTestId: string }) {
+  return <Card className="overview-stat-card" data-testid={dataTestId}><div className="flex items-center justify-between gap-3"><span className="overview-stat-label">{label}</span><span className="overview-stat-period">Last 7 days <span aria-hidden="true">⌄</span></span></div><div className="mt-1 font-display text-[1.35rem] font-bold tracking-[-.045em]">{value}</div><div className="overview-stat-detail">{detail}</div><OverviewSparkline values={values} bars={bars} /></Card>;
+}
+function OverviewMiniStat({ icon: Icon, label, value, detail, dataTestId }: { icon: typeof Package; label: string; value: ReactNode; detail: ReactNode; dataTestId: string }) {
+  return <Card className="overview-mini-stat" data-testid={dataTestId}><div className="overview-mini-icon"><Icon size={15} /></div><div className="min-w-0"><div className="overview-mini-label">{label}</div><div className="overview-mini-value">{value}</div><div className="overview-mini-detail">{detail}</div></div></Card>;
+}
 function InsightCard({ icon: Icon, title, description, className = '', dataTestId }: { icon: typeof CircleDollarSign; title: string; description: string; className?: string; dataTestId?: string }) {
   return <Card className={cn('flex items-center gap-4 p-5', className)} data-testid={dataTestId}><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/25 text-[hsl(var(--accent-foreground))]"><Icon size={18} /></div><div><div className="text-sm font-bold">{title}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p></div></Card>;
 }
@@ -220,37 +234,43 @@ function HomeRoute() {
 function Overview() {
   const summaryQuery = useGetDashboardSummary();
   const productsQuery = useListProducts();
+  const ordersQuery = useListOrders();
   const period = 'Last 7 days';
   const summary = summaryQuery.data;
   const channels = summary?.channelPerformance ?? [];
   const daily = summary?.dailyPerformance ?? [];
   const productPerformance = summary?.productPerformance ?? [];
   const products = productsQuery.data ?? [];
+  const orders = ordersQuery.data ?? [];
   const lowStock = products.filter((product) => product.stock <= 3);
   const missingCosts = products.filter((product) => product.cost == null);
+  const totalOpens = channels.reduce((sum, channel) => sum + channel.opens, 0);
+  const activeChannels = channels.filter((channel) => channel.opens > 0).length;
+  const namedClients = new Set(orders.map((order) => order.customerName?.trim()).filter(Boolean)).size;
+  const waitingPayments = orders.filter((order) => order.status === 'reserved' || order.status === 'deposit_paid').length;
+  const shippedOrders = orders.filter((order) => order.fulfillment === 'shipped' || order.fulfillment === 'delivered').length;
+  const paidConversion = orders.length ? Math.round(((summary?.orders ?? 0) / orders.length) * 100) : 0;
   const firstDay = daily[0]?.label;
   const lastDay = daily[daily.length - 1]?.label;
   const dateContext = firstDay && lastDay ? `${firstDay} – ${lastDay}` : 'Your latest reporting window';
-  const legacyCostNote = summary?.legacyOrders
-    ? `${summary.legacyOrders} legacy ${summary.legacyOrders === 1 ? 'sale' : 'sales'} use estimated costs`
-    : 'cost of items sold';
   const analyticsState = getAnalyticsViewState({
     isLoading: summaryQuery.isLoading,
     isError: summaryQuery.isError,
     summary,
   });
-  const statCards = [
-    { label: 'Revenue', value: money(summary?.revenue), note: 'completed order value', icon: TrendingUp, tone: 'gold' },
-     { label: 'Product costs', value: money(summary?.productCosts), note: legacyCostNote, icon: Package, tone: 'rose' },
-    { label: 'Operating expenses', value: money(summary?.operatingExpenses), note: 'running the shop', icon: Receipt, tone: 'blue' },
-    { label: 'Combined expenses', value: money(summary?.expenses), note: 'product + operating costs', icon: ArrowDownRight, tone: 'rose' },
-     { label: 'Profit', value: money(summary?.profit), note: summary?.legacyOrders ? 'includes estimated legacy costs' : 'revenue less expenses', icon: BarChart3, tone: 'mint' },
-    { label: 'Cash balance', value: money(summary?.cashBalance), note: 'available balance', icon: WalletCards, tone: 'blue' },
-  ] as const;
   return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading eyebrow={`Business pulse · ${dateContext}`} title="Know where your shop stands." description="A focused read on cash, stock, and the channels bringing buyers through." action={<div className="flex flex-wrap items-center gap-2"><div className="period-chip" aria-label="Reporting period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{period}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
     {summaryQuery.isLoading ? <OverviewSkeleton /> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {statCards.map((stat, index) => <MetricCard key={stat.label} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} note={stat.note} />)}
+      <div className="overview-stats-grid">
+        <OverviewStatCard label="Sales" value={ordersQuery.isLoading ? '—' : orders.length} detail={<><strong>{paidConversion}%</strong> paid conversion</>} values={daily.map((day) => day.orders)} dataTestId="card-overview-sales" />
+        <OverviewStatCard label="Revenue" value={money(summary?.revenue)} detail={<><strong>{money(summary?.outstanding)}</strong> outstanding</>} values={daily.map((day) => day.revenue)} dataTestId="card-overview-revenue" />
+        <OverviewStatCard label="New clients" value={ordersQuery.isLoading ? '—' : namedClients} detail={<><strong>{namedClients}</strong> named buyers</>} values={daily.map((day) => day.orders)} dataTestId="card-overview-new-clients" />
+        <OverviewStatCard label="Active users" value={totalOpens} detail={<><strong>{activeChannels}</strong> active channels</>} values={channels.map((channel) => channel.opens)} bars dataTestId="card-overview-active-users" />
+      </div>
+      <div className="overview-mini-grid">
+        <OverviewMiniStat icon={CircleDollarSign} label="Sales" value={ordersQuery.isLoading ? '—' : orders.length} detail={`${waitingPayments} waiting payments`} dataTestId="card-overview-mini-sales" />
+        <OverviewMiniStat icon={Clipboard} label="Orders" value={summary?.orders ?? 0} detail={`${shippedOrders} shipped`} dataTestId="card-overview-mini-orders" />
+        <OverviewMiniStat icon={Eye} label="Link opens" value={totalOpens} detail={`${activeChannels} active channels`} dataTestId="card-overview-mini-opens" />
+        <OverviewMiniStat icon={Package} label="Best seller" value={summary?.bestSeller ?? '—'} detail={money(summary?.revenue)} dataTestId="card-overview-mini-best-seller" />
       </div>
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
         <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and operating expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{period}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow">{daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Operating expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Combined expenses" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
