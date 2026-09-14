@@ -308,21 +308,6 @@ button { cursor: pointer; }
 .period-chip { display: inline-flex; align-items: center; gap: .5rem; border: 1px solid hsl(var(--border)); border-radius: 999px; background: hsl(var(--card)); padding: .65rem .85rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .625rem; line-height: 1; }
 .kpi-card { transition: border-color .2s ease; }
 .kpi-card:hover { border-color: hsl(var(--primary) / .28); }
-.overview-stats-grid, .overview-mini-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
-.overview-stat-card { min-width: 0; overflow: hidden; padding: .9rem 1rem .65rem; }
-.overview-stat-label, .overview-mini-label { color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.overview-stat-period { color: hsl(var(--muted-foreground)); font-size: .59rem; white-space: nowrap; }
-.overview-stat-period span { color: hsl(var(--foreground)); font-size: .7rem; }
-.overview-stat-detail { min-height: 1rem; margin-top: .15rem; color: hsl(var(--muted-foreground)); font-size: .62rem; }
-.overview-stat-detail strong { color: #E60023; font-weight: 700; }
-.overview-sparkline { display: block; width: 100%; height: 2rem; margin-top: .35rem; overflow: visible; }
-.overview-sparkline polyline { fill: none; stroke: #E60023; stroke-width: 1.8; vector-effect: non-scaling-stroke; }
-.overview-sparkline rect { fill: #E60023; opacity: .92; }
-.overview-mini-grid { margin-top: .75rem; }
-.overview-mini-stat { display: flex; min-width: 0; align-items: center; gap: .65rem; padding: .72rem .8rem; }
-.overview-mini-icon { display: flex; height: 2rem; width: 2rem; flex-shrink: 0; align-items: center; justify-content: center; border-radius: .45rem; background: #E60023; color: #fff; }
-.overview-mini-value { overflow: hidden; margin-top: .15rem; color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .72rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.overview-mini-detail { overflow: hidden; color: hsl(var(--muted-foreground)); font-size: .58rem; text-overflow: ellipsis; white-space: nowrap; }
 .alert-row { transition: background-color .18s ease; }
 .alert-row:hover { background: hsl(var(--muted) / .58); }
 .transaction-row { transition: background-color .18s ease; }
