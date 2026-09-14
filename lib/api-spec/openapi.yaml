@@ -381,15 +381,19 @@ components:
         paymentAction: { type: string, enum: [pay, reserve] }
     DashboardSummary:
       type: object
-      required: [revenue, productCosts, operatingExpenses, expenses, profit, cashBalance, orders, outstanding, bestSeller, channelPerformance, dailyPerformance, productPerformance, insights]
+      required: [revenue, productCosts, estimatedProductCosts, operatingExpenses, expenses, profit, cashBalance, orders, snapshotOrders, legacyOrders, legacyRevenue, outstanding, bestSeller, channelPerformance, dailyPerformance, productPerformance, insights]
       properties:
         revenue: { type: number }
         productCosts: { type: number }
+        estimatedProductCosts: { type: number, description: Current catalog-cost estimates included for legacy sales without a captured sale-time cost. }
         operatingExpenses: { type: number }
         expenses: { type: number }
         profit: { type: number }
         cashBalance: { type: number }
         orders: { type: integer }
+        snapshotOrders: { type: integer, description: Paid orders with a captured sale-time product cost. }
+        legacyOrders: { type: integer, description: Paid orders without a captured sale-time product cost. Their product costs and margins may use the current catalog cost. }
+        legacyRevenue: { type: number, description: Revenue from paid orders without a captured sale-time product cost. }
         outstanding: { type: number }
         bestSeller: { type: string }
         channelPerformance:
@@ -431,7 +435,7 @@ components:
         orders: { type: integer }
     ProductPerformance:
       type: object
-      required: [name, category, revenue, orders, stock, margin, costTracked]
+      required: [name, category, revenue, orders, stock, margin, costTracked, marginStatus, snapshotOrders, legacyOrders]
       properties:
         name: { type: string }
         category: { type: string }
@@ -440,6 +444,9 @@ components:
         stock: { type: integer }
         margin: { type: number }
         costTracked: { type: boolean }
+        marginStatus: { type: string, enum: [tracked, estimated, unavailable], description: Whether the displayed margin is fully snapshot-backed, includes legacy estimates, or has no usable cost. }
+        snapshotOrders: { type: integer, description: Paid orders with a captured sale-time product cost for this product. }
+        legacyOrders: { type: integer, description: Paid orders without a captured sale-time product cost for this product. }
     Expense:
       type: object
       required: [id, title, category, amount, date, note, createdAt]

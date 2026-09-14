@@ -29,6 +29,7 @@ export * from './orderUpdateStatus';
 export * from './product';
 export * from './productInput';
 export * from './productPerformance';
+export * from './productPerformanceMarginStatus';
 export * from './productUpdate';
 export * from './publicOrder';
 export * from './publicOrderInput';

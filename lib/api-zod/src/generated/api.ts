@@ -304,11 +304,15 @@ export const SubmitPublicOrderResponse = zod.object({
 export const GetDashboardSummaryResponse = zod.object({
   "revenue": zod.number(),
   "productCosts": zod.number(),
+  "estimatedProductCosts": zod.number().describe('Current catalog-cost estimates included for legacy sales without a captured sale-time cost.'),
   "operatingExpenses": zod.number(),
   "expenses": zod.number(),
   "profit": zod.number(),
   "cashBalance": zod.number(),
   "orders": zod.number().int(),
+  "snapshotOrders": zod.number().int().describe('Paid orders with a captured sale-time product cost.'),
+  "legacyOrders": zod.number().int().describe('Paid orders without a captured sale-time product cost. Their product costs and margins may use the current catalog cost.'),
+  "legacyRevenue": zod.number().describe('Revenue from paid orders without a captured sale-time product cost.'),
   "outstanding": zod.number(),
   "bestSeller": zod.string(),
   "channelPerformance": zod.array(zod.object({
@@ -337,7 +341,10 @@ export const GetDashboardSummaryResponse = zod.object({
   "orders": zod.number().int(),
   "stock": zod.number().int(),
   "margin": zod.number(),
-  "costTracked": zod.boolean()
+  "costTracked": zod.boolean(),
+  "marginStatus": zod.enum(['tracked', 'estimated', 'unavailable']).describe('Whether the displayed margin is fully snapshot-backed'),
+  "snapshotOrders": zod.number().int().describe('Paid orders with a captured sale-time product cost for this product.'),
+  "legacyOrders": zod.number().int().describe('Paid orders without a captured sale-time product cost for this product.')
 }))
 })
 

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductPerformanceMarginStatus } from './productPerformanceMarginStatus';
 
 export interface ProductPerformance {
   name: string;
@@ -14,4 +15,10 @@ export interface ProductPerformance {
   stock: number;
   margin: number;
   costTracked: boolean;
+  /** Whether the displayed margin is fully snapshot-backed */
+  marginStatus: ProductPerformanceMarginStatus;
+  /** Paid orders with a captured sale-time product cost for this product. */
+  snapshotOrders: number;
+  /** Paid orders without a captured sale-time product cost for this product. */
+  legacyOrders: number;
 }

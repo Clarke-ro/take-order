@@ -71,7 +71,11 @@ test("includes full, deposit, and excludes reserved orders from paid analytics",
 
   assert.equal(summary.revenue, 180);
   assert.equal(summary.orders, 3);
+  assert.equal(summary.snapshotOrders, 0);
+  assert.equal(summary.legacyOrders, 3);
+  assert.equal(summary.legacyRevenue, 180);
   assert.equal(summary.productCosts, 40);
+  assert.equal(summary.estimatedProductCosts, 40);
   assert.equal(summary.operatingExpenses, 15);
   assert.equal(summary.expenses, 55);
   assert.equal(summary.profit, 125);
@@ -87,6 +91,9 @@ test("includes full, deposit, and excludes reserved orders from paid analytics",
       stock: 2,
       margin: (90 / 130) * 100,
       costTracked: true,
+      marginStatus: "estimated",
+      snapshotOrders: 0,
+      legacyOrders: 2,
     },
     {
       name: "Canvas tote",
@@ -96,6 +103,9 @@ test("includes full, deposit, and excludes reserved orders from paid analytics",
       stock: 10,
       margin: 0,
       costTracked: false,
+      marginStatus: "unavailable",
+      snapshotOrders: 0,
+      legacyOrders: 1,
     },
   ]);
 });
@@ -239,6 +249,50 @@ test("keeps paid and deposit margins on their sale-time cost after catalog edits
   assert.equal(editedSummary.dailyPerformance.at(-1)?.productCosts, 20);
   assert.equal(editedSummary.productPerformance[0]?.margin, (90 / 130) * 100);
   assert.equal(editedSummary.productPerformance[0]?.costTracked, true);
+  assert.equal(editedSummary.productPerformance[0]?.marginStatus, "tracked");
+  assert.equal(editedSummary.snapshotOrders, 2);
+  assert.equal(editedSummary.legacyOrders, 0);
+  assert.equal(editedSummary.legacyRevenue, 0);
+  assert.equal(editedSummary.estimatedProductCosts, 0);
+});
+
+test("labels mixed snapshot and legacy sales as estimated and exposes the affected totals", () => {
+  const summary = calculateDashboardSummary(
+    [{ ...products[0], cost: "80.00" }],
+    [
+      order({
+        productId: 1,
+        status: "paid",
+        amount: 100,
+        productCost: "20.00",
+      }),
+      order({
+        productId: 1,
+        status: "paid",
+        amount: 50,
+      }),
+    ],
+    [],
+    now,
+  );
+
+  assert.equal(summary.productCosts, 100);
+  assert.equal(summary.estimatedProductCosts, 80);
+  assert.equal(summary.snapshotOrders, 1);
+  assert.equal(summary.legacyOrders, 1);
+  assert.equal(summary.legacyRevenue, 50);
+  assert.deepEqual(summary.productPerformance[0], {
+    name: "Linen set",
+    category: "Apparel",
+    revenue: 150,
+    orders: 2,
+    stock: 2,
+    margin: (50 / 150) * 100,
+    costTracked: true,
+    marginStatus: "estimated",
+    snapshotOrders: 1,
+    legacyOrders: 1,
+  });
 });
 
 test("returns safe empty analytics when there is no activity", () => {
@@ -248,6 +302,10 @@ test("returns safe empty analytics when there is no activity", () => {
   assert.equal(summary.orders, 0);
   assert.equal(summary.bestSeller, "No sales yet");
   assert.equal(summary.outstanding, 0);
+  assert.equal(summary.snapshotOrders, 0);
+  assert.equal(summary.legacyOrders, 0);
+  assert.equal(summary.legacyRevenue, 0);
+  assert.equal(summary.estimatedProductCosts, 0);
   assert.deepEqual(summary.channelPerformance, []);
   assert.deepEqual(summary.productPerformance, []);
   assert.equal(summary.dailyPerformance.length, 7);

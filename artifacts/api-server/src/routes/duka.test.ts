@@ -180,11 +180,15 @@ test("GET /dashboard/summary adapts seeded database records into the response co
   const summary = GetDashboardSummaryResponse.parse(response.body);
   assert.equal(summary.revenue, 100);
   assert.equal(summary.productCosts, 20);
+  assert.equal(summary.estimatedProductCosts, 0);
   assert.equal(summary.operatingExpenses, 15);
   assert.equal(summary.expenses, 35);
   assert.equal(summary.profit, 65);
   assert.equal(summary.cashBalance, 65);
   assert.equal(summary.orders, 1);
+  assert.equal(summary.snapshotOrders, 1);
+  assert.equal(summary.legacyOrders, 0);
+  assert.equal(summary.legacyRevenue, 0);
   assert.equal(summary.bestSeller, "Linen set");
   assert.deepEqual(summary.productPerformance, [
     {
@@ -195,8 +199,58 @@ test("GET /dashboard/summary adapts seeded database records into the response co
       stock: 2,
       margin: 80,
       costTracked: true,
+      marginStatus: "tracked",
+      snapshotOrders: 1,
+      legacyOrders: 0,
     },
   ]);
+});
+
+test("GET /dashboard/summary identifies a legacy sale with no captured cost", async () => {
+  const response = await requestSummary({
+    products: [
+      {
+        id: 1,
+        name: "Legacy linen set",
+        category: "Apparel",
+        price: "100.00",
+        cost: "20.00",
+        stock: 2,
+        variants: [],
+        accent: "#0F6E6B",
+      },
+    ],
+    orders: [
+      {
+        id: 1,
+        token: "legacy-order",
+        productId: 1,
+        productName: "Legacy linen set",
+        customerName: "Ama",
+        customerPhone: null,
+        channel: "whatsapp",
+        amount: "100.00",
+        productCost: null,
+        depositAmount: null,
+        paymentMode: "full",
+        status: "paid",
+        fulfillment: "pending",
+        createdAt: new Date(),
+        linkOpens: 0,
+        referenceImage: null,
+        buyerDetails: null,
+      },
+    ],
+    expenses: [],
+  });
+
+  assert.equal(response.status, 200);
+  const summary = GetDashboardSummaryResponse.parse(response.body);
+  assert.equal(summary.legacyOrders, 1);
+  assert.equal(summary.snapshotOrders, 0);
+  assert.equal(summary.legacyRevenue, 100);
+  assert.equal(summary.estimatedProductCosts, 20);
+  assert.equal(summary.productPerformance[0]?.marginStatus, "estimated");
 });
 
 test("buyer deposit checkout and seller payment preserve the original product cost", async () => {

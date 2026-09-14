@@ -12,11 +12,19 @@ import type { ProductPerformance } from './productPerformance';
 export interface DashboardSummary {
   revenue: number;
   productCosts: number;
+  /** Current catalog-cost estimates included for legacy sales without a captured sale-time cost. */
+  estimatedProductCosts: number;
   operatingExpenses: number;
   expenses: number;
   profit: number;
   cashBalance: number;
   orders: number;
+  /** Paid orders with a captured sale-time product cost. */
+  snapshotOrders: number;
+  /** Paid orders without a captured sale-time product cost. Their product costs and margins may use the current catalog cost. */
+  legacyOrders: number;
+  /** Revenue from paid orders without a captured sale-time product cost. */
+  legacyRevenue: number;
   outstanding: number;
   bestSeller: string;
   channelPerformance: ChannelPerformance[];

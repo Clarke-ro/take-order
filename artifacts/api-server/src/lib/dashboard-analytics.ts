@@ -26,11 +26,15 @@ export type AnalyticsExpense = {
 export type DashboardSummary = {
   revenue: number;
   productCosts: number;
+  estimatedProductCosts: number;
   operatingExpenses: number;
   expenses: number;
   profit: number;
   cashBalance: number;
   orders: number;
+  snapshotOrders: number;
+  legacyOrders: number;
+  legacyRevenue: number;
   outstanding: number;
   bestSeller: string;
   channelPerformance: Array<{
@@ -60,6 +64,9 @@ export type DashboardSummary = {
     stock: number;
     margin: number;
     costTracked: boolean;
+    marginStatus: "tracked" | "estimated" | "unavailable";
+    snapshotOrders: number;
+    legacyOrders: number;
   }>;
 };
 
@@ -94,16 +101,14 @@ const productCost = (product: AnalyticsProduct | undefined) =>
 const orderProductCost = (
   order: AnalyticsOrder,
   product: AnalyticsProduct | undefined,
-) => (order.productCost === undefined
+) => order.productCost == null
   ? productCost(product)
-  : order.productCost == null
-    ? 0
-    : Number(order.productCost));
+  : Number(order.productCost);
 
-const orderCostTracked = (
-  order: AnalyticsOrder,
-  product: AnalyticsProduct | undefined,
-) => order.productCost === undefined ? product?.cost != null : order.productCost != null;
+const orderHasLegacyCost = (order: AnalyticsOrder) => order.productCost == null;
+
+const orderHasTrackedCost = (order: AnalyticsOrder) =>
+  order.productCost != null;
 
 export function calculateDashboardSummary(
   products: AnalyticsProduct[],
@@ -114,6 +119,16 @@ export function calculateDashboardSummary(
   const productMap = new Map(products.map((product) => [product.id, product]));
   const paidOrders = orders.filter(isPaidOrder);
   const revenue = paidOrders.reduce((sum, order) => sum + orderRevenue(order), 0);
+  const legacyOrders = paidOrders.filter(orderHasLegacyCost);
+  const snapshotOrders = paidOrders.length - legacyOrders.length;
+  const legacyRevenue = legacyOrders.reduce(
+    (sum, order) => sum + orderRevenue(order),
+    0,
+  );
+  const estimatedProductCosts = legacyOrders.reduce(
+    (sum, order) => sum + productCost(productMap.get(order.productId)),
+    0,
+  );
   const productCosts = paidOrders.reduce(
     (sum, order) =>
       sum + orderProductCost(order, productMap.get(order.productId)),
@@ -207,9 +222,17 @@ export function calculateDashboardSummary(
           (sum, order) => sum + orderProductCost(order, product),
           0,
         );
+      const productLegacyOrders = productOrders.filter(orderHasLegacyCost);
+      const productSnapshotOrders =
+        productOrders.length - productLegacyOrders.length;
       const costTracked =
         product.cost != null ||
-        productOrders.some((order) => orderCostTracked(order, product));
+        productOrders.some(orderHasTrackedCost);
+      const marginStatus: DashboardSummary["productPerformance"][number]["marginStatus"] = !costTracked
+        ? "unavailable"
+        : productLegacyOrders.length
+          ? "estimated"
+          : "tracked";
       return {
         name: product.name,
         category: product.category,
@@ -220,6 +243,9 @@ export function calculateDashboardSummary(
           ? ((productRevenue - productExpenses) / productRevenue) * 100
           : 0,
         costTracked,
+        marginStatus,
+        snapshotOrders: productSnapshotOrders,
+        legacyOrders: productLegacyOrders.length,
       };
     })
     .sort((a, b) => b.revenue - a.revenue);
@@ -246,11 +272,15 @@ export function calculateDashboardSummary(
   return {
     revenue,
     productCosts,
+    estimatedProductCosts,
     operatingExpenses,
     expenses,
     profit,
     cashBalance: revenue - expenses,
     orders: paidOrders.length,
+    snapshotOrders,
+    legacyOrders: legacyOrders.length,
+    legacyRevenue,
     outstanding,
     bestSeller,
     channelPerformance,
