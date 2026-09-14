@@ -339,12 +339,13 @@ button { cursor: pointer; }
 .overview-product-card .product-performance-stats span:last-child { font-weight: 600; }
 .overview-stat-section { min-width: 0; }
 .overview-stat-heading { min-height: 84px; }
-.overview-stat-list { display: flex; flex-direction: column; gap: 1.65rem; }
+.overview-stat-list { display: flex; flex-direction: column; gap: 1rem; }
 .overview-stat-section .product-performance-row,
 .overview-stat-section .channel-performance-row { min-width: 0; }
-.overview-stat-section .product-performance-track { height: .55rem; overflow: hidden; border-radius: 999px; background: hsl(var(--muted)); }
-.overview-stat-section .product-performance-fill { height: 100%; border-radius: inherit; background: hsl(var(--primary)); transition: width .35s ease; }
+.overview-stat-section .product-performance-track { height: .5rem; overflow: hidden; border-radius: 999px; background: hsl(var(--muted)); }
+.overview-stat-section .product-performance-fill { height: 100%; border-radius: inherit; background: hsl(301 76% 42%); transition: width .35s ease; }
 .overview-stat-section .channel-performance-row > div:nth-child(2) > div:first-child { background: hsl(var(--muted)); }
+.overview-product-card .product-performance-value { flex-shrink: 0; }
 .overview-channel-card [data-testid^="row-channel-"] > div:last-child { margin-top: .85rem; color: hsl(var(--muted-foreground)); font-size: .75rem; }
 .overview-channel-card [data-testid^="row-channel-"] > div:last-child strong { color: hsl(var(--foreground)); font-weight: 600; }
 .overview-channel-card [data-testid^="row-channel-"] > div:last-child span:last-child { color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .7rem; }
