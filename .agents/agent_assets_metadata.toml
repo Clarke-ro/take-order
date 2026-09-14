@@ -1,0 +1,44 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Y_-svEGcBIYkm9hA6JwcP"
+uri = "file://screenshots/task-22-seller-orders-desktop.jpg"
+type = "image"
+title = "Seller orders — desktop"
+description = "Populated desktop seller order flow showing the active filter, paid state, and fulfillment states."
+logical_id = "f3522070-9423-4e6c-aabb-6c68214e02b5"
+content_hash = "sha256:a3bdf5cad7ab7201ffab7af68fe984f6edc73880692fd4dc65ea35cf9324de41"
+size = 102976
+mtime_ms = 1789394613394
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:472e06d5-5a50-4c15-ab6f-762ac6d5dd4f/f3522070-9423-4e6c-aabb-6c68214e02b5/100fa605-f29f-4753-800c-6b0de41762f2"
+storage_version_token = "1789394630539262"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "Ad-k7eyDv6cFfNHy4WEaO"
+uri = "file://screenshots/task-22-seller-orders-mobile-populated.jpg"
+type = "image"
+title = "Seller orders — mobile"
+description = "Populated mobile seller order flow at the highest-use compact layout."
+logical_id = "c15d8466-af38-4856-ad7f-e5d5d1892fa2"
+content_hash = "sha256:be136057a280f7aa204fcde92a16745a8db5d7dc1c6b87eea92b93d3c7c06e0c"
+size = 39176
+mtime_ms = 1789394615664
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:472e06d5-5a50-4c15-ab6f-762ac6d5dd4f/c15d8466-af38-4856-ad7f-e5d5d1892fa2/a07a1406-f009-4446-8765-08f5a71e2bbe"
+storage_version_token = "1789394631133440"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "tLKQROyly_xw63zqfXFW-"
+uri = "file://screenshots/task-22-buyer-mobile-populated.jpg"
+type = "image"
+title = "Buyer deposit checkout — mobile"
+description = "Populated mobile buyer checkout showing the deposit flow and payment choices."
+logical_id = "024ba360-5796-4dbb-ad51-744fa56b9562"
+content_hash = "sha256:af46c0ee69efeee036d49a3415dbcc709c860308f323a1db39032ed059fde3cf"
+size = 29104
+mtime_ms = 1789394617566
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:472e06d5-5a50-4c15-ab6f-762ac6d5dd4f/024ba360-5796-4dbb-ad51-744fa56b9562/b4911a8c-5121-4296-a1fb-ee7a58dd00c6"
+storage_version_token = "1789394631660809"
+content_type = "image/jpeg"

@@ -79,41 +79,43 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  --background: 220 17% 97%;
-  --foreground: 220 15% 24%;
-  --border: 220 16% 90%;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 7%;
+  --border: 0 0% 90%;
   --card: 0 0% 100%;
-  --card-foreground: 220 15% 24%;
-  --card-border: 220 16% 90%;
-  --sidebar: 0 0% 100%;
-  --sidebar-foreground: 220 15% 24%;
-  --sidebar-border: 220 16% 90%;
-  --sidebar-primary: 220 18% 24%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 220 17% 93%;
-  --sidebar-accent-foreground: 220 15% 24%;
+  --card-foreground: 0 0% 7%;
+  --card-border: 0 0% 90%;
+  --sidebar: 0 0% 7%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 18%;
+  --sidebar-primary: 0 0% 100%;
+  --sidebar-primary-foreground: 0 0% 7%;
+  --sidebar-accent: 0 0% 14%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 0 0% 100%;
   --popover: 0 0% 100%;
-  --popover-foreground: 220 15% 24%;
-  --popover-border: 220 16% 90%;
-  --primary: 220 18% 24%;
+  --popover-foreground: 0 0% 7%;
+  --popover-border: 0 0% 90%;
+  --primary: 0 0% 7%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 100%;
-  --secondary-foreground: 220 15% 24%;
-  --muted: 220 16% 95%;
-  --muted-foreground: 220 10% 45%;
-  --accent: 220 18% 24%;
+  --secondary: 0 0% 7%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 96%;
+  /* Keep supporting copy above 4.5:1 against Paper White. */
+  --muted-foreground: 0 0% 38%;
+  --accent: 0 0% 7%;
   --accent-foreground: 0 0% 100%;
-  --destructive: 220 18% 24%;
+  --destructive: 0 0% 7%;
   --destructive-foreground: 0 0% 100%;
-  --input: 220 15% 84%;
-  --ring: 220 18% 24%;
-  --chart-1: 220 18% 24%;
-  --chart-2: 220 12% 44%;
-  --chart-3: 220 18% 32%;
-  --chart-4: 220 10% 58%;
-  --chart-5: 220 16% 90%;
-  --accent-hover: 220 18% 30%;
-  --teal-tint: 220 18% 95%;
+  --input: 0 0% 86%;
+  --ring: 0 0% 7%;
+  --chart-1: 0 0% 7%;
+  --chart-2: 0 0% 7%;
+  --chart-3: 0 0% 100%;
+  --chart-4: 0 0% 53%;
+  --chart-5: 0 0% 90%;
+  --accent-hover: 0 0% 18%;
+  --teal-tint: 0 0% 96%;
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: 'Inter', sans-serif;
   --app-font-mono: 'IBM Plex Mono', monospace;
@@ -201,43 +203,44 @@
   --elevate-1: rgba(255, 255, 255, 0.04);
   --elevate-2: rgba(255, 255, 255, 0.09);
 
-  --background: 220 25% 10%;
+  --background: 0 0% 7%;
   --foreground: 0 0% 100%;
-  --border: 220 18% 25%;
-  --card: 220 20% 14%;
+  --border: 0 0% 24%;
+  --card: 0 0% 10%;
   --card-foreground: 0 0% 100%;
-  --card-border: 220 18% 25%;
-  --sidebar: 220 25% 8%;
+  --card-border: 0 0% 24%;
+  --sidebar: 0 0% 4%;
   --sidebar-foreground: 0 0% 100%;
-  --sidebar-border: 220 18% 20%;
-  --sidebar-primary: 220 20% 92%;
-  --sidebar-primary-foreground: 220 20% 14%;
-  --sidebar-accent: 220 20% 17%;
+  --sidebar-border: 0 0% 18%;
+  --sidebar-primary: 0 0% 100%;
+  --sidebar-primary-foreground: 0 0% 7%;
+  --sidebar-accent: 0 0% 14%;
   --sidebar-accent-foreground: 0 0% 100%;
-  --popover: 220 20% 14%;
+  --popover: 0 0% 10%;
   --popover-foreground: 0 0% 100%;
-  --popover-border: 220 18% 25%;
-  --primary: 220 20% 92%;
-  --primary-foreground: 220 20% 14%;
-  --secondary: 220 20% 18%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 220 20% 18%;
-  --muted-foreground: 220 12% 70%;
-  --accent: 220 20% 92%;
-  --accent-foreground: 220 20% 14%;
-  --destructive: 220 20% 92%;
-  --destructive-foreground: 220 20% 14%;
+  --popover-border: 0 0% 24%;
+  --primary: 0 0% 100%;
+  --primary-foreground: 0 0% 7%;
+  --secondary: 0 0% 100%;
+  --secondary-foreground: 0 0% 7%;
+  --muted: 0 0% 16%;
+  /* Keep supporting copy readable against the dark card/background surfaces. */
+  --muted-foreground: 0 0% 72%;
+  --accent: 0 0% 100%;
+  --accent-foreground: 0 0% 7%;
+  --destructive: 0 0% 100%;
+  --destructive-foreground: 0 0% 7%;
 
   /* Used as the border around inputs. Dark mode: Should be a border that is light enough to have high contrast when rendered on a --card background. More contrast than standard --border */
-  --input: 220 18% 35%;
-  --ring: 220 20% 92%;
-  --chart-1: 220 20% 92%;
-  --chart-2: 220 12% 70%;
-  --chart-3: 220 18% 28%;
-  --chart-4: 220 10% 55%;
-  --chart-5: 220 18% 25%;
-  --accent-hover: 220 20% 84%;
-  --teal-tint: 220 20% 18%;
+  --input: 0 0% 32%;
+  --ring: 0 0% 100%;
+  --chart-1: 0 0% 100%;
+  --chart-2: 0 0% 100%;
+  --chart-3: 0 0% 7%;
+  --chart-4: 0 0% 66%;
+  --chart-5: 0 0% 24%;
+  --accent-hover: 0 0% 86%;
+  --teal-tint: 0 0% 16%;
 
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
@@ -275,6 +278,7 @@
 }
 
 :root { color-scheme: light; }
+.dark { color-scheme: dark; }
 html, body, #root { min-height: 100%; }
 body { background: hsl(var(--background)); }
 button, input, select, textarea { font: inherit; }
@@ -313,7 +317,7 @@ button { cursor: pointer; }
 .tool-tile { transition: transform .2s ease, border-color .2s ease, background-color .2s ease; }
 .tool-tile:hover { transform: translateY(-2px); }
 .tool-mark { box-shadow: 0 5px 0 hsl(224 27% 17% / .08); }
-.soft-focus:focus-visible { outline: 3px solid hsl(var(--ring) / .32); outline-offset: 3px; }
+.soft-focus:focus-visible { outline: 3px solid hsl(var(--ring)); outline-offset: 3px; }
 .sidebar-scroll::-webkit-scrollbar { width: 4px; }
 .sidebar-scroll::-webkit-scrollbar-thumb { background: hsl(220 20% 32%); border-radius: 9px; }
 .orders-snapshot { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
@@ -339,7 +343,7 @@ button { cursor: pointer; }
 .orders-filter-scroll::-webkit-scrollbar { display: none; }
 .orders-filter-button { white-space: nowrap; border: 1px solid transparent; border-radius: 999px; background: hsl(var(--muted)); padding: .52rem .72rem; color: hsl(var(--muted-foreground)); font-size: .64rem; font-weight: 700; transition: background-color .18s, color .18s, border-color .18s; }
 .orders-filter-button:hover { border-color: hsl(var(--border)); color: hsl(var(--foreground)); }
-.orders-filter-button.is-active { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.orders-filter-button.is-active { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary)); }
 .orders-table-wrap { overflow-x: auto; }
 .orders-table-head, .orders-table-row { display: grid; grid-template-columns: minmax(220px, 1.45fr) minmax(126px, .86fr) minmax(112px, .78fr) minmax(118px, .8fr) minmax(82px, .55fr) 72px; min-width: 820px; gap: 1rem; align-items: center; }
 .orders-table-head { background: hsl(var(--muted) / .5); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
@@ -350,7 +354,7 @@ button { cursor: pointer; }
 .orders-avatar { display: flex; height: 36px; width: 36px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 11px; background: hsl(var(--muted)); color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .59rem; font-weight: 700; }
 .orders-cell-labeled { min-width: 0; }
 .orders-cell-labeled > button { display: inline-flex; max-width: 100%; border-radius: 999px; outline: none; }
-.orders-cell-labeled > button:focus-visible, .orders-icon-button:focus-visible { box-shadow: 0 0 0 3px hsl(var(--ring) / .2); }
+.orders-cell-labeled > button:focus-visible, .orders-icon-button:focus-visible { box-shadow: 0 0 0 3px hsl(var(--background)), 0 0 0 5px hsl(var(--ring)); }
 .orders-mobile-label { display: none; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .55rem; text-transform: uppercase; letter-spacing: .1em; }
 .orders-value-cell, .orders-date-cell { min-width: 0; }
 .orders-actions { display: flex; justify-content: flex-end; gap: .2rem; }
@@ -700,4 +704,18 @@ button { cursor: pointer; }
 
 [class*="rounded-full"][class*="bg-[hsl(var(--accent))]/20"] {
   color: hsl(var(--foreground)) !important;
+}
+
+/* Keep buyer payment choices readable when the dark theme flips primary text to Ink. */
+button[data-testid="button-buyer-pay"].text-white,
+button[data-testid="button-buyer-reserve"].text-white {
+  color: hsl(var(--primary-foreground));
+}
+
+/* Status controls keep a visible keyboard target on both Paper and Ink surfaces. */
+button[data-testid^="button-payment-"]:focus-visible,
+button[data-testid^="button-fulfillment-"]:focus-visible,
+button[data-testid^="button-filter-"]:focus-visible {
+  outline: 3px solid hsl(var(--ring));
+  outline-offset: 3px;
 }
