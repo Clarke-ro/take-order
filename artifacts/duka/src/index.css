@@ -80,39 +80,39 @@
   --elevate-2: rgba(0, 0, 0, 0.08);
 
   --background: 220 17% 97%;
-  --foreground: 220 20% 14%;
+  --foreground: 220 15% 24%;
   --border: 220 16% 90%;
   --card: 0 0% 100%;
-  --card-foreground: 220 20% 14%;
+  --card-foreground: 220 15% 24%;
   --card-border: 220 16% 90%;
   --sidebar: 0 0% 100%;
-  --sidebar-foreground: 220 20% 14%;
+  --sidebar-foreground: 220 15% 24%;
   --sidebar-border: 220 16% 90%;
-  --sidebar-primary: 220 20% 16%;
+  --sidebar-primary: 220 18% 24%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 220 17% 93%;
-  --sidebar-accent-foreground: 220 20% 14%;
+  --sidebar-accent-foreground: 220 15% 24%;
   --popover: 0 0% 100%;
-  --popover-foreground: 220 20% 14%;
+  --popover-foreground: 220 15% 24%;
   --popover-border: 220 16% 90%;
-  --primary: 220 20% 16%;
+  --primary: 220 18% 24%;
   --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 100%;
-  --secondary-foreground: 220 20% 14%;
+  --secondary-foreground: 220 15% 24%;
   --muted: 220 16% 95%;
   --muted-foreground: 220 10% 45%;
-  --accent: 220 20% 16%;
+  --accent: 220 18% 24%;
   --accent-foreground: 0 0% 100%;
-  --destructive: 220 20% 16%;
+  --destructive: 220 18% 24%;
   --destructive-foreground: 0 0% 100%;
   --input: 220 15% 84%;
-  --ring: 220 20% 16%;
-  --chart-1: 220 20% 16%;
+  --ring: 220 18% 24%;
+  --chart-1: 220 18% 24%;
   --chart-2: 220 12% 44%;
-  --chart-3: 220 18% 28%;
+  --chart-3: 220 18% 32%;
   --chart-4: 220 10% 58%;
   --chart-5: 220 16% 90%;
-  --accent-hover: 220 20% 23%;
+  --accent-hover: 220 18% 30%;
   --teal-tint: 220 18% 95%;
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: 'Inter', sans-serif;
@@ -645,52 +645,9 @@ button { cursor: pointer; }
   color: hsl(var(--background) / .68) !important;
 }
 
-.orders-snapshot-mark,
-.orders-icon-gold,
-.orders-icon-mint,
-.orders-icon-blue,
-.clients-summary-mark,
-.clients-metric-icon,
-.reports-metric-mark-light,
-.reports-metric-mark-blue,
-.catalog-product-mark {
-  background: hsl(var(--teal-tint)) !important;
-  color: hsl(var(--foreground)) !important;
-}
-
 .orders-signal-card,
 .reports-context-card {
   background: hsl(var(--card)) !important;
-}
-
-.clients-avatar {
-  background: hsl(var(--teal-tint)) !important;
-  color: hsl(var(--foreground)) !important;
-}
-
-.reports-cost-tracked {
-  background: hsl(var(--teal-tint)) !important;
-  color: hsl(var(--foreground)) !important;
-}
-
-.reports-cost-missing {
-  background: hsl(var(--muted)) !important;
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-.tool-mark {
-  background: hsl(var(--accent)) !important;
-  color: hsl(var(--accent-foreground)) !important;
-  box-shadow: none !important;
-}
-
-.page-content > .grid > .h-fit > .h-3 {
-  background: hsl(var(--accent)) !important;
-}
-
-.page-content > .grid > .h-fit .mx-auto.flex.h-16 {
-  background: hsl(var(--teal-tint)) !important;
-  color: hsl(var(--foreground)) !important;
 }
 
 .chart-tooltip {
@@ -709,23 +666,6 @@ button { cursor: pointer; }
 .recharts-legend-item-text {
   fill: hsl(var(--muted-foreground)) !important;
   color: hsl(var(--muted-foreground)) !important;
-}
-
-.recharts-line-curve {
-  stroke: hsl(var(--accent)) !important;
-}
-
-.recharts-line-curve:nth-of-type(even) {
-  stroke: hsl(var(--foreground)) !important;
-}
-
-.recharts-pie-sector {
-  fill: hsl(var(--accent)) !important;
-  stroke: hsl(var(--card)) !important;
-}
-
-div[class*="h-2"] > div[style] {
-  background-color: hsl(var(--accent)) !important;
 }
 
 .receipt-page {

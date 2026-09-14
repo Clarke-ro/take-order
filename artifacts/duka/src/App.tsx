@@ -256,7 +256,7 @@ function Reports() {
   }, [productPerformance]);
   const totalCategoryRevenue = categoryData.reduce((total, item) => total + item.value, 0);
   const rankedProducts = useMemo(() => [...productPerformance].sort((left, right) => right.revenue - left.revenue), [productPerformance]);
-  const palette = ['#111111', '#FFFFFF'];
+  const palette = ['#c9943d', '#438879', '#b66b77', '#6c82b4', '#d99566', '#7f8f68'];
 
   return <Shell>
     <PageHeading
