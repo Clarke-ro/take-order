@@ -1,10 +1,13 @@
 import { Router, type IRouter } from "express";
+import type { db } from "@workspace/db";
 import healthRouter from "./health";
-import dukaRouter from "./duka";
+import { createDukaRouter } from "./duka";
 
-const router: IRouter = Router();
+export function createRouter(database: typeof db): IRouter {
+  const router: IRouter = Router();
 
-router.use(healthRouter);
-router.use(dukaRouter);
+  router.use(healthRouter);
+  router.use(createDukaRouter(database));
 
-export default router;
+  return router;
+}
