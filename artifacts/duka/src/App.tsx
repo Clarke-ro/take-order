@@ -84,7 +84,7 @@ function Sidebar() {
   ];
   return <aside className="desktop-sidebar fixed inset-y-0 left-0 z-30 flex w-[246px] flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))]">
     <div className="px-7 py-7">
-      <BrandLockup inverted className="gap-3" />
+      <BrandLockup className="gap-3" />
       <div className="mt-2 pl-12 font-mono-ui text-[9px] uppercase tracking-[.18em] text-white/45">seller workspace</div>
     </div>
     <div className="mx-5 mb-5 h-px bg-white/10" />
@@ -120,7 +120,7 @@ function PageHeading({ eyebrow, title, description, action }: { eyebrow: string;
 }
 
 function Button({ children, variant = 'primary', className, ...props }: { children: ReactNode; variant?: 'primary' | 'soft' | 'outline' | 'danger' | 'ghost'; className?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...props} className={cn('inline-flex items-center justify-center gap-2 rounded-[12px] px-4 py-2.5 text-[12px] font-bold transition-all active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50', variant === 'primary' && 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-[0_3px_0_hsl(var(--foreground)/.18)] hover:bg-[hsl(var(--accent-hover))]', variant === 'soft' && 'bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))] hover:bg-[hsl(var(--foreground))]', variant === 'outline' && 'border border-[hsl(var(--foreground))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]', variant === 'danger' && 'bg-[hsl(var(--destructive))] text-[hsl(var(--destructive-foreground))] hover:bg-[hsl(var(--foreground))]', variant === 'ghost' && 'border-[1.5px] border-[hsl(var(--accent))] bg-transparent text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--teal-tint))]', className)} {...props}>{children}</button>;
+  return <button {...props} className={cn('inline-flex items-center justify-center gap-2 rounded-[12px] px-4 py-2.5 text-[12px] font-bold transition-all active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50', variant === 'primary' && 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-[0_3px_0_hsl(var(--foreground)/.18)] hover:bg-[hsl(var(--accent-hover))]', variant === 'soft' && 'border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))] hover:bg-[hsl(var(--muted))]', variant === 'outline' && 'border border-[hsl(var(--foreground))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]', variant === 'danger' && 'bg-[hsl(var(--destructive))] text-[hsl(var(--destructive-foreground))] hover:bg-[hsl(var(--foreground))]', variant === 'ghost' && 'border-[1.5px] border-[hsl(var(--accent))] bg-transparent text-[hsl(var(--foreground))] hover:bg-[hsl(var(--teal-tint))]', className)} {...props}>{children}</button>;
 }
 
 function Card({ children, className = '', ...props }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLDivElement>) { return <div {...props} className={cn('rounded-[16px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] shadow-[0_2px_8px_hsl(220_20%_20%/.035)]', className)}>{children}</div>; }
