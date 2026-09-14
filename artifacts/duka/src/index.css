@@ -79,40 +79,42 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  --background: 46 35% 96%;
-  --foreground: 224 27% 17%;
-  --border: 42 20% 86%;
-  --card: 48 40% 99%;
-  --card-foreground: 224 27% 17%;
-  --card-border: 42 20% 86%;
-  --sidebar: 220 30% 17%;
-  --sidebar-foreground: 42 25% 91%;
-  --sidebar-border: 220 23% 26%;
-  --sidebar-primary: 42 81% 67%;
-  --sidebar-primary-foreground: 222 28% 18%;
-  --sidebar-accent: 220 25% 23%;
-  --sidebar-accent-foreground: 43 28% 95%;
-  --sidebar-ring: 42 81% 67%;
-  --popover: 48 40% 99%;
-  --popover-foreground: 224 27% 17%;
-  --popover-border: 42 20% 86%;
-  --primary: 220 30% 17%;
-  --primary-foreground: 45 33% 96%;
-  --secondary: 43 35% 91%;
-  --secondary-foreground: 224 27% 17%;
-  --muted: 43 24% 92%;
-  --muted-foreground: 220 12% 45%;
-  --accent: 157 25% 70%;
-  --accent-foreground: 165 34% 17%;
-  --destructive: 2 62% 51%;
-  --destructive-foreground: 45 33% 96%;
-  --input: 42 20% 82%;
-  --ring: 42 81% 55%;
-  --chart-1: 42 81% 59%;
-  --chart-2: 157 42% 45%;
-  --chart-3: 345 39% 58%;
-  --chart-4: 220 45% 47%;
-  --chart-5: 26 67% 61%;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 7%;
+  --border: 0 0% 90%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 7%;
+  --card-border: 0 0% 90%;
+  --sidebar: 0 0% 7%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 18%;
+  --sidebar-primary: 166 89% 51%;
+  --sidebar-primary-foreground: 0 0% 7%;
+  --sidebar-accent: 0 0% 14%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 166 89% 51%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 7%;
+  --popover-border: 0 0% 90%;
+  --primary: 166 89% 51%;
+  --primary-foreground: 0 0% 7%;
+  --secondary: 0 0% 7%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 53%;
+  --accent: 166 89% 51%;
+  --accent-foreground: 0 0% 7%;
+  --destructive: 0 0% 7%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 0 0% 86%;
+  --ring: 166 89% 51%;
+  --chart-1: 166 89% 51%;
+  --chart-2: 0 0% 7%;
+  --chart-3: 166 87% 46%;
+  --chart-4: 0 0% 53%;
+  --chart-5: 0 0% 90%;
+  --accent-hover: 166 87% 46%;
+  --teal-tint: 166 100% 95%;
   --app-font-sans: 'Manrope', sans-serif;
   --app-font-serif: 'Space Grotesk', sans-serif;
   --app-font-mono: 'IBM Plex Mono', monospace;
@@ -200,42 +202,44 @@
   --elevate-1: rgba(255, 255, 255, 0.04);
   --elevate-2: rgba(255, 255, 255, 0.09);
 
-  --background: 222 29% 12%;
-  --foreground: 42 25% 91%;
-  --border: 220 22% 28%;
-  --card: 222 26% 16%;
-  --card-foreground: 42 25% 91%;
-  --card-border: 220 22% 28%;
-  --sidebar: 222 31% 10%;
-  --sidebar-foreground: 42 25% 91%;
-  --sidebar-border: 220 22% 23%;
-  --sidebar-primary: 42 81% 67%;
-  --sidebar-primary-foreground: 222 28% 18%;
-  --sidebar-accent: 220 24% 20%;
-  --sidebar-accent-foreground: 43 28% 95%;
-  --sidebar-ring: 42 81% 67%;
-  --popover: 222 26% 16%;
-  --popover-foreground: 42 25% 91%;
-  --popover-border: 220 22% 28%;
-  --primary: 42 81% 67%;
-  --primary-foreground: 222 28% 18%;
-  --secondary: 220 24% 22%;
-  --secondary-foreground: 42 25% 91%;
-  --muted: 220 24% 22%;
-  --muted-foreground: 220 12% 68%;
-  --accent: 157 25% 45%;
-  --accent-foreground: 42 25% 95%;
-  --destructive: 2 62% 58%;
-  --destructive-foreground: 42 25% 95%;
+  --background: 0 0% 7%;
+  --foreground: 0 0% 100%;
+  --border: 0 0% 24%;
+  --card: 0 0% 10%;
+  --card-foreground: 0 0% 100%;
+  --card-border: 0 0% 24%;
+  --sidebar: 0 0% 4%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 18%;
+  --sidebar-primary: 166 89% 51%;
+  --sidebar-primary-foreground: 0 0% 7%;
+  --sidebar-accent: 0 0% 14%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 166 89% 51%;
+  --popover: 0 0% 10%;
+  --popover-foreground: 0 0% 100%;
+  --popover-border: 0 0% 24%;
+  --primary: 166 89% 51%;
+  --primary-foreground: 0 0% 7%;
+  --secondary: 0 0% 100%;
+  --secondary-foreground: 0 0% 7%;
+  --muted: 0 0% 16%;
+  --muted-foreground: 0 0% 66%;
+  --accent: 166 89% 51%;
+  --accent-foreground: 0 0% 7%;
+  --destructive: 0 0% 100%;
+  --destructive-foreground: 0 0% 7%;
 
   /* Used as the border around inputs. Dark mode: Should be a border that is light enough to have high contrast when rendered on a --card background. More contrast than standard --border */
-  --input: 220 22% 34%;
-  --ring: 42 81% 60%;
-  --chart-1: 42 81% 67%;
-  --chart-2: 157 42% 55%;
-  --chart-3: 345 49% 68%;
-  --chart-4: 220 55% 67%;
-  --chart-5: 26 67% 67%;
+  --input: 0 0% 32%;
+  --ring: 166 89% 51%;
+  --chart-1: 166 89% 51%;
+  --chart-2: 0 0% 100%;
+  --chart-3: 166 87% 46%;
+  --chart-4: 0 0% 66%;
+  --chart-5: 0 0% 24%;
+  --accent-hover: 166 87% 46%;
+  --teal-tint: 166 80% 16%;
 
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
@@ -612,4 +616,125 @@ button { cursor: pointer; }
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+}
+
+/* Take Order palette: Ink Black, Paper White, and Soul Teal. */
+.onboarding-shell {
+  background: hsl(var(--background)) !important;
+}
+
+.onboarding-grid {
+  background-image: linear-gradient(hsl(var(--foreground) / .045) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground) / .045) 1px, transparent 1px) !important;
+}
+
+.orders-lead-card,
+.clients-intro-card,
+.reports-profit-card,
+.catalog-summary-lead {
+  background: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--background)) !important;
+  box-shadow: none !important;
+}
+
+.orders-lead-card p,
+.orders-lead-card .text-\[hsl\(var\(--muted-foreground\)\)\],
+.clients-intro-card p,
+.clients-intro-card .text-\[hsl\(var\(--muted-foreground\)\)\],
+.reports-profit-card p,
+.catalog-summary-lead p,
+.catalog-summary-lead .catalog-summary-kicker {
+  color: hsl(var(--background) / .68) !important;
+}
+
+.orders-snapshot-mark,
+.orders-icon-gold,
+.orders-icon-mint,
+.orders-icon-blue,
+.clients-summary-mark,
+.clients-metric-icon,
+.reports-metric-mark-light,
+.reports-metric-mark-blue,
+.catalog-product-mark {
+  background: hsl(var(--teal-tint)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.orders-signal-card,
+.reports-context-card {
+  background: hsl(var(--card)) !important;
+}
+
+.clients-avatar {
+  background: hsl(var(--teal-tint)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.reports-cost-tracked {
+  background: hsl(var(--teal-tint)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.reports-cost-missing {
+  background: hsl(var(--muted)) !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.tool-mark {
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+  box-shadow: none !important;
+}
+
+.page-content > .grid > .h-fit > .h-3 {
+  background: hsl(var(--accent)) !important;
+}
+
+.page-content > .grid > .h-fit .mx-auto.flex.h-16 {
+  background: hsl(var(--teal-tint)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.chart-tooltip {
+  box-shadow: none !important;
+}
+
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line,
+.recharts-cartesian-axis-line,
+.recharts-cartesian-axis-tick-line {
+  stroke: hsl(var(--border)) !important;
+}
+
+.recharts-cartesian-axis-tick-value,
+.recharts-text,
+.recharts-legend-item-text {
+  fill: hsl(var(--muted-foreground)) !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.recharts-line-curve {
+  stroke: hsl(var(--accent)) !important;
+}
+
+.recharts-line-curve:nth-of-type(even) {
+  stroke: hsl(var(--foreground)) !important;
+}
+
+.recharts-pie-sector {
+  fill: hsl(var(--accent)) !important;
+  stroke: hsl(var(--card)) !important;
+}
+
+div[class*="h-2"] > div[style] {
+  background-color: hsl(var(--accent)) !important;
+}
+
+.receipt-page {
+  background: #E8DCCF;
+}
+
+.receipt-card {
+  background: #FFFFFF;
+  color: #111111;
 }

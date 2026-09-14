@@ -1,3 +1,4 @@
 - [Generated client types](generated-client-types.md) — Orval fetch helpers need iterable DOM types in the composite API client.
 - [API contract codegen](api-codegen.md) — Regenerate API package outputs before trusting server typechecks after contract changes.
 - [Mock payment flow](mock-payments.md) — Buyer payments are explicitly demo-only until a real provider is selected.
+- [Take Order palette system](palette-system.md) — Keep seller and buyer surfaces on the Ink/Paper/Soul Teal system.
