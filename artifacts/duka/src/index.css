@@ -508,10 +508,10 @@ button { cursor: pointer; }
 .catalog-product-row:hover { background: hsl(var(--muted) / .42); }
 .catalog-product-main { display: flex; min-width: 0; align-items: center; gap: .75rem; }
 .catalog-product-mark { display: flex; height: 42px; width: 42px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 13px; color: hsl(var(--foreground)); font-family: var(--app-font-serif); font-size: .88rem; font-weight: 700; letter-spacing: -.04em; }
-.catalog-category { color: hsl(var(--foreground)); font-size: .59rem; font-weight: 700; }
+.catalog-category { color: hsl(var(--foreground)); font-size: .59rem; font-weight: 400; }
 .catalog-variants { min-width: 0; overflow: hidden; color: hsl(var(--muted-foreground)); font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
 .catalog-number strong, .catalog-stock strong { display: block; font-size: .75rem; }
-.catalog-stock-status { display: block; margin-top: .25rem; font-size: .58rem; font-weight: 700; }
+.catalog-stock-status { display: block; margin-top: .25rem; font-size: .58rem; font-weight: 400; }
 .catalog-stock-status.is-alert { color: hsl(var(--destructive)); }
 .catalog-stock-status.is-good { color: hsl(var(--accent-foreground)); }
 .catalog-actions { display: flex; justify-content: flex-end; gap: .15rem; }
