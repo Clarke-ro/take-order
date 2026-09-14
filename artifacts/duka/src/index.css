@@ -377,7 +377,7 @@ button { cursor: pointer; }
 .orders-filter-button.is-active { border-color: hsl(var(--primary) / .22); background: hsl(var(--primary) / .08); color: hsl(var(--primary)); }
 .orders-table-wrap { overflow-x: auto; }
 .orders-table-head, .orders-table-row { display: grid; grid-template-columns: minmax(220px, 1.45fr) minmax(126px, .86fr) minmax(112px, .78fr) minmax(118px, .8fr) minmax(82px, .55fr) 72px; min-width: 820px; gap: 1rem; align-items: center; }
-.orders-table-head { background: hsl(var(--muted) / .5); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
+.orders-table-head { background: hsl(var(--card)); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
 .orders-table-row { border-bottom: 1px solid hsl(var(--border)); padding: 1.05rem 1.5rem; transition: background-color .18s; }
 .orders-table-row:last-child { border-bottom: 0; }
 .orders-table-row:hover { background: hsl(var(--muted) / .42); }
@@ -409,7 +409,7 @@ button { cursor: pointer; }
 .clients-header-note { display: inline-flex; align-items: center; gap: .5rem; border: 1px solid hsl(var(--border)); border-radius: 999px; background: hsl(var(--card)); padding: .65rem .85rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .6rem; line-height: 1; }
 .clients-table-wrap { overflow-x: auto; }
 .clients-table-head, .clients-table-row { display: grid; grid-template-columns: minmax(220px, 1.55fr) minmax(100px, .7fr) minmax(125px, .8fr) minmax(135px, .9fr) minmax(160px, 1fr) 78px; min-width: 920px; gap: 1rem; align-items: center; }
-.clients-table-head { background: hsl(var(--muted) / .5); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
+.clients-table-head { background: hsl(var(--card)); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
 .clients-table-row { border-bottom: 1px solid hsl(var(--border)); padding: 1.05rem 1.5rem; transition: background-color .18s; }
 .clients-table-row:last-child { border-bottom: 0; }
 .clients-table-row:hover { background: hsl(var(--muted) / .42); }
@@ -433,7 +433,7 @@ button { cursor: pointer; }
 .reports-donut-area { height: 340px; padding: .8rem .7rem .25rem; }
 .reports-table-wrap { overflow-x: auto; }
 .reports-table { width: 100%; min-width: 770px; border-collapse: collapse; text-align: left; }
-.reports-table th { background: hsl(var(--muted) / .5); padding: .72rem 1rem; color: hsl(var(--muted-foreground)); font-size: .56rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.reports-table th { background: hsl(var(--card)); padding: .72rem 1rem; color: hsl(var(--muted-foreground)); font-size: .56rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
 .reports-table th:first-child, .reports-table td:first-child { padding-left: 1.5rem; }
 .reports-table th:last-child, .reports-table td:last-child { padding-right: 1.5rem; }
 .reports-table td { border-bottom: 1px solid hsl(var(--border)); padding: 1rem; font-size: .72rem; vertical-align: middle; }
@@ -462,7 +462,7 @@ button { cursor: pointer; }
 .catalog-result-count strong { color: hsl(var(--foreground)); }
 .catalog-list { overflow-x: auto; }
 .catalog-list-head, .catalog-product-row { display: grid; grid-template-columns: minmax(260px, 1.55fr) minmax(130px, .9fr) minmax(100px, .7fr) minmax(120px, .75fr) 72px; min-width: 780px; align-items: center; gap: 1rem; }
-.catalog-list-head { padding: .75rem 1.5rem; background: hsl(var(--muted) / .5); color: hsl(var(--muted-foreground)); font-size: .57rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.catalog-list-head { padding: .75rem 1.5rem; background: hsl(var(--card)); color: hsl(var(--muted-foreground)); font-size: .57rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .catalog-product-row { border-bottom: 1px solid hsl(var(--border)); padding: 1rem 1.5rem; transition: background-color .18s, transform .18s; }
 .catalog-product-row:last-child { border-bottom: 0; }
 .catalog-product-row:hover { background: hsl(var(--muted) / .42); }
