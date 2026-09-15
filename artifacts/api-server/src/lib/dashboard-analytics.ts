@@ -70,6 +70,11 @@ export type DashboardSummary = {
   }>;
 };
 
+export type DashboardRange = {
+  from?: string;
+  to?: string;
+};
+
 export function stockDeltaForOrderStatusChange(
   previousStatus: string,
   nextStatus: string,
@@ -115,9 +120,19 @@ export function calculateDashboardSummary(
   orders: AnalyticsOrder[],
   operatingExpenseRows: AnalyticsExpense[],
   now = new Date(),
+  range?: DashboardRange,
 ): DashboardSummary {
   const productMap = new Map(products.map((product) => [product.id, product]));
-  const paidOrders = orders.filter(isPaidOrder);
+  const orderIsInRange = (order: AnalyticsOrder) => {
+    const date = order.createdAt.toISOString().slice(0, 10);
+    return (!range?.from || date >= range.from) && (!range?.to || date <= range.to);
+  };
+  const expenseIsInRange = (expense: AnalyticsExpense) =>
+    (!range?.from || expense.expenseDate >= range.from) &&
+    (!range?.to || expense.expenseDate <= range.to);
+  const scopedOrders = orders.filter(orderIsInRange);
+  const scopedExpenseRows = operatingExpenseRows.filter(expenseIsInRange);
+  const paidOrders = scopedOrders.filter(isPaidOrder);
   const revenue = paidOrders.reduce((sum, order) => sum + orderRevenue(order), 0);
   const legacyOrders = paidOrders.filter(orderHasLegacyCost);
   const snapshotOrders = paidOrders.length - legacyOrders.length;
@@ -134,13 +149,13 @@ export function calculateDashboardSummary(
       sum + orderProductCost(order, productMap.get(order.productId)),
     0,
   );
-  const operatingExpenses = operatingExpenseRows.reduce(
+  const operatingExpenses = scopedExpenseRows.reduce(
     (sum, expense) => sum + Number(expense.amount),
     0,
   );
   const expenses = productCosts + operatingExpenses;
   const profit = revenue - expenses;
-  const outstanding = orders
+  const outstanding = scopedOrders
     .filter((order) => order.status === "deposit_paid")
     .reduce(
       (sum, order) =>
@@ -158,7 +173,7 @@ export function calculateDashboardSummary(
   ).name;
   const channelPerformance = Object.entries(channelLabels)
     .map(([channel, label]) => {
-      const matching = orders.filter((order) => order.channel === channel);
+      const matching = scopedOrders.filter((order) => order.channel === channel);
       const paidMatching = matching.filter(isPaidOrder);
       const opens = matching.reduce((sum, order) => sum + order.linkOpens, 0);
       return {
@@ -175,10 +190,18 @@ export function calculateDashboardSummary(
     .filter((item) => item.orders > 0 || item.opens > 0);
 
   const today = new Date(now);
-  const dailyPerformance = Array.from({ length: 7 }, (_, index) => {
-    const day = new Date(today);
-    day.setHours(0, 0, 0, 0);
-    day.setDate(today.getDate() - (6 - index));
+  today.setUTCHours(0, 0, 0, 0);
+  const defaultStart = new Date(today);
+  defaultStart.setUTCDate(today.getUTCDate() - 6);
+  const rangeStart = range?.from ? new Date(`${range.from}T00:00:00.000Z`) : defaultStart;
+  const rangeEnd = range?.to ? new Date(`${range.to}T00:00:00.000Z`) : today;
+  const totalDays = Math.max(1, Math.floor((rangeEnd.getTime() - rangeStart.getTime()) / 86_400_000) + 1);
+  const dayCount = Math.min(totalDays, 366);
+  const dailyStart = new Date(rangeEnd);
+  dailyStart.setUTCDate(rangeEnd.getUTCDate() - (dayCount - 1));
+  const dailyPerformance = Array.from({ length: dayCount }, (_, index) => {
+    const day = new Date(dailyStart);
+    day.setUTCDate(dailyStart.getUTCDate() + index);
     const date = day.toISOString().slice(0, 10);
     const dayOrders = paidOrders.filter(
       (order) => order.createdAt.toISOString().slice(0, 10) === date,
@@ -192,13 +215,15 @@ export function calculateDashboardSummary(
         sum + orderProductCost(order, productMap.get(order.productId)),
       0,
     );
-    const dayOperatingExpenses = operatingExpenseRows
+    const dayOperatingExpenses = scopedExpenseRows
       .filter((expense) => expense.expenseDate === date)
       .reduce((sum, expense) => sum + Number(expense.amount), 0);
     const dayExpenses = dayProductCosts + dayOperatingExpenses;
     return {
       date,
-      label: day.toLocaleDateString("en-US", { weekday: "short" }),
+      label: dayCount <= 14
+        ? day.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })
+        : day.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
       revenue: dayRevenue,
       productCosts: dayProductCosts,
       operatingExpenses: dayOperatingExpenses,
