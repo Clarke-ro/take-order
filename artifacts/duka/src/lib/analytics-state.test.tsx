@@ -7,6 +7,11 @@ import {
   getAnalyticsViewState,
 } from "./analytics-state";
 import {
+  CONNECTED_TOOLS_KEY,
+  readConnectedTools,
+  writeConnectedTools,
+} from "../App";
+import {
   connectPreferenceAriaLabel,
   connectPreferenceLabel,
   onboardingChannels,
@@ -198,6 +203,37 @@ test("Connect preference labels describe saved preferences, not authorization", 
     "WhatsApp, saved preference. Select to remove this preference.",
   );
   assert.doesNotMatch(connectPreferenceAriaLabel("WhatsApp", true), /authoriz|connect/i);
+});
+
+test("Connect choices persist exact local preferences across a remount", () => {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+  };
+
+  let selected = readConnectedTools(storage);
+  selected = togglePreference(selected, "WhatsApp");
+  writeConnectedTools(selected, storage);
+  assert.equal(values.get(CONNECTED_TOOLS_KEY), '["WhatsApp"]');
+
+  selected = togglePreference(selected, "Paystack");
+  writeConnectedTools(selected, storage);
+  assert.equal(values.get(CONNECTED_TOOLS_KEY), '["WhatsApp","Paystack"]');
+
+  selected = togglePreference(selected, "WhatsApp");
+  writeConnectedTools(selected, storage);
+  assert.equal(values.get(CONNECTED_TOOLS_KEY), '["Paystack"]');
+
+  const reopened = readConnectedTools(storage);
+  assert.deepEqual(reopened, ["Paystack"]);
+  assert.equal(connectPreferenceLabel(reopened.includes("WhatsApp")), "Not saved");
+  assert.equal(connectPreferenceLabel(reopened.includes("Paystack")), "Saved preference");
+  assert.equal(
+    connectPreferenceAriaLabel("Paystack", reopened.includes("Paystack")),
+    "Paystack, saved preference. Select to remove this preference.",
+  );
+  assert.doesNotMatch(values.get(CONNECTED_TOOLS_KEY) ?? "", /authoriz|integrat/i);
 });
 
 test("names the mobile menu in both closed and open states", () => {
