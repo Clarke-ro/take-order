@@ -40,6 +40,7 @@ import {
   OnboardingChannelPicker,
   Overview,
   ProductModal,
+  SocialChannelStack,
   Sidebar,
 } from "../App";
 import { Router } from "wouter";
@@ -249,6 +250,101 @@ async function inspectDashboardPicker(markup: string, viewport: { width: number;
   }
 }
 
+async function inspectResponsiveMarkup(markup: string, viewport: { width: number; height: number }) {
+  const profileDirectory = await mkdtemp(`${tmpdir()}/duka-metric-`);
+  const browser = spawn("chromium", [
+    "--headless=new",
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--remote-allow-origins=*",
+    "--remote-debugging-port=0",
+    `--user-data-dir=${profileDirectory}`,
+    "about:blank",
+  ], { stdio: ["ignore", "ignore", "pipe"] });
+  const browserExit = new Promise<void>((resolve) => browser.once("exit", () => resolve()));
+
+  try {
+    let debuggingUrl = "";
+    browser.stderr.on("data", (chunk: Buffer) => {
+      const match = chunk.toString().match(/DevTools listening on (ws:\/\/127\.0\.0\.1:\d+)/);
+      if (match) debuggingUrl = match[1]!;
+    });
+    const endpoint = await waitFor(() => debuggingUrl || undefined);
+    const port = new URL(endpoint).port;
+    const page = await waitFor(async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/json/list`);
+      if (!response.ok) return undefined;
+      const pages = await response.json() as Array<{ type: string; webSocketDebuggerUrl?: string }>;
+      return pages.find((item) => item.type === "page" && item.webSocketDebuggerUrl);
+    });
+    const socket = new WebSocket(page.webSocketDebuggerUrl!);
+    let nextMessageId = 0;
+    const pending = new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void }>();
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data)) as { id?: number; result?: any; error?: { message?: string } };
+      if (message.id === undefined) return;
+      const request = pending.get(message.id);
+      if (!request) return;
+      pending.delete(message.id);
+      if (message.error) request.reject(new Error(message.error.message ?? "Chromium request failed"));
+      else request.resolve(message.result);
+    });
+    await waitFor(() => socket.readyState === WebSocket.OPEN ? true : undefined);
+    const send = (method: string, params: Record<string, unknown> = {}) => new Promise<any>((resolve, reject) => {
+      const id = ++nextMessageId;
+      pending.set(id, { resolve, reject });
+      socket.send(JSON.stringify({ id, method, params }));
+    });
+
+    await send("Page.enable");
+    await send("Accessibility.enable");
+    await send("Emulation.setDeviceMetricsOverride", {
+      width: viewport.width,
+      height: viewport.height,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await send("Page.navigate", {
+      url: `data:text/html;charset=utf-8,${encodeURIComponent(markup)}`,
+    });
+    await waitFor(async () => {
+      const result = await send("Runtime.evaluate", { expression: "document.readyState" });
+      return result?.result?.value === "complete" ? true : undefined;
+    });
+    const inspection = await send("Runtime.evaluate", {
+      expression: `(() => {
+        const rect = (selector) => {
+          const element = document.querySelector(selector);
+          const box = element?.getBoundingClientRect();
+          return box ? { left: box.left, right: box.right, width: box.width, top: box.top, bottom: box.bottom } : null;
+        };
+        return {
+          card: rect('[data-testid="metric-card"]'),
+          stack: rect('[data-testid="metric-channel-stack"]'),
+          value: rect('[data-testid="metric-value"]'),
+          marks: [...document.querySelectorAll('[data-testid="metric-channel-stack"] .metric-channel-stack-mark')].map((element) => {
+            const box = element.getBoundingClientRect();
+            return { left: box.left, right: box.right, width: box.width };
+          }),
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+        };
+      })()`,
+      returnByValue: true,
+    });
+    const tree = await send("Accessibility.getFullAXTree");
+    socket.close();
+    return { inspection: inspection?.result?.value, tree: tree.nodes as AccessibilityNode[] };
+  } finally {
+    if (!browser.killed) browser.kill();
+    await Promise.race([
+      browserExit,
+      new Promise((resolve) => setTimeout(resolve, 2_000)),
+    ]);
+    await rm(profileDirectory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}
+
 function propertyValue(node: AccessibilityNode, propertyName: string): unknown {
   const value = node.properties?.find((property) => property.name === propertyName)?.value?.value;
   return value === "true" ? true : value === "false" ? false : value;
@@ -282,6 +378,47 @@ test("renders loading, empty, and populated analytics states without errors", ()
     assert.match(markup, new RegExp(`data-testid="dashboard-analytics-${state}"`));
     assert.match(markup, new RegExp(`data-analytics-state="${state}"`));
   }
+});
+
+test("keeps four social channel marks beside the metric value on narrow cards", async () => {
+  const styles = await readFile(new URL("../index.css", import.meta.url), "utf8");
+  const stackMarkup = renderToStaticMarkup(createElement(SocialChannelStack, {
+    channels: ["WhatsApp", "Instagram", "TikTok", "Snapchat"],
+  }));
+  const fixture = `<!doctype html>
+    <html><head><style>${styles}
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; min-width: 0; }
+      body { padding: .5rem; }
+      .metric-fixture { width: 164px; }
+      .metric-fixture .app-card { padding: .8rem 1rem; }
+    </style></head><body>
+      <div class="metric-fixture">
+        <div class="app-card overview-secondary-card" data-testid="metric-card">
+          <div class="metric-value-row metric-value">
+            ${stackMarkup}
+            <span class="metric-value-content" data-testid="metric-value">—</span>
+          </div>
+        </div>
+      </div>
+    </body></html>`;
+
+  const result = await inspectResponsiveMarkup(fixture, { width: 320, height: 240 });
+  const geometry = result.inspection as {
+    card: { left: number; right: number; width: number };
+    stack: { left: number; right: number; width: number };
+    value: { left: number; right: number; width: number };
+    marks: Array<{ left: number; right: number; width: number }>;
+  };
+  assert.ok(geometry.card && geometry.stack && geometry.value);
+  assert.equal(geometry.marks.length, 4);
+  assert.ok(geometry.marks[1]!.left < geometry.marks[0]!.right, "Channel marks should overlap horizontally");
+  assert.ok(geometry.stack.right <= geometry.value.left, `Icon stack should not cover the metric value: ${JSON.stringify(geometry)}`);
+  assert.ok(geometry.value.right <= geometry.card.right, `Metric value should remain inside the card: ${JSON.stringify(geometry)}`);
+  assert.ok(geometry.value.width > 0, "Metric value should retain visible width");
+
+  const stack = result.tree.find((node) => node.name?.value === "Active social channels: WhatsApp, Instagram, TikTok, Snapchat");
+  assert.equal(stack?.name?.value, "Active social channels: WhatsApp, Instagram, TikTok, Snapchat");
 });
 
 test("keeps the custom dashboard picker usable with enlarged text", async () => {
