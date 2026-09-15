@@ -411,13 +411,8 @@ button { cursor: pointer; }
 .overview-product-card .chart-empty { min-height: 8rem; }
 .channel-conversion-card { border-color: transparent; border-radius: 18px; background: hsl(var(--muted) / .58); padding: .85rem; box-shadow: none; }
 .channel-conversion-toolbar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 2.2rem; }
-.channel-conversion-selector { display: inline-flex; align-items: center; gap: .4rem; border-radius: 8px; padding: .45rem .35rem; color: hsl(var(--muted-foreground)); }
-.channel-conversion-selector:hover { background: hsl(var(--card)); color: hsl(var(--foreground)); }
-.channel-conversion-filter { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .45rem .65rem; color: hsl(var(--foreground)); font-size: .7rem; font-weight: 600; }
-.channel-conversion-filter:hover { border-color: hsl(var(--muted-foreground) / .45); }
-.channel-conversion-menu { position: absolute; z-index: 5; top: calc(100% + .25rem); left: 0; min-width: 9rem; overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .25rem; box-shadow: 0 10px 25px hsl(220 18% 35% / .12); }
-.channel-conversion-menu button { display: block; width: 100%; border-radius: 7px; padding: .5rem .6rem; text-align: left; color: hsl(var(--muted-foreground)); font-size: .7rem; }
-.channel-conversion-menu button:hover, .channel-conversion-menu button[aria-checked="true"] { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+.channel-conversion-details-link { display: inline-flex; align-items: center; gap: .3rem; border-radius: 8px; padding: .35rem .45rem; color: hsl(var(--foreground)); font-size: .72rem; font-weight: 700; }
+.channel-conversion-details-link:hover { background: hsl(var(--card)); color: hsl(var(--accent-foreground)); }
 .channel-conversion-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-top: .75rem; }
 .channel-conversion-title h2 { color: hsl(var(--foreground)); font-size: 1.05rem; font-weight: 700; letter-spacing: -.03em; }
 .channel-conversion-title p { margin-top: .22rem; color: hsl(var(--muted-foreground)); font-size: .7rem; }
@@ -427,14 +422,29 @@ button { cursor: pointer; }
 .channel-conversion-row-top { display: grid; grid-template-columns: minmax(0, 1.45fr) repeat(4, minmax(0, .7fr)); align-items: center; gap: .55rem; }
 .channel-conversion-identity { display: flex; min-width: 0; align-items: center; gap: .55rem; }
 .channel-conversion-mark { display: inline-flex; height: 1.8rem; width: 1.8rem; align-items: center; justify-content: center; border-radius: 8px; background: hsl(var(--muted) / .72); }
-.channel-conversion-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: hsl(var(--muted-foreground)); font-size: .78rem; }
+.channel-conversion-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: hsl(var(--foreground)); font-size: .85rem; font-weight: 600; }
 .channel-conversion-stat { min-width: 0; text-align: right; }
-.channel-conversion-stat span { display: block; color: hsl(var(--muted-foreground)); font-size: .55rem; white-space: nowrap; }
-.channel-conversion-stat strong { display: block; margin-top: .16rem; color: hsl(var(--foreground)); font-size: .7rem; font-weight: 600; white-space: nowrap; }
+.channel-conversion-stat span { display: block; color: hsl(var(--muted-foreground)); font-size: .62rem; white-space: nowrap; }
+.channel-conversion-stat strong { display: block; margin-top: .16rem; color: hsl(var(--foreground)); font-size: .84rem; font-weight: 600; white-space: nowrap; }
 .channel-conversion-rate { display: grid; justify-items: end; gap: .15rem; color: hsl(var(--muted-foreground)); }
-.channel-conversion-rate span { font-size: .58rem; }
-.channel-conversion-rate strong { color: hsl(var(--foreground)); font-size: .75rem; font-weight: 600; }
+.channel-conversion-rate span { font-size: .62rem; }
+.channel-conversion-rate strong { color: hsl(var(--foreground)); font-size: .84rem; font-weight: 600; }
 .channel-conversion-empty { margin-top: .65rem; border-radius: 11px; background: hsl(var(--card)); padding: .75rem; }
+.channel-insight-page .metric-value { font-size: 1.95rem; }
+.channel-insight-card { overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--card)); }
+.channel-insight-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid hsl(var(--border)); padding: 1.25rem 1.35rem; }
+.channel-insight-heading p { margin-top: .4rem; color: hsl(var(--muted-foreground)); font-size: .8rem; line-height: 1.5; }
+.channel-insight-list { padding: .75rem 1.35rem 1.35rem; }
+.channel-insight-list-head, .channel-insight-row { display: grid; grid-template-columns: minmax(0, 1.45fr) repeat(4, minmax(0, .7fr)); align-items: center; gap: .75rem; }
+.channel-insight-list-head { padding: .45rem 0 .65rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; }
+.channel-insight-list-head span:not(:first-child) { text-align: right; }
+.channel-insight-row { border-top: 1px solid hsl(var(--border)); padding: .9rem 0; }
+.channel-insight-identity { display: flex; min-width: 0; align-items: center; gap: .65rem; }
+.channel-insight-number { color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .86rem; font-weight: 600; text-align: right; white-space: nowrap; }
+.channel-insight-conversion { display: grid; justify-items: end; gap: .35rem; }
+.channel-insight-conversion strong { color: hsl(var(--foreground)); font-size: .86rem; }
+.channel-insight-progress { display: block; width: 100%; max-width: 90px; height: .28rem; overflow: hidden; border-radius: 999px; background: hsl(var(--muted)); }
+.channel-insight-progress span { display: block; height: 100%; border-radius: inherit; background: hsl(var(--accent-foreground)); }
 .chart-tooltip { min-width: 150px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .7rem .8rem; color: hsl(var(--foreground)); box-shadow: none; font-size: .75rem; }
 .chart-tooltip > div + div { margin-top: .3rem; }
 .page-in { animation: page-in .45s ease both; }

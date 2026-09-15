@@ -797,24 +797,13 @@ function ProductPerformance({ products, loading = false }: { products: Array<{ n
   </section>;
 }
 
-function ChannelPerformance({ channels, loading = false }: { channels: Array<{ channel: string; revenue: number; orders: number; paidOrders: number; opens: number; conversionRate: number }>; loading?: boolean }) {
-  const [filter, setFilter] = useState<'all' | 'active'>('all');
-  const [filterOpen, setFilterOpen] = useState(false);
-  const visibleChannels = filter === 'active' ? channels.filter((channel) => channel.orders > 0) : channels;
+type ChannelPerformanceRow = { channel: string; revenue: number; orders: number; paidOrders: number; opens: number; conversionRate: number };
+
+function ChannelPerformance({ channels, loading = false }: { channels: ChannelPerformanceRow[]; loading?: boolean }) {
   return <section className="overview-stat-section overview-channel-card channel-conversion-card" aria-labelledby="channel-performance-title">
     <div className="channel-conversion-toolbar">
-      <div className="relative">
-        <button type="button" className="channel-conversion-selector soft-focus" aria-label="Choose channel filter" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}>
-          <Menu size={17} aria-hidden="true" /><ChevronDown size={14} aria-hidden="true" />
-        </button>
-        {filterOpen && <div className="channel-conversion-menu" role="menu">
-          <button type="button" role="menuitemradio" aria-checked={filter === 'all'} onClick={() => { setFilter('all'); setFilterOpen(false); }}>All channels</button>
-          <button type="button" role="menuitemradio" aria-checked={filter === 'active'} onClick={() => { setFilter('active'); setFilterOpen(false); }}>With orders</button>
-        </div>}
-      </div>
-      <button type="button" className="channel-conversion-filter soft-focus" onClick={() => setFilter((current) => current === 'all' ? 'active' : 'all')} aria-label={`Show ${filter === 'all' ? 'channels with orders' : 'all channels'}`}>
-        <span>Filters</span><SlidersHorizontal size={14} aria-hidden="true" />
-      </button>
+      <span className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Channel insight</span>
+      <Link href="/reports/channel-conversion" className="channel-conversion-details-link soft-focus" data-testid="link-channel-conversion-details">View details <ArrowUpRight size={15} aria-hidden="true" /></Link>
     </div>
     <div className="channel-conversion-title">
       <div>
@@ -823,8 +812,8 @@ function ChannelPerformance({ channels, loading = false }: { channels: Array<{ c
       </div>
       <span className="font-mono-ui">BY CHANNEL</span>
     </div>
-    {loading ? <div className="space-y-4 p-5"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : visibleChannels.length ? <div className="channel-conversion-list">
-      {visibleChannels.slice(0, 4).map((channel) => <article key={channel.channel} className="channel-conversion-row" data-testid={`row-channel-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.opens)} views, ${number(channel.paidOrders)} sales, ${channel.conversionRate.toFixed(1)}% conversion`}>
+    {loading ? <div className="space-y-4 p-5"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : channels.length ? <div className="channel-conversion-list">
+      {channels.slice(0, 4).map((channel) => <article key={channel.channel} className="channel-conversion-row" data-testid={`row-channel-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.opens)} views, ${number(channel.paidOrders)} sales, ${channel.conversionRate.toFixed(1)}% conversion`}>
         <div className="channel-conversion-row-top">
           <div className="channel-conversion-identity">
             <span className="channel-conversion-mark"><ChannelMark value={channel.channel} size={18} /></span>
@@ -841,6 +830,45 @@ function ChannelPerformance({ channels, loading = false }: { channels: Array<{ c
       </article>)}
     </div> : <div className="channel-conversion-empty"><ChartEmpty message="Channel conversion will appear after you share a link." /></div>}
   </section>;
+}
+
+function ChannelConversionInsight() {
+  const summaryQuery = useGetDashboardSummary();
+  const channels = summaryQuery.data?.channelPerformance ?? [];
+  const totalViews = channels.reduce((sum, channel) => sum + channel.opens, 0);
+  const totalSales = channels.reduce((sum, channel) => sum + channel.paidOrders, 0);
+  const totalRevenue = channels.reduce((sum, channel) => sum + channel.revenue, 0);
+  const totalConversion = totalViews ? (totalSales / totalViews) * 100 : 0;
+  const rankedChannels = [...channels].sort((left, right) => right.opens - left.opens);
+
+  return <Shell>
+    <PageHeading title="Channel conversion" action={<Link href="/"><Button variant="outline"><ArrowLeft size={15} />Back to dashboard</Button></Link>} />
+    {summaryQuery.isLoading ? <div className="space-y-5" aria-label="Loading channel conversion"><div className="reports-metric-grid">{[1, 2, 3, 4].map((item) => <Card key={item} className="h-[132px] p-5"><Skeleton className="h-3 w-24" /><Skeleton className="mt-6 h-8 w-28" /><Skeleton className="mt-3 h-3 w-36" /></Card>)}</div><Card className="space-y-4 p-6"><Skeleton className="h-5 w-44" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></Card></div> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <div className="channel-insight-page space-y-5">
+      <section className="reports-metric-grid" aria-label="Channel conversion summary">
+        <MetricCard dataTestId="card-channel-insight-views" label="Total views" value={number(totalViews)} note="Recorded link views" />
+        <MetricCard dataTestId="card-channel-insight-sales" label="Paid sales" value={number(totalSales)} note="Completed sales from channels" />
+        <MetricCard dataTestId="card-channel-insight-revenue" label="Revenue" value={money(totalRevenue)} note="Recorded channel revenue" />
+        <MetricCard dataTestId="card-channel-insight-conversion" label="Overall conversion" value={`${totalConversion.toFixed(1)}%`} note="Paid sales divided by views" />
+      </section>
+      <Card className="channel-insight-card" data-testid="card-channel-conversion-detail">
+        <div className="channel-insight-heading">
+          <div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Channel breakdown</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Where views become sales</h2><p>Compare attention, paid sales, and revenue across every recorded channel.</p></div>
+          <BarChart3 size={20} className="text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
+        </div>
+        {rankedChannels.length ? <div className="channel-insight-list">
+          <div className="channel-insight-list-head" aria-hidden="true"><span>Channel</span><span>Views</span><span>Sales</span><span>Revenue</span><span>Conversion</span></div>
+          {rankedChannels.map((channel) => <article key={channel.channel} className="channel-insight-row" data-testid={`row-channel-insight-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.opens)} views, ${number(channel.paidOrders)} sales, ${money(channel.revenue)}, ${channel.conversionRate.toFixed(1)}% conversion`}>
+            <div className="channel-insight-identity"><span className="channel-conversion-mark"><ChannelMark value={channel.channel} size={19} /></span><ChannelLabel value={channel.channel} className="channel-conversion-name" /></div>
+            <strong className="channel-insight-number">{number(channel.opens)}</strong>
+            <strong className="channel-insight-number">{number(channel.paidOrders)}</strong>
+            <strong className="channel-insight-number">{money(channel.revenue)}</strong>
+            <div className="channel-insight-conversion"><strong className="font-mono-ui">{channel.conversionRate.toFixed(1)}%</strong><span className="channel-insight-progress"><span style={{ width: `${Math.min(100, Math.max(0, channel.conversionRate))}%` }} /></span></div>
+          </article>)}
+        </div> : <div className="p-6"><EmptyState icon={BarChart3} title="No channel activity yet" description="Share a buyer link to start building channel conversion insight." /></div>}
+      </Card>
+      <div className="flex items-start gap-3 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/55 px-4 py-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]"><CircleDollarSign size={15} className="mt-0.5 shrink-0 text-[hsl(var(--accent-foreground))]" aria-hidden="true" /><span><strong className="text-[hsl(var(--foreground))]">How to read this:</strong> Conversion is paid sales divided by recorded views. Channels are ranked by views so you can see where attention is concentrated before comparing sales and revenue.</span></div>
+    </div>}
+  </Shell>;
 }
 
 function RecentTransactions() {
@@ -1566,7 +1594,7 @@ export function Connect() {
 }
 function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3 5 6v5c0 4.5 3 8.2 7 10 4-1.8 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>; }
 
-function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrder} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
+function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports/channel-conversion" component={ChannelConversionInsight} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrder} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
 function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
 export default App;
 
