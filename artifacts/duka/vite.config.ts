@@ -65,13 +65,17 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: false,
     rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'SOURCEMAP_ERROR') return;
+        warn(warning);
+      },
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('recharts')) return 'vendor-charts';
           if (id.includes('lucide-react') || id.includes('react-icons')) return 'vendor-icons';
           if (id.includes('@radix-ui')) return 'vendor-radix';
-          if (id.includes('@tanstack') || id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react';
+          if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/') || id.includes('/node_modules/scheduler/')) return 'vendor-react';
           return 'vendor';
         },
       },
