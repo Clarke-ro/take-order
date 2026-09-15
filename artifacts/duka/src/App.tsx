@@ -609,6 +609,22 @@ export function Overview() {
       setConnectedTools(readConnectedTools(storage));
     });
   }, []);
+  useEffect(() => {
+    const storage = getPreferenceStorage();
+    if (!storage) return;
+    return subscribeToPreferenceChanges(DASHBOARD_PERIOD_KEY, (event) => {
+      if (event.storageArea && event.storageArea !== storage) return;
+      const nextPreference = readDashboardPeriodPreference(storage);
+      if (!nextPreference) return;
+      setPeriod(nextPreference.period);
+      if (nextPreference.period === 'custom') {
+        setAppliedCustomRange({
+          from: nextPreference.customFrom,
+          to: nextPreference.customTo,
+        });
+      }
+    });
+  }, []);
   const initialCustomRange = useMemo(() => ({ from: shiftInputDate(today, -29), to: today }), [today]);
   const restoredCustomRange = savedDashboardPeriod?.period === 'custom'
     ? { from: savedDashboardPeriod.customFrom, to: savedDashboardPeriod.customTo }

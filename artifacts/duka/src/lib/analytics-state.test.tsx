@@ -1311,6 +1311,162 @@ test("Dashboard reporting period preferences survive a remount and reject incomp
   }
 });
 
+test("Dashboard reporting period follows committed cross-tab changes without applying a local draft", async () => {
+  const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
+    url: "http://localhost/",
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    HTMLInputElement: dom.window.HTMLInputElement,
+    addEventListener: dom.window.addEventListener.bind(dom.window),
+    removeEventListener: dom.window.removeEventListener.bind(dom.window),
+  });
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: dom.window.navigator,
+  });
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: dom.window.location,
+  });
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    configurable: true,
+    value: true,
+  });
+
+  const originalFetch = globalThis.fetch;
+  const summaryRequests: URL[] = [];
+  globalThis.fetch = async (input) => {
+    const requestUrl = new URL(String(input), "http://localhost");
+    if (requestUrl.pathname.includes("/api/dashboard/summary")) summaryRequests.push(requestUrl);
+    if (requestUrl.pathname.includes("/api/orders") || requestUrl.pathname.includes("/api/products")) {
+      return new Response("[]", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({
+      orders: 0,
+      shares: null,
+      likes: null,
+      channelPerformance: [],
+      productPerformance: [],
+      dailyPerformance: [],
+    }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  const { act } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const container = dom.window.document.getElementById("root")!;
+  const root = createRoot(container);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const renderOverview = () => createElement(
+    QueryClientProvider,
+    {
+      client: queryClient,
+      children: createElement(
+        Router,
+        {
+          hook: () => ["/", (_path: string, ..._args: any[]) => undefined] as [string, (path: string, ...args: any[]) => any],
+          children: createElement(Overview),
+        },
+      ),
+    },
+  );
+  const get = <T extends HTMLElement>(testId: string) => {
+    const element = container.querySelector<T>(`[data-testid="${testId}"]`);
+    assert.ok(element, `Expected ${testId} to be present`);
+    return element;
+  };
+  const click = async (testId: string) => {
+    await act(async () => {
+      get<HTMLButtonElement>(testId).click();
+    });
+  };
+  const setDate = async (testId: string, value: string) => {
+    await act(async () => {
+      const input = get<HTMLInputElement>(testId);
+      const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")?.set;
+      setter?.call(input, value);
+      input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+      input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    });
+  };
+  const dispatchStorageChange = async (newValue: string) => {
+    dom.window.localStorage.setItem(DASHBOARD_PERIOD_KEY, newValue);
+    await act(async () => {
+      dom.window.dispatchEvent(new dom.window.StorageEvent("storage", {
+        key: DASHBOARD_PERIOD_KEY,
+        newValue,
+        storageArea: dom.window.localStorage,
+        url: dom.window.location.href,
+      }));
+    });
+  };
+
+  try {
+    await act(async () => {
+      root.render(renderOverview());
+    });
+    await act(async () => {
+      await waitFor(() => container.querySelector('[data-testid="dashboard-analytics"]') ? true : undefined);
+    });
+
+    await click("button-dashboard-period");
+    await click("button-dashboard-period-custom");
+    await setDate("input-dashboard-period-from", "2020-02-01");
+    await setDate("input-dashboard-period-to", "2020-02-28");
+
+    const initialRequestCount = summaryRequests.length;
+    await dispatchStorageChange(JSON.stringify({
+      period: "month",
+      customFrom: "2020-01-01",
+      customTo: "2020-01-31",
+    }));
+    assert.match(get<HTMLButtonElement>("button-dashboard-period").textContent ?? "", /Last 30 days/);
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-02-01");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-02-28");
+    assert.ok(
+      summaryRequests.slice(initialRequestCount).some((request) => request.searchParams.get("from") && request.searchParams.get("to")),
+      "Expected the committed preset to refresh the dashboard",
+    );
+
+    await dispatchStorageChange(JSON.stringify({
+      period: "custom",
+      customFrom: "2020-03-01",
+      customTo: "2020-03-15",
+    }));
+    assert.match(get<HTMLButtonElement>("button-dashboard-period").textContent ?? "", /Mar 1/);
+    assert.match(get<HTMLButtonElement>("button-dashboard-period").textContent ?? "", /Mar 15/);
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-02-01");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-02-28");
+    assert.ok(
+      summaryRequests.some((request) => (
+        request.searchParams.get("from") === "2020-03-01"
+        && request.searchParams.get("to") === "2020-03-15"
+      )),
+      "Expected the committed custom range to refresh the dashboard",
+    );
+
+    const labelBeforeInvalidChange = get<HTMLButtonElement>("button-dashboard-period").textContent;
+    await dispatchStorageChange('{"period":"custom","customFrom":"2020-03-15"}');
+    assert.equal(get<HTMLButtonElement>("button-dashboard-period").textContent, labelBeforeInvalidChange);
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-02-01");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-02-28");
+  } finally {
+    await act(async () => {
+      root.unmount();
+    });
+    globalThis.fetch = originalFetch;
+    dom.window.close();
+  }
+});
+
 test("Connect choices persist exact local preferences across a remount", () => {
   const values = new Map<string, string>();
   const storage = {
