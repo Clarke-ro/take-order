@@ -570,3 +570,70 @@ test("completes onboarding with keyboard-only focus, activation, and saved chann
   });
   dom.window.close();
 });
+
+test("resumes incomplete onboarding at the saved step with editable profile data", async () => {
+  const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
+    url: "http://localhost/onboarding",
+  });
+  dom.window.localStorage.setItem("duka-onboarding-step", "2");
+  dom.window.localStorage.setItem("duka-onboarding-profile", JSON.stringify({
+    sellerName: "Amina Mensah",
+    businessName: "The Sunday Edit",
+    description: "Handmade jewellery",
+    channels: ["WhatsApp", "Instagram"],
+  }));
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    HTMLInputElement: dom.window.HTMLInputElement,
+    HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
+    addEventListener: dom.window.addEventListener.bind(dom.window),
+    removeEventListener: dom.window.removeEventListener.bind(dom.window),
+  });
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: dom.window.navigator,
+  });
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: dom.window.location,
+  });
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    configurable: true,
+    value: true,
+  });
+
+  const { act } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const container = dom.window.document.getElementById("root")!;
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(createElement(Router, null, createElement(Onboarding)));
+  });
+
+  assert.match(container.textContent ?? "", /Where do you usually sell\?/);
+  assert.equal(
+    (container.querySelector('[data-testid="input-onboarding-channel-whatsapp"]') as HTMLInputElement).checked,
+    true,
+  );
+  assert.equal(
+    (container.querySelector('[data-testid="input-onboarding-channel-instagram"]') as HTMLInputElement).checked,
+    true,
+  );
+  const otherInput = container.querySelector<HTMLInputElement>('[data-testid="input-onboarding-channel-other"]');
+  assert.ok(otherInput, "Expected Other channel input to be present");
+  await act(async () => {
+    otherInput.click();
+  });
+  assert.equal(otherInput.checked, true);
+  assert.deepEqual(
+    JSON.parse(dom.window.localStorage.getItem("duka-onboarding-profile") ?? "{}").channels,
+    ["WhatsApp", "Instagram", "Other"],
+  );
+
+  await act(async () => {
+    root.unmount();
+  });
+  dom.window.close();
+});

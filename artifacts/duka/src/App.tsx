@@ -159,6 +159,7 @@ export function OnboardingChannelPicker({
 
 type SellerProfile = { sellerName: string; businessName: string; description: string; channels: string[] };
 const ONBOARDING_KEY = 'duka-onboarding-profile';
+const ONBOARDING_STEP_KEY = 'duka-onboarding-step';
 const ONBOARDING_DONE_KEY = 'duka-onboarding-complete';
 export const CONNECTED_TOOLS_KEY = 'duka-connected-tools';
 type PreferenceStorage = Pick<Storage, 'getItem' | 'setItem'>;
@@ -186,6 +187,13 @@ const readSellerProfile = (): SellerProfile | null => {
     const value = window.localStorage.getItem(ONBOARDING_KEY);
     return value ? JSON.parse(value) as SellerProfile : null;
   } catch { return null; }
+};
+const readOnboardingStep = (): number => {
+  try {
+    const value = window.localStorage.getItem(ONBOARDING_STEP_KEY);
+    const step = Number(value);
+    return Number.isInteger(step) && step >= 0 && step <= 3 ? step : 0;
+  } catch { return 0; }
 };
 const finishOnboarding = () => window.localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
 
@@ -269,11 +277,14 @@ function InsightCard({ icon: Icon, title, description, className = '', dataTestI
 
 export function Onboarding() {
   const [, setLocation] = useLocation();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => readOnboardingStep());
   const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [] });
   useEffect(() => {
     window.localStorage.setItem(ONBOARDING_KEY, JSON.stringify(profile));
   }, [profile]);
+  useEffect(() => {
+    window.localStorage.setItem(ONBOARDING_STEP_KEY, String(step));
+  }, [step]);
   const update = (key: keyof SellerProfile, value: string) => setProfile((current) => ({ ...current, [key]: value }));
   const toggleChannel = (channel: string) => setProfile((current) => ({ ...current, channels: togglePreference(current.channels, channel) }));
   const skip = () => { finishOnboarding(); setLocation('/'); };
