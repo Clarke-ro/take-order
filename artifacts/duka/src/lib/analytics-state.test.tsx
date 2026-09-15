@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   AnalyticsStateMarker,
@@ -13,7 +13,7 @@ import {
   orderChannels,
   togglePreference,
 } from "./channel-preferences";
-import { ChannelPicker, MobileMenuButton } from "../App";
+import { ChannelPicker, MobileMenuButton, OnboardingChannelPicker } from "../App";
 
 const emptySummary = {
   orders: 0,
@@ -115,6 +115,74 @@ test("renders order-channel controls with one selected value at a time", () => {
       );
       assert.match(markup, new RegExp(`>${channel.label}</span>`));
     }
+  }
+});
+
+test("keeps onboarding and order channels keyboard-reachable with synchronized names and state", () => {
+  const selectedOrderChannel = orderChannels[2]!.value;
+  const orderMarkup = renderToStaticMarkup(
+    createElement(ChannelPicker, {
+      value: selectedOrderChannel,
+      onChange: () => undefined,
+      testId: "order-channel",
+    }),
+  );
+
+  for (const channel of orderChannels) {
+    assert.match(
+      orderMarkup,
+      new RegExp(
+        `type="button"[^>]*role="radio"[^>]*aria-label="${channel.label}"[^>]*aria-checked="${channel.value === selectedOrderChannel}"[^>]*data-testid="order-channel-${channel.value}"`,
+      ),
+    );
+  }
+
+  const selectedOnboardingChannels = ["WhatsApp", "Snapchat"];
+  const onboardingMarkup = renderToStaticMarkup(
+    createElement(OnboardingChannelPicker, {
+      selectedChannels: selectedOnboardingChannels,
+      onToggle: () => undefined,
+    }),
+  );
+
+  for (const channel of onboardingChannels) {
+    const inputTestId = `input-onboarding-channel-${channel.toLowerCase().replaceAll(" ", "-")}`;
+    assert.match(
+      onboardingMarkup,
+      new RegExp(
+        `type="checkbox"[^>]*data-testid="${inputTestId}"[^>]*aria-label="${channel}"[^>]*${selectedOnboardingChannels.includes(channel) ? 'checked=""' : ""}`,
+      ),
+    );
+  }
+});
+
+test("activating a channel control calls back with only its channel", () => {
+  const selectedOrderChannels: string[] = [];
+  const orderPicker = ChannelPicker({
+    value: "whatsapp",
+    onChange: (value) => selectedOrderChannels.push(value),
+    testId: "order-channel",
+  });
+  const orderControls = orderPicker.props.children as ReactElement<{ onClick?: () => void }>[];
+
+  for (const [index, channel] of orderChannels.entries()) {
+    orderControls[index]!.props.onClick?.();
+    assert.deepEqual(selectedOrderChannels, [channel.value]);
+    selectedOrderChannels.length = 0;
+  }
+
+  const selectedOnboardingChannels: string[] = [];
+  const onboardingPicker = OnboardingChannelPicker({
+    selectedChannels: [],
+    onToggle: (channel) => selectedOnboardingChannels.push(channel),
+  });
+  const onboardingLabels = onboardingPicker.props.children as ReactElement<{ children?: ReactElement[] }>[];
+
+  for (const [index, channel] of onboardingChannels.entries()) {
+    const labelChildren = onboardingLabels[index]!.props.children as ReactElement[];
+    (labelChildren[0] as ReactElement<{ onChange?: () => void }>).props.onChange?.();
+    assert.deepEqual(selectedOnboardingChannels, [channel]);
+    selectedOnboardingChannels.length = 0;
   }
 });
 
