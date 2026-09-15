@@ -71,6 +71,12 @@ const dashboardPeriodLabel = (period: DashboardPeriod, customFrom: string, custo
   if (period === 'custom') return customFrom && customTo ? `${dateShort(customFrom)} – ${dateShort(customTo)}` : 'Choose dates';
   return dashboardPeriodOptions.find((option) => option.value === period)?.label ?? 'Last 7 days';
 };
+const calendarMonthLabel = (value: string) => new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(`${value}-01T12:00:00`));
+const shiftCalendarMonth = (value: string, months: number) => {
+  const date = new Date(`${value}-01T12:00:00`);
+  date.setMonth(date.getMonth() + months);
+  return inputDate(date).slice(0, 7);
+};
 const channelName = (value: string) => value.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 const initials = (name: string) => name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 const productImageFor = (name: string) => {
@@ -97,6 +103,106 @@ const productImageFor = (name: string) => {
 };
 
 function cn(...classes: Array<string | false | undefined>) { return classes.filter(Boolean).join(' '); }
+
+type DashboardCustomRangePickerProps = {
+  from: string;
+  to: string;
+  onFromChange: (value: string) => void;
+  onToChange: (value: string) => void;
+  onClose: () => void;
+  onApply: () => void;
+  canApply: boolean;
+};
+
+function DashboardCustomRangePicker({ from, to, onFromChange, onToChange, onClose, onApply, canApply }: DashboardCustomRangePickerProps) {
+  const [monthCursor, setMonthCursor] = useState(() => (from ? from.slice(0, 7) : inputDate(new Date()).slice(0, 7)));
+  const monthStart = new Date(`${monthCursor}-01T12:00:00`);
+  const firstVisibleDate = new Date(monthStart);
+  firstVisibleDate.setDate(1 - monthStart.getDay());
+  const calendarDays = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(firstVisibleDate);
+    date.setDate(firstVisibleDate.getDate() + index);
+    return inputDate(date);
+  });
+  const setFrom = (value: string) => {
+    onFromChange(value);
+    if (value) setMonthCursor(value.slice(0, 7));
+  };
+  const setTo = (value: string) => {
+    onToChange(value);
+    if (value) setMonthCursor(value.slice(0, 7));
+  };
+  const selectDay = (value: string) => {
+    setMonthCursor(value.slice(0, 7));
+    if (!from || (from && to)) {
+      onFromChange(value);
+      onToChange('');
+    } else if (value < from) {
+      onFromChange(value);
+      onToChange(from);
+    } else {
+      onToChange(value);
+    }
+  };
+  const rangeStart = from && to && from <= to ? from : '';
+  const rangeEnd = from && to && from <= to ? to : '';
+
+  return <div className="dashboard-custom-range">
+    <div className="dashboard-custom-range-header">
+      <div>
+        <p className="dashboard-custom-range-title">Custom range <span className="dashboard-custom-range-badge">Custom</span></p>
+        <p className="dashboard-custom-range-help">Set a reporting window</p>
+      </div>
+      <span className="dashboard-custom-range-zone">UTC</span>
+    </div>
+    <div className="dashboard-custom-range-fields">
+      <label>
+        From
+        <span className="dashboard-date-input">
+          <CalendarDays size={14} aria-hidden="true" />
+          <input type="date" value={from} max={to || undefined} onChange={(event) => setFrom(event.target.value)} data-testid="input-dashboard-period-from" aria-label="Start date" />
+        </span>
+      </label>
+      <label>
+        To
+        <span className="dashboard-date-input">
+          <CalendarDays size={14} aria-hidden="true" />
+          <input type="date" value={to} min={from || undefined} onChange={(event) => setTo(event.target.value)} data-testid="input-dashboard-period-to" aria-label="End date" />
+        </span>
+      </label>
+    </div>
+    <div className="dashboard-calendar" aria-label="Choose date range">
+      <div className="dashboard-calendar-header">
+        <button type="button" className="dashboard-calendar-nav" onClick={() => setMonthCursor(shiftCalendarMonth(monthCursor, -1))} aria-label="Previous month"><ChevronLeft size={15} /></button>
+        <strong aria-live="polite">{calendarMonthLabel(monthCursor)}</strong>
+        <button type="button" className="dashboard-calendar-nav" onClick={() => setMonthCursor(shiftCalendarMonth(monthCursor, 1))} aria-label="Next month"><ChevronRight size={15} /></button>
+      </div>
+      <div className="dashboard-calendar-weekdays" aria-hidden="true">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div>
+      <div className="dashboard-calendar-grid">
+        {calendarDays.map((day) => {
+          const isCurrentMonth = day.slice(0, 7) === monthCursor;
+          const isStart = day === rangeStart;
+          const isEnd = day === rangeEnd;
+          const isInRange = rangeStart && rangeEnd && day >= rangeStart && day <= rangeEnd;
+          return <button
+            type="button"
+            key={day}
+            className={cn('dashboard-calendar-day', !isCurrentMonth && 'is-outside', isInRange && 'is-in-range', isStart && 'is-range-start', isEnd && 'is-range-end')}
+            onClick={() => selectDay(day)}
+            aria-label={dateShort(day)}
+            aria-pressed={isStart || isEnd}
+          >
+            <span>{Number(day.slice(-2))}</span>
+          </button>;
+        })}
+      </div>
+    </div>
+    <div className="dashboard-custom-range-actions">
+      <button type="button" className="dashboard-period-close" onClick={onClose}>Close</button>
+      <button type="button" className="dashboard-period-apply" onClick={onApply} disabled={!canApply}>Apply range</button>
+    </div>
+  </div>;
+}
 
 const brandAssets = {
   icon: '/branding/takeorder-icon.png',
@@ -503,7 +609,7 @@ function Overview() {
     isError: summaryQuery.isError,
     summary,
   });
-  return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading title="Dashboard" action={<div className="flex flex-wrap items-center gap-2"><div className="relative"><button type="button" className="period-chip" aria-label="Reporting period" aria-expanded={periodMenuOpen} onClick={() => setPeriodMenuOpen((open) => !open)} data-testid="button-dashboard-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{periodLabel}<ChevronDown size={14} className={cn('transition-transform', periodMenuOpen && 'rotate-180')} /></button>{periodMenuOpen && <div className="dashboard-period-menu" role="dialog" aria-label="Choose reporting period"><div className="dashboard-period-options">{dashboardPeriodOptions.map((option) => <button type="button" key={option.value} className={cn('dashboard-period-option', period === option.value && 'is-active')} onClick={() => { setPeriod(option.value); setPeriodMenuOpen(false); }} aria-pressed={period === option.value}>{option.label}</button>)}<button type="button" className={cn('dashboard-period-option', period === 'custom' && 'is-active')} onClick={() => setPeriod('custom')} aria-pressed={period === 'custom'}>Custom range</button></div>{period === 'custom' && <div className="dashboard-custom-range"><label>From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} data-testid="input-dashboard-period-from" /></label><label>To<input type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} data-testid="input-dashboard-period-to" /></label><button type="button" className="dashboard-period-apply" onClick={() => setPeriodMenuOpen(false)} disabled={!periodRange}>Apply range</button></div>}</div>}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
+  return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading title="Dashboard" action={<div className="flex flex-wrap items-center gap-2"><div className="relative"><button type="button" className="period-chip" aria-label="Reporting period" aria-expanded={periodMenuOpen} onClick={() => setPeriodMenuOpen((open) => !open)} data-testid="button-dashboard-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{periodLabel}<ChevronDown size={14} className={cn('transition-transform', periodMenuOpen && 'rotate-180')} /></button>{periodMenuOpen && <div className="dashboard-period-menu" role="dialog" aria-label="Choose reporting period"><div className="dashboard-period-options">{dashboardPeriodOptions.map((option) => <button type="button" key={option.value} className={cn('dashboard-period-option', period === option.value && 'is-active')} onClick={() => { setPeriod(option.value); setPeriodMenuOpen(false); }} aria-pressed={period === option.value}>{option.label}</button>)}<button type="button" className={cn('dashboard-period-option', period === 'custom' && 'is-active')} onClick={() => setPeriod('custom')} aria-pressed={period === 'custom'}>Custom range</button></div>{period === 'custom' && <DashboardCustomRangePicker from={customFrom} to={customTo} onFromChange={setCustomFrom} onToChange={setCustomTo} onClose={() => setPeriodMenuOpen(false)} onApply={() => setPeriodMenuOpen(false)} canApply={Boolean(periodRange)} />}</div>}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
     {summaryQuery.isLoading ? <OverviewSkeleton /> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
          {primaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} trend={stat.trend} note={stat.note} period={periodLabel} />)}
