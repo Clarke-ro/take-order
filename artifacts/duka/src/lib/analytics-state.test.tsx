@@ -1144,3 +1144,142 @@ test("resumes incomplete onboarding at the saved step with editable profile data
   });
   dom.window.close();
 });
+
+test("persists onboarding fields and step changes across forward and backward reloads", async () => {
+  const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
+    url: "http://localhost/onboarding",
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    HTMLInputElement: dom.window.HTMLInputElement,
+    HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
+    addEventListener: dom.window.addEventListener.bind(dom.window),
+    removeEventListener: dom.window.removeEventListener.bind(dom.window),
+  });
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: dom.window.navigator,
+  });
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: dom.window.location,
+  });
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    configurable: true,
+    value: true,
+  });
+
+  const { act } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const container = dom.window.document.getElementById("root")!;
+  let root = createRoot(container);
+  const render = async () => {
+    await act(async () => {
+      root.render(createElement(Router, null, createElement(Onboarding)));
+    });
+  };
+  const reload = async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    root = createRoot(container);
+    await render();
+  };
+  const get = <T extends HTMLElement>(testId: string) => {
+    const element = container.querySelector<T>(`[data-testid="${testId}"]`);
+    assert.ok(element, `Expected ${testId} to be present`);
+    return element;
+  };
+  const setValue = async (element: HTMLInputElement | HTMLTextAreaElement, value: string) => {
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(element.constructor.prototype, "value")?.set;
+      setter?.call(element, value);
+      element.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+      element.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    });
+  };
+  const click = async (testId: string) => {
+    await act(async () => {
+      get<HTMLButtonElement>(testId).click();
+    });
+  };
+  const savedProfile = () => JSON.parse(dom.window.localStorage.getItem("duka-onboarding-profile") ?? "{}") as {
+    sellerName?: string;
+    businessName?: string;
+    description?: string;
+    channels?: string[];
+  };
+
+  try {
+    await render();
+    await setValue(get<HTMLTextAreaElement>("input-onboarding-description"), "Handmade jewellery");
+    await click("button-onboarding-continue");
+    assert.equal(dom.window.localStorage.getItem("duka-onboarding-step"), "1");
+    assert.equal(savedProfile().description, "Handmade jewellery");
+
+    await reload();
+    assert.ok(get<HTMLInputElement>("input-onboarding-seller-name"));
+    await setValue(get<HTMLInputElement>("input-onboarding-seller-name"), "Amina Mensah");
+    await setValue(get<HTMLInputElement>("input-onboarding-business-name"), "The Sunday Edit");
+    await click("button-onboarding-continue");
+    assert.equal(dom.window.localStorage.getItem("duka-onboarding-step"), "2");
+    assert.deepEqual(savedProfile(), {
+      sellerName: "Amina Mensah",
+      businessName: "The Sunday Edit",
+      description: "Handmade jewellery",
+      channels: [],
+    });
+
+    await reload();
+    const whatsapp = get<HTMLInputElement>("input-onboarding-channel-whatsapp");
+    const instagram = get<HTMLInputElement>("input-onboarding-channel-instagram");
+    await act(async () => {
+      whatsapp.click();
+      instagram.click();
+    });
+    assert.deepEqual(savedProfile().channels, ["WhatsApp", "Instagram"]);
+
+    await click("button-onboarding-back");
+    assert.equal(dom.window.localStorage.getItem("duka-onboarding-step"), "1");
+    await reload();
+    assert.equal(get<HTMLInputElement>("input-onboarding-seller-name").value, "Amina Mensah");
+    assert.equal(get<HTMLInputElement>("input-onboarding-business-name").value, "The Sunday Edit");
+    await setValue(get<HTMLInputElement>("input-onboarding-seller-name"), "Amina Mensah-Kane");
+    await setValue(get<HTMLInputElement>("input-onboarding-business-name"), "Sunday Edit Studio");
+    assert.equal(savedProfile().sellerName, "Amina Mensah-Kane");
+    assert.equal(savedProfile().businessName, "Sunday Edit Studio");
+
+    await click("button-onboarding-back");
+    assert.equal(dom.window.localStorage.getItem("duka-onboarding-step"), "0");
+    await reload();
+    const description = get<HTMLTextAreaElement>("input-onboarding-description");
+    assert.equal(description.value, "Handmade jewellery");
+    await setValue(description, "Handmade jewellery through Instagram");
+    assert.equal(savedProfile().description, "Handmade jewellery through Instagram");
+
+    await click("button-onboarding-continue");
+    await click("button-onboarding-continue");
+    await reload();
+    assert.equal(dom.window.localStorage.getItem("duka-onboarding-step"), "2");
+    const reloadedWhatsapp = get<HTMLInputElement>("input-onboarding-channel-whatsapp");
+    assert.equal(reloadedWhatsapp.checked, true);
+    assert.equal(get<HTMLInputElement>("input-onboarding-channel-instagram").checked, true);
+    assert.equal(savedProfile().description, "Handmade jewellery through Instagram");
+    await act(async () => {
+      reloadedWhatsapp.click();
+    });
+    assert.equal(reloadedWhatsapp.checked, false);
+    assert.deepEqual(savedProfile().channels, ["Instagram"]);
+    await act(async () => {
+      reloadedWhatsapp.click();
+    });
+    assert.deepEqual(savedProfile().channels, ["Instagram", "WhatsApp"]);
+  } finally {
+    await act(async () => {
+      root.unmount();
+    });
+    dom.window.close();
+  }
+});

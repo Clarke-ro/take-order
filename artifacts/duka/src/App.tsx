@@ -206,12 +206,18 @@ const readSellerProfile = (): SellerProfile | null => {
     return value ? JSON.parse(value) as SellerProfile : null;
   } catch { return null; }
 };
+const writeSellerProfile = (profile: SellerProfile) => {
+  try { window.localStorage.setItem(ONBOARDING_KEY, JSON.stringify(profile)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+};
 const readOnboardingStep = (): number => {
   try {
     const value = window.localStorage.getItem(ONBOARDING_STEP_KEY);
     const step = Number(value);
     return Number.isInteger(step) && step >= 0 && step <= 3 ? step : 0;
   } catch { return 0; }
+};
+const writeOnboardingStep = (step: number) => {
+  try { window.localStorage.setItem(ONBOARDING_STEP_KEY, String(step)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
 };
 const finishOnboarding = () => window.localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
 
@@ -338,18 +344,30 @@ export function Onboarding() {
   const [step, setStep] = useState(() => readOnboardingStep());
   const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [] });
   useEffect(() => {
-    window.localStorage.setItem(ONBOARDING_KEY, JSON.stringify(profile));
+    writeSellerProfile(profile);
   }, [profile]);
   useEffect(() => {
-    window.localStorage.setItem(ONBOARDING_STEP_KEY, String(step));
+    writeOnboardingStep(step);
   }, [step]);
-  const update = (key: keyof SellerProfile, value: string) => setProfile((current) => ({ ...current, [key]: value }));
-  const toggleChannel = (channel: string) => setProfile((current) => ({ ...current, channels: togglePreference(current.channels, channel) }));
+  const update = (key: keyof SellerProfile, value: string) => {
+    const next = { ...profile, [key]: value };
+    setProfile(next);
+    writeSellerProfile(next);
+  };
+  const toggleChannel = (channel: string) => {
+    const next = { ...profile, channels: togglePreference(profile.channels, channel) };
+    setProfile(next);
+    writeSellerProfile(next);
+  };
+  const changeStep = (nextStep: number) => {
+    writeOnboardingStep(nextStep);
+    setStep(nextStep);
+  };
   const skip = () => { finishOnboarding(); setLocation('/'); };
   const next = () => {
-    if (step === 0 && profile.description.trim()) setStep(1);
-    else if (step === 1 && profile.sellerName.trim() && profile.businessName.trim()) setStep(2);
-    else if (step === 2) { finishOnboarding(); setStep(3); }
+    if (step === 0 && profile.description.trim()) changeStep(1);
+    else if (step === 1 && profile.sellerName.trim() && profile.businessName.trim()) changeStep(2);
+    else if (step === 2) { finishOnboarding(); changeStep(3); }
   };
   const canContinue = step === 0 ? Boolean(profile.description.trim()) : step === 1 ? Boolean(profile.sellerName.trim() && profile.businessName.trim()) : true;
   const continuationGuidance = step === 0 && !canContinue
@@ -376,7 +394,7 @@ export function Onboarding() {
         {step < 3 && <div className="mt-8 border-t border-[hsl(var(--border))] pt-5">
           {continuationGuidance && <p id="onboarding-continue-guidance" role="status" aria-live="polite" aria-atomic="true" className="mb-4 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{continuationGuidance}</p>}
           <div className="flex items-center justify-between">
-            <button onClick={() => step === 0 ? skip() : setStep(step - 1)} data-testid="button-onboarding-back" className="soft-focus inline-flex items-center gap-2 rounded-[10px] px-2 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]">{step === 0 ? 'Not now' : <><ArrowLeft size={14} />Back</>}</button>
+            <button onClick={() => step === 0 ? skip() : changeStep(step - 1)} data-testid="button-onboarding-back" className="soft-focus inline-flex items-center gap-2 rounded-[10px] px-2 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]">{step === 0 ? 'Not now' : <><ArrowLeft size={14} />Back</>}</button>
             <Button onClick={next} disabled={!canContinue} aria-describedby={continuationGuidance ? 'onboarding-continue-guidance' : undefined} data-testid="button-onboarding-continue">{step === 2 ? 'Finish setup' : 'Continue'}<ArrowRight size={15} /></Button>
           </div>
         </div>}
