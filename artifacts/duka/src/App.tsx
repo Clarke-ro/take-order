@@ -330,6 +330,7 @@ function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?
 
 const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 'reserved' =>
   status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';
+const paymentLabel = (order: Order) => order.status === 'deposit_paid' ? 'Deposit paid' : order.status === 'paid' ? 'Paid in full' : 'Awaiting payment';
 type MetricTrend = { direction: 'up' | 'down'; percentage: number };
 function MetricCard({ label, value, note, trend, dataTestId, className = '', style }: { label: string; value: ReactNode; note?: ReactNode; trend?: MetricTrend; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
   const isUp = trend?.direction === 'up';
@@ -834,7 +835,6 @@ function Orders() {
     { value: 'shipped', label: 'Shipped' },
     { value: 'delivered', label: 'Delivered' },
   ];
-  const paymentLabel = (order: Order) => order.status === 'deposit_paid' ? 'Deposit paid' : order.status === 'paid' ? 'Paid in full' : 'Awaiting payment';
   const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value;
   const pendingFulfillment = allOrders.filter((order) => order.fulfillment === 'pending').length;
 
