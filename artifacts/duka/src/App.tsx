@@ -506,7 +506,7 @@ function MetricCard({ label, value, valueAccessory, note, period, trend, indicat
       </span>}
     </div>
     <div className="metric-value-row mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">
-      {loading ? <Skeleton className="h-9 w-24" /> : <>{valueAccessory}<span className="metric-value-content">{value}</span>{(trend || indicator) && <span className={cn('metric-value-trend', indicatorTone)} aria-hidden="true">{IndicatorIcon && <IndicatorIcon size={16} strokeWidth={2.5} />}</span>}</>}
+      {loading ? <Skeleton className="h-9 w-24" /> : <>{valueAccessory}<span className="metric-value-content">{value}</span></>}
     </div>
     {note && (loading ? <Skeleton className="mt-3 h-3 w-40" /> : <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>)}
   </Card>;
