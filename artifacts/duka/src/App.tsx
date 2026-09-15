@@ -45,6 +45,12 @@ const dateShort = (value: string) => {
 };
 type DashboardPeriod = 'day' | 'week' | 'month' | 'year' | 'custom';
 type DashboardDateRange = { from: string; to: string };
+
+export type DashboardPeriodPreference = {
+  period: DashboardPeriod;
+  customFrom: string;
+  customTo: string;
+};
 const dashboardPeriodOptions: Array<{ value: Exclude<DashboardPeriod, 'custom'>; label: string }> = [
   { value: 'day', label: 'Today' },
   { value: 'week', label: 'Last 7 days' },
@@ -302,6 +308,7 @@ const ONBOARDING_STEP_KEY = 'duka-onboarding-step';
 const ONBOARDING_DONE_KEY = 'duka-onboarding-complete';
 export const CONNECTED_TOOLS_KEY = 'duka-connected-tools';
 
+export const DASHBOARD_PERIOD_KEY = 'duka-dashboard-period';
 export const CONNECTED_TOOL_NAMES = [
   'WhatsApp',
   'Instagram',
@@ -317,6 +324,7 @@ const getPreferenceStorage = (): Storage | null => {
   try { return window.localStorage; } catch { return null; }
 };
 
+const dashboardPeriods = new Set<DashboardPeriod>(['day', 'week', 'month', 'year', 'custom']);
 const normalizeConnectedTools = (tools: readonly string[]) =>
   [...new Set(tools.filter((tool) => connectedToolNames.has(tool)))];
 export const readConnectedTools = (storage: PreferenceStorage | null = getPreferenceStorage()): string[] => {
@@ -561,8 +569,9 @@ function HomeRoute() {
 
 export function Overview() {
   const today = inputDate(new Date());
-  const [period, setPeriod] = useState<DashboardPeriod>('week');
-  const [draftPeriod, setDraftPeriod] = useState<DashboardPeriod>('week');
+  const [savedDashboardPeriod] = useState<DashboardPeriodPreference | null>(() => readDashboardPeriodPreference());
+  const [period, setPeriod] = useState<DashboardPeriod>(() => savedDashboardPeriod?.period ?? 'week');
+  const [draftPeriod, setDraftPeriod] = useState<DashboardPeriod>(() => savedDashboardPeriod?.period ?? 'week');
   const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
   const periodMenuRef = useRef<HTMLDivElement>(null);
   const periodTriggerRef = useRef<HTMLButtonElement>(null);
@@ -578,8 +587,11 @@ export function Overview() {
     });
   }, []);
   const initialCustomRange = useMemo(() => ({ from: shiftInputDate(today, -29), to: today }), [today]);
-  const [appliedCustomRange, setAppliedCustomRange] = useState<DashboardDateRange>(() => initialCustomRange);
-  const [draftCustomRange, setDraftCustomRange] = useState<DashboardDateRange>(() => initialCustomRange);
+  const restoredCustomRange = savedDashboardPeriod?.period === 'custom'
+    ? { from: savedDashboardPeriod.customFrom, to: savedDashboardPeriod.customTo }
+    : initialCustomRange;
+  const [appliedCustomRange, setAppliedCustomRange] = useState<DashboardDateRange>(() => restoredCustomRange);
+  const [draftCustomRange, setDraftCustomRange] = useState<DashboardDateRange>(() => restoredCustomRange);
   const periodRange = useMemo(() => dashboardPeriodRange(period, appliedCustomRange.from, appliedCustomRange.to), [period, appliedCustomRange]);
   const draftPeriodRange = useMemo(() => dashboardPeriodRange(draftPeriod, draftCustomRange.from, draftCustomRange.to), [draftPeriod, draftCustomRange]);
   const periodLabel = dashboardPeriodLabel(period, appliedCustomRange.from, appliedCustomRange.to);
@@ -653,6 +665,13 @@ export function Overview() {
     setDraftPeriod('custom');
     setPeriodMenuOpen(false);
   };
+  useEffect(() => {
+    writeDashboardPeriodPreference({
+      period,
+      customFrom: appliedCustomRange.from,
+      customTo: appliedCustomRange.to,
+    });
+  }, [period, appliedCustomRange]);
   useEffect(() => {
     if (periodMenuOpen) {
       periodMenuWasOpen.current = true;
@@ -1679,3 +1698,48 @@ export function BuyerOrderForm({
 }
 
 const connectedToolNames = new Set<string>(CONNECTED_TOOL_NAMES);
+
+const isValidDashboardPeriodPreference = (value: DashboardPeriodPreference): boolean =>
+  dashboardPeriods.has(value.period)
+  && typeof value.customFrom === 'string'
+  && typeof value.customTo === 'string'
+  && (value.period !== 'custom'
+    || (isValidDashboardDate(value.customFrom) && isValidDashboardDate(value.customTo) && value.customFrom <= value.customTo));
+
+export const writeDashboardPeriodPreference = (
+  preference: DashboardPeriodPreference,
+  storage: PreferenceStorage | null = getPreferenceStorage(),
+) => {
+  if (!storage || !isValidDashboardPeriodPreference(preference)) return;
+  try {
+    storage.setItem(DASHBOARD_PERIOD_KEY, JSON.stringify(preference));
+  } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+};
+
+const isValidDashboardDate = (value: unknown): value is string => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T12:00:00`);
+  return !Number.isNaN(date.getTime()) && inputDate(date) === value;
+};
+
+export const readDashboardPeriodPreference = (
+  storage: PreferenceStorage | null = getPreferenceStorage(),
+): DashboardPeriodPreference | null => {
+  if (!storage) return null;
+  try {
+    const value = storage.getItem(DASHBOARD_PERIOD_KEY);
+    if (!value) return null;
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const candidate = parsed as Partial<DashboardPeriodPreference>;
+    if (typeof candidate.period !== 'string' || !dashboardPeriods.has(candidate.period as DashboardPeriod)) return null;
+    const preference: DashboardPeriodPreference = {
+      period: candidate.period as DashboardPeriod,
+      customFrom: typeof candidate.customFrom === 'string' ? candidate.customFrom : '',
+      customTo: typeof candidate.customTo === 'string' ? candidate.customTo : '',
+    };
+    return isValidDashboardPeriodPreference(preference) ? preference : null;
+  } catch {
+    return null;
+  }
+};

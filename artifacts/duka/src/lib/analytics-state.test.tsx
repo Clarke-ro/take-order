@@ -14,8 +14,11 @@ import {
 import {
   CONNECTED_TOOL_NAMES,
   CONNECTED_TOOLS_KEY,
+  DASHBOARD_PERIOD_KEY,
   clearConnectedTools,
+  readDashboardPeriodPreference,
   readConnectedTools,
+  writeDashboardPeriodPreference,
   writeConnectedTools,
 } from "../App";
 import {
@@ -840,7 +843,7 @@ test("returns focus after closing or applying the dashboard range picker without
   const { act } = await import("react");
   const { createRoot } = await import("react-dom/client");
   const container = dom.window.document.getElementById("root")!;
-  const root = createRoot(container);
+  let root = createRoot(container);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const renderOverview = () => createElement(
     QueryClientProvider,
@@ -934,6 +937,18 @@ test("returns focus after closing or applying the dashboard range picker without
       dom.window.document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
     assert.equal(dom.window.document.activeElement, trigger);
+    assert.equal(container.querySelector('[data-testid="dashboard-period-menu"]'), null);
+    await act(async () => {
+      root.unmount();
+      root = createRoot(container);
+      root.render(renderOverview());
+    });
+    const reloadedTrigger = get<HTMLButtonElement>("button-dashboard-period");
+    await click("button-dashboard-period");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-01-01");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-01-10");
+    await click("button-dashboard-period-close");
+    assert.equal(dom.window.document.activeElement, reloadedTrigger);
     assert.equal(container.querySelector('[data-testid="dashboard-period-menu"]'), null);
   } finally {
     await act(async () => {
@@ -1132,6 +1147,40 @@ test("Connect preference labels describe saved preferences, not authorization", 
     "WhatsApp, saved preference. Select to remove this preference.",
   );
   assert.doesNotMatch(connectPreferenceAriaLabel("WhatsApp", true), /authoriz|connect/i);
+});
+
+test("Dashboard reporting period preferences survive a remount and reject incomplete ranges", () => {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+  };
+
+  writeDashboardPeriodPreference({
+    period: "custom",
+    customFrom: "2020-01-01",
+    customTo: "2020-01-10",
+  }, storage);
+  assert.equal(
+    values.get(DASHBOARD_PERIOD_KEY),
+    '{"period":"custom","customFrom":"2020-01-01","customTo":"2020-01-10"}',
+  );
+  assert.deepEqual(readDashboardPeriodPreference(storage), {
+    period: "custom",
+    customFrom: "2020-01-01",
+    customTo: "2020-01-10",
+  });
+
+  for (const saved of [
+    "{not valid json",
+    '{"period":"custom","customFrom":"2020-01-01"}',
+    '{"period":"custom","customFrom":"2020-01-10","customTo":"2020-01-01"}',
+    '{"period":"custom","customFrom":"2020-02-30","customTo":"2020-03-01"}',
+    '{"period":"quarter","customFrom":"2020-01-01","customTo":"2020-01-10"}',
+  ]) {
+    values.set(DASHBOARD_PERIOD_KEY, saved);
+    assert.equal(readDashboardPeriodPreference(storage), null);
+  }
 });
 
 test("Connect choices persist exact local preferences across a remount", () => {
