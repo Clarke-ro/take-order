@@ -36,6 +36,8 @@ import {
 } from '@/lib/channel-preferences';
 
 const queryClient = new QueryClient();
+
+export const CHANNEL_CONVERSION_REFRESH_INTERVAL_MS = 5_000;
 const money = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
 const moneyExact = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0);
 const number = (value: number | null | undefined) => new Intl.NumberFormat('en-US').format(value || 0);
@@ -902,8 +904,17 @@ function ChannelPerformance({ channels, loading = false }: { channels: ChannelPe
   </section>;
 }
 
-function ChannelConversionInsight() {
-  const summaryQuery = useGetDashboardSummary();
+export function ChannelConversionInsight() {
+  const summaryQuery = useGetDashboardSummary(undefined, {
+    query: {
+      queryKey: getGetDashboardSummaryQueryKey(),
+      refetchInterval: CHANNEL_CONVERSION_REFRESH_INTERVAL_MS,
+      refetchIntervalInBackground: true,
+      refetchOnMount: 'always',
+      refetchOnReconnect: true,
+      refetchOnWindowFocus: true,
+    },
+  });
   const channels = summaryQuery.data?.channelPerformance ?? [];
   const totalViews = channels.reduce((sum, channel) => sum + channel.opens, 0);
   const totalSales = channels.reduce((sum, channel) => sum + channel.paidOrders, 0);
@@ -1111,7 +1122,7 @@ function Catalog() {
 function LegacyOrders() {
   const query = useListOrders(); const update = useUpdateOrder(); const [filter, setFilter] = useState('all'); const [search, setSearch] = useState(''); const queryClient = useQueryClient();
   const orders = useMemo(() => (query.data ?? []).filter((order) => (filter === 'all' || order.status === filter || order.fulfillment === filter) && `${order.customerName} ${order.productName} ${order.token}`.toLowerCase().includes(search.toLowerCase())), [query.data, filter, search]);
-  const updateOrder = (order: Order, data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => update.mutate({ id: order.id, data }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }) });
+  const updateOrder = (order: Order, data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => update.mutate({ id: order.id, data }, { onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); invalidateDashboardSummary(queryClient); } });
   const copyLink = async (token: string) => { await navigator.clipboard?.writeText(`${window.location.origin}/o/${token}`); };
   return <Shell><PageHeading title="Orders" action={<Link href="/take-order"><Button><Plus size={16} />Take an order</Button></Link>} /><div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="relative max-w-[360px] flex-1"><Search className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={16} /><input data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" className="field-input pl-9" /></div><div className="flex flex-wrap gap-2">{['all', 'reserved', 'deposit_paid', 'paid', 'shipped'].map((value) => <button key={value} onClick={() => setFilter(value)} aria-pressed={filter === value} data-testid={`button-filter-${value}`} className={cn('soft-focus rounded-full px-3 py-2 text-[10px] font-bold capitalize transition-colors', filter === value ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] ring-2 ring-[hsl(var(--primary))] ring-offset-2 ring-offset-[hsl(var(--background))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{value.replace('_', ' ')}</button>)}</div></div>{query.isLoading ? <Card className="space-y-5 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></Card> : query.isError ? <ErrorState retry={() => query.refetch()} /> : orders.length ? <Card className="overflow-hidden"><div className="hidden grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] gap-4 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-6 py-3 text-[10px] font-bold uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))] md:grid"><span>Buyer</span><span>Payment</span><span>Fulfillment</span><span>Placed</span><span /></div>{orders.map((order) => <div key={order.id} className="grid gap-3 border-b border-[hsl(var(--border))] px-5 py-4 last:border-0 md:grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] md:items-center md:gap-4 md:px-6" data-testid={`row-orders-order-${order.id}`}><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-[10px] font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName} · {channelName(order.channel)}</div></div></div><div className="flex items-center justify-between md:block"><span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Payment</span><button data-testid={`button-payment-${order.id}`} onClick={() => updateOrder(order, { status: order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved' })}><StatusPill tone={paymentTone(order.status)}>{order.status.replace('_', ' ')}</StatusPill></button></div><div className="flex items-center justify-between md:block"><span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Delivery</span><button data-testid={`button-fulfillment-${order.id}`} onClick={() => updateOrder(order, { fulfillment: order.fulfillment === 'pending' ? 'shipped' : order.fulfillment === 'shipped' ? 'delivered' : 'pending' })}><StatusPill tone={fulfillmentTone(order.fulfillment)}>{order.fulfillment}</StatusPill></button></div><div className="hidden font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))] md:block">{dateShort(order.createdAt)}<div className="mt-1 text-[12px] font-bold text-[hsl(var(--foreground))]">{moneyExact(order.amount)}</div></div><div className="flex justify-end gap-1"><button type="button" onClick={() => copyLink(order.token)} aria-label="Copy buyer link" data-testid={`button-copy-link-${order.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" title="Copy buyer link"><Copy aria-hidden="true" size={15} /></button><Link href={`/o/${order.token}`} data-testid={`link-open-order-${order.id}`} aria-label="Open buyer preview" className="rounded-lg p-2 text-[11px] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><ExternalLink aria-hidden="true" size={15} /></Link></div></div>)}</Card> : <EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} />}</Shell>;
 }
@@ -1148,7 +1159,7 @@ function Orders() {
   }, [allOrders]);
   const maxChannelOrders = Math.max(1, ...channelMix.map(([, count]) => count));
   const updateOrder = (order: Order, data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => {
-    update.mutate({ id: order.id, data }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }) });
+    update.mutate({ id: order.id, data }, { onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); invalidateDashboardSummary(queryClient); } });
   };
   const filterOptions = [
     { value: 'all', label: 'All orders' },
@@ -1603,6 +1614,7 @@ function PublicOrderPage() {
   const { token = '' } = useParams<{ token: string }>();
   const query = useGetPublicOrder(token, { query: { enabled: Boolean(token), queryKey: getGetPublicOrderQueryKey(token) } });
   const submit = useSubmitPublicOrder();
+  const queryClient = useQueryClient();
   const seller = readSellerProfile();
   const businessName = seller?.businessName || 'The Sunday Edit';
   const [submitted, setSubmitted] = useState(false);
@@ -1610,6 +1622,9 @@ function PublicOrderPage() {
   const [mockPayment, setMockPayment] = useState({ cardNumber: '', expiry: '', cvc: '' });
   const [form, setForm] = useState({ name: '', phone: '', details: '', image: '', imagePreview: '', action: 'pay' as 'pay' | 'reserve' });
   const order = query.data;
+  useEffect(() => {
+    if (order) invalidateDashboardSummary(queryClient);
+  }, [order, queryClient]);
   const change = (key: string, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
     if (key === 'action' && value === 'reserve') setShowMockPayment(false);
@@ -1621,7 +1636,7 @@ function PublicOrderPage() {
       return;
     }
     const data: PublicOrderInput = { customerName: form.name, customerPhone: form.phone, buyerDetails: form.details || undefined, referenceImage: form.image || undefined, paymentAction: order?.paymentMode === 'reserve' ? 'reserve' : form.action };
-    submit.mutate({ token, data }, { onSuccess: () => setSubmitted(true) });
+    submit.mutate({ token, data }, { onSuccess: () => { invalidateDashboardSummary(queryClient); setSubmitted(true); } });
   };
   if (query.isLoading) return <div className="min-h-[100dvh] bg-[hsl(var(--background))] p-6"><div className="mx-auto max-w-[480px]"><BrandLockup className="mx-auto mt-14 justify-center" /><Skeleton className="mx-auto mt-8 h-8 w-52" /><Skeleton className="mt-4 h-4 w-full" /><Skeleton className="mt-10 h-64 w-full" /></div></div>;
   if (query.isError || !order) return <div className="flex min-h-[100dvh] items-center justify-center p-6"><div className="text-center"><BrandLockup className="justify-center" /><div className="mt-10 font-display text-2xl font-bold">This link is no longer available.</div><p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">Ask the seller for a fresh order link.</p></div></div>;
@@ -1763,4 +1778,8 @@ export const readDashboardPeriodPreference = (
   } catch {
     return null;
   }
+};
+
+const invalidateDashboardSummary = (client: QueryClient) => {
+  void client.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
 };

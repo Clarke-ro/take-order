@@ -7,6 +7,7 @@ import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { JSDOM } from "jsdom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
 import {
   AnalyticsStateMarker,
   getAnalyticsViewState,
@@ -14,6 +15,7 @@ import {
 import {
   CONNECTED_TOOL_NAMES,
   CONNECTED_TOOLS_KEY,
+  CHANNEL_CONVERSION_REFRESH_INTERVAL_MS,
   DASHBOARD_PERIOD_KEY,
   clearConnectedTools,
   readDashboardPeriodPreference,
@@ -32,6 +34,7 @@ import {
 } from "./channel-preferences";
 import {
   CatalogActions,
+  ChannelConversionInsight,
   ChannelPicker,
   BuyerOrderForm,
   Connect,
@@ -397,6 +400,35 @@ test("renders loading, empty, and populated analytics states without errors", ()
     assert.match(markup, new RegExp(`data-testid="dashboard-analytics-${state}"`));
     assert.match(markup, new RegExp(`data-analytics-state="${state}"`));
   }
+});
+
+test("keeps channel conversion summaries fresh while the page remains open", () => {
+  const client = new QueryClient();
+  renderToStaticMarkup(createElement(
+    QueryClientProvider,
+    {
+      client,
+      children: createElement(
+        Router,
+        {
+          hook: () => ["/reports/channel-conversion", () => undefined] as [string, (path: string) => void],
+          children: createElement(ChannelConversionInsight),
+        },
+      ),
+    },
+  ));
+
+  const summaryQuery = client.getQueryCache().find({
+    queryKey: getGetDashboardSummaryQueryKey(),
+  });
+  const refreshOptions = summaryQuery?.options as unknown as {
+    refetchInterval?: number;
+    refetchIntervalInBackground?: boolean;
+    refetchOnWindowFocus?: boolean;
+  };
+  assert.equal(refreshOptions.refetchInterval, CHANNEL_CONVERSION_REFRESH_INTERVAL_MS);
+  assert.equal(refreshOptions.refetchIntervalInBackground, true);
+  assert.equal(refreshOptions.refetchOnWindowFocus, true);
 });
 
 test("keeps four social channel marks beside the metric value on narrow cards", async () => {
