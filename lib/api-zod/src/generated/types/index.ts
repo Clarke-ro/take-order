@@ -15,6 +15,7 @@ export * from './expenseInput';
 export * from './expenseInputCategory';
 export * from './expenseUpdate';
 export * from './expenseUpdateCategory';
+export * from './getDashboardSummaryParams';
 export * from './healthStatus';
 export * from './order';
 export * from './orderFulfillment';

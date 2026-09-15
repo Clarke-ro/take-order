@@ -339,6 +339,11 @@ export const SubmitPublicOrderResponse = zod.object({
 /**
  * @summary Get seller dashboard summary
  */
+export const GetDashboardSummaryQueryParams = zod.object({
+  "from": zod.date().optional().describe('Inclusive start date for the reporting window.'),
+  "to": zod.date().optional().describe('Inclusive end date for the reporting window.')
+})
+
 export const GetDashboardSummaryResponse = zod.object({
   "revenue": zod.number(),
   "productCosts": zod.number(),

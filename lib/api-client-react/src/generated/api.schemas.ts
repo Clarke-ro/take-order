@@ -373,3 +373,14 @@ export interface ExpenseUpdate {
   note?: string | null;
 }
 
+export type GetDashboardSummaryParams = {
+/**
+ * Inclusive start date for the reporting window.
+ */
+from?: string;
+/**
+ * Inclusive end date for the reporting window.
+ */
+to?: string;
+};
+
