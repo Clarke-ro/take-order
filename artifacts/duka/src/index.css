@@ -435,7 +435,7 @@ button { cursor: pointer; }
 .orders-filter-label { color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .57rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
 .orders-filter-scroll { display: flex; max-width: 100%; gap: 1.05rem; overflow-x: auto; scrollbar-width: none; }
 .orders-filter-scroll::-webkit-scrollbar { display: none; }
-.orders-filter-button { border-bottom: 2px solid transparent; white-space: nowrap; background: transparent; padding: .45rem .05rem .55rem; color: hsl(var(--muted-foreground)); font-size: .68rem; font-weight: 600; }
+.orders-filter-button { border-bottom: 2px solid transparent; white-space: nowrap; background: transparent; padding: .45rem .05rem .55rem; color: hsl(var(--muted-foreground)); font-size: .76rem; font-weight: 500; }
 .orders-filter-button:hover, .orders-filter-button.is-active { color: hsl(var(--foreground)); }
 .orders-filter-button.is-active { border-bottom-color: hsl(var(--foreground)); }
 .orders-table-wrap { overflow-x: auto; }
@@ -445,7 +445,8 @@ button { cursor: pointer; }
 .orders-table-row:last-child { border-bottom: 0; }
 .orders-table-row:hover { background: hsl(var(--muted) / .42); }
 .orders-buyer-cell { display: flex; min-width: 0; align-items: center; gap: .75rem; }
-.orders-buyer-cell > div:last-child > div:last-child { font-size: .75rem; }
+.orders-table-row .font-semibold, .orders-table-row .font-bold { font-weight: 500; }
+.orders-buyer-cell > div:last-child > div:last-child { font-size: .75rem; font-weight: 400; }
 .orders-value-cell > div:last-child, .orders-date-cell > span:last-child { font-size: .7rem; }
 .orders-traffic-cell { display: flex; min-width: 0; align-items: center; justify-content: center; }
 .orders-traffic-icon { display: inline-flex; height: 2rem; width: 2rem; align-items: center; justify-content: center; border-radius: 9px; background: hsl(var(--muted) / .7); color: hsl(var(--muted-foreground)); }
@@ -454,6 +455,7 @@ button { cursor: pointer; }
 .orders-cell-labeled > button { display: inline-flex; max-width: 100%; border-radius: 999px; outline: none; }
 .orders-table-row [data-testid^="button-payment-"] { border: 0; background: transparent; padding: 0; color: inherit; text-align: left; }
 .orders-table-row [data-testid^="button-payment-"] > [data-tone] { border: 0; border-radius: 0; background: transparent; padding: 0; }
+.orders-table-row [data-testid^="button-payment-"] > [data-tone] { font-size: .7rem; font-weight: 500; }
 .orders-table-row [data-testid^="button-payment-"] > [data-tone="mint"] { color: hsl(157 42% 35%); }
 .orders-table-row [data-testid^="button-payment-"] > [data-tone="gold"] { color: hsl(31 64% 38%); }
 .orders-table-row [data-testid^="button-payment-"] > [data-tone="reserved"] { color: hsl(220 12% 48%); }
