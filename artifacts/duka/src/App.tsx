@@ -323,8 +323,8 @@ function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?
 
 const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 'reserved' =>
   status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';
-function MetricCard({ label, value, note, dataTestId, className = '', style }: { label: string; value: ReactNode; note?: ReactNode; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
-  return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}><div className="text-[10px] font-normal uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">{label}</div><div className="mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">{value}</div>{note && <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>}</Card>;
+function MetricCard({ label, value, note, trend, trendLabel, dataTestId, className = '', style }: { label: string; value: ReactNode; note?: ReactNode; trend?: 'up' | 'down'; trendLabel?: string; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
+  return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}><div className="flex items-start justify-between gap-3"><div className="text-[10px] font-normal uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">{label}</div>{trend && <span className={cn('metric-trend-badge', trend === 'up' ? 'metric-trend-up' : 'metric-trend-down')} aria-label={`${trend === 'up' ? 'Up' : 'Down'} performance`}><span>{trend === 'up' ? '+' : '−'}{trendLabel ?? (trend === 'up' ? 'Up' : 'Down')}</span>{trend === 'up' ? <ArrowUpRight size={11} aria-hidden="true" /> : <ArrowDownRight size={11} aria-hidden="true" />}</span>}</div><div className="mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">{value}</div>{note && <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>}</Card>;
 }
 function InsightCard({ icon: Icon, title, description, className = '', dataTestId }: { icon: typeof CircleDollarSign; title: string; description?: string; className?: string; dataTestId?: string }) {
   return <Card className={cn('flex items-center gap-4 p-5', className)} data-testid={dataTestId}><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/25 text-[hsl(var(--accent-foreground))]"><Icon size={18} /></div><div><div className="text-sm font-bold">{title}</div>{description && <p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}</div></Card>;
@@ -415,17 +415,27 @@ function Overview() {
   const firstDay = daily[0]?.label;
   const lastDay = daily[daily.length - 1]?.label;
   const dateContext = firstDay && lastDay ? `${firstDay} – ${lastDay}` : 'Your latest reporting window';
+  const recentDaily = daily.slice(Math.ceil(daily.length / 2));
+  const earlierDaily = daily.slice(0, Math.ceil(daily.length / 2));
+  const movement = (key: 'orders' | 'revenue') => {
+    const recent = recentDaily.reduce((sum, day) => sum + day[key], 0);
+    const earlier = earlierDaily.reduce((sum, day) => sum + day[key], 0);
+    return recent >= earlier && recent > 0 ? 'up' as const : 'down' as const;
+  };
+  const salesTrend = movement('orders');
+  const revenueTrend = movement('revenue');
+  const stateTrend = (isPositive: boolean) => isPositive ? 'up' as const : 'down' as const;
   const primaryStatCards = [
-    { label: 'Sales', value: ordersQuery.isLoading ? '—' : orders.length, note: `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` },
-     { label: 'Revenue', value: money(summary?.revenue), note: undefined },
-     { label: 'New clients', value: ordersQuery.isLoading ? '—' : namedClients, note: undefined },
-    { label: 'Active users', value: totalOpens, note: `${activeChannels} active channels` },
+    { label: 'Sales', value: ordersQuery.isLoading ? '—' : orders.length, trend: salesTrend, note: `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` },
+     { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: undefined },
+     { label: 'New clients', value: ordersQuery.isLoading ? '—' : namedClients, trend: stateTrend(namedClients > 0), note: undefined },
+    { label: 'Active users', value: totalOpens, trend: stateTrend(totalOpens > 0), note: `${activeChannels} active channels` },
   ] as const;
   const secondaryStatCards = [
-    { label: 'Outstanding balances', value: money(summary?.outstanding), note: `${waitingPayments} waiting payments` },
-    { label: 'Orders', value: summary?.orders ?? 0, note: `${shippedOrders} shipped` },
-    { label: 'Shares', value: '—', note: 'Connect a channel to track' },
-    { label: 'Likes', value: '—', note: 'Connect a channel to track' },
+    { label: 'Outstanding balances', value: money(summary?.outstanding), trend: stateTrend((summary?.outstanding ?? 0) === 0), note: `${waitingPayments} waiting payments` },
+    { label: 'Orders', value: summary?.orders ?? 0, trend: movement('orders'), note: `${shippedOrders} shipped` },
+    { label: 'Shares', value: '—', trend: 'down' as const, note: 'Connect a channel to track' },
+    { label: 'Likes', value: '—', trend: 'down' as const, note: 'Connect a channel to track' },
   ] as const;
   const analyticsState = getAnalyticsViewState({
     isLoading: summaryQuery.isLoading,
@@ -435,10 +445,10 @@ function Overview() {
   return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading title="Dashboard" action={<div className="flex flex-wrap items-center gap-2"><div className="period-chip" aria-label="Reporting period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{period}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
     {summaryQuery.isLoading ? <OverviewSkeleton /> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-         {primaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} note={stat.note} />)}
+         {primaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} trend={stat.trend} note={stat.note} />)}
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-         {secondaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="overview-secondary-card rise-in" style={{ animationDelay: `${(index + 4) * 55}ms` }} dataTestId={`card-kpi-secondary-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} note={stat.note} />)}
+         {secondaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="overview-secondary-card rise-in" style={{ animationDelay: `${(index + 4) * 55}ms` }} dataTestId={`card-kpi-secondary-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} trend={stat.trend} note={stat.note} />)}
       </div>
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
         <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and operating expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{period}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow">{daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Operating expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Combined expenses" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
