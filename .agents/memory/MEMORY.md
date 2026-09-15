@@ -4,6 +4,7 @@
 - [Take Order palette system](palette-system.md) — Keep seller and buyer surfaces on the Ink/Paper monochrome system.
 - [Take Order typography system](typography-system.md) — Use Inter for interface and display text; reserve IBM Plex Mono for utility metadata.
 - [Cardless dashboard stats](cardless-dashboard-stats.md) — Prefer open Insight-style stat sections with flat tracks over wrapping every metric group in a card.
+- [Metric indicator rules](metric-indicator-rules.md) — Use percentage badges only for real ratios; omit indicators when a card has no meaningful percentage.
 - [Live accessibility checks](live-accessibility-checks.md) — Chromium CDP is available for browser-level accessibility-tree assertions without adding a browser automation package.
 - [Dashboard picker browser checks](dashboard-picker-browser-checks.md) — Native date inputs expose segmented tab stops in Chromium; responsive keyboard tests must allow repeated field stops.
 - [Social engagement totals](social-engagement.md) — Keep recorded zero distinct from missing share or like activity.
