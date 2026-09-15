@@ -194,6 +194,21 @@ paths:
       operationId: getDashboardSummary
       tags: [dashboard]
       summary: Get seller dashboard summary
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: Inclusive start date for the reporting window.
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          description: Inclusive end date for the reporting window.
+          schema:
+            type: string
+            format: date
       responses:
         "200":
           description: Dashboard summary
