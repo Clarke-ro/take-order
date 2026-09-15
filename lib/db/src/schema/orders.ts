@@ -20,6 +20,7 @@ export const ordersTable = pgTable("orders", {
   linkOpens: integer("link_opens").notNull().default(0),
   shares: integer("shares"),
   likes: integer("likes"),
+  engagementSource: text("engagement_source"),
   referenceImage: text("reference_image"),
   buyerDetails: text("buyer_details"),
 });

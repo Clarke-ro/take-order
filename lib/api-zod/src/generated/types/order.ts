@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { OrderEngagementSource } from './orderEngagementSource';
 import type { OrderFulfillment } from './orderFulfillment';
 import type { OrderLineItem } from './orderLineItem';
 import type { OrderPaymentMode } from './orderPaymentMode';
@@ -39,6 +40,11 @@ export interface Order {
      * @nullable
      */
   likes: number | null;
+  /**
+     * Source used for the recorded engagement values. Null means no engagement has been recorded.
+     * @nullable
+     */
+  engagementSource: OrderEngagementSource;
   /** @nullable */
   referenceImage?: string | null;
   /** @nullable */

@@ -82,6 +82,17 @@ export const OrderFulfillment = {
   delivered: 'delivered',
 } as const;
 
+/**
+ * Source used for the recorded engagement values. Null means no engagement has been recorded.
+ * @nullable
+ */
+export type OrderEngagementSource = typeof OrderEngagementSource[keyof typeof OrderEngagementSource] | null;
+
+
+export const OrderEngagementSource = {
+  manual_import: 'manual_import',
+} as const;
+
 export interface OrderLineItem {
   productId: number;
   productName: string;
@@ -117,6 +128,11 @@ export interface Order {
      * @nullable
      */
   likes: number | null;
+  /**
+     * Source used for the recorded engagement values. Null means no engagement has been recorded.
+     * @nullable
+     */
+  engagementSource: OrderEngagementSource;
   /** @nullable */
   referenceImage?: string | null;
   /** @nullable */
@@ -186,6 +202,21 @@ export const OrderUpdateFulfillment = {
 export interface OrderUpdate {
   status?: OrderUpdateStatus;
   fulfillment?: OrderUpdateFulfillment;
+}
+
+export interface OrderEngagementUpdate {
+  /**
+     * Manually imported share count
+     * @minimum 0
+     * @nullable
+     */
+  shares: number | null;
+  /**
+     * Manually imported like count
+     * @minimum 0
+     * @nullable
+     */
+  likes: number | null;
 }
 
 export type PublicOrderPaymentMode = typeof PublicOrderPaymentMode[keyof typeof PublicOrderPaymentMode];
