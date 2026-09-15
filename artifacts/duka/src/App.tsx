@@ -469,6 +469,13 @@ const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 're
   status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';
 const paymentLabel = (order: Order) => order.status === 'deposit_paid' ? 'Deposit paid' : order.status === 'paid' ? 'Paid in full' : 'Awaiting payment';
 type MetricTrend = { direction: 'up' | 'down'; percentage: number };
+type DashboardStatCard = {
+  label: string;
+  value: ReactNode;
+  valueAccessory?: ReactNode;
+  trend: MetricTrend;
+  note: ReactNode;
+};
 function MetricCard({ label, value, valueAccessory, note, period, trend, loading = false, dataTestId, className = '', style }: { label: string; value: ReactNode; valueAccessory?: ReactNode; note?: ReactNode; period?: string; trend?: MetricTrend; loading?: boolean; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
   const isUp = trend?.direction === 'up';
   return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}><div className="flex items-start justify-between gap-3"><div className={cn('metric-card-heading', period && 'has-period')}><div className={period ? 'metric-card-title' : 'text-[10px] font-normal uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]'}>{label}</div>{period && <span className="metric-card-period">{period}</span>}</div>{loading ? <Skeleton className="h-5 w-12 rounded-full" /> : trend && <span className={cn('metric-trend-badge', isUp ? 'metric-trend-up' : 'metric-trend-down')} aria-label={`${isUp ? 'Up' : 'Down'} ${trend.percentage}%`}><span>{isUp ? '+' : '−'}{trend.percentage}%</span></span>}</div><div className="metric-value-row mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">{loading ? <Skeleton className="h-9 w-24" /> : <>{valueAccessory}<span className="metric-value-content">{value}</span>{trend && <span className={cn('metric-value-trend', isUp ? 'metric-trend-up' : 'metric-trend-down')} aria-hidden="true">{isUp ? <ArrowUp size={16} strokeWidth={2.5} /> : <ArrowDown size={16} strokeWidth={2.5} />}</span>}</>}</div>{note && (loading ? <Skeleton className="mt-3 h-3 w-40" /> : <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>)}</Card>;
@@ -612,18 +619,18 @@ export function Overview() {
   const salesTrend = movement('orders');
   const revenueTrend = movement('revenue');
   const stateTrend = (isPositive: boolean): MetricTrend => ({ direction: isPositive ? 'up' : 'down', percentage: isPositive ? 100 : 0 });
-  const primaryStatCards = [
+  const primaryStatCards: DashboardStatCard[] = [
     { label: 'Sales', value: ordersQuery.isLoading ? '—' : periodOrders.length, trend: salesTrend, note: `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` },
       { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: `Total profit made: ${money(summary?.profit)}` },
       { label: 'Views', value: ordersQuery.isLoading ? '—' : namedClients, trend: stateTrend(namedClients > 0), note: 'Total views received' },
     { label: 'Active users', value: totalOpens, trend: stateTrend(totalOpens > 0), note: 'People viewing your links' },
-  ] as const;
-  const secondaryStatCards = [
+  ];
+  const secondaryStatCards: DashboardStatCard[] = [
     { label: 'Outstanding balances', value: money(summary?.outstanding), trend: stateTrend((summary?.outstanding ?? 0) === 0), note: `${waitingPayments} waiting payments` },
     { label: 'Orders', value: summary?.orders ?? 0, trend: movement('orders'), note: `${shippedOrders} shipped` },
     { label: 'Shares', value: '—', valueAccessory: <SocialChannelStack channels={connectedTools} />, trend: stateTrend(false), note: connectedTools.length ? 'Connected social channels' : 'Connect a social channel' },
     { label: 'Likes', value: '—', valueAccessory: <SocialChannelStack channels={connectedTools} />, trend: stateTrend(false), note: connectedTools.length ? 'Connected social channels' : 'Connect a social channel' },
-  ] as const;
+  ];
   const analyticsState = getAnalyticsViewState({
     isLoading: summaryQuery.isLoading && !summaryQuery.data,
     isError: summaryQuery.isError && !summaryQuery.data,
@@ -679,7 +686,7 @@ export function Overview() {
          {primaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} trend={stat.trend} note={stat.note} period={periodLabel} loading={summaryRefreshing} />)}
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-         {secondaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="overview-secondary-card rise-in" style={{ animationDelay: `${(index + 4) * 55}ms` }} dataTestId={`card-kpi-secondary-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} valueAccessory={'valueAccessory' in stat ? stat.valueAccessory : undefined} trend={stat.trend} note={stat.note} period={periodLabel} loading={summaryRefreshing} />)}
+         {secondaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="overview-secondary-card rise-in" style={{ animationDelay: `${(index + 4) * 55}ms` }} dataTestId={`card-kpi-secondary-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} valueAccessory={stat.valueAccessory} trend={stat.trend} note={stat.note} period={periodLabel} loading={summaryRefreshing} />)}
       </div>
          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
           <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and operating expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{periodLabel}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow" aria-busy={summaryRefreshing}>{summaryRefreshing ? <div className="flex h-full flex-col justify-center gap-4"><Skeleton className="h-3 w-28" /><Skeleton className="h-48 w-full" /></div> : daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Operating expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Combined expenses" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
