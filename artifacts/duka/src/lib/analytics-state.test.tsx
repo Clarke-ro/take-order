@@ -29,6 +29,7 @@ import {
   CatalogActions,
   ChannelPicker,
   BuyerOrderForm,
+  Connect,
   ExpenseActions,
   ExpenseModal,
   MobileMenuButton,
@@ -595,6 +596,99 @@ test("Connect stays available when saved preference storage cannot be read", () 
   assert.deepEqual(readConnectedTools(null), []);
   assert.equal(connectPreferenceLabel(false), "Not saved");
   assert.doesNotMatch(connectPreferenceAriaLabel("WhatsApp", false), /authoriz|connect/i);
+});
+
+test("Connect keeps temporary choices visible when preference storage cannot save", async () => {
+  const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
+    url: "http://localhost/connect",
+  });
+  let writeAttempts = 0;
+  const storage = {
+    getItem: () => null,
+    setItem: () => {
+      writeAttempts += 1;
+      throw new Error("Storage writes are blocked");
+    },
+  };
+  Object.defineProperty(dom.window, "localStorage", {
+    configurable: true,
+    value: storage,
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    addEventListener: dom.window.addEventListener.bind(dom.window),
+    removeEventListener: dom.window.removeEventListener.bind(dom.window),
+  });
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: dom.window.navigator,
+  });
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: dom.window.location,
+  });
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    configurable: true,
+    value: true,
+  });
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ status: "ok" }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+  const { act } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const container = dom.window.document.getElementById("root")!;
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(createElement(
+      QueryClientProvider,
+      {
+        client: new QueryClient(),
+        children: createElement(
+          Router,
+          {
+            hook: () => ["/connect", (_path: string, ..._args: any[]) => undefined] as [string, (path: string, ...args: any[]) => any],
+            children: createElement(Connect),
+          },
+        ),
+      },
+    ));
+  });
+
+  const tool = container.querySelector<HTMLButtonElement>('[data-testid="button-connect-whatsapp"]');
+  assert.ok(tool, "Expected the WhatsApp preference control to be present");
+  assert.equal(tool.getAttribute("aria-pressed"), "false");
+  assert.match(tool.getAttribute("aria-label") ?? "", /not saved/i);
+  assert.doesNotMatch(tool.getAttribute("aria-label") ?? "", /authoriz|connect/i);
+
+  await act(async () => {
+    tool.click();
+  });
+  assert.equal(writeAttempts, 1);
+  assert.equal(tool.getAttribute("aria-pressed"), "true");
+  assert.match(tool.textContent ?? "", /Saved preference/);
+  assert.match(tool.getAttribute("aria-label") ?? "", /saved preference/i);
+  assert.doesNotMatch(tool.getAttribute("aria-label") ?? "", /authoriz|connect/i);
+
+  await act(async () => {
+    tool.click();
+  });
+  assert.equal(writeAttempts, 2);
+  assert.equal(tool.getAttribute("aria-pressed"), "false");
+  assert.match(tool.textContent ?? "", /Not saved/);
+  assert.match(tool.getAttribute("aria-label") ?? "", /not saved/i);
+  assert.doesNotMatch(tool.getAttribute("aria-label") ?? "", /authoriz|connect/i);
+
+  await act(async () => {
+    root.unmount();
+  });
+  globalThis.fetch = originalFetch;
+  dom.window.close();
 });
 
 test("names the mobile menu in both closed and open states", () => {

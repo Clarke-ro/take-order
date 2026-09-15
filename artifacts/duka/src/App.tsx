@@ -1254,7 +1254,7 @@ function PublicOrderPage() {
   return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-8 sm:py-14"><div className="mx-auto max-w-[480px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={order.amount} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items}><BuyerOrderForm paymentMode={order.paymentMode} amount={order.amount} depositAmount={order.depositAmount} variants={order.variants} form={form} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} onSubmit={submitForm} onChange={(key, value) => change(key, value)} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; setForm((current) => ({ ...current, image: file.name, imagePreview: URL.createObjectURL(file) })); }} onPaymentAction={(action) => { change('action', action); setShowMockPayment(false); }} /></BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
 }
 
-function Connect() {
+export function Connect() {
   const health = useHealthCheck();
   const tools: Array<{ name: string; detail: string; markKey: MarkKey; group: string }> = [
     { name: 'WhatsApp', detail: 'Share buyer links in a chat', markKey: 'whatsapp', group: 'Social' },
