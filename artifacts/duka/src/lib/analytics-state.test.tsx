@@ -140,7 +140,7 @@ async function readAccessibilityTree(markup: string): Promise<AccessibilityNode[
   }
 }
 
-async function inspectDashboardPicker(markup: string, viewport: { width: number; height: number }) {
+async function inspectDashboardPicker(markup: string, viewport: { width: number; height: number }, options: { enlargedText?: boolean } = {}) {
   const profileDirectory = await mkdtemp(`${tmpdir()}/duka-picker-`);
   const browser = spawn("chromium", [
     "--headless=new",
@@ -201,6 +201,9 @@ async function inspectDashboardPicker(markup: string, viewport: { width: number;
       const result = await send("Runtime.evaluate", { expression: "document.readyState" });
       return result?.result?.value === "complete" ? true : undefined;
     });
+    if (options.enlargedText) {
+      await send("Runtime.evaluate", { expression: "document.documentElement.classList.add('enlarged-text')" });
+    }
     await send("Runtime.evaluate", { expression: "document.querySelector('[aria-label=\"Start date\"]')?.focus()" });
     const tabStops: string[] = [];
     for (let index = 0; index < 64; index += 1) {
@@ -223,6 +226,10 @@ async function inspectDashboardPicker(markup: string, viewport: { width: number;
           menu: rect('[data-testid="dashboard-period-menu"]'),
           calendar: rect('[data-testid="dashboard-period-calendar"]'),
           controls: [...document.querySelectorAll('[data-testid="dashboard-period-menu"] input, [data-testid="dashboard-period-menu"] button')].map((element) => element.getAttribute('aria-label') || element.textContent?.trim() || ''),
+          controlRects: [...document.querySelectorAll('[data-testid="dashboard-period-menu"] input, [data-testid="dashboard-period-menu"] button')].map((element) => {
+            const box = element.getBoundingClientRect();
+            return { name: element.getAttribute('aria-label') || element.textContent?.trim() || '', left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+          }),
           viewport: { width: window.innerWidth, height: window.innerHeight },
         };
       })()`,
@@ -273,6 +280,84 @@ test("renders loading, empty, and populated analytics states without errors", ()
     const markup = renderToStaticMarkup(createElement(AnalyticsStateMarker, { state }));
     assert.match(markup, new RegExp(`data-testid="dashboard-analytics-${state}"`));
     assert.match(markup, new RegExp(`data-analytics-state="${state}"`));
+  }
+});
+
+test("keeps the custom dashboard picker usable with enlarged text", async () => {
+  const styles = await readFile(new URL("../index.css", import.meta.url), "utf8");
+  const pickerMarkup = renderToStaticMarkup(createElement(DashboardCustomRangePicker, {
+    from: "2026-09-01",
+    to: "2026-09-15",
+    onFromChange: () => undefined,
+    onToChange: () => undefined,
+    onClose: () => undefined,
+    onApply: () => undefined,
+    canApply: true,
+  }));
+  const fixture = `<!doctype html>
+    <html><head><style>${styles}
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; min-width: 0; }
+      html.enlarged-text { font-size: 200%; }
+      body { min-height: 100vh; }
+      .picker-fixture { box-sizing: border-box; width: 100vw; min-height: 100vh; padding: 1rem 1.25rem; }
+      .picker-heading { display: flex; align-items: flex-start; justify-content: space-between; }
+      .picker-action { display: flex; align-items: center; gap: .5rem; }
+      .picker-card { position: relative; z-index: 1; height: 180px; margin-top: -1rem; border: 1px solid #ddd; background: white; }
+      .relative { position: relative; }
+      @media (max-width: 639px) {
+        .picker-heading { flex-direction: column; gap: 1rem; }
+      }
+    </style></head><body>
+      <main class="picker-fixture">
+        <div class="picker-heading">
+          <h1>Dashboard</h1>
+          <div class="picker-action">
+            <div class="relative">
+              <button type="button" class="period-chip" aria-label="Reporting period" aria-expanded="true">Sep 1 – Sep 15</button>
+              <div class="dashboard-period-menu is-custom" role="dialog" aria-label="Choose reporting period" data-testid="dashboard-period-menu">${pickerMarkup}</div>
+            </div>
+          </div>
+        </div>
+        <div class="picker-card" data-testid="dashboard-card">Dashboard cards</div>
+      </main>
+    </body></html>`;
+
+  for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 1000 }]) {
+    const result = await inspectDashboardPicker(fixture, viewport, { enlargedText: true });
+    const geometry = result.inspection as {
+      menu: { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      calendar: { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      controls: string[];
+      controlRects: Array<{ name: string; left: number; right: number; top: number; bottom: number }>;
+      viewport: { width: number; height: number };
+    };
+    assert.ok(geometry.menu, `Picker menu should render with enlarged text at ${viewport.width}px`);
+    assert.ok(geometry.calendar, `Picker calendar should render with enlarged text at ${viewport.width}px`);
+    assert.ok(geometry.menu.left >= 0, `Picker left edge should stay in the viewport with enlarged text at ${viewport.width}px`);
+    assert.ok(geometry.menu.right <= geometry.viewport.width, `Picker right edge should stay in the viewport with enlarged text at ${viewport.width}px`);
+    assert.ok(geometry.menu.top >= 0, `Picker top edge should stay in the viewport with enlarged text at ${viewport.width}px`);
+    assert.ok(geometry.menu.bottom <= geometry.viewport.height, `Picker should not exceed the viewport height with enlarged text at ${viewport.width}px`);
+    assert.ok(
+      geometry.calendar.left >= geometry.menu.left && geometry.calendar.right <= geometry.menu.right,
+      `Calendar should fit inside picker with enlarged text: ${JSON.stringify({ viewport, menu: geometry.menu, calendar: geometry.calendar })}`,
+    );
+    assert.deepEqual(geometry.controls.filter((name) => name === "Close"), ["Close"]);
+    assert.deepEqual(geometry.controls.filter((name) => name === "Apply range"), ["Apply range"]);
+    for (const control of geometry.controlRects) {
+      assert.ok(control.left >= 0 && control.right <= geometry.viewport.width, `${control.name} should fit horizontally with enlarged text: ${JSON.stringify({ viewport, control })}`);
+      assert.ok(control.top >= 0 && control.bottom <= geometry.viewport.height, `${control.name} should fit vertically with enlarged text: ${JSON.stringify({ viewport, control })}`);
+    }
+    assert.equal(result.tabStops[0], "Start date");
+    assert.ok(result.tabStops.includes("End date"), `Tab sequence did not reach End date with enlarged text: ${JSON.stringify(result.tabStops)}`);
+    assert.ok(result.tabStops.includes("Previous month"), `Tab sequence did not reach Previous month with enlarged text: ${JSON.stringify(result.tabStops)}`);
+    assert.ok(result.tabStops.includes("Next month"), `Tab sequence did not reach Next month with enlarged text: ${JSON.stringify(result.tabStops)}`);
+    assert.ok(result.tabStops.includes("Close"), `Tab sequence did not reach Close with enlarged text: ${JSON.stringify(result.tabStops)}`);
+    assert.ok(result.tabStops.includes("Apply range"), `Tab sequence did not reach Apply range with enlarged text: ${JSON.stringify(result.tabStops)}`);
+    assert.ok(
+      result.tabStops.indexOf("Apply range") > result.tabStops.indexOf("Close"),
+      `Apply range should follow Close with enlarged text: ${JSON.stringify(result.tabStops)}`,
+    );
   }
 });
 
