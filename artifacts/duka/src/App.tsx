@@ -542,6 +542,7 @@ function ChannelPerformance({ channels }: { channels: Array<{ channel: string; r
   const totalOrders = channels.reduce((sum, channel) => sum + channel.orders, 0);
   const totalPaidOrders = channels.reduce((sum, channel) => sum + channel.paidOrders, 0);
   const conversionRate = totalOpens ? Math.round((totalOrders / totalOpens) * 100) : 0;
+  const channelBarTotal = channels.reduce((sum, channel) => sum + Math.max(channel.orders, 1), 0);
   return <section className="overview-stat-section overview-channel-card" aria-labelledby="channel-performance-title">
     <div className="overview-card-title">
       <div className="font-display text-lg font-bold tracking-[-.03em]" id="channel-performance-title">Channel conversion</div>
@@ -556,7 +557,7 @@ function ChannelPerformance({ channels }: { channels: Array<{ channel: string; r
     {channels.length ? <div className="overview-channel-content">
       <div className="overview-channel-bar" role="img" aria-label="Order share by channel">{channels.map((channel) => {
         const mark = markCatalog[markKeyFor(channel.channel)];
-        const width = totalOrders ? (channel.orders / totalOrders) * 100 : 0;
+        const width = (Math.max(channel.orders, 1) / channelBarTotal) * 100;
         return <span key={channel.channel} style={{ width: `${width}%`, backgroundColor: mark.color }} />;
       })}</div>
       <div className="overview-channel-legend">{channels.map((channel) => {
