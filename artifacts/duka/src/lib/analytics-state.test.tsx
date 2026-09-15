@@ -529,12 +529,21 @@ test("completes onboarding with keyboard-only focus, activation, and saved chann
   assert.equal((await tab()).getAttribute("data-testid"), "link-onboarding-logo");
   assert.equal((await tab()).getAttribute("data-testid"), "button-skip-onboarding");
   assert.equal((await tab()).getAttribute("data-testid"), "input-onboarding-description");
+  const initialContinue = get<HTMLButtonElement>("button-onboarding-continue");
+  assert.equal(initialContinue.disabled, true);
+  assert.equal(initialContinue.getAttribute("aria-describedby"), "onboarding-continue-guidance");
+  assert.equal(container.querySelector('[role="status"]')?.textContent, "Add what you sell and where buyers find you before continuing.");
+  assert.equal(container.querySelector('[role="status"]')?.getAttribute("aria-live"), "polite");
   await type(get<HTMLTextAreaElement>("input-onboarding-description"), "Handmade jewellery");
   assert.equal((await tab()).getAttribute("data-testid"), "button-onboarding-back");
   assert.equal((await tab()).getAttribute("data-testid"), "button-onboarding-continue");
   await activate(dom.window.document.activeElement as HTMLElement, "Enter");
 
   assert.equal(dom.window.document.activeElement?.getAttribute("data-testid"), "input-onboarding-seller-name");
+  const nameStepContinue = get<HTMLButtonElement>("button-onboarding-continue");
+  assert.equal(nameStepContinue.disabled, true);
+  assert.equal(nameStepContinue.getAttribute("aria-describedby"), "onboarding-continue-guidance");
+  assert.equal(container.querySelector('[role="status"]')?.textContent, "Add your name and business or shop name before continuing.");
   await type(get<HTMLInputElement>("input-onboarding-seller-name"), "Amina Mensah");
   assert.equal((await tab()).getAttribute("id"), "onboarding-business-name");
   const businessName = container.querySelector<HTMLInputElement>("#onboarding-business-name");
