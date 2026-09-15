@@ -28,6 +28,7 @@ import {
 import {
   CatalogActions,
   ChannelPicker,
+  BuyerOrderForm,
   ExpenseActions,
   ExpenseModal,
   MobileMenuButton,
@@ -307,6 +308,84 @@ test("exposes channel groups, names, roles, and state in the live accessibility 
   assert.deepEqual(
     onboardingCheckboxes.map((node) => ({ name: node.name?.value, checked: propertyValue(node, "checked") })),
     onboardingChannels.map((channel) => ({ name: channel, checked: selectedOnboardingChannels.includes(channel) })),
+  );
+});
+
+test("exposes buyer order fields, payment choices, and submit state in the live accessibility tree", async () => {
+  const baseProps = {
+    paymentMode: "full" as const,
+    amount: 120,
+    depositAmount: null,
+    form: {
+      name: "",
+      phone: "",
+      details: "",
+      image: "",
+      imagePreview: "",
+      action: "pay" as const,
+    },
+    mockPayment: { cardNumber: "", expiry: "", cvc: "" },
+    submitPending: false,
+    onSubmit: () => undefined,
+    onChange: () => undefined,
+    onMockPaymentChange: () => undefined,
+    onReferenceImageChange: () => undefined,
+    onPaymentAction: () => undefined,
+  };
+
+  const initialTree = await readAccessibilityTree(
+    renderToStaticMarkup(createElement(BuyerOrderForm, {
+      ...baseProps,
+      showMockPayment: false,
+    })),
+  );
+  const initialTextFields = initialTree
+    .filter((node) => node.role?.value === "textbox")
+    .map((node) => node.name?.value ?? "");
+  assert.deepEqual(initialTextFields, ["Your name", "Phone number", "Details for the seller (optional)"]);
+  assert.deepEqual(
+    initialTree
+      .filter((node) => node.role?.value === "radio")
+      .map((node) => ({ name: node.name?.value, checked: propertyValue(node, "checked") })),
+    [
+      { name: "Pay $120.00", checked: true },
+      { name: "Reserve for later", checked: false },
+    ],
+  );
+  assert.ok(
+    controlsByRole(initialTree, "button").some((name) => name.trim() === "Continue to mock payment"),
+    "The initial buyer action needs a clear accessible name",
+  );
+  assert.ok(
+    controlsByRole(initialTree, "button").includes("Reference image"),
+    "The optional reference upload needs a clear accessible name",
+  );
+
+  const paymentTree = await readAccessibilityTree(
+    renderToStaticMarkup(createElement(BuyerOrderForm, {
+      ...baseProps,
+      showMockPayment: true,
+      form: { ...baseProps.form, action: "reserve" as const },
+    })),
+  );
+  assert.deepEqual(
+    paymentTree
+      .filter((node) => node.role?.value === "textbox")
+      .map((node) => node.name?.value ?? ""),
+    ["Your name", "Phone number", "Details for the seller (optional)", "Card number", "Expiry", "CVC"],
+  );
+  assert.deepEqual(
+    paymentTree
+      .filter((node) => node.role?.value === "radio")
+      .map((node) => ({ name: node.name?.value, checked: propertyValue(node, "checked") })),
+    [
+      { name: "Pay $120.00", checked: false },
+      { name: "Reserve for later", checked: true },
+    ],
+  );
+  assert.ok(
+    controlsByRole(paymentTree, "button").some((name) => name.trim() === "Reserve these items"),
+    "The selected reserve state needs a clear accessible primary action",
   );
 });
 

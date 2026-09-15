@@ -1159,7 +1159,7 @@ type BuyerOrderItem = {
   imageUrl?: string;
 };
 
-function BuyerOrderSurface({ businessName, description, productName, amount, paymentMode, depositAmount, variants = [], items, children }: BuyerOrderSurfaceProps) {
+export function BuyerOrderSurface({ businessName, description, productName, amount, paymentMode, depositAmount, variants = [], items, children }: BuyerOrderSurfaceProps) {
   const displayItems = items?.length ? items : [{ productId: 0, productName: productName || 'Your item', amount: amount || 0, variants }];
   const [activeIndex, setActiveIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
@@ -1206,7 +1206,7 @@ function BuyerOrderSurface({ businessName, description, productName, amount, pay
     </div>
     <Card className="mt-9 p-6 sm:p-8">
       <div className="mb-6 flex items-center justify-between border-b border-[hsl(var(--border))] pb-5">
-        <div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Complete your order</div><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">{paymentMode === 'reserve' ? 'Reserve these items and we’ll confirm the details.' : paymentMode === 'deposit' ? `A ${moneyExact(depositAmount)} deposit secures the order.` : 'Pay in full to confirm your order.'}</p></div>
+        <div><h2 id="buyer-order-form-heading" className="font-mono-ui text-[10px] uppercase tracking-[.16em]">Complete your order</h2><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">{paymentMode === 'reserve' ? 'Reserve these items and we’ll confirm the details.' : paymentMode === 'deposit' ? `A ${moneyExact(depositAmount)} deposit secures the order.` : 'Pay in full to confirm your order.'}</p></div>
         <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/35"><Package size={18} /></div>
       </div>
       <div className="mb-5 flex items-center justify-between rounded-[10px] bg-[hsl(var(--muted))] px-3 py-2.5 text-xs"><span className="text-[hsl(var(--muted-foreground))]">{displayItems.length === 1 ? 'Order total' : `${displayItems.length} items`}</span><strong className="font-mono-ui">{moneyExact(total)}</strong></div>
@@ -1216,6 +1216,14 @@ function BuyerOrderSurface({ businessName, description, productName, amount, pay
   </>;
 }
 
+type BuyerOrderFormValues = {
+  name: string;
+  phone: string;
+  details: string;
+  image: string;
+  imagePreview: string;
+  action: 'pay' | 'reserve';
+};
 function PublicOrderPage() {
   const { token = '' } = useParams<{ token: string }>();
   const query = useGetPublicOrder(token, { query: { enabled: Boolean(token), queryKey: getGetPublicOrderQueryKey(token) } });
@@ -1243,7 +1251,7 @@ function PublicOrderPage() {
   if (query.isLoading) return <div className="min-h-[100dvh] bg-[hsl(var(--background))] p-6"><div className="mx-auto max-w-[480px]"><BrandLockup className="mx-auto mt-14 justify-center" /><Skeleton className="mx-auto mt-8 h-8 w-52" /><Skeleton className="mt-4 h-4 w-full" /><Skeleton className="mt-10 h-64 w-full" /></div></div>;
   if (query.isError || !order) return <div className="flex min-h-[100dvh] items-center justify-center p-6"><div className="text-center"><BrandLockup className="justify-center" /><div className="mt-10 font-display text-2xl font-bold">This link is no longer available.</div><p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">Ask the seller for a fresh order link.</p></div></div>;
   if (submitted) return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] p-6"><div className="w-full max-w-[480px] text-center page-in"><BrandLockup className="justify-center" /><div className="mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white"><Check size={30} /></div><h1 className="mt-7 font-display text-4xl font-bold tracking-[-.05em]">You’re all set.</h1><p className="mx-auto mt-4 max-w-[350px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{form.action === 'pay' && order.paymentMode !== 'reserve' ? 'Your mock payment and order details were sent to the seller. No real payment was processed.' : 'Your details have been sent to the seller. They’ll be in touch with the next step.'}</p><div className="mt-8 font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Order reference · {token.slice(0, 8)}</div></div></div>;
-  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-8 sm:py-14"><div className="mx-auto max-w-[480px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={order.amount} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items}><form onSubmit={submitForm} className="space-y-5"><div><label className="field-label">Your name</label><input data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => change('name', event.target.value)} placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => change('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>{order.variants?.length > 0 && <div><label className="field-label">Available variants</label><div className="flex flex-wrap gap-2">{order.variants.map((variant) => <span key={variant} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{variant}</span>)}</div></div>}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea data-testid="input-buyer-details" value={form.details} onChange={(event) => change('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div><div><label className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><label className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] p-3 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><Clipboard size={15} />{form.image ? form.image : 'Attach an image'}<input data-testid="input-buyer-reference-image" type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; setForm((current) => ({ ...current, image: file.name, imagePreview: URL.createObjectURL(file) })); }} /></label>{form.imagePreview && <img src={form.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>{showMockPayment && <div className="rounded-[13px] border border-[hsl(var(--accent))]/55 bg-[hsl(var(--accent))]/10 p-4 page-in"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-sm font-bold"><WalletCards size={16} />Mock payment checkout</div><StatusPill tone="gold">Demo</StatusPill></div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">No real charge will be made. Use any test details to continue.</p><div className="mt-4 space-y-3"><div><label className="field-label">Card number</label><input data-testid="input-mock-card-number" required inputMode="numeric" value={mockPayment.cardNumber} onChange={(event) => setMockPayment((current) => ({ ...current, cardNumber: event.target.value }))} placeholder="4242 4242 4242 4242" className="field-input" /></div><div className="grid grid-cols-2 gap-3"><div><label className="field-label">Expiry</label><input data-testid="input-mock-expiry" required value={mockPayment.expiry} onChange={(event) => setMockPayment((current) => ({ ...current, expiry: event.target.value }))} placeholder="12/30" className="field-input" /></div><div><label className="field-label">CVC</label><input data-testid="input-mock-cvc" required inputMode="numeric" value={mockPayment.cvc} onChange={(event) => setMockPayment((current) => ({ ...current, ...current, cvc: event.target.value }))} placeholder="123" className="field-input" /></div></div></div></div>}{order.paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { change('action', 'pay'); setShowMockPayment(false); }} data-testid="button-buyer-pay" className={cn('rounded-[10px] border p-3 text-left text-xs font-bold', form.action === 'pay' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-white' : 'border-[hsl(var(--border))]')}>{order.paymentMode === 'deposit' ? `Pay deposit · ${moneyExact(order.depositAmount)}` : `Pay ${moneyExact(order.amount)}`}</button><button type="button" onClick={() => { change('action', 'reserve'); setShowMockPayment(false); }} data-testid="button-buyer-reserve" className={cn('rounded-[10px] border p-3 text-left text-xs font-bold', form.action === 'reserve' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-white' : 'border-[hsl(var(--border))]')}>Reserve for later</button></div>}<Button type="submit" disabled={submit.isPending} className="w-full py-3.5" data-testid="button-submit-public-order">{submit.isPending && <Loader2 size={15} className="animate-spin" />}{order.paymentMode === 'reserve' || form.action === 'reserve' ? 'Reserve these items' : showMockPayment ? 'Complete mock payment' : 'Continue to mock payment'} <ArrowUpRight size={15} /></Button></form></BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
+  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-8 sm:py-14"><div className="mx-auto max-w-[480px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={order.amount} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items}><BuyerOrderForm paymentMode={order.paymentMode} amount={order.amount} depositAmount={order.depositAmount} variants={order.variants} form={form} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} onSubmit={submitForm} onChange={(key, value) => change(key, value)} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; setForm((current) => ({ ...current, image: file.name, imagePreview: URL.createObjectURL(file) })); }} onPaymentAction={(action) => { change('action', action); setShowMockPayment(false); }} /></BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
 }
 
 function Connect() {
@@ -1278,3 +1286,50 @@ export default App;
 
 const fulfillmentTone = (fulfillment: Order['fulfillment']): 'neutral' | 'mint' | 'blue' =>
   fulfillment === 'delivered' ? 'mint' : fulfillment === 'shipped' ? 'blue' : 'neutral';
+
+type MockPaymentValues = {
+  cardNumber: string;
+  expiry: string;
+  cvc: string;
+};
+
+export function BuyerOrderForm({
+  paymentMode,
+  amount,
+  depositAmount,
+  variants = [],
+  form,
+  mockPayment,
+  showMockPayment,
+  submitPending,
+  onSubmit,
+  onChange,
+  onMockPaymentChange,
+  onReferenceImageChange,
+  onPaymentAction,
+}: {
+  paymentMode: 'full' | 'deposit' | 'reserve';
+  amount: number;
+  depositAmount: number | null | undefined;
+  variants?: string[];
+  form: BuyerOrderFormValues;
+  mockPayment: MockPaymentValues;
+  showMockPayment: boolean;
+  submitPending: boolean;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onChange: (key: 'name' | 'phone' | 'details', value: string) => void;
+  onMockPaymentChange: (key: keyof MockPaymentValues, value: string) => void;
+  onReferenceImageChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onPaymentAction: (action: 'pay' | 'reserve') => void;
+}) {
+  return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="space-y-5">
+    <div><label htmlFor="buyer-name" className="field-label">Your name</label><input id="buyer-name" data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div>
+    <div><label htmlFor="buyer-phone" className="field-label">Phone number</label><input id="buyer-phone" data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>
+    {variants.length > 0 && <div><span className="field-label">Available variants</span><div className="flex flex-wrap gap-2" aria-label="Available variants">{variants.map((variant) => <span key={variant} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{variant}</span>)}</div></div>}
+    <div><label htmlFor="buyer-details" className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-details" data-testid="input-buyer-details" value={form.details} onChange={(event) => onChange('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>
+    <div><span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span><label htmlFor="buyer-reference-image" className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] p-3 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><Clipboard aria-hidden="true" size={15} />{form.image ? form.image : 'Attach an image'}</label><input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />{form.imagePreview && <img src={form.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>
+    {showMockPayment && <div className="rounded-[13px] border border-[hsl(var(--accent))]/55 bg-[hsl(var(--accent))]/10 p-4 page-in" aria-labelledby="mock-payment-heading"><div className="flex items-center justify-between gap-3"><h3 id="mock-payment-heading" className="flex items-center gap-2 text-sm font-bold"><WalletCards aria-hidden="true" size={16} />Mock payment checkout</h3><StatusPill tone="gold">Demo</StatusPill></div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">No real charge will be made. Use any test details to continue.</p><div className="mt-4 space-y-3"><div><label htmlFor="mock-card-number" className="field-label">Card number</label><input id="mock-card-number" data-testid="input-mock-card-number" required inputMode="numeric" value={mockPayment.cardNumber} onChange={(event) => onMockPaymentChange('cardNumber', event.target.value)} placeholder="4242 4242 4242 4242" className="field-input" /></div><div className="grid grid-cols-2 gap-3"><div><label htmlFor="mock-expiry" className="field-label">Expiry</label><input id="mock-expiry" data-testid="input-mock-expiry" required value={mockPayment.expiry} onChange={(event) => onMockPaymentChange('expiry', event.target.value)} placeholder="12/30" className="field-input" /></div><div><label htmlFor="mock-cvc" className="field-label">CVC</label><input id="mock-cvc" data-testid="input-mock-cvc" required inputMode="numeric" value={mockPayment.cvc} onChange={(event) => onMockPaymentChange('cvc', event.target.value)} placeholder="123" className="field-input" /></div></div></div></div>}
+    {paymentMode !== 'reserve' && <fieldset className="grid grid-cols-2 gap-2" aria-label="Payment options"><legend className="sr-only">Payment options</legend><button type="button" role="radio" aria-checked={form.action === 'pay'} onClick={() => onPaymentAction('pay')} data-testid="button-buyer-pay" className={cn('rounded-[10px] border p-3 text-left text-xs font-bold', form.action === 'pay' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-white' : 'border-[hsl(var(--border))]')}>{paymentMode === 'deposit' ? `Pay deposit · ${moneyExact(depositAmount)}` : `Pay ${moneyExact(amount)}`}</button><button type="button" role="radio" aria-checked={form.action === 'reserve'} onClick={() => onPaymentAction('reserve')} data-testid="button-buyer-reserve" className={cn('rounded-[10px] border p-3 text-left text-xs font-bold', form.action === 'reserve' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-white' : 'border-[hsl(var(--border))]')}>Reserve for later</button></fieldset>}
+    <Button type="submit" disabled={submitPending} className="w-full py-3.5" data-testid="button-submit-public-order">{submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}{paymentMode === 'reserve' || form.action === 'reserve' ? 'Reserve these items' : showMockPayment ? 'Complete mock payment' : 'Continue to mock payment'} <ArrowUpRight aria-hidden="true" size={15} /></Button>
+  </form>;
+}
