@@ -1521,7 +1521,7 @@ function TakeOrderChoiceCards({ selected, onSelect }: { selected: TakeOrderItemS
     </button>
     <button type="button" className={cn('take-order-choice-card', selected === 'custom' && 'is-active')} onClick={() => onSelect('custom')}>
       <span className="take-order-choice-mark is-custom"><Sparkles size={17} /></span>
-      <span className="take-order-choice-copy"><strong>Something else</strong><small>Add a one-off item from your conversation.</small></span>
+      <span className="take-order-choice-copy"><strong>Not from catalog</strong><small>Add a one-off item from your conversation.</small></span>
       <ChevronRight size={16} aria-hidden="true" />
     </button>
   </div>;
