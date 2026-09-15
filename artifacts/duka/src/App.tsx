@@ -2,9 +2,9 @@ import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'rea
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import {
-  AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, Check, Clock3,
+  AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, Check, ChevronDown, Clock3,
   CheckCircle2, CircleDollarSign, Clipboard, Copy, ExternalLink, Eye, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
-  Package, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Settings2, ShoppingBag, Sparkles,
+  Package, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Settings2, ShoppingBag, SlidersHorizontal, Sparkles,
   Trash2, TrendingUp, Truck, Users, WalletCards, X
 } from 'lucide-react';
 import { SiFacebook, SiInstagram, SiSnapchat, SiTiktok, SiWhatsapp, SiX } from 'react-icons/si';
@@ -586,36 +586,33 @@ function ProductPerformance({ products }: { products: Array<{ name: string; cate
 }
 
 function ChannelPerformance({ channels }: { channels: Array<{ channel: string; revenue: number; orders: number; paidOrders: number; opens: number; conversionRate: number }> }) {
-  const totalOpens = channels.reduce((sum, channel) => sum + channel.opens, 0);
-  const totalOrders = channels.reduce((sum, channel) => sum + channel.orders, 0);
-  const totalPaidOrders = channels.reduce((sum, channel) => sum + channel.paidOrders, 0);
-  const conversionRate = totalOpens ? Math.round((totalOrders / totalOpens) * 100) : 0;
-  const channelBarTotal = channels.reduce((sum, channel) => sum + Math.max(channel.orders, 1), 0);
-  return <section className="overview-stat-section overview-channel-card" aria-labelledby="channel-performance-title">
-    <div className="overview-card-title">
-      <div className="font-display text-lg font-bold tracking-[-.03em]" id="channel-performance-title">Channel conversion</div>
-      <div className="font-mono-ui text-[11px] uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))]">Traffic sources</div>
+  const [filter, setFilter] = useState<'all' | 'active'>('all');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const visibleChannels = filter === 'active' ? channels.filter((channel) => channel.orders > 0) : channels;
+  return <section className="overview-stat-section overview-channel-card channel-conversion-card" aria-labelledby="channel-performance-title">
+    <div className="channel-conversion-toolbar">
+      <div className="relative">
+        <button type="button" className="channel-conversion-selector soft-focus" aria-label="Choose channel filter" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}>
+          <Menu size={17} aria-hidden="true" /><ChevronDown size={14} aria-hidden="true" />
+        </button>
+        {filterOpen && <div className="channel-conversion-menu" role="menu">
+          <button type="button" role="menuitemradio" aria-checked={filter === 'all'} onClick={() => { setFilter('all'); setFilterOpen(false); }}>All channels</button>
+          <button type="button" role="menuitemradio" aria-checked={filter === 'active'} onClick={() => { setFilter('active'); setFilterOpen(false); }}>With orders</button>
+        </div>}
+      </div>
+      <button type="button" className="channel-conversion-filter soft-focus" onClick={() => setFilter((current) => current === 'all' ? 'active' : 'all')} aria-label={`Show ${filter === 'all' ? 'channels with orders' : 'all channels'}`}>
+        <span>Filters</span><SlidersHorizontal size={14} aria-hidden="true" />
+      </button>
     </div>
-    <div className="overview-channel-metrics">
-      <div><span>Visits</span><strong>{number(totalOpens)}</strong></div>
-      <div><span>Orders</span><strong>{number(totalOrders)}</strong></div>
-      <div><span>Paid</span><strong>{number(totalPaidOrders)}</strong></div>
-      <div><span>Rate</span><strong>{conversionRate}%</strong></div>
-    </div>
-    {channels.length ? <div className="overview-channel-content">
-      <div className="overview-channel-bar" role="img" aria-label="Order share by channel">{channels.map((channel) => {
-        const mark = markCatalog[markKeyFor(channel.channel)];
-        const width = (Math.max(channel.orders, 1) / channelBarTotal) * 100;
-        return <span key={channel.channel} style={{ width: `${width}%`, backgroundColor: mark.color }} />;
-      })}</div>
-      <div className="overview-channel-legend">{channels.map((channel) => {
-        const mark = markCatalog[markKeyFor(channel.channel)];
-        return <div key={channel.channel} className="overview-channel-legend-row" data-testid={`row-channel-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.orders)} orders, ${channel.conversionRate}% conversion`}>
-          <span className="overview-channel-label"><span className="overview-channel-dot" style={{ backgroundColor: mark.color }} /><ChannelLabel value={channel.channel} /></span>
-          <span className="font-mono-ui text-xs font-semibold">{number(channel.orders)}</span>
-        </div>;
-      })}</div>
-    </div> : <div className="mt-5"><ChartEmpty message="Channel conversion will appear after you share a link." /></div>}
+    <h2 className="sr-only" id="channel-performance-title">Channel conversion</h2>
+    {visibleChannels.length ? <div className="channel-conversion-list">
+      {visibleChannels.slice(0, 4).map((channel) => <div key={channel.channel} className="channel-conversion-row" data-testid={`row-channel-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${money(channel.revenue)}, ${channel.conversionRate}% conversion`}>
+        <span className="channel-conversion-mark"><ChannelMark value={channel.channel} size={18} /></span>
+        <ChannelLabel value={channel.channel} className="channel-conversion-name" />
+        <strong className="channel-conversion-revenue">{money(channel.revenue)}</strong>
+        <span className="channel-conversion-rate">{channel.conversionRate}%</span>
+      </div>)}
+    </div> : <div className="channel-conversion-empty"><ChartEmpty message="Channel conversion will appear after you share a link." /></div>}
   </section>;
 }
 

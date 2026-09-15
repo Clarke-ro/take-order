@@ -350,6 +350,22 @@ button { cursor: pointer; }
 .overview-channel-dot { height: .35rem; width: .35rem; flex: 0 0 auto; border-radius: 999px; }
 .overview-channel-card .chart-empty,
 .overview-product-card .chart-empty { min-height: 8rem; }
+.channel-conversion-card { border-color: transparent; border-radius: 18px; background: hsl(var(--muted) / .58); padding: .85rem; box-shadow: none; }
+.channel-conversion-toolbar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 2.2rem; }
+.channel-conversion-selector { display: inline-flex; align-items: center; gap: .4rem; border-radius: 8px; padding: .45rem .35rem; color: hsl(var(--muted-foreground)); }
+.channel-conversion-selector:hover { background: hsl(var(--card)); color: hsl(var(--foreground)); }
+.channel-conversion-filter { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .45rem .65rem; color: hsl(var(--foreground)); font-size: .7rem; font-weight: 600; }
+.channel-conversion-filter:hover { border-color: hsl(var(--muted-foreground) / .45); }
+.channel-conversion-menu { position: absolute; z-index: 5; top: calc(100% + .25rem); left: 0; min-width: 9rem; overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .25rem; box-shadow: 0 10px 25px hsl(220 18% 35% / .12); }
+.channel-conversion-menu button { display: block; width: 100%; border-radius: 7px; padding: .5rem .6rem; text-align: left; color: hsl(var(--muted-foreground)); font-size: .7rem; }
+.channel-conversion-menu button:hover, .channel-conversion-menu button[aria-checked="true"] { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+.channel-conversion-list { display: grid; gap: .55rem; margin-top: .65rem; }
+.channel-conversion-row { display: grid; grid-template-columns: 1.85rem minmax(0, 1fr) auto auto; align-items: center; gap: .55rem; min-height: 2.85rem; border-radius: 11px; background: hsl(var(--card)); padding: .45rem .55rem; box-shadow: 0 1px 2px hsl(220 18% 35% / .04); }
+.channel-conversion-mark { display: inline-flex; height: 1.8rem; width: 1.8rem; align-items: center; justify-content: center; border-radius: 8px; background: hsl(var(--muted) / .72); }
+.channel-conversion-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: hsl(var(--muted-foreground)); font-size: .78rem; }
+.channel-conversion-revenue { color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .76rem; font-weight: 700; white-space: nowrap; }
+.channel-conversion-rate { min-width: 2.45rem; border-radius: 999px; background: hsl(var(--muted)); padding: .32rem .42rem; color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .62rem; font-weight: 700; text-align: center; }
+.channel-conversion-empty { margin-top: .65rem; border-radius: 11px; background: hsl(var(--card)); padding: .75rem; }
 .chart-tooltip { min-width: 150px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .7rem .8rem; color: hsl(var(--foreground)); box-shadow: none; font-size: .75rem; }
 .chart-tooltip > div + div { margin-top: .3rem; }
 .page-in { animation: page-in .45s ease both; }
