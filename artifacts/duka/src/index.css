@@ -423,6 +423,12 @@ button { cursor: pointer; }
 .orders-filter-button.is-active { border-bottom-color: hsl(var(--foreground)); }
 .orders-table-wrap { overflow-x: auto; }
 .orders-table-head, .orders-table-row { display: grid; grid-template-columns: minmax(220px, 1.45fr) minmax(126px, .86fr) minmax(112px, .78fr) minmax(118px, .8fr) minmax(82px, .55fr) 72px; min-width: 820px; gap: 1rem; align-items: center; }
+.orders-table-head > span:nth-child(1), .orders-table-row > .orders-buyer-cell { order: 1; }
+.orders-table-head > span:nth-child(2), .orders-table-row > .orders-cell-labeled:nth-child(2) { order: 4; }
+.orders-table-head > span:nth-child(3), .orders-table-row > .orders-cell-labeled:nth-child(3) { order: 5; }
+.orders-table-head > span:nth-child(4), .orders-table-row > .orders-value-cell { order: 2; }
+.orders-table-head > span:nth-child(5), .orders-table-row > .orders-date-cell { order: 3; }
+.orders-table-head > span:nth-child(6), .orders-table-row > .orders-actions { order: 6; }
 .orders-table-head { background: hsl(var(--card)); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
 .orders-table-row { border-bottom: 1px solid hsl(var(--border)); padding: 1.05rem 1.5rem; transition: background-color .18s; }
 .orders-table-row:last-child { border-bottom: 0; }
