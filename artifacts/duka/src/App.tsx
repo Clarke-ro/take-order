@@ -1510,6 +1510,23 @@ function TakeOrderFeedback({ message }: { message: string | null }) {
   return <div className="take-order-feedback" role="alert"><AlertTriangle size={16} aria-hidden="true" /><span>{message}</span></div>;
 }
 
+type TakeOrderItemSource = 'catalog' | 'custom';
+
+function TakeOrderChoiceCards({ selected, onSelect }: { selected: TakeOrderItemSource | null; onSelect: (source: TakeOrderItemSource) => void }) {
+  return <div className="take-order-choice-grid" aria-label="Choose how to add an item">
+    <button type="button" className={cn('take-order-choice-card', selected === 'catalog' && 'is-active')} onClick={() => onSelect('catalog')}>
+      <span className="take-order-choice-mark"><Boxes size={17} /></span>
+      <span className="take-order-choice-copy"><strong>From catalog</strong><small>Use a saved product and price.</small></span>
+      <ChevronRight size={16} aria-hidden="true" />
+    </button>
+    <button type="button" className={cn('take-order-choice-card', selected === 'custom' && 'is-active')} onClick={() => onSelect('custom')}>
+      <span className="take-order-choice-mark is-custom"><Sparkles size={17} /></span>
+      <span className="take-order-choice-copy"><strong>Something else</strong><small>Add a one-off item from your conversation.</small></span>
+      <ChevronRight size={16} aria-hidden="true" />
+    </button>
+  </div>;
+}
+
 function MultiItemTakeOrderModern() {
   const productsQuery = useListProducts();
   const createOrder = useCreateOrder();
@@ -1529,6 +1546,7 @@ function MultiItemTakeOrderModern() {
   const [copyError, setCopyError] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
+  const choiceOnly = step === 1 && items.length === 0 && itemSource === null;
   const previewItems: BuyerOrderItem[] = items.length
     ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants }))
     : [{ productId: 0, productName: 'Your item', amount: 0, variants: [] }];
@@ -1667,21 +1685,11 @@ function MultiItemTakeOrderModern() {
       </div>
       <TakeOrderStepRail step={step} onStepChange={setStep} />
       <div className="take-order-layout">
-        <Card className="take-order-builder-card">
+         <Card className={cn('take-order-builder-card', choiceOnly && 'take-order-choice-only-card')}>
           <form onSubmit={submit}>
-            {step === 1 && <TakeOrderSection eyebrow="Step 01 · Items" title="What are they buying?" description="Add the products you agreed on. You can mix catalog items with quick custom items from the conversation.">
-              <div className="take-order-choice-grid" aria-label="Choose how to add an item">
-                <button type="button" className={cn('take-order-choice-card', itemSource === 'catalog' && 'is-active')} onClick={() => { setItemSource('catalog'); setFeedback(null); }}>
-                  <span className="take-order-choice-mark"><Boxes size={17} /></span>
-                  <span className="take-order-choice-copy"><strong>From catalog</strong><small>Use a saved product and price.</small></span>
-                  <ChevronRight size={16} aria-hidden="true" />
-                </button>
-                <button type="button" className={cn('take-order-choice-card', itemSource === 'custom' && 'is-active')} onClick={() => { setItemSource('custom'); setFeedback(null); }}>
-                  <span className="take-order-choice-mark is-custom"><Sparkles size={17} /></span>
-                  <span className="take-order-choice-copy"><strong>Something else</strong><small>Add a one-off item from your conversation.</small></span>
-                  <ChevronRight size={16} aria-hidden="true" />
-                </button>
-              </div>
+             {step === 1 && choiceOnly && <div className="take-order-choice-only"><TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} /></div>}
+             {step === 1 && !choiceOnly && <TakeOrderSection eyebrow="Step 01 · Items" title="What are they buying?" description="Add the products you agreed on. You can mix catalog items with one-off items from the conversation.">
+              <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
               {itemSource === 'catalog' && <div className="take-order-choice-form">
                 {productsQuery.isLoading ? <Skeleton className="h-11 w-full" /> : productsQuery.isError ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div> : <div className="take-order-add-control"><select data-testid="select-order-product" value={catalogChoice} onChange={(event) => setCatalogChoice(event.target.value)} className="field-input"><option value="">Choose a product</option>{(productsQuery.data ?? []).map((product) => <option key={product.id} value={product.id}>{product.name} · {moneyExact(product.price)}</option>)}</select><Button type="button" variant="outline" disabled={!catalogChoice} onClick={addCatalogItem}><Plus size={15} />Add item</Button></div>}
                 {!productsQuery.isLoading && !productsQuery.isError && productsQuery.data?.length === 0 && <p className="take-order-help">No products yet. Choose “Something else” to add this order without a catalog product.</p>}
@@ -1699,7 +1707,7 @@ function MultiItemTakeOrderModern() {
                   <button type="button" aria-label={`Remove ${item.name}`} onClick={() => setItems((current) => current.filter((candidate) => candidate.key !== item.key))} className="take-order-remove"><Trash2 size={15} /></button>
                  </div>) : <div className="take-order-empty-items"><PackageSearch size={22} /><strong>Your order starts here</strong><span>Choose how you want to add the first item.</span></div>}
               </div>
-            </TakeOrderSection>}
+             </TakeOrderSection>}
             {step === 2 && <TakeOrderSection eyebrow="Step 02 · Terms" title="Set the checkout terms." description="Choose how the buyer should complete this order and where the conversation started.">
               <div className="take-order-order-summary"><div><span>Order total</span><strong>{moneyExact(total)}</strong></div><div><span>{items.length} item{items.length === 1 ? '' : 's'}</span><button type="button" onClick={() => setStep(1)}>Edit items</button></div></div>
               <div className="take-order-field-group"><div className="field-label">How should they pay?</div><div className="take-order-payment-options">{[['full', 'Pay in full', 'Collect the full total now'], ['deposit', 'Pay a deposit', 'Secure the order with part-payment'], ['reserve', 'Reserve it', 'Confirm the details first']].map(([value, title, note]) => <button type="button" key={value} onClick={() => { setPaymentMode(value as 'full' | 'deposit' | 'reserve'); setFeedback(null); }} data-testid={`button-payment-mode-${value}`} className={cn('take-order-payment-option', paymentMode === value && 'is-selected')}><span className="take-order-radio">{paymentMode === value && <span />}</span><span><strong>{title}</strong><small>{note}</small></span></button>)}</div></div>
@@ -1712,8 +1720,7 @@ function MultiItemTakeOrderModern() {
               <div className="take-order-review-details"><div><span>Payment</span><strong>{paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'full' ? 'Pay in full' : 'Reserve for later'}</strong></div><div><span>Conversation</span><strong><ChannelInline value={channel} /></strong></div></div>
               <div className="take-order-review-note"><CheckCircle2 size={17} /><div><strong>Buyer details stay with the order.</strong><span>They can add their name, phone number, notes, and an optional reference image on the next page.</span></div></div>
             </TakeOrderSection>}
-            <TakeOrderFeedback message={feedback} />
-            <div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div>
+             {!choiceOnly && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
           </form>
         </Card>
         <aside className="take-order-preview-column">

@@ -993,6 +993,8 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-step-line.is-complete { background: hsl(var(--accent-foreground) / .45); }
 .take-order-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); align-items: start; gap: 1.2rem; }
 .take-order-builder-card { overflow: hidden; padding: 0; }
+.take-order-choice-only-card { border-color: transparent; background: transparent; box-shadow: none; overflow: visible; }
+.take-order-choice-only { padding-top: .25rem; }
 .take-order-section { padding: 2rem; }
 .take-order-section-heading { max-width: 40rem; margin-bottom: 1.7rem; }
 .take-order-section-heading h2 { margin-top: .45rem; color: hsl(var(--foreground)); font-family: var(--app-font-display); font-size: clamp(1.7rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -.055em; line-height: 1; }
@@ -1121,6 +1123,7 @@ button[data-testid="button-buyer-reserve"].text-white {
   .take-order-step { min-width: 8.3rem; }
   .take-order-step-detail { display: none; }
   .take-order-section { padding: 1.25rem; }
+  .take-order-choice-only { padding-top: 0; }
   .take-order-section-heading { margin-bottom: 1.25rem; }
   .take-order-choice-grid { grid-template-columns: 1fr; }
   .take-order-add-panel { grid-template-columns: auto minmax(0, 1fr); }
