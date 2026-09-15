@@ -41,6 +41,7 @@ import {
 import {
   calculateDashboardSummary,
   stockDeltaForOrderStatusChange,
+  type DashboardRange,
 } from "../lib/dashboard-analytics";
 
 export function createDukaRouter(database: typeof db): IRouter {
@@ -567,14 +568,32 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
   res.json(SubmitPublicOrderResponse.parse(orderResponse(order)));
 });
 
-router.get("/dashboard/summary", async (_req, res): Promise<void> => {
+  router.get("/dashboard/summary", async (req, res): Promise<void> => {
+   const parseDateQuery = (value: unknown): string | undefined => {
+     if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+     const parsed = new Date(`${value}T00:00:00.000Z`);
+     return Number.isNaN(parsed.getTime()) ? undefined : value;
+   };
+   const rawFrom = req.query.from;
+   const rawTo = req.query.to;
+   const from = parseDateQuery(rawFrom);
+   const to = parseDateQuery(rawTo);
+   if ((rawFrom !== undefined && from === undefined) || (rawTo !== undefined && to === undefined)) {
+     res.status(400).json({ message: "Dashboard dates must use YYYY-MM-DD." });
+     return;
+   }
+   if (from && to && from > to) {
+     res.status(400).json({ message: "Dashboard start date must be before its end date." });
+     return;
+   }
+   const range: DashboardRange | undefined = from || to ? { from, to } : undefined;
   const [products, orders, operatingExpenseRows] = await Promise.all([
     database.select().from(productsTable),
     database.select().from(ordersTable),
     database.select().from(expensesTable),
   ]);
   res.json(GetDashboardSummaryResponse.parse(
-    calculateDashboardSummary(products, orders, operatingExpenseRows),
+    calculateDashboardSummary(products, orders, operatingExpenseRows, new Date(), range),
   ));
 });
 
