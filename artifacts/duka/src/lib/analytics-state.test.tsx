@@ -366,6 +366,52 @@ test("Connect choices persist exact local preferences across a remount", () => {
   assert.doesNotMatch(values.get(CONNECTED_TOOLS_KEY) ?? "", /authoriz|integrat/i);
 });
 
+test("Connect ignores malformed saved preferences and returns to the non-saved state", () => {
+  const storages: Array<{
+    getItem: (key: string) => string | null;
+    setItem: (key: string, value: string) => void;
+  }> = [
+    {
+      getItem: () => "{not valid json",
+      setItem: () => undefined,
+    },
+    {
+      getItem: () => '["WhatsApp", 42]',
+      setItem: () => undefined,
+    },
+  ];
+
+  for (const storage of storages) {
+    const connected: string[] = readConnectedTools(storage);
+    const hasWhatsApp = connected.includes("WhatsApp");
+    assert.deepEqual(connected, []);
+    assert.equal(connectPreferenceLabel(hasWhatsApp), "Not saved");
+    assert.equal(
+      connectPreferenceAriaLabel("WhatsApp", hasWhatsApp),
+      "WhatsApp, not saved. Select to save this preference.",
+    );
+    assert.doesNotMatch(
+      connectPreferenceAriaLabel("WhatsApp", hasWhatsApp),
+      /authoriz|connect/i,
+    );
+  }
+});
+
+test("Connect stays available when saved preference storage cannot be read", () => {
+  const unavailableStorage = {
+    getItem: () => {
+      throw new Error("Storage access is unavailable");
+    },
+    setItem: () => undefined,
+  };
+
+  assert.doesNotThrow(() => readConnectedTools(unavailableStorage));
+  assert.deepEqual(readConnectedTools(unavailableStorage), []);
+  assert.deepEqual(readConnectedTools(null), []);
+  assert.equal(connectPreferenceLabel(false), "Not saved");
+  assert.doesNotMatch(connectPreferenceAriaLabel("WhatsApp", false), /authoriz|connect/i);
+});
+
 test("names the mobile menu in both closed and open states", () => {
   const closedMarkup = renderToStaticMarkup(
     createElement(MobileMenuButton, { open: false, onClick: () => undefined }),
