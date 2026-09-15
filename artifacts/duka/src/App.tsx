@@ -2,7 +2,7 @@ import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'rea
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import {
-  AlertTriangle, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Boxes, Check, Clock3,
+  AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, Check, Clock3,
   CheckCircle2, CircleDollarSign, Clipboard, Copy, ExternalLink, Eye, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
   Package, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Settings2, ShoppingBag, Sparkles,
   Trash2, TrendingUp, Truck, Users, WalletCards, X
@@ -324,8 +324,10 @@ function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?
 
 const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 'reserved' =>
   status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';
-function MetricCard({ label, value, note, trend, trendLabel, dataTestId, className = '', style }: { label: string; value: ReactNode; note?: ReactNode; trend?: 'up' | 'down'; trendLabel?: string; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
-  return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}><div className="flex items-start justify-between gap-3"><div className="text-[10px] font-normal uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">{label}</div>{trend && <span className={cn('metric-trend-badge', trend === 'up' ? 'metric-trend-up' : 'metric-trend-down')} aria-label={`${trend === 'up' ? 'Up' : 'Down'} performance`}><span>{trendLabel ?? (trend === 'up' ? 'Up' : 'Down')}</span>{trend === 'up' ? <ArrowUpRight size={11} aria-hidden="true" /> : <ArrowDownRight size={11} aria-hidden="true" />}</span>}</div><div className="mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">{value}</div>{note && <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>}</Card>;
+type MetricTrend = { direction: 'up' | 'down'; percentage: number };
+function MetricCard({ label, value, note, trend, dataTestId, className = '', style }: { label: string; value: ReactNode; note?: ReactNode; trend?: MetricTrend; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
+  const isUp = trend?.direction === 'up';
+  return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}><div className="flex items-start justify-between gap-3"><div className="text-[10px] font-normal uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">{label}</div>{trend && <span className={cn('metric-trend-badge', isUp ? 'metric-trend-up' : 'metric-trend-down')} aria-label={`${isUp ? 'Up' : 'Down'} ${trend.percentage}%`}><span>{isUp ? '+' : '−'}{trend.percentage}%</span></span>}</div><div className="metric-value-row mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value"><span>{value}</span>{trend && <span className={cn('metric-value-trend', isUp ? 'metric-trend-up' : 'metric-trend-down')} aria-hidden="true">{isUp ? <ArrowUp size={16} strokeWidth={2.5} /> : <ArrowDown size={16} strokeWidth={2.5} />}</span>}</div>{note && <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>}</Card>;
 }
 function InsightCard({ icon: Icon, title, description, className = '', dataTestId }: { icon: typeof CircleDollarSign; title: string; description?: string; className?: string; dataTestId?: string }) {
   return <Card className={cn('flex items-center gap-4 p-5', className)} data-testid={dataTestId}><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/25 text-[hsl(var(--accent-foreground))]"><Icon size={18} /></div><div><div className="text-sm font-bold">{title}</div>{description && <p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}</div></Card>;
@@ -418,14 +420,15 @@ function Overview() {
   const dateContext = firstDay && lastDay ? `${firstDay} – ${lastDay}` : 'Your latest reporting window';
   const recentDaily = daily.slice(Math.ceil(daily.length / 2));
   const earlierDaily = daily.slice(0, Math.ceil(daily.length / 2));
-  const movement = (key: 'orders' | 'revenue') => {
+  const movement = (key: 'orders' | 'revenue'): MetricTrend => {
     const recent = recentDaily.reduce((sum, day) => sum + day[key], 0);
     const earlier = earlierDaily.reduce((sum, day) => sum + day[key], 0);
-    return recent >= earlier && recent > 0 ? 'up' as const : 'down' as const;
+    const percentage = earlier > 0 ? Math.round(((recent - earlier) / earlier) * 100) : recent > 0 ? 100 : 0;
+    return { direction: percentage >= 0 && recent > 0 ? 'up' : 'down', percentage: Math.abs(percentage) };
   };
   const salesTrend = movement('orders');
   const revenueTrend = movement('revenue');
-  const stateTrend = (isPositive: boolean) => isPositive ? 'up' as const : 'down' as const;
+  const stateTrend = (isPositive: boolean): MetricTrend => ({ direction: isPositive ? 'up' : 'down', percentage: isPositive ? 100 : 0 });
   const primaryStatCards = [
     { label: 'Sales', value: ordersQuery.isLoading ? '—' : orders.length, trend: salesTrend, note: `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` },
      { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: undefined },
@@ -435,8 +438,8 @@ function Overview() {
   const secondaryStatCards = [
     { label: 'Outstanding balances', value: money(summary?.outstanding), trend: stateTrend((summary?.outstanding ?? 0) === 0), note: `${waitingPayments} waiting payments` },
     { label: 'Orders', value: summary?.orders ?? 0, trend: movement('orders'), note: `${shippedOrders} shipped` },
-    { label: 'Shares', value: '—', trend: 'down' as const, note: 'Connect a channel to track' },
-    { label: 'Likes', value: '—', trend: 'down' as const, note: 'Connect a channel to track' },
+    { label: 'Shares', value: '—', trend: stateTrend(false), note: 'Connect a channel to track' },
+    { label: 'Likes', value: '—', trend: stateTrend(false), note: 'Connect a channel to track' },
   ] as const;
   const analyticsState = getAnalyticsViewState({
     isLoading: summaryQuery.isLoading,
