@@ -455,6 +455,12 @@ button { cursor: pointer; }
 .orders-avatar { display: flex; height: 36px; width: 36px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 11px; background: hsl(var(--muted)); color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .59rem; font-weight: 700; }
 .orders-cell-labeled { min-width: 0; }
 .orders-cell-labeled > button { display: inline-flex; max-width: 100%; border-radius: 999px; outline: none; }
+.orders-table-row [data-testid^="button-payment-"] { border: 0; background: transparent; padding: 0; color: inherit; text-align: left; }
+.orders-table-row [data-testid^="button-payment-"] > [data-tone] { border: 0; border-radius: 0; background: transparent; padding: 0; }
+.orders-table-row [data-testid^="button-payment-"] > [data-tone="mint"] { color: hsl(157 42% 35%); }
+.orders-table-row [data-testid^="button-payment-"] > [data-tone="gold"] { color: hsl(31 64% 38%); }
+.orders-table-row [data-testid^="button-payment-"] > [data-tone="reserved"] { color: hsl(220 12% 48%); }
+.orders-table-row [data-testid^="button-payment-"] > [data-tone="neutral"] { color: hsl(var(--muted-foreground)); }
 .orders-cell-labeled > button:focus-visible, .orders-icon-button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 .orders-mobile-label { display: none; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .55rem; text-transform: uppercase; letter-spacing: .1em; }
 .orders-value-cell, .orders-date-cell { min-width: 0; }
