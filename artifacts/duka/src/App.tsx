@@ -144,7 +144,7 @@ export function OnboardingChannelPicker({
   selectedChannels: readonly string[];
   onToggle: (channel: string) => void;
 }) {
-  return <div data-testid="onboarding-channels" className="grid grid-cols-2 gap-2">
+  return <div data-testid="onboarding-channels" className="grid grid-cols-2 gap-2" role="group" aria-label="Sales channels">
     {onboardingChannels.map((channel) => {
       const selected = selectedChannels.includes(channel);
       return <label key={channel} className={cn('flex cursor-pointer items-center gap-3 rounded-[12px] border p-3 text-xs font-semibold transition-colors', selected ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]')}>

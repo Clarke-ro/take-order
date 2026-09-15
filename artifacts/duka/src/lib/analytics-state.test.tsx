@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
 import test from "node:test";
+import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { JSDOM } from "jsdom";
@@ -33,6 +36,96 @@ const populatedSummary = {
   channelPerformance: [],
   productPerformance: [],
 } as never;
+
+type AccessibilityNode = {
+  role?: { value?: string };
+  name?: { value?: string };
+  properties?: Array<{ name?: string; value?: { value?: unknown } }>;
+};
+
+async function waitFor<T>(read: () => T | undefined | Promise<T | undefined>, timeoutMs = 8_000): Promise<T> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const value = await read();
+    if (value !== undefined) return value;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error("Timed out waiting for Chromium");
+}
+
+async function readAccessibilityTree(markup: string): Promise<AccessibilityNode[]> {
+  const profileDirectory = await mkdtemp(`${tmpdir()}/duka-a11y-`);
+  const browser = spawn("chromium", [
+    "--headless=new",
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--remote-allow-origins=*",
+    "--remote-debugging-port=0",
+    `--user-data-dir=${profileDirectory}`,
+    "about:blank",
+  ], { stdio: ["ignore", "ignore", "pipe"] });
+  const browserExit = new Promise<void>((resolve) => browser.once("exit", () => resolve()));
+
+  try {
+    let debuggingUrl = "";
+    browser.stderr.on("data", (chunk: Buffer) => {
+      const match = chunk.toString().match(/DevTools listening on (ws:\/\/127\.0\.0\.1:\d+)/);
+      if (match) debuggingUrl = match[1]!;
+    });
+    const endpoint = await waitFor(() => debuggingUrl || undefined);
+    const port = new URL(endpoint).port;
+    const page = await waitFor(async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/json/list`);
+      if (!response.ok) return undefined;
+      const pages = await response.json() as Array<{ type: string; webSocketDebuggerUrl?: string }>;
+      return pages.find((item) => item.type === "page" && item.webSocketDebuggerUrl);
+    });
+    const socket = new WebSocket(page.webSocketDebuggerUrl!);
+    let nextMessageId = 0;
+    const pending = new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void }>();
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data)) as { id?: number; result?: any; error?: { message?: string } };
+      if (message.id === undefined) return;
+      const request = pending.get(message.id);
+      if (!request) return;
+      pending.delete(message.id);
+      if (message.error) request.reject(new Error(message.error.message ?? "Chromium request failed"));
+      else request.resolve(message.result);
+    });
+    await waitFor(() => socket.readyState === WebSocket.OPEN ? true : undefined);
+    const send = (method: string, params: Record<string, unknown> = {}) => new Promise<any>((resolve, reject) => {
+      const id = ++nextMessageId;
+      pending.set(id, { resolve, reject });
+      socket.send(JSON.stringify({ id, method, params }));
+    });
+
+    await send("Page.enable");
+    await send("Accessibility.enable");
+    await send("Page.navigate", {
+      url: `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><html><body>${markup}</body></html>`)}`,
+    });
+    await waitFor(async () => {
+      const result = await send("Runtime.evaluate", { expression: "document.readyState" });
+      return result?.result?.value === "complete" ? true : undefined;
+    });
+    const tree = await send("Accessibility.getFullAXTree");
+    socket.close();
+    return tree.nodes as AccessibilityNode[];
+  } finally {
+    if (!browser.killed) browser.kill();
+    await Promise.race([
+      browserExit,
+      new Promise((resolve) => setTimeout(resolve, 2_000)),
+    ]);
+    await rm(profileDirectory, { recursive: true, force: true });
+  }
+}
+
+function propertyValue(node: AccessibilityNode, propertyName: string): unknown {
+  const value = node.properties?.find((property) => property.name === propertyName)?.value?.value;
+  return value === "true" ? true : value === "false" ? false : value;
+}
 
 test("renders loading, empty, and populated analytics states without errors", () => {
   const cases = [
@@ -161,6 +254,41 @@ test("keeps onboarding and order channels keyboard-reachable with synchronized n
       ),
     );
   }
+});
+
+test("exposes channel groups, names, roles, and state in the live accessibility tree", async () => {
+  const selectedOrderChannel = orderChannels[2]!.value;
+  const orderMarkup = renderToStaticMarkup(
+    createElement(ChannelPicker, {
+      value: selectedOrderChannel,
+      onChange: () => undefined,
+      testId: "order-channel",
+    }),
+  );
+  const orderTree = await readAccessibilityTree(orderMarkup);
+  const orderGroup = orderTree.find((node) => node.role?.value === "radiogroup");
+  assert.equal(orderGroup?.name?.value, "Conversation channel");
+  const orderRadios = orderTree.filter((node) => node.role?.value === "radio");
+  assert.deepEqual(
+    orderRadios.map((node) => ({ name: node.name?.value, checked: propertyValue(node, "checked") })),
+    orderChannels.map((channel) => ({ name: channel.label, checked: channel.value === selectedOrderChannel })),
+  );
+
+  const selectedOnboardingChannels = ["WhatsApp", "Snapchat"];
+  const onboardingMarkup = renderToStaticMarkup(
+    createElement(OnboardingChannelPicker, {
+      selectedChannels: selectedOnboardingChannels,
+      onToggle: () => undefined,
+    }),
+  );
+  const onboardingTree = await readAccessibilityTree(onboardingMarkup);
+  const onboardingGroup = onboardingTree.find((node) => node.role?.value === "group");
+  assert.equal(onboardingGroup?.name?.value, "Sales channels");
+  const onboardingCheckboxes = onboardingTree.filter((node) => node.role?.value === "checkbox");
+  assert.deepEqual(
+    onboardingCheckboxes.map((node) => ({ name: node.name?.value, checked: propertyValue(node, "checked") })),
+    onboardingChannels.map((channel) => ({ name: channel, checked: selectedOnboardingChannels.includes(channel) })),
+  );
 });
 
 test("activating a channel control calls back with only its channel", () => {
