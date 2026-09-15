@@ -12,10 +12,12 @@ import {
 } from "./analytics-state";
 import {
   CONNECTED_TOOLS_KEY,
+  clearConnectedTools,
   readConnectedTools,
   writeConnectedTools,
 } from "../App";
 import {
+  clearPreferences,
   connectPreferenceAriaLabel,
   connectPreferenceLabel,
   onboardingChannels,
@@ -364,6 +366,25 @@ test("Connect choices persist exact local preferences across a remount", () => {
     "Paystack, saved preference. Select to remove this preference.",
   );
   assert.doesNotMatch(values.get(CONNECTED_TOOLS_KEY) ?? "", /authoriz|integrat/i);
+});
+
+test("Connect clear-all removes saved preferences without touching other local storage", () => {
+  const values = new Map<string, string>([
+    [CONNECTED_TOOLS_KEY, '["WhatsApp","Paystack"]'],
+    ["duka-onboarding-profile", '{"businessName":"The Sunday Edit"}'],
+  ]);
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+  };
+
+  assert.deepEqual(clearPreferences(), []);
+  clearConnectedTools(storage);
+
+  assert.equal(values.has(CONNECTED_TOOLS_KEY), false);
+  assert.deepEqual(readConnectedTools(storage), []);
+  assert.equal(values.get("duka-onboarding-profile"), '{"businessName":"The Sunday Edit"}');
 });
 
 test("Connect ignores malformed saved preferences and returns to the non-saved state", () => {

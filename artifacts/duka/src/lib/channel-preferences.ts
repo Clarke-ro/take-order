@@ -21,6 +21,10 @@ export function togglePreference(current: readonly string[], value: string) {
     : [...current, value];
 }
 
+export function clearPreferences() {
+  return [];
+}
+
 export function connectPreferenceLabel(isSaved: boolean) {
   return isSaved ? 'Saved preference' : 'Not saved';
 }
