@@ -44,6 +44,7 @@ const dateShort = (value: string) => {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
 };
 type DashboardPeriod = 'day' | 'week' | 'month' | 'year' | 'custom';
+type DashboardDateRange = { from: string; to: string };
 const dashboardPeriodOptions: Array<{ value: Exclude<DashboardPeriod, 'custom'>; label: string }> = [
   { value: 'day', label: 'Today' },
   { value: 'week', label: 'Last 7 days' },
@@ -61,7 +62,7 @@ const shiftInputDate = (value: string, days: number) => {
   date.setDate(date.getDate() + days);
   return inputDate(date);
 };
-const dashboardPeriodRange = (period: DashboardPeriod, customFrom: string, customTo: string) => {
+const dashboardPeriodRange = (period: DashboardPeriod, customFrom: string, customTo: string): DashboardDateRange | undefined => {
   const today = inputDate(new Date());
   if (period === 'custom') return customFrom && customTo && customFrom <= customTo ? { from: customFrom, to: customTo } : undefined;
   const days = period === 'day' ? 1 : period === 'week' ? 7 : period === 'month' ? 30 : 365;
@@ -466,9 +467,9 @@ const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 're
   status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';
 const paymentLabel = (order: Order) => order.status === 'deposit_paid' ? 'Deposit paid' : order.status === 'paid' ? 'Paid in full' : 'Awaiting payment';
 type MetricTrend = { direction: 'up' | 'down'; percentage: number };
-function MetricCard({ label, value, note, period, trend, dataTestId, className = '', style }: { label: string; value: ReactNode; note?: ReactNode; period?: string; trend?: MetricTrend; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
+function MetricCard({ label, value, note, period, trend, loading = false, dataTestId, className = '', style }: { label: string; value: ReactNode; note?: ReactNode; period?: string; trend?: MetricTrend; loading?: boolean; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
   const isUp = trend?.direction === 'up';
-  return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}><div className="flex items-start justify-between gap-3"><div className={cn('metric-card-heading', period && 'has-period')}><div className={period ? 'metric-card-title' : 'text-[10px] font-normal uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]'}>{label}</div>{period && <span className="metric-card-period">{period}</span>}</div>{trend && <span className={cn('metric-trend-badge', isUp ? 'metric-trend-up' : 'metric-trend-down')} aria-label={`${isUp ? 'Up' : 'Down'} ${trend.percentage}%`}><span>{isUp ? '+' : '−'}{trend.percentage}%</span></span>}</div><div className="metric-value-row mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value"><span>{value}</span>{trend && <span className={cn('metric-value-trend', isUp ? 'metric-trend-up' : 'metric-trend-down')} aria-hidden="true">{isUp ? <ArrowUp size={16} strokeWidth={2.5} /> : <ArrowDown size={16} strokeWidth={2.5} />}</span>}</div>{note && <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>}</Card>;
+  return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}><div className="flex items-start justify-between gap-3"><div className={cn('metric-card-heading', period && 'has-period')}><div className={period ? 'metric-card-title' : 'text-[10px] font-normal uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]'}>{label}</div>{period && <span className="metric-card-period">{period}</span>}</div>{loading ? <Skeleton className="h-5 w-12 rounded-full" /> : trend && <span className={cn('metric-trend-badge', isUp ? 'metric-trend-up' : 'metric-trend-down')} aria-label={`${isUp ? 'Up' : 'Down'} ${trend.percentage}%`}><span>{isUp ? '+' : '−'}{trend.percentage}%</span></span>}</div><div className="metric-value-row mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">{loading ? <Skeleton className="h-9 w-24" /> : <><span>{value}</span>{trend && <span className={cn('metric-value-trend', isUp ? 'metric-trend-up' : 'metric-trend-down')} aria-hidden="true">{isUp ? <ArrowUp size={16} strokeWidth={2.5} /> : <ArrowDown size={16} strokeWidth={2.5} />}</span>}</>}</div>{note && (loading ? <Skeleton className="mt-3 h-3 w-40" /> : <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>)}</Card>;
 }
 function InsightCard({ icon: Icon, title, description, className = '', dataTestId }: { icon: typeof CircleDollarSign; title: string; description?: string; className?: string; dataTestId?: string }) {
   return <Card className={cn('flex items-center gap-4 p-5', className)} data-testid={dataTestId}><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/25 text-[hsl(var(--accent-foreground))]"><Icon size={18} /></div><div><div className="text-sm font-bold">{title}</div>{description && <p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}</div></Card>;
@@ -552,12 +553,16 @@ function HomeRoute() {
 function Overview() {
   const today = inputDate(new Date());
   const [period, setPeriod] = useState<DashboardPeriod>('week');
+  const [draftPeriod, setDraftPeriod] = useState<DashboardPeriod>('week');
   const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
-  const [customFrom, setCustomFrom] = useState(() => shiftInputDate(today, -29));
-  const [customTo, setCustomTo] = useState(today);
-  const periodRange = useMemo(() => dashboardPeriodRange(period, customFrom, customTo), [period, customFrom, customTo]);
-  const periodLabel = dashboardPeriodLabel(period, customFrom, customTo);
-  const summaryQuery = useGetDashboardSummary(periodRange);
+  const initialCustomRange = useMemo(() => ({ from: shiftInputDate(today, -29), to: today }), [today]);
+  const [appliedCustomRange, setAppliedCustomRange] = useState<DashboardDateRange>(() => initialCustomRange);
+  const [draftCustomRange, setDraftCustomRange] = useState<DashboardDateRange>(() => initialCustomRange);
+  const periodRange = useMemo(() => dashboardPeriodRange(period, appliedCustomRange.from, appliedCustomRange.to), [period, appliedCustomRange]);
+  const draftPeriodRange = useMemo(() => dashboardPeriodRange(draftPeriod, draftCustomRange.from, draftCustomRange.to), [draftPeriod, draftCustomRange]);
+  const periodLabel = dashboardPeriodLabel(period, appliedCustomRange.from, appliedCustomRange.to);
+  const summaryQuery = useGetDashboardSummary(periodRange, { query: { queryKey: getGetDashboardSummaryQueryKey(periodRange ?? undefined), placeholderData: (previousData) => previousData } });
+  const summaryRefreshing = summaryQuery.isFetching && !summaryQuery.isLoading && Boolean(summaryQuery.data);
   const productsQuery = useListProducts();
   const ordersQuery = useListOrders();
   const summary = summaryQuery.data;
@@ -605,25 +610,41 @@ function Overview() {
     { label: 'Likes', value: '—', trend: stateTrend(false), note: 'Connect a channel to track' },
   ] as const;
   const analyticsState = getAnalyticsViewState({
-    isLoading: summaryQuery.isLoading,
-    isError: summaryQuery.isError,
+    isLoading: summaryQuery.isLoading && !summaryQuery.data,
+    isError: summaryQuery.isError && !summaryQuery.data,
     summary,
   });
-  return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading title="Dashboard" action={<div className="flex flex-wrap items-center gap-2"><div className="relative"><button type="button" className="period-chip" aria-label="Reporting period" aria-expanded={periodMenuOpen} onClick={() => setPeriodMenuOpen((open) => !open)} data-testid="button-dashboard-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{periodLabel}<ChevronDown size={14} className={cn('transition-transform', periodMenuOpen && 'rotate-180')} /></button>{periodMenuOpen && <div className="dashboard-period-menu" role="dialog" aria-label="Choose reporting period"><div className="dashboard-period-options">{dashboardPeriodOptions.map((option) => <button type="button" key={option.value} className={cn('dashboard-period-option', period === option.value && 'is-active')} onClick={() => { setPeriod(option.value); setPeriodMenuOpen(false); }} aria-pressed={period === option.value}>{option.label}</button>)}<button type="button" className={cn('dashboard-period-option', period === 'custom' && 'is-active')} onClick={() => setPeriod('custom')} aria-pressed={period === 'custom'}>Custom range</button></div>{period === 'custom' && <DashboardCustomRangePicker from={customFrom} to={customTo} onFromChange={setCustomFrom} onToChange={setCustomTo} onClose={() => setPeriodMenuOpen(false)} onApply={() => setPeriodMenuOpen(false)} canApply={Boolean(periodRange)} />}</div>}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
-    {summaryQuery.isLoading ? <OverviewSkeleton /> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
+  const closePeriodMenu = () => {
+    setDraftPeriod(period);
+    setDraftCustomRange(appliedCustomRange);
+    setPeriodMenuOpen(false);
+  };
+  const chooseCustomPeriod = () => {
+    setDraftPeriod('custom');
+    if (period !== 'custom') setDraftCustomRange(initialCustomRange);
+  };
+  const applyCustomPeriod = () => {
+    if (!draftPeriodRange) return;
+    setAppliedCustomRange(draftPeriodRange);
+    setPeriod('custom');
+    setDraftPeriod('custom');
+    setPeriodMenuOpen(false);
+  };
+  return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading title="Dashboard" action={<div className="flex flex-wrap items-center gap-2"><div className="relative"><button type="button" className="period-chip" aria-label="Reporting period" aria-expanded={periodMenuOpen} onClick={() => { setDraftPeriod(period); setDraftCustomRange(appliedCustomRange); setPeriodMenuOpen((open) => !open); }} data-testid="button-dashboard-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{periodLabel}<ChevronDown size={14} className={cn('transition-transform', periodMenuOpen && 'rotate-180')} /></button>{periodMenuOpen && <div className="dashboard-period-menu" role="dialog" aria-label="Choose reporting period"><div className="dashboard-period-options">{dashboardPeriodOptions.map((option) => <button type="button" key={option.value} className={cn('dashboard-period-option', draftPeriod === option.value && 'is-active')} onClick={() => { setPeriod(option.value); setDraftPeriod(option.value); setPeriodMenuOpen(false); }} aria-pressed={draftPeriod === option.value}>{option.label}</button>)}<button type="button" className={cn('dashboard-period-option', draftPeriod === 'custom' && 'is-active')} onClick={chooseCustomPeriod} aria-pressed={draftPeriod === 'custom'}>Custom range</button></div>{draftPeriod === 'custom' && <DashboardCustomRangePicker from={draftCustomRange.from} to={draftCustomRange.to} onFromChange={(from) => setDraftCustomRange((current) => ({ ...current, from }))} onToChange={(to) => setDraftCustomRange((current) => ({ ...current, to }))} onClose={closePeriodMenu} onApply={applyCustomPeriod} canApply={Boolean(draftPeriodRange)} />}</div>}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
+    {summaryQuery.isLoading && !summaryQuery.data ? <OverviewSkeleton /> : summaryQuery.isError && !summaryQuery.data ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-         {primaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} trend={stat.trend} note={stat.note} period={periodLabel} />)}
+         {primaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} trend={stat.trend} note={stat.note} period={periodLabel} loading={summaryRefreshing} />)}
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-         {secondaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="overview-secondary-card rise-in" style={{ animationDelay: `${(index + 4) * 55}ms` }} dataTestId={`card-kpi-secondary-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} trend={stat.trend} note={stat.note} period={periodLabel} />)}
+         {secondaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="overview-secondary-card rise-in" style={{ animationDelay: `${(index + 4) * 55}ms` }} dataTestId={`card-kpi-secondary-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} trend={stat.trend} note={stat.note} period={periodLabel} loading={summaryRefreshing} />)}
       </div>
-       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
-         <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and operating expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{periodLabel}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow">{daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Operating expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Combined expenses" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
-        <AlertsRail outstanding={summary?.outstanding ?? 0} lowStock={lowStock} missingCosts={missingCosts} productLoading={productsQuery.isLoading} productCount={products.length} orderCount={periodOrders.length} />
+         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
+          <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and operating expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{periodLabel}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow" aria-busy={summaryRefreshing}>{summaryRefreshing ? <div className="flex h-full flex-col justify-center gap-4"><Skeleton className="h-3 w-28" /><Skeleton className="h-48 w-full" /></div> : daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Operating expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Combined expenses" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
+         <AlertsRail outstanding={summary?.outstanding ?? 0} lowStock={lowStock} missingCosts={missingCosts} productLoading={productsQuery.isLoading} productCount={products.length} orderCount={periodOrders.length} loading={summaryRefreshing} />
       </div>
       <div className="mt-8 grid gap-5 xl:gap-12 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)]">
-        <ProductPerformance products={productPerformance} />
-        <ChannelPerformance channels={channels} />
+         <ProductPerformance products={productPerformance} loading={summaryRefreshing} />
+         <ChannelPerformance channels={channels} loading={summaryRefreshing} />
       </div>
       <RecentTransactions />
     </>}</div></Shell>;
@@ -703,7 +724,11 @@ function ChartEmpty({ message }: { message: string }) {
   return <div className="flex h-full items-center justify-center rounded-[12px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--background))] px-6 text-center text-sm text-[hsl(var(--muted-foreground))]">{message}</div>;
 }
 
-function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, productCount, orderCount }: { outstanding: number; lowStock: Product[]; missingCosts: Product[]; productLoading: boolean; productCount: number; orderCount: number }) {
+function DashboardRowsSkeleton({ count = 3 }: { count?: number }) {
+  return <div className="space-y-3" aria-label="Loading card content">{Array.from({ length: count }, (_, index) => <div key={index} className="flex items-center gap-3"><Skeleton className="h-8 w-8 rounded-[10px]" /><Skeleton className="h-3 flex-1" /><Skeleton className="h-3 w-16" /></div>)}</div>;
+}
+
+function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, productCount, orderCount, loading = false }: { outstanding: number; lowStock: Product[]; missingCosts: Product[]; productLoading: boolean; productCount: number; orderCount: number; loading?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (!expanded) return;
@@ -730,17 +755,17 @@ function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, produ
     { id: 'connect', icon: Settings2, tone: 'gold', title: 'Tune your tools', detail: 'Update the channels and payment tools you use.', href: '/connect', action: 'Review tools' },
   ];
   const visibleAlerts = expanded ? [...alerts, ...additionalAlerts] : alerts;
-  return <>{expanded && <button type="button" className="alerts-backdrop" aria-label="Close action center" onClick={() => setExpanded(false)} />}<Card className={cn('alerts-rail-card overflow-hidden', expanded && 'is-expanded')}><div className="border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><AlertTriangle size={16} className="text-[hsl(var(--chart-3))]" /><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Seller updates</div></div><button type="button" className="alerts-expand-button" aria-expanded={expanded} aria-controls="dashboard-action-list" onClick={() => setExpanded((value) => !value)} data-testid="button-toggle-dashboard-actions">{expanded ? 'Close' : 'Show all'}{expanded ? <X size={14} /> : <ChevronDown size={14} />}</button></div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Action center</h2></div><div id="dashboard-action-list" className={cn('alerts-list divide-y divide-[hsl(var(--border))]', expanded && 'is-expanded')}>{visibleAlerts.map((alert) => <Link href={alert.href} key={alert.id} className="alert-row group flex gap-3 px-5 py-4 sm:px-6" data-testid={`link-alert-${alert.id}`}><div className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]', alert.tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', alert.tone === 'gold' && 'bg-[hsl(42_81%_67%/.25)] text-[hsl(31_64%_34%)]', alert.tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]', alert.tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]')}><alert.icon size={15} /></div><div className="min-w-0 flex-1"><div className="text-sm font-semibold">{alert.title}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{alert.detail}</p><div className="mt-2 text-[10px] font-bold text-[hsl(var(--primary))] group-hover:underline">{alert.action}<ArrowUpRight size={12} className="ml-1 inline" /></div></div></Link>)}</div></Card></>;
+  return <>{expanded && <button type="button" className="alerts-backdrop" aria-label="Close action center" onClick={() => setExpanded(false)} />}<Card className={cn('alerts-rail-card overflow-hidden', expanded && 'is-expanded')}><div className="border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><AlertTriangle size={16} className="text-[hsl(var(--chart-3))]" /><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Seller updates</div></div><button type="button" className="alerts-expand-button" aria-expanded={expanded} aria-controls="dashboard-action-list" onClick={() => setExpanded((value) => !value)} data-testid="button-toggle-dashboard-actions">{expanded ? 'Close' : 'Show all'}{expanded ? <X size={14} /> : <ChevronDown size={14} />}</button></div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Action center</h2></div><div id="dashboard-action-list" className={cn('alerts-list divide-y divide-[hsl(var(--border))]', expanded && 'is-expanded')}>{loading ? <div className="space-y-5 p-5 sm:p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : visibleAlerts.map((alert) => <Link href={alert.href} key={alert.id} className="alert-row group flex gap-3 px-5 py-4 sm:px-6" data-testid={`link-alert-${alert.id}`}><div className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]', alert.tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', alert.tone === 'gold' && 'bg-[hsl(42_81%_67%/.25)] text-[hsl(31_64%_34%)]', alert.tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]', alert.tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]')}><alert.icon size={15} /></div><div className="min-w-0 flex-1"><div className="text-sm font-semibold">{alert.title}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{alert.detail}</p><div className="mt-2 text-[10px] font-bold text-[hsl(var(--primary))] group-hover:underline">{alert.action}<ArrowUpRight size={12} className="ml-1 inline" /></div></div></Link>)}</div></Card></>;
 }
 
-function ProductPerformance({ products }: { products: Array<{ name: string; category: string; revenue: number; orders: number; stock: number; margin: number; costTracked: boolean; marginStatus: 'tracked' | 'estimated' | 'unavailable'; snapshotOrders: number; legacyOrders: number }> }) {
+function ProductPerformance({ products, loading = false }: { products: Array<{ name: string; category: string; revenue: number; orders: number; stock: number; margin: number; costTracked: boolean; marginStatus: 'tracked' | 'estimated' | 'unavailable'; snapshotOrders: number; legacyOrders: number }>; loading?: boolean }) {
   const ranked = [...products].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   return <section className="overview-stat-section overview-product-card" aria-labelledby="product-performance-title">
     <div className="overview-card-title">
       <div className="font-display text-lg font-bold tracking-[-.03em]" id="product-performance-title">Best-selling items</div>
       <div className="font-mono-ui text-[11px] uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))]">Product performance</div>
     </div>
-    {ranked.length ? <div className="overview-card-table" role="table" aria-label="Best-selling items">
+    {loading ? <div className="mt-5"><DashboardRowsSkeleton /></div> : ranked.length ? <div className="overview-card-table" role="table" aria-label="Best-selling items">
       <div className="overview-card-table-head" role="row"><span role="columnheader">Item</span><span role="columnheader">Orders</span><span className="text-right" role="columnheader">Revenue</span></div>
       {ranked.map((product, index) => <div key={product.name} className="overview-card-table-row product-performance-row" data-testid={`row-product-performance-${index}`} role="row">
         <span className="min-w-0 truncate font-semibold" role="cell">{product.name}</span>
@@ -751,7 +776,7 @@ function ProductPerformance({ products }: { products: Array<{ name: string; cate
   </section>;
 }
 
-function ChannelPerformance({ channels }: { channels: Array<{ channel: string; revenue: number; orders: number; paidOrders: number; opens: number; conversionRate: number }> }) {
+function ChannelPerformance({ channels, loading = false }: { channels: Array<{ channel: string; revenue: number; orders: number; paidOrders: number; opens: number; conversionRate: number }>; loading?: boolean }) {
   const [filter, setFilter] = useState<'all' | 'active'>('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const visibleChannels = filter === 'active' ? channels.filter((channel) => channel.orders > 0) : channels;
@@ -771,7 +796,7 @@ function ChannelPerformance({ channels }: { channels: Array<{ channel: string; r
       </button>
     </div>
     <h2 className="sr-only" id="channel-performance-title">Channel conversion</h2>
-    {visibleChannels.length ? <div className="channel-conversion-list">
+    {loading ? <div className="space-y-4 p-5"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : visibleChannels.length ? <div className="channel-conversion-list">
       {visibleChannels.slice(0, 4).map((channel) => <div key={channel.channel} className="channel-conversion-row" data-testid={`row-channel-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${money(channel.revenue)}, ${channel.conversionRate}% conversion`}>
         <span className="channel-conversion-mark"><ChannelMark value={channel.channel} size={18} /></span>
         <ChannelLabel value={channel.channel} className="channel-conversion-name" />
