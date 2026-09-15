@@ -998,6 +998,19 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-section-heading h2 { margin-top: .45rem; color: hsl(var(--foreground)); font-family: var(--app-font-display); font-size: clamp(1.7rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -.055em; line-height: 1; }
 .take-order-section-heading p { margin-top: .6rem; color: hsl(var(--muted-foreground)); font-size: .8rem; line-height: 1.55; }
 .take-order-add-options { display: grid; gap: .8rem; }
+.take-order-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+.take-order-choice-card { display: flex; min-width: 0; align-items: center; gap: .7rem; border: 1px solid hsl(var(--border)); border-radius: 13px; background: hsl(var(--card)); padding: .85rem; color: hsl(var(--foreground)); text-align: left; transition: border-color .18s, background-color .18s, box-shadow .18s, transform .18s; }
+.take-order-choice-card:hover { border-color: hsl(var(--foreground) / .3); background: hsl(var(--muted) / .45); transform: translateY(-1px); }
+.take-order-choice-card:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.take-order-choice-card.is-active { border-color: hsl(var(--foreground) / .5); background: hsl(var(--muted) / .7); box-shadow: 0 0 0 2px hsl(var(--foreground) / .06); }
+.take-order-choice-card > svg { flex: 0 0 auto; margin-left: auto; color: hsl(var(--muted-foreground)); }
+.take-order-choice-mark { display: inline-flex; height: 2.1rem; width: 2.1rem; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 9px; background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+.take-order-choice-mark.is-custom { background: hsl(var(--accent) / .16); color: hsl(var(--accent-foreground)); }
+.take-order-choice-copy { display: block; min-width: 0; }
+.take-order-choice-copy strong, .take-order-choice-copy small { display: block; }
+.take-order-choice-copy strong { font-size: .74rem; font-weight: 700; line-height: 1.15; }
+.take-order-choice-copy small { margin-top: .2rem; color: hsl(var(--muted-foreground)); font-size: .62rem; line-height: 1.35; }
+.take-order-choice-form { margin-top: .7rem; border-radius: 12px; background: hsl(var(--muted) / .45); padding: .75rem; }
 .take-order-add-panel { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .8rem 1rem; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--card)); padding: 1rem; }
 .take-order-add-panel.is-custom { border-style: dashed; background: hsl(var(--background)); }
 .take-order-panel-icon { display: inline-flex; height: 2.2rem; width: 2.2rem; align-items: center; justify-content: center; border-radius: 10px; background: hsl(var(--muted)); color: hsl(var(--foreground)); }
@@ -1109,6 +1122,7 @@ button[data-testid="button-buyer-reserve"].text-white {
   .take-order-step-detail { display: none; }
   .take-order-section { padding: 1.25rem; }
   .take-order-section-heading { margin-bottom: 1.25rem; }
+  .take-order-choice-grid { grid-template-columns: 1fr; }
   .take-order-add-panel { grid-template-columns: auto minmax(0, 1fr); }
   .take-order-panel-control { grid-column: 1 / -1; }
   .take-order-add-control, .take-order-custom-control { grid-template-columns: minmax(0, 1fr); }

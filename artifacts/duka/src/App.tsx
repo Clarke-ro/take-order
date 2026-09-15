@@ -1518,6 +1518,7 @@ function MultiItemTakeOrderModern() {
   const [step, setStep] = useState<TakeOrderStep>(1);
   const [items, setItems] = useState<DraftOrderItem[]>([]);
   const [nextKey, setNextKey] = useState(1);
+  const [itemSource, setItemSource] = useState<'catalog' | 'custom' | null>(null);
   const [catalogChoice, setCatalogChoice] = useState('');
   const [customDraft, setCustomDraft] = useState({ name: '', amount: '' });
   const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
@@ -1631,6 +1632,7 @@ function MultiItemTakeOrderModern() {
     setStep(1);
     setItems([]);
     setNextKey(1);
+    setItemSource(null);
     setCatalogChoice('');
     setCustomDraft({ name: '', amount: '' });
     setPaymentMode('full');
@@ -1668,32 +1670,34 @@ function MultiItemTakeOrderModern() {
         <Card className="take-order-builder-card">
           <form onSubmit={submit}>
             {step === 1 && <TakeOrderSection eyebrow="Step 01 · Items" title="What are they buying?" description="Add the products you agreed on. You can mix catalog items with quick custom items from the conversation.">
-              <div className="take-order-add-options">
-                <div className="take-order-add-panel">
-                  <div className="take-order-panel-icon"><Boxes size={18} /></div>
-                  <div className="take-order-panel-copy"><h3>From your catalog</h3><p>Use saved pricing and variants.</p></div>
-                  <div className="take-order-panel-control">
-                    {productsQuery.isLoading ? <Skeleton className="h-11 w-full" /> : productsQuery.isError ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div> : <div className="take-order-add-control"><select data-testid="select-order-product" value={catalogChoice} onChange={(event) => setCatalogChoice(event.target.value)} className="field-input"><option value="">Choose an item</option>{(productsQuery.data ?? []).map((product) => <option key={product.id} value={product.id}>{product.name} · {moneyExact(product.price)}</option>)}</select><Button type="button" variant="outline" disabled={!catalogChoice} onClick={addCatalogItem}><Plus size={15} />Add item</Button></div>}
-                    {!productsQuery.isLoading && !productsQuery.isError && productsQuery.data?.length === 0 && <p className="take-order-help">No catalog items yet. Add a custom item below or create one in Catalog first.</p>}
-                  </div>
-                </div>
-                <div className="take-order-add-panel is-custom">
-                  <div className="take-order-panel-icon"><Sparkles size={18} /></div>
-                  <div className="take-order-panel-copy"><h3>Quick item from chat</h3><p>Save the name and price without leaving this flow.</p></div>
-                  <div className="take-order-panel-control">
-                    <div className="take-order-custom-control"><input data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Item name" className="field-input" /><div className="relative"><span className="take-order-currency">$</span><input data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" className="field-input pl-7" /></div><Button type="button" variant="outline" disabled={!customDraft.name.trim() || !customDraft.amount} onClick={addCustomItem}><Plus size={15} />Add</Button></div>
-                  </div>
-                </div>
+              <div className="take-order-choice-grid" aria-label="Choose how to add an item">
+                <button type="button" className={cn('take-order-choice-card', itemSource === 'catalog' && 'is-active')} onClick={() => { setItemSource('catalog'); setFeedback(null); }}>
+                  <span className="take-order-choice-mark"><Boxes size={17} /></span>
+                  <span className="take-order-choice-copy"><strong>From catalog</strong><small>Use a saved product and price.</small></span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+                <button type="button" className={cn('take-order-choice-card', itemSource === 'custom' && 'is-active')} onClick={() => { setItemSource('custom'); setFeedback(null); }}>
+                  <span className="take-order-choice-mark is-custom"><Sparkles size={17} /></span>
+                  <span className="take-order-choice-copy"><strong>Something else</strong><small>Add a one-off item from your conversation.</small></span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
               </div>
+              {itemSource === 'catalog' && <div className="take-order-choice-form">
+                {productsQuery.isLoading ? <Skeleton className="h-11 w-full" /> : productsQuery.isError ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div> : <div className="take-order-add-control"><select data-testid="select-order-product" value={catalogChoice} onChange={(event) => setCatalogChoice(event.target.value)} className="field-input"><option value="">Choose a product</option>{(productsQuery.data ?? []).map((product) => <option key={product.id} value={product.id}>{product.name} · {moneyExact(product.price)}</option>)}</select><Button type="button" variant="outline" disabled={!catalogChoice} onClick={addCatalogItem}><Plus size={15} />Add item</Button></div>}
+                {!productsQuery.isLoading && !productsQuery.isError && productsQuery.data?.length === 0 && <p className="take-order-help">No products yet. Choose “Something else” to add this order without a catalog product.</p>}
+              </div>}
+              {itemSource === 'custom' && <div className="take-order-choice-form">
+                <div className="take-order-custom-control"><input data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="What are they buying?" className="field-input" /><div className="relative"><span className="take-order-currency">$</span><input data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="Price" className="field-input pl-7" /></div><Button type="button" variant="outline" disabled={!customDraft.name.trim() || !customDraft.amount} onClick={addCustomItem}><Plus size={15} />Add item</Button></div>
+              </div>}
               <div className="take-order-items-heading"><div><div className="take-order-section-eyebrow">This order</div><h3>{items.length ? `${items.length} item${items.length === 1 ? '' : 's'} added` : 'Nothing added yet'}</h3></div>{items.length > 0 && <span className="take-order-total-chip">{moneyExact(total)}</span>}</div>
               <div className="take-order-item-list">
-                {items.length ? items.map((item, index) => <div key={item.key} className="take-order-item-row">
+                 {items.length ? items.map((item, index) => <div key={item.key} className="take-order-item-row">
                   <div className="take-order-item-number">{String(index + 1).padStart(2, '0')}</div>
                   <div className="take-order-item-mark" style={{ color: item.accent }}><Package size={17} /></div>
                   <div className="take-order-item-copy"><strong>{item.name}</strong><span>{item.source === 'custom' ? 'Quick item' : item.variants.length ? `${item.variants.length} variant${item.variants.length === 1 ? '' : 's'} · Catalog` : 'Catalog item'}</span></div>
                   <div className="take-order-item-price"><span className="take-order-currency">$</span><input aria-label={`Price for ${item.name}`} type="number" min="0" step=".01" value={item.amount} onChange={(event) => updateAmount(item.key, event.target.value)} className="field-input" /></div>
                   <button type="button" aria-label={`Remove ${item.name}`} onClick={() => setItems((current) => current.filter((candidate) => candidate.key !== item.key))} className="take-order-remove"><Trash2 size={15} /></button>
-                </div>) : <div className="take-order-empty-items"><PackageSearch size={22} /><strong>Your order starts here</strong><span>Add a catalog or quick item above.</span></div>}
+                 </div>) : <div className="take-order-empty-items"><PackageSearch size={22} /><strong>Your order starts here</strong><span>Choose how you want to add the first item.</span></div>}
               </div>
             </TakeOrderSection>}
             {step === 2 && <TakeOrderSection eyebrow="Step 02 · Terms" title="Set the checkout terms." description="Choose how the buyer should complete this order and where the conversation started.">
