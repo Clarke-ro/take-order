@@ -682,6 +682,116 @@ test("Connect updates tiles and saved summary when another tab changes preferenc
   dom.window.close();
 });
 
+test("Connect clear-all keeps every tile and summary empty after a remount", async () => {
+  const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
+    url: "http://localhost/connect",
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    addEventListener: dom.window.addEventListener.bind(dom.window),
+    removeEventListener: dom.window.removeEventListener.bind(dom.window),
+  });
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: dom.window.navigator,
+  });
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: dom.window.location,
+  });
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    configurable: true,
+    value: true,
+  });
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ status: "ok" }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+  const { act } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const container = dom.window.document.getElementById("root")!;
+  const root = createRoot(container);
+  const renderConnect = () => createElement(
+    QueryClientProvider,
+    {
+      client: new QueryClient(),
+      children: createElement(
+        Router,
+        {
+          hook: () => ["/connect", (_path: string, ..._args: any[]) => undefined] as [string, (path: string, ...args: any[]) => any],
+          children: createElement(Connect),
+        },
+      ),
+    },
+  );
+  const assertEmptyConnect = () => {
+    for (const name of CONNECTED_TOOL_NAMES) {
+      const testId = `button-connect-${name.toLowerCase().replaceAll(" ", "-")}`;
+      const tile = container.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`);
+      assert.ok(tile, `Expected the ${name} preference control to be present`);
+      assert.equal(tile.getAttribute("aria-pressed"), "false", `${name} should not be saved`);
+      assert.match(tile.textContent ?? "", /Not saved/);
+      assert.match(tile.getAttribute("aria-label") ?? "", /not saved/i);
+    }
+    assert.match(container.textContent ?? "", /No tool preferences yet/);
+    assert.equal(
+      container.querySelector<HTMLButtonElement>('[data-testid="button-clear-connected-tools"]')?.disabled,
+      true,
+    );
+  };
+
+  try {
+    await act(async () => {
+      root.render(renderConnect());
+    });
+
+    for (const name of CONNECTED_TOOL_NAMES.slice(0, 3)) {
+      const testId = `button-connect-${name.toLowerCase().replaceAll(" ", "-")}`;
+      const tile = container.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`);
+      assert.ok(tile, `Expected the ${name} preference control to be present`);
+      await act(async () => {
+        tile.click();
+      });
+    }
+
+    assert.deepEqual(
+      readConnectedTools(dom.window.localStorage),
+      CONNECTED_TOOL_NAMES.slice(0, 3),
+    );
+    assert.match(container.textContent ?? "", /3 tool preferences saved/);
+
+    const clearButton = container.querySelector<HTMLButtonElement>('[data-testid="button-clear-connected-tools"]');
+    assert.ok(clearButton, "Expected the clear-all control to be present");
+    await act(async () => {
+      clearButton.click();
+    });
+
+    assert.equal(dom.window.localStorage.getItem(CONNECTED_TOOLS_KEY), null);
+    assertEmptyConnect();
+
+    await act(async () => {
+      root.unmount();
+    });
+    const remountedRoot = createRoot(container);
+    await act(async () => {
+      remountedRoot.render(renderConnect());
+    });
+
+    assertEmptyConnect();
+    await act(async () => {
+      remountedRoot.unmount();
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    dom.window.close();
+  }
+});
+
 test("Connect ignores malformed saved preferences and returns to the non-saved state", () => {
   const storages: Array<{
     getItem: (key: string) => string | null;
