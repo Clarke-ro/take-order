@@ -1462,6 +1462,266 @@ type DraftOrderItem = {
   accent: string;
 };
 
+const takeOrderStepMeta: Array<{ step: TakeOrderStep; label: string; detail: string }> = [
+  { step: 1, label: 'Items', detail: 'Build the basket' },
+  { step: 2, label: 'Terms', detail: 'Set payment and source' },
+  { step: 3, label: 'Review', detail: 'Check before sharing' },
+];
+
+function TakeOrderStepRail({ step, onStepChange }: { step: TakeOrderStep; onStepChange: (step: TakeOrderStep) => void }) {
+  return <nav className="take-order-step-rail" aria-label="Order link setup">
+    {takeOrderStepMeta.map((item, index) => {
+      const complete = step > item.step;
+      const current = step === item.step;
+      return <React.Fragment key={item.step}>
+        <button
+          type="button"
+          className={cn('take-order-step', current && 'is-current', complete && 'is-complete')}
+          onClick={() => complete && onStepChange(item.step)}
+          disabled={!complete && !current}
+          aria-current={current ? 'step' : undefined}
+          aria-label={`${item.label}: ${item.detail}${complete ? ', edit' : current ? ', current step' : ', locked'}`}
+        >
+          <span className="take-order-step-number">{complete ? <Check size={13} /> : item.step}</span>
+          <span className="min-w-0 text-left">
+            <span className="take-order-step-label">{item.label}</span>
+            <span className="take-order-step-detail">{item.detail}</span>
+          </span>
+        </button>
+        {index < takeOrderStepMeta.length - 1 && <span className={cn('take-order-step-line', step > item.step && 'is-complete')} aria-hidden="true" />}
+      </React.Fragment>;
+    })}
+  </nav>;
+}
+
+function TakeOrderSection({ eyebrow, title, description, children }: { eyebrow: string; title: string; description: string; children: ReactNode }) {
+  return <section className="take-order-section">
+    <div className="take-order-section-heading">
+      <div className="take-order-section-eyebrow">{eyebrow}</div>
+      <h2>{title}</h2>
+      <p>{description}</p>
+    </div>
+    {children}
+  </section>;
+}
+
+function TakeOrderFeedback({ message }: { message: string | null }) {
+  if (!message) return null;
+  return <div className="take-order-feedback" role="alert"><AlertTriangle size={16} aria-hidden="true" /><span>{message}</span></div>;
+}
+
+function MultiItemTakeOrderModern() {
+  const productsQuery = useListProducts();
+  const createOrder = useCreateOrder();
+  const createProduct = useCreateProduct();
+  const seller = readSellerProfile();
+  const [step, setStep] = useState<TakeOrderStep>(1);
+  const [items, setItems] = useState<DraftOrderItem[]>([]);
+  const [nextKey, setNextKey] = useState(1);
+  const [catalogChoice, setCatalogChoice] = useState('');
+  const [customDraft, setCustomDraft] = useState({ name: '', amount: '' });
+  const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [channel, setChannel] = useState<OrderInput['channel']>('whatsapp');
+  const [created, setCreated] = useState<Order | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  const previewItems: BuyerOrderItem[] = items.length
+    ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants }))
+    : [{ productId: 0, productName: 'Your item', amount: 0, variants: [] }];
+  const busy = createOrder.isPending || createProduct.isPending;
+  const deposit = Number(depositAmount);
+  const validDeposit = paymentMode !== 'deposit' || (Number.isFinite(deposit) && deposit > 0 && deposit <= total);
+  const canContinue = step === 1
+    ? items.length > 0 && items.every((item) => item.amount > 0)
+    : total > 0 && validDeposit;
+
+  const getErrorMessage = (error: unknown, fallback: string) => error instanceof Error && error.message ? error.message : fallback;
+  const addCatalogItem = () => {
+    const product = (productsQuery.data ?? []).find((item) => item.id === Number(catalogChoice));
+    if (!product) return;
+    setItems((current) => [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, accent: product.accent }]);
+    setNextKey((current) => current + 1);
+    setCatalogChoice('');
+    setFeedback(null);
+  };
+  const addCustomItem = () => {
+    const amount = Number(customDraft.amount);
+    if (!customDraft.name.trim() || !Number.isFinite(amount) || amount <= 0) {
+      setFeedback('Add a name and a price greater than $0.00 before adding this item.');
+      return;
+    }
+    setItems((current) => [...current, { key: nextKey, source: 'custom', name: customDraft.name.trim(), amount, variants: [], accent: '#2F5BFF' }]);
+    setNextKey((current) => current + 1);
+    setCustomDraft({ name: '', amount: '' });
+    setFeedback(null);
+  };
+  const updateAmount = (key: number, value: string) => {
+    const amount = Number(value);
+    setItems((current) => current.map((item) => item.key === key ? { ...item, amount: Number.isFinite(amount) && amount >= 0 ? amount : 0 } : item));
+    setFeedback(null);
+  };
+  const createLink = (productIds: number[]) => {
+    const data: OrderInput = {
+      items: items.map((item, index) => ({ productId: productIds[index]!, amount: item.amount })),
+      paymentMode,
+      depositAmount: paymentMode === 'deposit' ? deposit : null,
+      channel,
+    };
+    createOrder.mutate({ data }, {
+      onSuccess: (order) => { setFeedback(null); setCreated(order); },
+      onError: (error) => setFeedback(getErrorMessage(error, 'The buyer link could not be created. Check your connection and try again.')),
+    });
+  };
+  const resolveItems = (index: number, productIds: number[] = []) => {
+    const item = items[index];
+    if (!item) {
+      createLink(productIds);
+      return;
+    }
+    if (item.productId) {
+      resolveItems(index + 1, [...productIds, item.productId]);
+      return;
+    }
+    const data: ProductInput = { name: item.name, category: 'Custom order', price: item.amount, cost: null, stock: 0, variants: [], accent: item.accent };
+    createProduct.mutate({ data }, {
+      onSuccess: (product) => {
+        queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+        resolveItems(index + 1, [...productIds, product.id]);
+      },
+      onError: (error) => setFeedback(getErrorMessage(error, `Could not save “${item.name}”. Try again.`)),
+    });
+  };
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    setFeedback(null);
+    if (step === 1 && !canContinue) {
+      setFeedback(items.length ? 'Every item needs a price greater than $0.00.' : 'Add at least one item to continue.');
+      return;
+    }
+    if (step === 2 && !validDeposit) {
+      setFeedback('The deposit must be greater than $0.00 and no more than the order total.');
+      return;
+    }
+    if (step < 3) {
+      setStep((current) => (current + 1) as TakeOrderStep);
+      return;
+    }
+    resolveItems(0);
+  };
+  const link = created ? `${window.location.origin}/o/${created.token}` : '';
+  const copy = async () => {
+    setCopyError(false);
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopyError(true);
+    }
+  };
+  const reset = () => {
+    setCreated(null);
+    setCopied(false);
+    setCopyError(false);
+    setFeedback(null);
+    setStep(1);
+    setItems([]);
+    setNextKey(1);
+    setCatalogChoice('');
+    setCustomDraft({ name: '', amount: '' });
+    setPaymentMode('full');
+    setDepositAmount('');
+    setChannel('whatsapp');
+  };
+
+  if (created) {
+    return <Shell><div className="take-order-success page-in">
+      <div className="take-order-success-mark"><Check size={28} /></div>
+      <div className="take-order-kicker">Link is ready</div>
+      <h1>Send it their way.</h1>
+      <p>Your buyer page is live with {items.length} item{items.length === 1 ? '' : 's'} and a combined total of <strong>{moneyExact(total)}</strong>.</p>
+      <Card className="take-order-link-card">
+        <div className="take-order-section-eyebrow">Buyer link</div>
+        <div className="take-order-link-row"><Link2 size={16} aria-hidden="true" /><span>{link}</span><Button onClick={copy} variant="soft" data-testid="button-copy-created-link">{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? 'Copied' : 'Copy link'}</Button></div>
+        {copyError && <p className="take-order-copy-error" role="status">Copying is unavailable here. Select and copy the link manually.</p>}
+      </Card>
+      <div className="take-order-success-actions"><Link href={`/o/${created.token}`} data-testid="link-preview-created-order"><Button variant="outline"><ExternalLink size={15} />Preview buyer page</Button></Link><Button onClick={reset} variant="ghost">Create another</Button></div>
+    </div></Shell>;
+  }
+
+  return <Shell>
+    <div className="take-order-page">
+      <div className="take-order-heading">
+        <div>
+          <div className="take-order-kicker">A buyer link in a minute</div>
+          <h1>Take an order.</h1>
+          <p>Turn the agreement you already made into a clear checkout link. No payment connection or chat access needed.</p>
+        </div>
+        <div className="take-order-trust"><CheckCircle2 size={15} />Private by default</div>
+      </div>
+      <TakeOrderStepRail step={step} onStepChange={setStep} />
+      <div className="take-order-layout">
+        <Card className="take-order-builder-card">
+          <form onSubmit={submit}>
+            {step === 1 && <TakeOrderSection eyebrow="Step 01 · Items" title="What are they buying?" description="Add the products you agreed on. You can mix catalog items with quick custom items from the conversation.">
+              <div className="take-order-add-options">
+                <div className="take-order-add-panel">
+                  <div className="take-order-panel-icon"><Boxes size={18} /></div>
+                  <div className="take-order-panel-copy"><h3>From your catalog</h3><p>Use saved pricing and variants.</p></div>
+                  <div className="take-order-panel-control">
+                    {productsQuery.isLoading ? <Skeleton className="h-11 w-full" /> : productsQuery.isError ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div> : <div className="take-order-add-control"><select data-testid="select-order-product" value={catalogChoice} onChange={(event) => setCatalogChoice(event.target.value)} className="field-input"><option value="">Choose an item</option>{(productsQuery.data ?? []).map((product) => <option key={product.id} value={product.id}>{product.name} · {moneyExact(product.price)}</option>)}</select><Button type="button" variant="outline" disabled={!catalogChoice} onClick={addCatalogItem}><Plus size={15} />Add item</Button></div>}
+                    {!productsQuery.isLoading && !productsQuery.isError && productsQuery.data?.length === 0 && <p className="take-order-help">No catalog items yet. Add a custom item below or create one in Catalog first.</p>}
+                  </div>
+                </div>
+                <div className="take-order-add-panel is-custom">
+                  <div className="take-order-panel-icon"><Sparkles size={18} /></div>
+                  <div className="take-order-panel-copy"><h3>Quick item from chat</h3><p>Save the name and price without leaving this flow.</p></div>
+                  <div className="take-order-panel-control">
+                    <div className="take-order-custom-control"><input data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Item name" className="field-input" /><div className="relative"><span className="take-order-currency">$</span><input data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" className="field-input pl-7" /></div><Button type="button" variant="outline" disabled={!customDraft.name.trim() || !customDraft.amount} onClick={addCustomItem}><Plus size={15} />Add</Button></div>
+                  </div>
+                </div>
+              </div>
+              <div className="take-order-items-heading"><div><div className="take-order-section-eyebrow">This order</div><h3>{items.length ? `${items.length} item${items.length === 1 ? '' : 's'} added` : 'Nothing added yet'}</h3></div>{items.length > 0 && <span className="take-order-total-chip">{moneyExact(total)}</span>}</div>
+              <div className="take-order-item-list">
+                {items.length ? items.map((item, index) => <div key={item.key} className="take-order-item-row">
+                  <div className="take-order-item-number">{String(index + 1).padStart(2, '0')}</div>
+                  <div className="take-order-item-mark" style={{ color: item.accent }}><Package size={17} /></div>
+                  <div className="take-order-item-copy"><strong>{item.name}</strong><span>{item.source === 'custom' ? 'Quick item' : item.variants.length ? `${item.variants.length} variant${item.variants.length === 1 ? '' : 's'} · Catalog` : 'Catalog item'}</span></div>
+                  <div className="take-order-item-price"><span className="take-order-currency">$</span><input aria-label={`Price for ${item.name}`} type="number" min="0" step=".01" value={item.amount} onChange={(event) => updateAmount(item.key, event.target.value)} className="field-input" /></div>
+                  <button type="button" aria-label={`Remove ${item.name}`} onClick={() => setItems((current) => current.filter((candidate) => candidate.key !== item.key))} className="take-order-remove"><Trash2 size={15} /></button>
+                </div>) : <div className="take-order-empty-items"><PackageSearch size={22} /><strong>Your order starts here</strong><span>Add a catalog or quick item above.</span></div>}
+              </div>
+            </TakeOrderSection>}
+            {step === 2 && <TakeOrderSection eyebrow="Step 02 · Terms" title="Set the checkout terms." description="Choose how the buyer should complete this order and where the conversation started.">
+              <div className="take-order-order-summary"><div><span>Order total</span><strong>{moneyExact(total)}</strong></div><div><span>{items.length} item{items.length === 1 ? '' : 's'}</span><button type="button" onClick={() => setStep(1)}>Edit items</button></div></div>
+              <div className="take-order-field-group"><div className="field-label">How should they pay?</div><div className="take-order-payment-options">{[['full', 'Pay in full', 'Collect the full total now'], ['deposit', 'Pay a deposit', 'Secure the order with part-payment'], ['reserve', 'Reserve it', 'Confirm the details first']].map(([value, title, note]) => <button type="button" key={value} onClick={() => { setPaymentMode(value as 'full' | 'deposit' | 'reserve'); setFeedback(null); }} data-testid={`button-payment-mode-${value}`} className={cn('take-order-payment-option', paymentMode === value && 'is-selected')}><span className="take-order-radio">{paymentMode === value && <span />}</span><span><strong>{title}</strong><small>{note}</small></span></button>)}</div></div>
+              {paymentMode === 'deposit' && <div className="take-order-deposit-field"><label className="field-label" htmlFor="input-order-deposit">Deposit amount <span>of {moneyExact(total)}</span></label><div className="relative max-w-[260px]"><span className="take-order-currency">$</span><input id="input-order-deposit" data-testid="input-order-deposit" required type="number" min="0.01" max={total} step=".01" value={depositAmount} onChange={(event) => { setDepositAmount(event.target.value); setFeedback(null); }} className={cn('field-input pl-7', depositAmount && !validDeposit && 'is-invalid')} placeholder="0.00" /></div>{depositAmount && !validDeposit && <p className="take-order-field-error">Use an amount between $0.01 and {moneyExact(total)}.</p>}</div>}
+              <div className="take-order-field-group"><div className="field-label">Conversation started on</div><ChannelPicker value={channel} onChange={setChannel} testId="select-order-channel" /></div>
+            </TakeOrderSection>}
+            {step === 3 && <TakeOrderSection eyebrow="Step 03 · Review" title="Everything looks right?" description="This is what the buyer will receive. You can still go back and adjust any item or term.">
+              <div className="take-order-review-list">{items.map((item, index) => <div className="take-order-review-row" key={item.key}><span>{String(index + 1).padStart(2, '0')}</span><strong>{item.name}</strong><b>{moneyExact(item.amount)}</b></div>)}</div>
+              <div className="take-order-review-total"><span>Total to buyer</span><strong>{moneyExact(total)}</strong></div>
+              <div className="take-order-review-details"><div><span>Payment</span><strong>{paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'full' ? 'Pay in full' : 'Reserve for later'}</strong></div><div><span>Conversation</span><strong><ChannelInline value={channel} /></strong></div></div>
+              <div className="take-order-review-note"><CheckCircle2 size={17} /><div><strong>Buyer details stay with the order.</strong><span>They can add their name, phone number, notes, and an optional reference image on the next page.</span></div></div>
+            </TakeOrderSection>}
+            <TakeOrderFeedback message={feedback} />
+            <div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div>
+          </form>
+        </Card>
+        <aside className="take-order-preview-column">
+          <div className="take-order-preview-heading"><div><div className="take-order-section-eyebrow">Live preview</div><h2>What your buyer sees</h2></div><Eye size={17} aria-hidden="true" /></div>
+          <div className="take-order-preview-frame"><BuyerOrderSurface businessName={seller?.businessName || 'The Sunday Edit'} description={seller?.description} items={previewItems} paymentMode={paymentMode} depositAmount={paymentMode === 'deposit' ? deposit : null}>{(activeItem) => <div className="space-y-5"><div><label className="field-label">Your name</label><input disabled placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input disabled placeholder="Best number to reach you" className="field-input" /></div>{activeItem.variants.length > 0 && <div><label className="field-label">Available variants</label><div className="flex flex-wrap gap-2">{activeItem.variants.map((variant) => <span key={variant} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{variant}</span>)}</div></div>}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea disabled placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div><div><label className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="flex items-center gap-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] p-3 text-xs text-[hsl(var(--muted-foreground))]"><Clipboard size={15} />Attach an image</div></div>{paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] p-3 text-left text-xs font-bold text-white">{paymentMode === 'deposit' ? `Pay deposit · ${depositAmount ? moneyExact(deposit) : '—'}` : `Pay ${moneyExact(total)}`}</div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 text-left text-xs font-bold">Reserve for later</div></div>}<button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-70">{paymentMode === 'reserve' ? 'Reserve these items' : 'Continue to mock payment'} <ArrowUpRight size={15} /></button></div>}</BuyerOrderSurface></div>
+          <div className="take-order-preview-note"><Eye size={15} /><span>Preview updates as you build. The buyer link will open the full page.</span></div>
+        </aside>
+      </div>
+    </div>
+  </Shell>;
+}
+
 function MultiItemTakeOrder() {
   const productsQuery = useListProducts();
   const createOrder = useCreateOrder();
@@ -1720,7 +1980,7 @@ export function Connect() {
 }
 function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3 5 6v5c0 4.5 3 8.2 7 10 4-1.8 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>; }
 
-function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports/channel-conversion" component={ChannelConversionInsight} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrder} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
+function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports/channel-conversion" component={ChannelConversionInsight} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrderModern} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
 function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
 export default App;
 
