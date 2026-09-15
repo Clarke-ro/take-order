@@ -450,7 +450,7 @@ function Overview() {
   const stateTrend = (isPositive: boolean): MetricTrend => ({ direction: isPositive ? 'up' : 'down', percentage: isPositive ? 100 : 0 });
   const primaryStatCards = [
     { label: 'Sales', value: ordersQuery.isLoading ? '—' : orders.length, trend: salesTrend, note: `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` },
-      { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: 'Total profit made' },
+      { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: `Total profit made: ${money(summary?.profit)}` },
       { label: 'Views', value: ordersQuery.isLoading ? '—' : namedClients, trend: stateTrend(namedClients > 0), note: 'Total views received' },
     { label: 'Active users', value: totalOpens, trend: stateTrend(totalOpens > 0), note: 'People viewing your links' },
   ] as const;
