@@ -401,10 +401,11 @@ test("keeps four social channel marks beside the metric value on narrow cards", 
   const stackMarkup = renderToStaticMarkup(createElement(SocialChannelStack, {
     channels: ["WhatsApp", "Instagram", "TikTok", "Snapchat"],
   }));
-  const fixture = `<!doctype html>
-    <html><head><style>${styles}
+  const createFixture = (rootClass = "") => `<!doctype html>
+    <html class="${rootClass}"><head><style>${styles}
       *, *::before, *::after { box-sizing: border-box; }
       html, body { margin: 0; min-width: 0; }
+      html.enlarged-text { font-size: 200%; }
       body { padding: .5rem; }
       .metric-fixture { width: 164px; }
       .metric-fixture .app-card { padding: .8rem 1rem; }
@@ -413,28 +414,34 @@ test("keeps four social channel marks beside the metric value on narrow cards", 
         <div class="app-card overview-secondary-card" data-testid="metric-card">
           <div class="metric-value-row metric-value">
             ${stackMarkup}
-            <span class="metric-value-content" data-testid="metric-value">—</span>
+            <span class="metric-value-content" data-testid="metric-value">12</span>
           </div>
         </div>
       </div>
     </body></html>`;
 
-  const result = await inspectResponsiveMarkup(fixture, { width: 320, height: 240 });
-  const geometry = result.inspection as {
-    card: { left: number; right: number; width: number };
-    stack: { left: number; right: number; width: number };
-    value: { left: number; right: number; width: number };
-    marks: Array<{ left: number; right: number; width: number }>;
-  };
-  assert.ok(geometry.card && geometry.stack && geometry.value);
-  assert.equal(geometry.marks.length, 4);
-  assert.ok(geometry.marks[1]!.left < geometry.marks[0]!.right, "Channel marks should overlap horizontally");
-  assert.ok(geometry.stack.right <= geometry.value.left, `Icon stack should not cover the metric value: ${JSON.stringify(geometry)}`);
-  assert.ok(geometry.value.right <= geometry.card.right, `Metric value should remain inside the card: ${JSON.stringify(geometry)}`);
-  assert.ok(geometry.value.width > 0, "Metric value should retain visible width");
+  const results = [
+    ["default text", await inspectResponsiveMarkup(createFixture(), { width: 320, height: 240 })],
+    ["enlarged text", await inspectResponsiveMarkup(createFixture("enlarged-text"), { width: 320, height: 240 })],
+  ] as const;
 
-  const stack = result.tree.find((node) => node.name?.value === "Active social channels: WhatsApp, Instagram, TikTok, Snapchat");
-  assert.equal(stack?.name?.value, "Active social channels: WhatsApp, Instagram, TikTok, Snapchat");
+  for (const [textSize, result] of results) {
+    const geometry = result.inspection as {
+      card: { left: number; right: number; width: number };
+      stack: { left: number; right: number; width: number };
+      value: { left: number; right: number; width: number };
+      marks: Array<{ left: number; right: number; width: number }>;
+    };
+    assert.ok(geometry.card && geometry.stack && geometry.value);
+    assert.equal(geometry.marks.length, 4);
+    assert.ok(geometry.marks[1]!.left < geometry.marks[0]!.right, `${textSize}: channel marks should overlap horizontally`);
+    assert.ok(geometry.stack.right <= geometry.value.left, `${textSize}: icon stack should not cover the metric value: ${JSON.stringify(geometry)}`);
+    assert.ok(geometry.value.right <= geometry.card.right, `${textSize}: metric value should remain inside the card: ${JSON.stringify(geometry)}`);
+    assert.ok(geometry.value.width > 0, `${textSize}: metric value should retain visible width`);
+
+    const stack = result.tree.find((node) => node.name?.value === "Active social channels: WhatsApp, Instagram, TikTok, Snapchat");
+    assert.equal(stack?.name?.value, "Active social channels: WhatsApp, Instagram, TikTok, Snapchat", `${textSize}: social channel stack should remain accessible`);
+  }
 });
 
 test("keeps channel conversion details readable and keyboard reachable on narrow screens", async () => {
