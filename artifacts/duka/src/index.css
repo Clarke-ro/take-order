@@ -79,7 +79,7 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  --background: 0 0% 100%;
+  --background: 220 20% 97%;
   --foreground: 0 0% 0%;
   --border: 220 18% 88%;
   --card: 0 0% 100%;
@@ -289,6 +289,7 @@
 .dark { color-scheme: dark; }
 html, body, #root { min-height: 100%; }
 body { background: hsl(var(--background)); font-family: var(--app-font-sans); font-size: 1rem; font-style: normal; font-weight: 400; line-height: 1.55; letter-spacing: 0; opacity: 1; }
+.app-card { border: 1px solid hsl(var(--card-border)); border-radius: 22px; background: hsl(var(--card)); box-shadow: 0 1px 2px rgba(15, 23, 42, .03), 0 10px 28px rgba(15, 23, 42, .045); }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 .duka-shell, #root { color: hsl(var(--foreground)); font-style: normal; opacity: 1; }
