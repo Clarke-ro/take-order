@@ -6,7 +6,7 @@ Duka helps small multi-channel sellers manage products, share buyer order links,
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
+- `pnpm run build` — typecheck + production build all packages, including the Duka artifact with its release environment
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
@@ -51,6 +51,7 @@ The visual direction should stay calm, confident, and useful for a solo seller w
 
 - After changing `lib/api-spec/openapi.yaml`, run `pnpm --filter @workspace/api-spec run codegen`.
 - Use the shared API server workflow for `/api`; the Duka web app uses the root preview path.
+- Run `pnpm run build` before release to catch Duka production bundling failures.
 
 ## Pointers
 
