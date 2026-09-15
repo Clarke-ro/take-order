@@ -163,7 +163,7 @@ test("GET /dashboard/summary adapts seeded database records into the response co
         linkOpens: 4,
         shares: 9,
         likes: 14,
-        engagementSource: "manual_import",
+        engagementSource: "connected_account",
         referenceImage: null,
         buyerDetails: null,
       },
@@ -247,7 +247,7 @@ test("GET /dashboard/summary scopes engagement totals to a custom range", async 
           linkOpens: 0,
           shares: 7,
           likes: null,
-          engagementSource: "manual_import",
+          engagementSource: "connected_account",
           referenceImage: null,
           buyerDetails: null,
         },
@@ -333,81 +333,6 @@ test("GET /dashboard/summary identifies a legacy sale with no captured cost", as
   assert.equal(summary.legacyRevenue, 100);
   assert.equal(summary.estimatedProductCosts, 20);
   assert.equal(summary.productPerformance[0]?.marginStatus, "estimated");
-});
-
-test("manual engagement import updates dashboard totals without turning unavailable data into zero", async () => {
-  await withDatabaseTransaction(async (database, baseUrl) => {
-    const [product] = await database
-      .insert(productsTable)
-      .values({
-        name: "Engagement import fixture",
-        category: "Test",
-        price: "40.00",
-        cost: "10.00",
-        stock: 4,
-        variants: [],
-        accent: "#0F6E6B",
-      })
-      .returning();
-
-    const created = await requestJson(baseUrl, "/api/orders", {
-      method: "POST",
-      body: JSON.stringify({
-        productId: product.id,
-        amount: 40,
-        paymentMode: "full",
-        channel: "instagram",
-      }),
-    });
-    assert.equal(created.status, 201);
-    assert.equal(created.body.engagementSource, null);
-
-    const imported = await requestJson(
-      baseUrl,
-      `/api/orders/${created.body.id}/engagement`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ shares: 0, likes: null }),
-      },
-    );
-    assert.equal(imported.status, 200);
-    assert.equal(imported.body.shares, 0);
-    assert.equal(imported.body.likes, null);
-    assert.equal(imported.body.engagementSource, "manual_import");
-
-    const summary = await requestJson(baseUrl, "/api/dashboard/summary");
-    assert.equal(summary.status, 200);
-    assert.equal(summary.body.shares, 0);
-    assert.equal(summary.body.likes, null);
-
-    const invalid = await requestJson(
-      baseUrl,
-      `/api/orders/${created.body.id}/engagement`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ shares: -1, likes: 2 }),
-      },
-    );
-    assert.equal(invalid.status, 400);
-
-    const cleared = await requestJson(
-      baseUrl,
-      `/api/orders/${created.body.id}/engagement`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ shares: null, likes: null }),
-      },
-    );
-    assert.equal(cleared.status, 200);
-    assert.equal(cleared.body.shares, null);
-    assert.equal(cleared.body.likes, null);
-    assert.equal(cleared.body.engagementSource, null);
-
-    const clearedSummary = await requestJson(baseUrl, "/api/dashboard/summary");
-    assert.equal(clearedSummary.status, 200);
-    assert.equal(clearedSummary.body.shares, null);
-    assert.equal(clearedSummary.body.likes, null);
-  });
 });
 
 test("buyer deposit checkout and seller payment preserve the original product cost", async () => {

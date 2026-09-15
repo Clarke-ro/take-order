@@ -18,6 +18,7 @@ export type AnalyticsOrder = {
   linkOpens: number;
   shares?: number | null;
   likes?: number | null;
+  engagementSource?: string | null;
 };
 
 export type AnalyticsExpense = {
@@ -124,6 +125,7 @@ function totalRecordedEngagement(
   key: "shares" | "likes",
 ): number | null {
   const values = orders
+    .filter((order) => order.engagementSource === "connected_account")
     .map((order) => order[key])
     .filter((value): value is number => value != null && Number.isFinite(Number(value)));
   return values.length ? values.reduce((total, value) => total + Number(value), 0) : null;

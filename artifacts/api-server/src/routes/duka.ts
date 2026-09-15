@@ -28,9 +28,6 @@ import {
   SubmitPublicOrderBody,
   SubmitPublicOrderParams,
   SubmitPublicOrderResponse,
-  UpdateOrderEngagementBody,
-  UpdateOrderEngagementResponse,
-  UpdateOrderEngagementParams,
   UpdateOrderBody,
   UpdateOrderParams,
   UpdateOrderResponse,
@@ -510,36 +507,6 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
   if (stockDelta) await adjustOrderStock(existing, stockDelta);
   const items = await sellerItemsForOrder(order);
   res.json(UpdateOrderResponse.parse(orderResponse(order, items)));
-});
-
-router.patch("/orders/:id/engagement", async (req, res): Promise<void> => {
-  const params = UpdateOrderEngagementParams.safeParse(req.params);
-  const parsed = UpdateOrderEngagementBody.safeParse(req.body);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [order] = await database
-    .update(ordersTable)
-    .set({
-      shares: parsed.data.shares,
-      likes: parsed.data.likes,
-      engagementSource: parsed.data.shares == null && parsed.data.likes == null
-        ? null
-        : "manual_import",
-    })
-    .where(eq(ordersTable.id, params.data.id))
-    .returning();
-  if (!order) {
-    res.status(404).json({ error: "Order not found" });
-    return;
-  }
-  const items = await sellerItemsForOrder(order);
-  res.json(UpdateOrderEngagementResponse.parse(orderResponse(order, items)));
 });
 
 router.get("/public/orders/:token", async (req, res): Promise<void> => {

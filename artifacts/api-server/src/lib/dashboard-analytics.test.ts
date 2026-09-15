@@ -171,6 +171,7 @@ test("scopes recorded engagement to custom ranges and preserves unavailable tota
         amount: 100,
         shares: 7,
         likes: null,
+        engagementSource: "connected_account",
         createdAt: new Date("2026-09-13T12:00:00.000Z"),
       }),
       order({
@@ -179,6 +180,7 @@ test("scopes recorded engagement to custom ranges and preserves unavailable tota
         amount: 50,
         shares: null,
         likes: 0,
+        engagementSource: "connected_account",
         createdAt: new Date("2026-09-12T12:00:00.000Z"),
       }),
       order({
@@ -187,6 +189,7 @@ test("scopes recorded engagement to custom ranges and preserves unavailable tota
         amount: 100,
         shares: 100,
         likes: 200,
+        engagementSource: "manual_import",
         createdAt: new Date("2026-08-31T12:00:00.000Z"),
       }),
     ],
@@ -206,6 +209,27 @@ test("scopes recorded engagement to custom ranges and preserves unavailable tota
   );
   assert.equal(unavailable.shares, null);
   assert.equal(unavailable.likes, null);
+});
+
+test("ignores legacy manual engagement records", () => {
+  const summary = calculateDashboardSummary(
+    products,
+    [
+      order({
+        productId: 1,
+        status: "paid",
+        amount: 100,
+        shares: 12,
+        likes: 8,
+        engagementSource: "manual_import",
+      }),
+    ],
+    [],
+    now,
+  );
+
+  assert.equal(summary.shares, null);
+  assert.equal(summary.likes, null);
 });
 
 test("keeps a seven-day trend aligned with revenue, costs, and expenses by date", () => {

@@ -14,5 +14,5 @@ export type OrderEngagementSource = typeof OrderEngagementSource[keyof typeof Or
 
 
 export const OrderEngagementSource = {
-  manual_import: 'manual_import',
+  connected_account: 'connected_account',
 } as const;

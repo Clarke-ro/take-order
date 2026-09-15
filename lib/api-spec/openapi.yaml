@@ -156,30 +156,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Order"
-  /orders/{id}/engagement:
-    patch:
-      operationId: updateOrderEngagement
-      tags: [orders]
-      summary: Import social engagement for an order
-      description: >
-        Records counts observed from a seller's supported social channel. Use
-        null for a metric that is unavailable; unavailable values remain
-        distinct from a recorded zero.
-      parameters:
-        - $ref: "#/components/parameters/IdParam"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/OrderEngagementUpdate"
-      responses:
-        "200":
-          description: Updated order with imported engagement
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Order"
   /public/orders/{token}:
     get:
       operationId: getPublicOrder
@@ -382,7 +358,7 @@ components:
         linkOpens: { type: integer }
         shares: { type: ["integer", "null"], description: Recorded shares for this order when provided by a connected social source. }
         likes: { type: ["integer", "null"], description: Recorded likes for this order when provided by a connected social source. }
-        engagementSource: { type: ["string", "null"], enum: [manual_import, null], description: Source used for the recorded engagement values. Null means no engagement has been recorded. }
+        engagementSource: { type: ["string", "null"], enum: [connected_account, null], description: Source used for the recorded engagement values. Null means no engagement has been recorded. }
         referenceImage: { type: ["string", "null"] }
         buyerDetails: { type: ["string", "null"] }
         items:
@@ -421,12 +397,6 @@ components:
       properties:
         status: { type: string, enum: [reserved, deposit_paid, paid] }
         fulfillment: { type: string, enum: [pending, shipped, delivered] }
-    OrderEngagementUpdate:
-      type: object
-      required: [shares, likes]
-      properties:
-        shares: { type: ["integer", "null"], minimum: 0, description: Manually imported share count, or null when unavailable. }
-        likes: { type: ["integer", "null"], minimum: 0, description: Manually imported like count, or null when unavailable. }
     PublicOrder:
       type: object
       required: [token, productName, amount, paymentMode, status, variants, items]

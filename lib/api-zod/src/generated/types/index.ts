@@ -19,7 +19,6 @@ export * from './getDashboardSummaryParams';
 export * from './healthStatus';
 export * from './order';
 export * from './orderEngagementSource';
-export * from './orderEngagementUpdate';
 export * from './orderFulfillment';
 export * from './orderInput';
 export * from './orderInputChannel';

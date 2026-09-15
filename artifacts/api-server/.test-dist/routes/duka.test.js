@@ -11442,6 +11442,9 @@ var ordersTable = pgTable2("orders", {
   fulfillment: text2("fulfillment").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   linkOpens: integer3("link_opens").notNull().default(0),
+  shares: integer3("shares"),
+  likes: integer3("likes"),
+  engagementSource: text2("engagement_source"),
   referenceImage: text2("reference_image"),
   buyerDetails: text2("buyer_details")
 });
@@ -15452,6 +15455,9 @@ var ListOrdersResponseItem = objectType({
   "fulfillment": enumType(["pending", "shipped", "delivered"]),
   "createdAt": stringType(),
   "linkOpens": numberType().int(),
+  "shares": numberType().int().nullable().describe("Recorded shares for this order when provided by a connected social source."),
+  "likes": numberType().int().nullable().describe("Recorded likes for this order when provided by a connected social source."),
+  "engagementSource": unionType([literalType("connected_account"), literalType(null)]).nullable().describe("Source used for the recorded engagement values. Null means no engagement has been recorded."),
   "referenceImage": stringType().nullish(),
   "buyerDetails": stringType().nullish(),
   "items": arrayType(objectType({
@@ -15491,6 +15497,9 @@ var CreateOrderResponse = objectType({
   "fulfillment": enumType(["pending", "shipped", "delivered"]),
   "createdAt": stringType(),
   "linkOpens": numberType().int(),
+  "shares": numberType().int().nullable().describe("Recorded shares for this order when provided by a connected social source."),
+  "likes": numberType().int().nullable().describe("Recorded likes for this order when provided by a connected social source."),
+  "engagementSource": unionType([literalType("connected_account"), literalType(null)]).nullable().describe("Source used for the recorded engagement values. Null means no engagement has been recorded."),
   "referenceImage": stringType().nullish(),
   "buyerDetails": stringType().nullish(),
   "items": arrayType(objectType({
@@ -15518,6 +15527,9 @@ var GetOrderResponse = objectType({
   "fulfillment": enumType(["pending", "shipped", "delivered"]),
   "createdAt": stringType(),
   "linkOpens": numberType().int(),
+  "shares": numberType().int().nullable().describe("Recorded shares for this order when provided by a connected social source."),
+  "likes": numberType().int().nullable().describe("Recorded likes for this order when provided by a connected social source."),
+  "engagementSource": unionType([literalType("connected_account"), literalType(null)]).nullable().describe("Source used for the recorded engagement values. Null means no engagement has been recorded."),
   "referenceImage": stringType().nullish(),
   "buyerDetails": stringType().nullish(),
   "items": arrayType(objectType({
@@ -15549,6 +15561,9 @@ var UpdateOrderResponse = objectType({
   "fulfillment": enumType(["pending", "shipped", "delivered"]),
   "createdAt": stringType(),
   "linkOpens": numberType().int(),
+  "shares": numberType().int().nullable().describe("Recorded shares for this order when provided by a connected social source."),
+  "likes": numberType().int().nullable().describe("Recorded likes for this order when provided by a connected social source."),
+  "engagementSource": unionType([literalType("connected_account"), literalType(null)]).nullable().describe("Source used for the recorded engagement values. Null means no engagement has been recorded."),
   "referenceImage": stringType().nullish(),
   "buyerDetails": stringType().nullish(),
   "items": arrayType(objectType({
@@ -15602,6 +15617,9 @@ var SubmitPublicOrderResponse = objectType({
   "fulfillment": enumType(["pending", "shipped", "delivered"]),
   "createdAt": stringType(),
   "linkOpens": numberType().int(),
+  "shares": numberType().int().nullable().describe("Recorded shares for this order when provided by a connected social source."),
+  "likes": numberType().int().nullable().describe("Recorded likes for this order when provided by a connected social source."),
+  "engagementSource": unionType([literalType("connected_account"), literalType(null)]).nullable().describe("Source used for the recorded engagement values. Null means no engagement has been recorded."),
   "referenceImage": stringType().nullish(),
   "buyerDetails": stringType().nullish(),
   "items": arrayType(objectType({
@@ -15609,6 +15627,10 @@ var SubmitPublicOrderResponse = objectType({
     "productName": stringType(),
     "amount": numberType()
   }))
+});
+var GetDashboardSummaryQueryParams = objectType({
+  "from": dateType().optional().describe("Inclusive start date for the reporting window."),
+  "to": dateType().optional().describe("Inclusive end date for the reporting window.")
 });
 var GetDashboardSummaryResponse = objectType({
   "revenue": numberType(),
@@ -15624,6 +15646,8 @@ var GetDashboardSummaryResponse = objectType({
   "legacyRevenue": numberType().describe("Revenue from paid orders without a captured sale-time product cost."),
   "outstanding": numberType(),
   "bestSeller": stringType(),
+  "shares": numberType().int().nullable().describe("Total recorded shares in the reporting window"),
+  "likes": numberType().int().nullable().describe("Total recorded likes in the reporting window"),
   "channelPerformance": arrayType(objectType({
     "channel": stringType(),
     "revenue": numberType(),
@@ -15749,9 +15773,20 @@ var productCost = (product) => product?.cost == null ? 0 : Number(product.cost);
 var orderProductCost = (order, product) => order.productCost == null ? productCost(product) : Number(order.productCost);
 var orderHasLegacyCost = (order) => order.productCost == null;
 var orderHasTrackedCost = (order) => order.productCost != null;
-function calculateDashboardSummary(products, orders, operatingExpenseRows, now = /* @__PURE__ */ new Date()) {
+function totalRecordedEngagement(orders, key) {
+  const values = orders.filter((order) => order.engagementSource === "connected_account").map((order) => order[key]).filter((value) => value != null && Number.isFinite(Number(value)));
+  return values.length ? values.reduce((total, value) => total + Number(value), 0) : null;
+}
+function calculateDashboardSummary(products, orders, operatingExpenseRows, now = /* @__PURE__ */ new Date(), range) {
   const productMap = new Map(products.map((product) => [product.id, product]));
-  const paidOrders = orders.filter(isPaidOrder);
+  const orderIsInRange = (order) => {
+    const date6 = order.createdAt.toISOString().slice(0, 10);
+    return (!range?.from || date6 >= range.from) && (!range?.to || date6 <= range.to);
+  };
+  const expenseIsInRange = (expense) => (!range?.from || expense.expenseDate >= range.from) && (!range?.to || expense.expenseDate <= range.to);
+  const scopedOrders = orders.filter(orderIsInRange);
+  const scopedExpenseRows = operatingExpenseRows.filter(expenseIsInRange);
+  const paidOrders = scopedOrders.filter(isPaidOrder);
   const revenue = paidOrders.reduce((sum, order) => sum + orderRevenue(order), 0);
   const legacyOrders = paidOrders.filter(orderHasLegacyCost);
   const snapshotOrders = paidOrders.length - legacyOrders.length;
@@ -15767,13 +15802,13 @@ function calculateDashboardSummary(products, orders, operatingExpenseRows, now =
     (sum, order) => sum + orderProductCost(order, productMap.get(order.productId)),
     0
   );
-  const operatingExpenses = operatingExpenseRows.reduce(
+  const operatingExpenses = scopedExpenseRows.reduce(
     (sum, expense) => sum + Number(expense.amount),
     0
   );
   const expenses = productCosts + operatingExpenses;
   const profit = revenue - expenses;
-  const outstanding = orders.filter((order) => order.status === "deposit_paid").reduce(
+  const outstanding = scopedOrders.filter((order) => order.status === "deposit_paid").reduce(
     (sum, order) => sum + Math.max(0, Number(order.amount) - Number(order.depositAmount ?? 0)),
     0
   );
@@ -15787,7 +15822,7 @@ function calculateDashboardSummary(products, orders, operatingExpenseRows, now =
     { name: "No sales yet", count: 0 }
   ).name;
   const channelPerformance = Object.entries(channelLabels).map(([channel, label]) => {
-    const matching = orders.filter((order) => order.channel === channel);
+    const matching = scopedOrders.filter((order) => order.channel === channel);
     const paidMatching = matching.filter(isPaidOrder);
     const opens = matching.reduce((sum, order) => sum + order.linkOpens, 0);
     return {
@@ -15800,10 +15835,18 @@ function calculateDashboardSummary(products, orders, operatingExpenseRows, now =
     };
   }).filter((item) => item.orders > 0 || item.opens > 0);
   const today = new Date(now);
-  const dailyPerformance = Array.from({ length: 7 }, (_, index) => {
-    const day = new Date(today);
-    day.setHours(0, 0, 0, 0);
-    day.setDate(today.getDate() - (6 - index));
+  today.setUTCHours(0, 0, 0, 0);
+  const defaultStart = new Date(today);
+  defaultStart.setUTCDate(today.getUTCDate() - 6);
+  const rangeStart = range?.from ? /* @__PURE__ */ new Date(`${range.from}T00:00:00.000Z`) : defaultStart;
+  const rangeEnd = range?.to ? /* @__PURE__ */ new Date(`${range.to}T00:00:00.000Z`) : today;
+  const totalDays = Math.max(1, Math.floor((rangeEnd.getTime() - rangeStart.getTime()) / 864e5) + 1);
+  const dayCount = Math.min(totalDays, 366);
+  const dailyStart = new Date(rangeEnd);
+  dailyStart.setUTCDate(rangeEnd.getUTCDate() - (dayCount - 1));
+  const dailyPerformance = Array.from({ length: dayCount }, (_, index) => {
+    const day = new Date(dailyStart);
+    day.setUTCDate(dailyStart.getUTCDate() + index);
     const date6 = day.toISOString().slice(0, 10);
     const dayOrders = paidOrders.filter(
       (order) => order.createdAt.toISOString().slice(0, 10) === date6
@@ -15816,11 +15859,11 @@ function calculateDashboardSummary(products, orders, operatingExpenseRows, now =
       (sum, order) => sum + orderProductCost(order, productMap.get(order.productId)),
       0
     );
-    const dayOperatingExpenses = operatingExpenseRows.filter((expense) => expense.expenseDate === date6).reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const dayOperatingExpenses = scopedExpenseRows.filter((expense) => expense.expenseDate === date6).reduce((sum, expense) => sum + Number(expense.amount), 0);
     const dayExpenses = dayProductCosts + dayOperatingExpenses;
     return {
       date: date6,
-      label: day.toLocaleDateString("en-US", { weekday: "short" }),
+      label: dayCount <= 14 ? day.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }) : day.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
       revenue: dayRevenue,
       productCosts: dayProductCosts,
       operatingExpenses: dayOperatingExpenses,
@@ -15880,6 +15923,8 @@ function calculateDashboardSummary(products, orders, operatingExpenseRows, now =
     legacyRevenue,
     outstanding,
     bestSeller,
+    shares: totalRecordedEngagement(scopedOrders, "shares"),
+    likes: totalRecordedEngagement(scopedOrders, "likes"),
     channelPerformance,
     dailyPerformance,
     productPerformance,
@@ -16257,14 +16302,32 @@ function createDukaRouter(database) {
     if (nextStatus === "paid" && existing.status !== "paid") await adjustOrderStock(existing, -1);
     res.json(SubmitPublicOrderResponse.parse(orderResponse(order)));
   });
-  router2.get("/dashboard/summary", async (_req, res) => {
+  router2.get("/dashboard/summary", async (req, res) => {
+    const parseDateQuery = (value) => {
+      if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return void 0;
+      const parsed = /* @__PURE__ */ new Date(`${value}T00:00:00.000Z`);
+      return Number.isNaN(parsed.getTime()) ? void 0 : value;
+    };
+    const rawFrom = req.query.from;
+    const rawTo = req.query.to;
+    const from = parseDateQuery(rawFrom);
+    const to = parseDateQuery(rawTo);
+    if (rawFrom !== void 0 && from === void 0 || rawTo !== void 0 && to === void 0) {
+      res.status(400).json({ message: "Dashboard dates must use YYYY-MM-DD." });
+      return;
+    }
+    if (from && to && from > to) {
+      res.status(400).json({ message: "Dashboard start date must be before its end date." });
+      return;
+    }
+    const range = from || to ? { from, to } : void 0;
     const [products, orders, operatingExpenseRows] = await Promise.all([
       database.select().from(productsTable),
       database.select().from(ordersTable),
       database.select().from(expensesTable)
     ]);
     res.json(GetDashboardSummaryResponse.parse(
-      calculateDashboardSummary(products, orders, operatingExpenseRows)
+      calculateDashboardSummary(products, orders, operatingExpenseRows, /* @__PURE__ */ new Date(), range)
     ));
   });
   return router2;
@@ -16378,14 +16441,14 @@ async function requestJson(baseUrl, path, init) {
   });
   return { status: response.status, body: await response.json() };
 }
-async function requestSummary(seed) {
+async function requestSummary(seed, query = "") {
   const server = createServer(createApp(createSeededDatabase(seed)));
   await new Promise((resolve) => server.listen(0, resolve));
   try {
     const address = server.address();
     assert2(address && typeof address !== "string");
     const response = await fetch(
-      `http://127.0.0.1:${address.port}/api/dashboard/summary`
+      `http://127.0.0.1:${address.port}/api/dashboard/summary${query}`
     );
     return {
       status: response.status,
@@ -16412,6 +16475,8 @@ test("GET /dashboard/summary returns a schema-valid empty response", async () =>
   assert2.equal(summary.revenue, 0);
   assert2.equal(summary.orders, 0);
   assert2.equal(summary.bestSeller, "No sales yet");
+  assert2.equal(summary.shares, null);
+  assert2.equal(summary.likes, null);
   assert2.deepEqual(summary.channelPerformance, []);
   assert2.deepEqual(summary.productPerformance, []);
   assert2.equal(summary.dailyPerformance.length, 7);
@@ -16447,6 +16512,9 @@ test("GET /dashboard/summary adapts seeded database records into the response co
         fulfillment: "pending",
         createdAt: /* @__PURE__ */ new Date(),
         linkOpens: 4,
+        shares: 9,
+        likes: 14,
+        engagementSource: "connected_account",
         referenceImage: null,
         buyerDetails: null
       }
@@ -16477,6 +16545,8 @@ test("GET /dashboard/summary adapts seeded database records into the response co
   assert2.equal(summary.legacyOrders, 0);
   assert2.equal(summary.legacyRevenue, 0);
   assert2.equal(summary.bestSeller, "Linen set");
+  assert2.equal(summary.shares, 9);
+  assert2.equal(summary.likes, 14);
   assert2.deepEqual(summary.productPerformance, [
     {
       name: "Linen set",
@@ -16491,6 +16561,76 @@ test("GET /dashboard/summary adapts seeded database records into the response co
       legacyOrders: 0
     }
   ]);
+});
+test("GET /dashboard/summary scopes engagement totals to a custom range", async () => {
+  const response = await requestSummary(
+    {
+      products: [
+        {
+          id: 1,
+          name: "Range test item",
+          category: "Test",
+          price: "100.00",
+          cost: null,
+          stock: 10,
+          variants: [],
+          accent: "#0F6E6B"
+        }
+      ],
+      orders: [
+        {
+          id: 1,
+          token: "in-range-order",
+          productId: 1,
+          productName: "Range test item",
+          customerName: "Ama",
+          customerPhone: null,
+          channel: "whatsapp",
+          amount: "100.00",
+          productCost: null,
+          depositAmount: null,
+          paymentMode: "full",
+          status: "paid",
+          fulfillment: "pending",
+          createdAt: /* @__PURE__ */ new Date("2026-09-13T12:00:00.000Z"),
+          linkOpens: 0,
+          shares: 7,
+          likes: null,
+          engagementSource: "connected_account",
+          referenceImage: null,
+          buyerDetails: null
+        },
+        {
+          id: 2,
+          token: "out-of-range-order",
+          productId: 1,
+          productName: "Range test item",
+          customerName: "Kojo",
+          customerPhone: null,
+          channel: "instagram",
+          amount: "100.00",
+          productCost: null,
+          depositAmount: null,
+          paymentMode: "full",
+          status: "paid",
+          fulfillment: "pending",
+          createdAt: /* @__PURE__ */ new Date("2026-08-31T12:00:00.000Z"),
+          linkOpens: 0,
+          shares: 100,
+          likes: 200,
+          engagementSource: "manual_import",
+          referenceImage: null,
+          buyerDetails: null
+        }
+      ],
+      expenses: []
+    },
+    "?from=2026-09-12&to=2026-09-13"
+  );
+  assert2.equal(response.status, 200);
+  const summary = GetDashboardSummaryResponse.parse(response.body);
+  assert2.equal(summary.shares, 7);
+  assert2.equal(summary.likes, null);
 });
 test("GET /dashboard/summary identifies a legacy sale with no captured cost", async () => {
   const response = await requestSummary({
@@ -16523,6 +16663,9 @@ test("GET /dashboard/summary identifies a legacy sale with no captured cost", as
         fulfillment: "pending",
         createdAt: /* @__PURE__ */ new Date(),
         linkOpens: 0,
+        shares: null,
+        likes: null,
+        engagementSource: null,
         referenceImage: null,
         buyerDetails: null
       }

@@ -90,7 +90,7 @@ export type OrderEngagementSource = typeof OrderEngagementSource[keyof typeof Or
 
 
 export const OrderEngagementSource = {
-  manual_import: 'manual_import',
+  connected_account: 'connected_account',
 } as const;
 
 export interface OrderLineItem {
@@ -202,21 +202,6 @@ export const OrderUpdateFulfillment = {
 export interface OrderUpdate {
   status?: OrderUpdateStatus;
   fulfillment?: OrderUpdateFulfillment;
-}
-
-export interface OrderEngagementUpdate {
-  /**
-     * Manually imported share count
-     * @minimum 0
-     * @nullable
-     */
-  shares: number | null;
-  /**
-     * Manually imported like count
-     * @minimum 0
-     * @nullable
-     */
-  likes: number | null;
 }
 
 export type PublicOrderPaymentMode = typeof PublicOrderPaymentMode[keyof typeof PublicOrderPaymentMode];

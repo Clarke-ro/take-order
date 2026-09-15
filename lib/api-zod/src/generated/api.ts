@@ -136,7 +136,7 @@ export const ListOrdersResponseItem = zod.object({
   "linkOpens": zod.number().int(),
   "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
   "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
-  "engagementSource": zod.union([zod.literal('manual_import'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
+  "engagementSource": zod.union([zod.literal('connected_account'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
   "items": zod.array(zod.object({
@@ -190,7 +190,7 @@ export const CreateOrderResponse = zod.object({
   "linkOpens": zod.number().int(),
   "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
   "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
-  "engagementSource": zod.union([zod.literal('manual_import'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
+  "engagementSource": zod.union([zod.literal('connected_account'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
   "items": zod.array(zod.object({
@@ -226,7 +226,7 @@ export const GetOrderResponse = zod.object({
   "linkOpens": zod.number().int(),
   "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
   "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
-  "engagementSource": zod.union([zod.literal('manual_import'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
+  "engagementSource": zod.union([zod.literal('connected_account'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
   "items": zod.array(zod.object({
@@ -267,55 +267,7 @@ export const UpdateOrderResponse = zod.object({
   "linkOpens": zod.number().int(),
   "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
   "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
-  "engagementSource": zod.union([zod.literal('manual_import'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
-  "referenceImage": zod.string().nullish(),
-  "buyerDetails": zod.string().nullish(),
-  "items": zod.array(zod.object({
-  "productId": zod.number().int(),
-  "productName": zod.string(),
-  "amount": zod.number()
-}))
-})
-
-
-/**
- * Records counts observed from a seller's supported social channel. Use null for a metric that is unavailable; unavailable values remain distinct from a recorded zero.
- * @summary Import social engagement for an order
- */
-export const UpdateOrderEngagementParams = zod.object({
-  "id": zod.coerce.number().int()
-})
-
-export const updateOrderEngagementBodySharesMin = 0;
-
-export const updateOrderEngagementBodyLikesMin = 0;
-
-
-
-export const UpdateOrderEngagementBody = zod.object({
-  "shares": zod.number().int().min(updateOrderEngagementBodySharesMin).nullable().describe('Manually imported share count'),
-  "likes": zod.number().int().min(updateOrderEngagementBodyLikesMin).nullable().describe('Manually imported like count')
-})
-
-export const UpdateOrderEngagementResponse = zod.object({
-  "id": zod.number().int(),
-  "token": zod.string(),
-  "productId": zod.number().int(),
-  "productName": zod.string(),
-  "customerName": zod.string(),
-  "customerPhone": zod.string().nullish(),
-  "channel": zod.string(),
-  "amount": zod.number(),
-  "productCost": zod.number().nullable(),
-  "depositAmount": zod.number().nullish(),
-  "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
-  "status": zod.enum(['reserved', 'deposit_paid', 'paid']),
-  "fulfillment": zod.enum(['pending', 'shipped', 'delivered']),
-  "createdAt": zod.string(),
-  "linkOpens": zod.number().int(),
-  "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
-  "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
-  "engagementSource": zod.union([zod.literal('manual_import'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
+  "engagementSource": zod.union([zod.literal('connected_account'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
   "items": zod.array(zod.object({
@@ -388,7 +340,7 @@ export const SubmitPublicOrderResponse = zod.object({
   "linkOpens": zod.number().int(),
   "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
   "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
-  "engagementSource": zod.union([zod.literal('manual_import'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
+  "engagementSource": zod.union([zod.literal('connected_account'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
   "items": zod.array(zod.object({

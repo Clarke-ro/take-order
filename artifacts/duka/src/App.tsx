@@ -17,7 +17,7 @@ import {
   getListProductsQueryKey, getGetDashboardSummaryQueryKey, getListExpensesQueryKey,
   useCreateExpense, useCreateOrder, useCreateProduct, useDeleteExpense, useDeleteProduct,
   useGetDashboardSummary, useGetPublicOrder, useHealthCheck, useListOrders, useListProducts,
-  useListExpenses, useSubmitPublicOrder, useUpdateExpense, useUpdateOrder, useUpdateOrderEngagement, useUpdateProduct
+  useListExpenses, useSubmitPublicOrder, useUpdateExpense, useUpdateOrder, useUpdateProduct
 } from '@workspace/api-client-react';
 import type { Expense, ExpenseInput, ExpenseUpdate, Order, OrderInput, Product, ProductInput, PublicOrderInput } from '@workspace/api-client-react';
 import NotFound from '@/pages/not-found';
@@ -747,7 +747,6 @@ export function Overview() {
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
          {secondaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="overview-secondary-card rise-in" style={{ animationDelay: `${(index + 4) * 55}ms` }} dataTestId={`card-kpi-secondary-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} valueAccessory={stat.valueAccessory} trend={stat.trend} indicator={stat.indicator} note={stat.note} period={periodLabel} loading={summaryRefreshing} />)}
       </div>
-      <EngagementImportPanel orders={periodOrders} periodLabel={periodLabel} />
          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
           <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and operating expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{periodLabel}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow" aria-busy={summaryRefreshing}>{summaryRefreshing ? <div className="flex h-full flex-col justify-center gap-4"><Skeleton className="h-3 w-28" /><Skeleton className="h-48 w-full" /></div> : daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Operating expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Combined expenses" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
          <AlertsRail outstanding={summary?.outstanding ?? 0} lowStock={lowStock} missingCosts={missingCosts} productLoading={productsQuery.isLoading} productCount={products.length} orderCount={periodOrders.length} loading={summaryRefreshing} />
@@ -821,7 +820,6 @@ function Reports() {
   </Shell>;
 }
 
-const engagementImportChannels = new Set(['whatsapp', 'instagram', 'tiktok', 'snapchat']);
 function ReportsSkeleton() {
   return <div className="space-y-5" aria-label="Loading reports"><div className="reports-metric-grid"><Card className="h-[220px] p-6"><Skeleton className="h-3 w-24" /><Skeleton className="mt-7 h-12 w-40" /><Skeleton className="mt-6 h-3 w-56" /></Card><Card className="h-[220px] p-6"><Skeleton className="h-3 w-24" /><Skeleton className="mt-7 h-12 w-40" /><Skeleton className="mt-6 h-3 w-56" /></Card><Card className="h-[220px] p-6"><Skeleton className="h-3 w-28" /><Skeleton className="mt-7 h-8 w-full" /><Skeleton className="mt-5 h-3 w-40" /></Card></div><div className="grid gap-5 xl:grid-cols-[.88fr_1.12fr]"><Card className="h-[465px] p-6"><Skeleton className="h-4 w-36" /><Skeleton className="mt-3 h-3 w-52" /><Skeleton className="mx-auto mt-10 h-56 w-56 rounded-full" /></Card><Card className="h-[465px] p-6"><Skeleton className="h-4 w-44" /><Skeleton className="mt-3 h-3 w-64" /><Skeleton className="mt-9 h-10 w-full" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div></div>;
 }
@@ -1827,95 +1825,3 @@ const invalidateDashboardSummary = (client: QueryClient) => {
   void client.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
 };
 
-function EngagementImportPanel({ orders, periodLabel }: { orders: Order[]; periodLabel: string }) {
-  const queryClient = useQueryClient();
-  const updateEngagement = useUpdateOrderEngagement();
-  const eligibleOrders = useMemo(
-    () => orders.filter((order) => engagementImportChannels.has(order.channel)),
-    [orders],
-  );
-  const [selectedOrderId, setSelectedOrderId] = useState<number | ''>('');
-  const [shares, setShares] = useState('');
-  const [likes, setLikes] = useState('');
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!eligibleOrders.some((order) => order.id === selectedOrderId)) {
-      setSelectedOrderId(eligibleOrders[0]?.id ?? '');
-    }
-  }, [eligibleOrders, selectedOrderId]);
-
-  const selectedOrder = eligibleOrders.find((order) => order.id === selectedOrderId);
-  useEffect(() => {
-    setShares(selectedOrder?.shares == null ? '' : String(selectedOrder.shares));
-    setLikes(selectedOrder?.likes == null ? '' : String(selectedOrder.likes));
-    setFeedback(null);
-  }, [selectedOrderId, selectedOrder?.shares, selectedOrder?.likes]);
-
-  const parseCount = (value: string): number | null | undefined => {
-    if (!value.trim()) return null;
-    if (!/^\d+$/.test(value.trim())) return undefined;
-    const count = Number(value);
-    return Number.isSafeInteger(count) ? count : undefined;
-  };
-
-  const save = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!selectedOrder) return;
-    const nextShares = parseCount(shares);
-    const nextLikes = parseCount(likes);
-    if (nextShares === undefined || nextLikes === undefined) {
-      setFeedback('Use whole numbers of zero or more, or leave a metric blank when it is unavailable.');
-      return;
-    }
-    setFeedback(null);
-    updateEngagement.mutate(
-      { id: selectedOrder.id, data: { shares: nextShares, likes: nextLikes } },
-      {
-        onSuccess: () => {
-          setFeedback('Engagement imported. The dashboard totals now include this order.');
-          void queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-          invalidateDashboardSummary(queryClient);
-        },
-        onError: () => setFeedback('The import could not be saved. Try again.'),
-      },
-    );
-  };
-
-  return <Card className="mt-5 p-5 sm:p-6" data-testid="card-engagement-import">
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Manual source import</div>
-        <h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Bring in social activity</h2>
-        <p className="mt-1 max-w-2xl text-xs leading-5 text-[hsl(var(--muted-foreground))]">Record the share and like counts you can see for an order from {periodLabel}. The dashboard will total only recorded values for the active reporting period.</p>
-      </div>
-      <StatusPill tone="blue">Manual import</StatusPill>
-    </div>
-    <form className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,.7fr)_minmax(0,.7fr)_auto] lg:items-end" onSubmit={save}>
-      <div>
-        <label className="field-label" htmlFor="engagement-import-order">Order and channel</label>
-        <select id="engagement-import-order" className="field-input mt-1" value={selectedOrderId} onChange={(event) => setSelectedOrderId(event.target.value ? Number(event.target.value) : '')} disabled={!eligibleOrders.length || updateEngagement.isPending} data-testid="select-engagement-order">
-          {!eligibleOrders.length && <option value="">No supported social orders in this period</option>}
-          {eligibleOrders.map((order) => {
-            const channel = orderChannels.find((item) => item.value === order.channel);
-            return <option key={order.id} value={order.id}>{order.productName} · {channel?.label ?? order.channel} · {dateShort(order.createdAt)}</option>;
-          })}
-        </select>
-      </div>
-      <div>
-        <label className="field-label" htmlFor="engagement-import-shares">Shares</label>
-        <input id="engagement-import-shares" className="field-input mt-1" type="number" min="0" step="1" inputMode="numeric" placeholder="Unavailable" value={shares} onChange={(event) => setShares(event.target.value)} disabled={!selectedOrder || updateEngagement.isPending} data-testid="input-engagement-shares" />
-      </div>
-      <div>
-        <label className="field-label" htmlFor="engagement-import-likes">Likes</label>
-        <input id="engagement-import-likes" className="field-input mt-1" type="number" min="0" step="1" inputMode="numeric" placeholder="Unavailable" value={likes} onChange={(event) => setLikes(event.target.value)} disabled={!selectedOrder || updateEngagement.isPending} data-testid="input-engagement-likes" />
-      </div>
-      <Button type="submit" disabled={!selectedOrder || updateEngagement.isPending} data-testid="button-import-engagement">{updateEngagement.isPending && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}Save import</Button>
-    </form>
-    <div className="mt-4 grid gap-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))] md:grid-cols-2">
-      <p><strong className="text-[hsl(var(--foreground))]">Supported channels:</strong> WhatsApp, Instagram, TikTok, and Snapchat order links. Facebook Ads and X preferences do not provide engagement data to this import.</p>
-      <p><strong className="text-[hsl(var(--foreground))]">Permissions:</strong> Take Order does not read personal chats or request platform permissions. Leave either field blank when that channel does not expose the value; it will stay unavailable instead of becoming zero.</p>
-    </div>
-    {feedback && <p className="mt-3 text-xs font-semibold text-[hsl(var(--accent-foreground))]" role="status" data-testid="text-engagement-import-feedback">{feedback}</p>}
-  </Card>;
-}

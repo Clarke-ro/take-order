@@ -21,9 +21,20 @@ var productCost = (product) => product?.cost == null ? 0 : Number(product.cost);
 var orderProductCost = (order2, product) => order2.productCost == null ? productCost(product) : Number(order2.productCost);
 var orderHasLegacyCost = (order2) => order2.productCost == null;
 var orderHasTrackedCost = (order2) => order2.productCost != null;
-function calculateDashboardSummary(products2, orders, operatingExpenseRows, now2 = /* @__PURE__ */ new Date()) {
+function totalRecordedEngagement(orders, key) {
+  const values = orders.filter((order2) => order2.engagementSource === "connected_account").map((order2) => order2[key]).filter((value) => value != null && Number.isFinite(Number(value)));
+  return values.length ? values.reduce((total, value) => total + Number(value), 0) : null;
+}
+function calculateDashboardSummary(products2, orders, operatingExpenseRows, now2 = /* @__PURE__ */ new Date(), range) {
   const productMap = new Map(products2.map((product) => [product.id, product]));
-  const paidOrders = orders.filter(isPaidOrder);
+  const orderIsInRange = (order2) => {
+    const date = order2.createdAt.toISOString().slice(0, 10);
+    return (!range?.from || date >= range.from) && (!range?.to || date <= range.to);
+  };
+  const expenseIsInRange = (expense) => (!range?.from || expense.expenseDate >= range.from) && (!range?.to || expense.expenseDate <= range.to);
+  const scopedOrders = orders.filter(orderIsInRange);
+  const scopedExpenseRows = operatingExpenseRows.filter(expenseIsInRange);
+  const paidOrders = scopedOrders.filter(isPaidOrder);
   const revenue = paidOrders.reduce((sum, order2) => sum + orderRevenue(order2), 0);
   const legacyOrders = paidOrders.filter(orderHasLegacyCost);
   const snapshotOrders = paidOrders.length - legacyOrders.length;
@@ -39,13 +50,13 @@ function calculateDashboardSummary(products2, orders, operatingExpenseRows, now2
     (sum, order2) => sum + orderProductCost(order2, productMap.get(order2.productId)),
     0
   );
-  const operatingExpenses = operatingExpenseRows.reduce(
+  const operatingExpenses = scopedExpenseRows.reduce(
     (sum, expense) => sum + Number(expense.amount),
     0
   );
   const expenses2 = productCosts + operatingExpenses;
   const profit = revenue - expenses2;
-  const outstanding = orders.filter((order2) => order2.status === "deposit_paid").reduce(
+  const outstanding = scopedOrders.filter((order2) => order2.status === "deposit_paid").reduce(
     (sum, order2) => sum + Math.max(0, Number(order2.amount) - Number(order2.depositAmount ?? 0)),
     0
   );
@@ -59,7 +70,7 @@ function calculateDashboardSummary(products2, orders, operatingExpenseRows, now2
     { name: "No sales yet", count: 0 }
   ).name;
   const channelPerformance = Object.entries(channelLabels).map(([channel, label]) => {
-    const matching = orders.filter((order2) => order2.channel === channel);
+    const matching = scopedOrders.filter((order2) => order2.channel === channel);
     const paidMatching = matching.filter(isPaidOrder);
     const opens = matching.reduce((sum, order2) => sum + order2.linkOpens, 0);
     return {
@@ -72,10 +83,18 @@ function calculateDashboardSummary(products2, orders, operatingExpenseRows, now2
     };
   }).filter((item) => item.orders > 0 || item.opens > 0);
   const today = new Date(now2);
-  const dailyPerformance = Array.from({ length: 7 }, (_, index) => {
-    const day = new Date(today);
-    day.setHours(0, 0, 0, 0);
-    day.setDate(today.getDate() - (6 - index));
+  today.setUTCHours(0, 0, 0, 0);
+  const defaultStart = new Date(today);
+  defaultStart.setUTCDate(today.getUTCDate() - 6);
+  const rangeStart = range?.from ? /* @__PURE__ */ new Date(`${range.from}T00:00:00.000Z`) : defaultStart;
+  const rangeEnd = range?.to ? /* @__PURE__ */ new Date(`${range.to}T00:00:00.000Z`) : today;
+  const totalDays = Math.max(1, Math.floor((rangeEnd.getTime() - rangeStart.getTime()) / 864e5) + 1);
+  const dayCount = Math.min(totalDays, 366);
+  const dailyStart = new Date(rangeEnd);
+  dailyStart.setUTCDate(rangeEnd.getUTCDate() - (dayCount - 1));
+  const dailyPerformance = Array.from({ length: dayCount }, (_, index) => {
+    const day = new Date(dailyStart);
+    day.setUTCDate(dailyStart.getUTCDate() + index);
     const date = day.toISOString().slice(0, 10);
     const dayOrders = paidOrders.filter(
       (order2) => order2.createdAt.toISOString().slice(0, 10) === date
@@ -88,11 +107,11 @@ function calculateDashboardSummary(products2, orders, operatingExpenseRows, now2
       (sum, order2) => sum + orderProductCost(order2, productMap.get(order2.productId)),
       0
     );
-    const dayOperatingExpenses = operatingExpenseRows.filter((expense) => expense.expenseDate === date).reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const dayOperatingExpenses = scopedExpenseRows.filter((expense) => expense.expenseDate === date).reduce((sum, expense) => sum + Number(expense.amount), 0);
     const dayExpenses = dayProductCosts + dayOperatingExpenses;
     return {
       date,
-      label: day.toLocaleDateString("en-US", { weekday: "short" }),
+      label: dayCount <= 14 ? day.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }) : day.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
       revenue: dayRevenue,
       productCosts: dayProductCosts,
       operatingExpenses: dayOperatingExpenses,
@@ -152,6 +171,8 @@ function calculateDashboardSummary(products2, orders, operatingExpenseRows, now2
     legacyRevenue,
     outstanding,
     bestSeller,
+    shares: totalRecordedEngagement(scopedOrders, "shares"),
+    likes: totalRecordedEngagement(scopedOrders, "likes"),
     channelPerformance,
     dailyPerformance,
     productPerformance,
@@ -303,6 +324,72 @@ test("calculates channel conversion from paid orders over link opens", () => {
       conversionRate: 0
     }
   ]);
+});
+test("scopes recorded engagement to custom ranges and preserves unavailable totals", () => {
+  const summary = calculateDashboardSummary(
+    products,
+    [
+      order({
+        productId: 1,
+        status: "paid",
+        amount: 100,
+        shares: 7,
+        likes: null,
+        engagementSource: "connected_account",
+        createdAt: /* @__PURE__ */ new Date("2026-09-13T12:00:00.000Z")
+      }),
+      order({
+        productId: 2,
+        status: "reserved",
+        amount: 50,
+        shares: null,
+        likes: 0,
+        engagementSource: "connected_account",
+        createdAt: /* @__PURE__ */ new Date("2026-09-12T12:00:00.000Z")
+      }),
+      order({
+        productId: 1,
+        status: "paid",
+        amount: 100,
+        shares: 100,
+        likes: 200,
+        engagementSource: "manual_import",
+        createdAt: /* @__PURE__ */ new Date("2026-08-31T12:00:00.000Z")
+      })
+    ],
+    [],
+    now,
+    { from: "2026-09-12", to: "2026-09-13" }
+  );
+  assert.equal(summary.shares, 7);
+  assert.equal(summary.likes, 0);
+  const unavailable = calculateDashboardSummary(
+    products,
+    [order({ productId: 1, status: "paid", amount: 100 })],
+    [],
+    now
+  );
+  assert.equal(unavailable.shares, null);
+  assert.equal(unavailable.likes, null);
+});
+test("ignores legacy manual engagement records", () => {
+  const summary = calculateDashboardSummary(
+    products,
+    [
+      order({
+        productId: 1,
+        status: "paid",
+        amount: 100,
+        shares: 12,
+        likes: 8,
+        engagementSource: "manual_import"
+      })
+    ],
+    [],
+    now
+  );
+  assert.equal(summary.shares, null);
+  assert.equal(summary.likes, null);
 });
 test("keeps a seven-day trend aligned with revenue, costs, and expenses by date", () => {
   const summary = calculateDashboardSummary(
