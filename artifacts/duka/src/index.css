@@ -312,6 +312,16 @@ button { cursor: pointer; }
 .page-content .catalog-toolbar p,
 .page-content .clients-workspace-heading p { font-size: .875rem; line-height: 1.55; opacity: 1; }
 .period-chip { display: inline-flex; align-items: center; gap: .5rem; border: 1px solid hsl(var(--border)); border-radius: 999px; background: hsl(var(--card)); padding: .65rem .85rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .625rem; line-height: 1; }
+.dashboard-period-menu { position: absolute; top: calc(100% + .55rem); right: 0; z-index: 30; width: min(300px, calc(100vw - 2rem)); border: 1px solid hsl(var(--border)); border-radius: 14px; background: hsl(var(--card)); padding: .45rem; box-shadow: 0 16px 40px hsl(220 25% 18% / .12); }
+.dashboard-period-options { display: grid; gap: .15rem; }
+.dashboard-period-option { width: 100%; border-radius: 9px; padding: .65rem .7rem; color: hsl(var(--muted-foreground)); font-size: .72rem; text-align: left; }
+.dashboard-period-option:hover, .dashboard-period-option.is-active { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+.dashboard-custom-range { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; border-top: 1px solid hsl(var(--border)); margin-top: .4rem; padding: .7rem .25rem .25rem; }
+.dashboard-custom-range label { color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .58rem; text-transform: uppercase; letter-spacing: .08em; }
+.dashboard-custom-range input { display: block; width: 100%; margin-top: .35rem; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--background)); padding: .55rem .45rem; color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .62rem; outline: none; }
+.dashboard-custom-range input:focus { border-color: hsl(var(--ring)); outline: 2px solid hsl(var(--ring) / .18); outline-offset: 1px; }
+.dashboard-period-apply { grid-column: 1 / -1; margin-top: .2rem; border-radius: 8px; background: hsl(var(--primary)); padding: .6rem .7rem; color: hsl(var(--primary-foreground)); font-size: .7rem; font-weight: 600; }
+.dashboard-period-apply:disabled { cursor: not-allowed; opacity: .45; }
 .kpi-card { transition: border-color .2s ease; }
 .kpi-card:hover { border-color: hsl(var(--primary) / .28); }
 .overview-secondary-card { padding: .8rem 1rem; }
