@@ -27,6 +27,16 @@ export interface DashboardSummary {
   legacyRevenue: number;
   outstanding: number;
   bestSeller: string;
+  /**
+     * Total recorded shares in the reporting window
+     * @nullable
+     */
+  shares: number | null;
+  /**
+     * Total recorded likes in the reporting window
+     * @nullable
+     */
+  likes: number | null;
   channelPerformance: ChannelPerformance[];
   insights: string[];
   dailyPerformance: DailyPerformance[];

@@ -107,6 +107,16 @@ export interface Order {
   fulfillment: OrderFulfillment;
   createdAt: string;
   linkOpens: number;
+  /**
+     * Recorded shares for this order when provided by a connected social source.
+     * @nullable
+     */
+  shares: number | null;
+  /**
+     * Recorded likes for this order when provided by a connected social source.
+     * @nullable
+     */
+  likes: number | null;
   /** @nullable */
   referenceImage?: string | null;
   /** @nullable */
@@ -299,6 +309,16 @@ export interface DashboardSummary {
   legacyRevenue: number;
   outstanding: number;
   bestSeller: string;
+  /**
+     * Total recorded shares in the reporting window
+     * @nullable
+     */
+  shares: number | null;
+  /**
+     * Total recorded likes in the reporting window
+     * @nullable
+     */
+  likes: number | null;
   channelPerformance: ChannelPerformance[];
   insights: string[];
   dailyPerformance: DailyPerformance[];

@@ -16,6 +16,8 @@ export type AnalyticsOrder = {
   status: string;
   createdAt: Date;
   linkOpens: number;
+  shares?: number | null;
+  likes?: number | null;
 };
 
 export type AnalyticsExpense = {
@@ -37,6 +39,8 @@ export type DashboardSummary = {
   legacyRevenue: number;
   outstanding: number;
   bestSeller: string;
+  shares: number | null;
+  likes: number | null;
   channelPerformance: Array<{
     channel: string;
     revenue: number;
@@ -114,6 +118,16 @@ const orderHasLegacyCost = (order: AnalyticsOrder) => order.productCost == null;
 
 const orderHasTrackedCost = (order: AnalyticsOrder) =>
   order.productCost != null;
+
+function totalRecordedEngagement(
+  orders: AnalyticsOrder[],
+  key: "shares" | "likes",
+): number | null {
+  const values = orders
+    .map((order) => order[key])
+    .filter((value): value is number => value != null && Number.isFinite(Number(value)));
+  return values.length ? values.reduce((total, value) => total + Number(value), 0) : null;
+}
 
 export function calculateDashboardSummary(
   products: AnalyticsProduct[],
@@ -308,6 +322,8 @@ export function calculateDashboardSummary(
     legacyRevenue,
     outstanding,
     bestSeller,
+    shares: totalRecordedEngagement(scopedOrders, "shares"),
+    likes: totalRecordedEngagement(scopedOrders, "likes"),
     channelPerformance,
     dailyPerformance,
     productPerformance,

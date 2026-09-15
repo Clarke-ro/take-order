@@ -123,6 +123,8 @@ test("GET /dashboard/summary returns a schema-valid empty response", async () =>
   assert.equal(summary.revenue, 0);
   assert.equal(summary.orders, 0);
   assert.equal(summary.bestSeller, "No sales yet");
+  assert.equal(summary.shares, null);
+  assert.equal(summary.likes, null);
   assert.deepEqual(summary.channelPerformance, []);
   assert.deepEqual(summary.productPerformance, []);
   assert.equal(summary.dailyPerformance.length, 7);
@@ -159,6 +161,8 @@ test("GET /dashboard/summary adapts seeded database records into the response co
         fulfillment: "pending",
         createdAt: new Date(),
         linkOpens: 4,
+        shares: 9,
+        likes: 14,
         referenceImage: null,
         buyerDetails: null,
       },
@@ -190,6 +194,8 @@ test("GET /dashboard/summary adapts seeded database records into the response co
   assert.equal(summary.legacyOrders, 0);
   assert.equal(summary.legacyRevenue, 0);
   assert.equal(summary.bestSeller, "Linen set");
+  assert.equal(summary.shares, 9);
+  assert.equal(summary.likes, 14);
   assert.deepEqual(summary.productPerformance, [
     {
       name: "Linen set",
@@ -237,6 +243,8 @@ test("GET /dashboard/summary identifies a legacy sale with no captured cost", as
         fulfillment: "pending",
         createdAt: new Date(),
         linkOpens: 0,
+        shares: null,
+        likes: null,
         referenceImage: null,
         buyerDetails: null,
       },

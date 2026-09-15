@@ -339,7 +339,7 @@ components:
         accent: { type: string }
     Order:
       type: object
-      required: [id, token, productId, productName, customerName, channel, amount, productCost, paymentMode, status, fulfillment, createdAt, linkOpens, items]
+      required: [id, token, productId, productName, customerName, channel, amount, productCost, paymentMode, status, fulfillment, createdAt, linkOpens, shares, likes, items]
       properties:
         id: { type: integer }
         token: { type: string }
@@ -356,6 +356,8 @@ components:
         fulfillment: { type: string, enum: [pending, shipped, delivered] }
         createdAt: { type: string }
         linkOpens: { type: integer }
+        shares: { type: ["integer", "null"], description: Recorded shares for this order when provided by a connected social source. }
+        likes: { type: ["integer", "null"], description: Recorded likes for this order when provided by a connected social source. }
         referenceImage: { type: ["string", "null"] }
         buyerDetails: { type: ["string", "null"] }
         items:
@@ -432,7 +434,7 @@ components:
         paymentAction: { type: string, enum: [pay, reserve] }
     DashboardSummary:
       type: object
-      required: [revenue, productCosts, estimatedProductCosts, operatingExpenses, expenses, profit, cashBalance, orders, snapshotOrders, legacyOrders, legacyRevenue, outstanding, bestSeller, channelPerformance, dailyPerformance, productPerformance, insights]
+      required: [revenue, productCosts, estimatedProductCosts, operatingExpenses, expenses, profit, cashBalance, orders, snapshotOrders, legacyOrders, legacyRevenue, outstanding, bestSeller, shares, likes, channelPerformance, dailyPerformance, productPerformance, insights]
       properties:
         revenue: { type: number }
         productCosts: { type: number }
@@ -447,6 +449,8 @@ components:
         legacyRevenue: { type: number, description: Revenue from paid orders without a captured sale-time product cost. }
         outstanding: { type: number }
         bestSeller: { type: string }
+        shares: { type: ["integer", "null"], description: Total recorded shares in the reporting window, or null when no share activity has been recorded. }
+        likes: { type: ["integer", "null"], description: Total recorded likes in the reporting window, or null when no like activity has been recorded. }
         channelPerformance:
           type: array
           items:

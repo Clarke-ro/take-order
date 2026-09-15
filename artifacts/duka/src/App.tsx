@@ -473,7 +473,7 @@ type DashboardStatCard = {
   label: string;
   value: ReactNode;
   valueAccessory?: ReactNode;
-  trend: MetricTrend;
+  trend?: MetricTrend;
   note: ReactNode;
 };
 function MetricCard({ label, value, valueAccessory, note, period, trend, loading = false, dataTestId, className = '', style }: { label: string; value: ReactNode; valueAccessory?: ReactNode; note?: ReactNode; period?: string; trend?: MetricTrend; loading?: boolean; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
@@ -619,6 +619,7 @@ export function Overview() {
   const salesTrend = movement('orders');
   const revenueTrend = movement('revenue');
   const stateTrend = (isPositive: boolean): MetricTrend => ({ direction: isPositive ? 'up' : 'down', percentage: isPositive ? 100 : 0 });
+  const engagementValue = (value: number | null | undefined) => value == null ? 'Not recorded' : number(value);
   const primaryStatCards: DashboardStatCard[] = [
     { label: 'Sales', value: ordersQuery.isLoading ? '—' : periodOrders.length, trend: salesTrend, note: `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` },
       { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: `Total profit made: ${money(summary?.profit)}` },
@@ -628,8 +629,8 @@ export function Overview() {
   const secondaryStatCards: DashboardStatCard[] = [
     { label: 'Outstanding balances', value: money(summary?.outstanding), trend: stateTrend((summary?.outstanding ?? 0) === 0), note: `${waitingPayments} waiting payments` },
     { label: 'Orders', value: summary?.orders ?? 0, trend: movement('orders'), note: `${shippedOrders} shipped` },
-    { label: 'Shares', value: '—', valueAccessory: <SocialChannelStack channels={connectedTools} />, trend: stateTrend(false), note: connectedTools.length ? 'Connected social channels' : 'Connect a social channel' },
-    { label: 'Likes', value: '—', valueAccessory: <SocialChannelStack channels={connectedTools} />, trend: stateTrend(false), note: connectedTools.length ? 'Connected social channels' : 'Connect a social channel' },
+    { label: 'Shares', value: engagementValue(summary?.shares), valueAccessory: <SocialChannelStack channels={connectedTools} />, note: summary?.shares == null ? 'No recorded share activity for this period' : 'Recorded shares in this period' },
+    { label: 'Likes', value: engagementValue(summary?.likes), valueAccessory: <SocialChannelStack channels={connectedTools} />, note: summary?.likes == null ? 'No recorded like activity for this period' : 'Recorded likes in this period' },
   ];
   const analyticsState = getAnalyticsViewState({
     isLoading: summaryQuery.isLoading && !summaryQuery.data,

@@ -822,7 +822,7 @@ test("returns focus after closing or applying the dashboard range picker without
     const url = String(input);
     if (url.includes("/api/dashboard/summary")) summaryRequests.push(new URL(url, "http://localhost"));
     const body = url.includes("/api/dashboard/summary")
-      ? { orders: 0, channelPerformance: [], productPerformance: [], dailyPerformance: [] }
+      ? { orders: 0, shares: 12, likes: 8, channelPerformance: [], productPerformance: [], dailyPerformance: [] }
       : [];
     return new Response(JSON.stringify(body), {
       status: 200,
@@ -872,6 +872,21 @@ test("returns focus after closing or applying the dashboard range picker without
     await act(async () => {
       root.render(renderOverview());
     });
+
+    let sharesText: string | undefined;
+    let likesText: string | undefined;
+    await act(async () => {
+      sharesText = await waitFor(() => {
+        const text = container.querySelector<HTMLElement>('[data-testid="card-kpi-secondary-shares"]')?.textContent;
+        return text?.includes("12") ? text : undefined;
+      });
+      likesText = await waitFor(() => {
+        const text = container.querySelector<HTMLElement>('[data-testid="card-kpi-secondary-likes"]')?.textContent;
+        return text?.includes("8") ? text : undefined;
+      });
+    });
+    assert.match(sharesText ?? "", /12/);
+    assert.match(likesText ?? "", /8/);
 
     const trigger = get<HTMLButtonElement>("button-dashboard-period");
     await click("button-dashboard-period");

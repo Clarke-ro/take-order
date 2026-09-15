@@ -29,6 +29,16 @@ export interface Order {
   fulfillment: OrderFulfillment;
   createdAt: string;
   linkOpens: number;
+  /**
+     * Recorded shares for this order when provided by a connected social source.
+     * @nullable
+     */
+  shares: number | null;
+  /**
+     * Recorded likes for this order when provided by a connected social source.
+     * @nullable
+     */
+  likes: number | null;
   /** @nullable */
   referenceImage?: string | null;
   /** @nullable */

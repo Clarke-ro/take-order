@@ -18,6 +18,8 @@ export const ordersTable = pgTable("orders", {
   fulfillment: text("fulfillment").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   linkOpens: integer("link_opens").notNull().default(0),
+  shares: integer("shares"),
+  likes: integer("likes"),
   referenceImage: text("reference_image"),
   buyerDetails: text("buyer_details"),
 });

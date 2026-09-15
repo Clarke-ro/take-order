@@ -134,6 +134,8 @@ export const ListOrdersResponseItem = zod.object({
   "fulfillment": zod.enum(['pending', 'shipped', 'delivered']),
   "createdAt": zod.string(),
   "linkOpens": zod.number().int(),
+  "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
+  "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
   "items": zod.array(zod.object({
@@ -185,6 +187,8 @@ export const CreateOrderResponse = zod.object({
   "fulfillment": zod.enum(['pending', 'shipped', 'delivered']),
   "createdAt": zod.string(),
   "linkOpens": zod.number().int(),
+  "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
+  "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
   "items": zod.array(zod.object({
@@ -218,6 +222,8 @@ export const GetOrderResponse = zod.object({
   "fulfillment": zod.enum(['pending', 'shipped', 'delivered']),
   "createdAt": zod.string(),
   "linkOpens": zod.number().int(),
+  "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
+  "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
   "items": zod.array(zod.object({
@@ -256,6 +262,8 @@ export const UpdateOrderResponse = zod.object({
   "fulfillment": zod.enum(['pending', 'shipped', 'delivered']),
   "createdAt": zod.string(),
   "linkOpens": zod.number().int(),
+  "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
+  "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
   "items": zod.array(zod.object({
@@ -326,6 +334,8 @@ export const SubmitPublicOrderResponse = zod.object({
   "fulfillment": zod.enum(['pending', 'shipped', 'delivered']),
   "createdAt": zod.string(),
   "linkOpens": zod.number().int(),
+  "shares": zod.number().int().nullable().describe('Recorded shares for this order when provided by a connected social source.'),
+  "likes": zod.number().int().nullable().describe('Recorded likes for this order when provided by a connected social source.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
   "items": zod.array(zod.object({
@@ -358,6 +368,8 @@ export const GetDashboardSummaryResponse = zod.object({
   "legacyRevenue": zod.number().describe('Revenue from paid orders without a captured sale-time product cost.'),
   "outstanding": zod.number(),
   "bestSeller": zod.string(),
+  "shares": zod.number().int().nullable().describe('Total recorded shares in the reporting window'),
+  "likes": zod.number().int().nullable().describe('Total recorded likes in the reporting window'),
   "channelPerformance": zod.array(zod.object({
   "channel": zod.string(),
   "revenue": zod.number(),
