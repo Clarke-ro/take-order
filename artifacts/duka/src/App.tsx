@@ -450,7 +450,7 @@ function Overview() {
   const primaryStatCards = [
     { label: 'Sales', value: ordersQuery.isLoading ? '—' : orders.length, trend: salesTrend, note: `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` },
      { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: undefined },
-     { label: 'New clients', value: ordersQuery.isLoading ? '—' : namedClients, trend: stateTrend(namedClients > 0), note: undefined },
+     { label: 'Views', value: ordersQuery.isLoading ? '—' : namedClients, trend: stateTrend(namedClients > 0), note: undefined },
     { label: 'Active users', value: totalOpens, trend: stateTrend(totalOpens > 0), note: `${activeChannels} active channels` },
   ] as const;
   const secondaryStatCards = [
