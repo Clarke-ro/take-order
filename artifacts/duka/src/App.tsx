@@ -43,6 +43,34 @@ const dateShort = (value: string) => {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value);
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
 };
+type DashboardPeriod = 'day' | 'week' | 'month' | 'year' | 'custom';
+const dashboardPeriodOptions: Array<{ value: Exclude<DashboardPeriod, 'custom'>; label: string }> = [
+  { value: 'day', label: 'Today' },
+  { value: 'week', label: 'Last 7 days' },
+  { value: 'month', label: 'Last 30 days' },
+  { value: 'year', label: 'Last 12 months' },
+];
+const inputDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const shiftInputDate = (value: string, days: number) => {
+  const date = new Date(`${value}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return inputDate(date);
+};
+const dashboardPeriodRange = (period: DashboardPeriod, customFrom: string, customTo: string) => {
+  const today = inputDate(new Date());
+  if (period === 'custom') return customFrom && customTo && customFrom <= customTo ? { from: customFrom, to: customTo } : undefined;
+  const days = period === 'day' ? 1 : period === 'week' ? 7 : period === 'month' ? 30 : 365;
+  return { from: shiftInputDate(today, -(days - 1)), to: today };
+};
+const dashboardPeriodLabel = (period: DashboardPeriod, customFrom: string, customTo: string) => {
+  if (period === 'custom') return customFrom && customTo ? `${dateShort(customFrom)} – ${dateShort(customTo)}` : 'Choose dates';
+  return dashboardPeriodOptions.find((option) => option.value === period)?.label ?? 'Last 7 days';
+};
 const channelName = (value: string) => value.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 const initials = (name: string) => name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 const productImageFor = (name: string) => {
