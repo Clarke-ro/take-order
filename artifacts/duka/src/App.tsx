@@ -37,6 +37,7 @@ import {
 const queryClient = new QueryClient();
 const money = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
 const moneyExact = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0);
+const number = (value: number | null | undefined) => new Intl.NumberFormat('en-US').format(value || 0);
 const dateShort = (value: string) => {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value);
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
@@ -520,13 +521,53 @@ function AlertsRail({ outstanding, lowStock, missingCosts, productLoading }: { o
 
 function ProductPerformance({ products }: { products: Array<{ name: string; category: string; revenue: number; orders: number; stock: number; margin: number; costTracked: boolean; marginStatus: 'tracked' | 'estimated' | 'unavailable'; snapshotOrders: number; legacyOrders: number }> }) {
   const ranked = [...products].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-  const maxRevenue = Math.max(...ranked.map((product) => product.revenue), 1);
-  return <section className="overview-stat-section overview-product-card" aria-labelledby="product-performance-title"><div className="overview-stat-heading flex items-start justify-between gap-4"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Product performance</div><h2 id="product-performance-title" className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Best-performing items</h2></div><Package size={18} className="text-[hsl(var(--muted-foreground))]" /></div>{ranked.length ? <div className="overview-stat-list mt-3">{ranked.map((product, index) => { const barWidth = Math.max(8, (product.revenue / maxRevenue) * 100); return <div key={product.name} className="product-performance-row" data-testid={`row-product-performance-${index}`}><div className="flex items-center justify-between gap-4"><div className="min-w-0 truncate text-sm font-semibold">{product.name}</div><div className="product-performance-value font-mono-ui text-sm font-bold">{money(product.revenue)}</div></div><div className="product-performance-track mt-2" role="progressbar" aria-label={`${product.name} revenue`} aria-valuemin={0} aria-valuemax={maxRevenue} aria-valuenow={product.revenue}><div className="product-performance-fill" style={{ width: `${barWidth}%`, minWidth: '8px', backgroundColor: '#C8873B' }} /></div></div>; })}</div> : <div className="mt-3"><ChartEmpty message="Product performance will appear after your first sale." /></div>}</section>;
+  return <section className="overview-stat-section overview-product-card" aria-labelledby="product-performance-title">
+    <div className="overview-card-title">
+      <div className="font-display text-base font-bold tracking-[-.03em]" id="product-performance-title">Best-selling items</div>
+      <div className="font-mono-ui text-[10px] uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))]">Product performance</div>
+    </div>
+    {ranked.length ? <div className="overview-card-table" role="table" aria-label="Best-selling items">
+      <div className="overview-card-table-head" role="row"><span role="columnheader">Item</span><span role="columnheader">Orders</span><span className="text-right" role="columnheader">Revenue</span></div>
+      {ranked.map((product, index) => <div key={product.name} className="overview-card-table-row product-performance-row" data-testid={`row-product-performance-${index}`} role="row">
+        <span className="min-w-0 truncate font-semibold" role="cell">{product.name}</span>
+        <span className="font-mono-ui text-xs" role="cell">{number(product.orders)}</span>
+        <span className="text-right font-mono-ui text-xs font-bold" role="cell">{money(product.revenue)}</span>
+      </div>)}
+    </div> : <div className="mt-5"><ChartEmpty message="Product performance will appear after your first sale." /></div>}
+  </section>;
 }
 
 function ChannelPerformance({ channels }: { channels: Array<{ channel: string; revenue: number; orders: number; paidOrders: number; opens: number; conversionRate: number }> }) {
-  const maxOrders = Math.max(...channels.map((channel) => channel.orders), 1);
-  return <section className="overview-stat-section overview-channel-card" aria-labelledby="channel-performance-title"><div className="overview-stat-heading flex items-start justify-between gap-4"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Channel conversion</div><h2 id="channel-performance-title" className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Turn attention into orders</h2></div><Eye size={18} className="text-[hsl(var(--muted-foreground))]" /></div>{channels.length ? <div className="overview-stat-list mt-3">{channels.map((channel) => { const mark = markCatalog[markKeyFor(channel.channel)]; return <div key={channel.channel} className="channel-performance-row" data-testid={`row-channel-${channel.channel}`}><div className="flex items-center gap-3"><span className="channel-performance-platform flex shrink-0 items-center gap-2 text-sm font-semibold"><span className="channel-performance-mark" style={{ backgroundColor: `${mark.color}1A` }}><ChannelMark value={channel.channel} size={15} /></span><ChannelLabel value={channel.channel} /></span><div className="channel-performance-track relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[hsl(var(--muted))]" role="progressbar" aria-label={`${channelName(channel.channel)} orders`} aria-valuemin={0} aria-valuemax={maxOrders} aria-valuenow={channel.orders}><div className="channel-performance-fill h-full rounded-full" style={{ width: `${Math.max(5, (channel.orders / maxOrders) * 100)}%` }} /></div><span className="channel-performance-orders shrink-0 font-mono-ui text-xs">{channel.orders} {channel.orders === 1 ? 'order' : 'orders'}</span></div></div>; })}</div> : <div className="mt-3"><ChartEmpty message="Channel conversion will appear after you share a link." /></div>}</section>;
+  const totalOpens = channels.reduce((sum, channel) => sum + channel.opens, 0);
+  const totalOrders = channels.reduce((sum, channel) => sum + channel.orders, 0);
+  const totalPaidOrders = channels.reduce((sum, channel) => sum + channel.paidOrders, 0);
+  const conversionRate = totalOpens ? Math.round((totalOrders / totalOpens) * 100) : 0;
+  return <section className="overview-stat-section overview-channel-card" aria-labelledby="channel-performance-title">
+    <div className="overview-card-title">
+      <div className="font-display text-base font-bold tracking-[-.03em]" id="channel-performance-title">Channel conversion</div>
+      <div className="font-mono-ui text-[10px] uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))]">Traffic sources</div>
+    </div>
+    <div className="overview-channel-metrics">
+      <div><span>Visits</span><strong>{number(totalOpens)}</strong></div>
+      <div><span>Orders</span><strong>{number(totalOrders)}</strong></div>
+      <div><span>Paid</span><strong>{number(totalPaidOrders)}</strong></div>
+      <div><span>Rate</span><strong>{conversionRate}%</strong></div>
+    </div>
+    {channels.length ? <div className="overview-channel-content">
+      <div className="overview-channel-bar" role="img" aria-label="Order share by channel">{channels.map((channel) => {
+        const mark = markCatalog[markKeyFor(channel.channel)];
+        const width = totalOrders ? (channel.orders / totalOrders) * 100 : 0;
+        return <span key={channel.channel} style={{ width: `${width}%`, backgroundColor: mark.color }} />;
+      })}</div>
+      <div className="overview-channel-legend">{channels.map((channel) => {
+        const mark = markCatalog[markKeyFor(channel.channel)];
+        return <div key={channel.channel} className="overview-channel-legend-row" data-testid={`row-channel-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.orders)} orders, ${channel.conversionRate}% conversion`}>
+          <span className="overview-channel-label"><span className="overview-channel-dot" style={{ backgroundColor: mark.color }} /><ChannelLabel value={channel.channel} /></span>
+          <span className="font-mono-ui text-xs font-semibold">{number(channel.orders)}</span>
+        </div>;
+      })}</div>
+    </div> : <div className="mt-5"><ChartEmpty message="Channel conversion will appear after you share a link." /></div>}
+  </section>;
 }
 
 function RecentTransactions() {
