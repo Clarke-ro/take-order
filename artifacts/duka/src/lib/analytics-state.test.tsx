@@ -35,6 +35,7 @@ import {
 import {
   CatalogActions,
   ChannelConversionInsight,
+  getChannelConversionView,
   ChannelPicker,
   BuyerOrderForm,
   Connect,
@@ -429,6 +430,54 @@ test("keeps channel conversion summaries fresh while the page remains open", () 
   assert.equal(refreshOptions.refetchInterval, CHANNEL_CONVERSION_REFRESH_INTERVAL_MS);
   assert.equal(refreshOptions.refetchIntervalInBackground, true);
   assert.equal(refreshOptions.refetchOnWindowFocus, true);
+});
+
+test("keeps channel conversion totals and rows scoped to the selected channel", () => {
+  const channels = [
+    { channel: "instagram", revenue: 12300, orders: 164, paidOrders: 164, opens: 8240, conversionRate: 2 },
+    { channel: "whatsapp", revenue: 6120, orders: 82, paidOrders: 82, opens: 4240, conversionRate: 1.9 },
+  ];
+
+  const allChannels = getChannelConversionView(channels);
+  assert.deepEqual(allChannels.visibleChannels.map((channel) => channel.channel), ["instagram", "whatsapp"]);
+  assert.equal(allChannels.totalViews, 12480);
+  assert.equal(allChannels.totalSales, 246);
+  assert.equal(allChannels.totalRevenue, 18420);
+  assert.equal(allChannels.totalConversion, 246 / 12480 * 100);
+
+  const selectedChannel = getChannelConversionView(channels, "whatsapp");
+  assert.deepEqual(selectedChannel.visibleChannels.map((channel) => channel.channel), ["whatsapp"]);
+  assert.equal(selectedChannel.totalViews, 4240);
+  assert.equal(selectedChannel.totalSales, 82);
+  assert.equal(selectedChannel.totalRevenue, 6120);
+  assert.equal(selectedChannel.totalConversion, 82 / 4240 * 100);
+
+  const client = new QueryClient();
+  client.setQueryData(getGetDashboardSummaryQueryKey(), {
+    orders: 246,
+    channelPerformance: channels,
+    productPerformance: [],
+    dailyPerformance: [],
+  });
+  const markup = renderToStaticMarkup(createElement(
+    QueryClientProvider,
+    {
+      client,
+      children: createElement(
+        Router,
+        {
+          hook: () => ["/reports/channel-conversion", () => undefined] as [string, (path: string) => void],
+          children: createElement(ChannelConversionInsight),
+        },
+      ),
+    },
+  ));
+  assert.match(markup, /<label[^>]*for="channel-conversion-filter">Focus channel<\/label>/);
+  assert.match(markup, /data-testid="select-channel-conversion"/);
+  assert.match(markup, /<option value="all"[^>]*>All channels<\/option>/);
+  assert.match(markup, /<option value="instagram">Instagram<\/option>/);
+  assert.match(markup, /data-testid="row-channel-insight-instagram"/);
+  assert.match(markup, /data-testid="row-channel-insight-whatsapp"/);
 });
 
 test("keeps four social channel marks beside the metric value on narrow cards", async () => {

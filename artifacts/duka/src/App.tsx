@@ -871,6 +871,24 @@ function ProductPerformance({ products, loading = false }: { products: Array<{ n
 
 type ChannelPerformanceRow = { channel: string; revenue: number; orders: number; paidOrders: number; opens: number; conversionRate: number };
 
+export function getChannelConversionView(channels: ChannelPerformanceRow[], selectedChannel = 'all') {
+  const rankedChannels = [...channels].sort((left, right) => right.opens - left.opens);
+  const visibleChannels = selectedChannel === 'all'
+    ? rankedChannels
+    : rankedChannels.filter((channel) => channel.channel === selectedChannel);
+  const totalViews = visibleChannels.reduce((sum, channel) => sum + channel.opens, 0);
+  const totalSales = visibleChannels.reduce((sum, channel) => sum + channel.paidOrders, 0);
+  const totalRevenue = visibleChannels.reduce((sum, channel) => sum + channel.revenue, 0);
+  return {
+    rankedChannels,
+    visibleChannels,
+    totalViews,
+    totalSales,
+    totalRevenue,
+    totalConversion: totalViews ? (totalSales / totalViews) * 100 : 0,
+  };
+}
+
 function ChannelPerformance({ channels, loading = false }: { channels: ChannelPerformanceRow[]; loading?: boolean }) {
   return <section className="overview-stat-section overview-channel-card channel-conversion-card" aria-labelledby="channel-performance-title">
     <div className="channel-conversion-toolbar">
@@ -916,11 +934,9 @@ export function ChannelConversionInsight() {
     },
   });
   const channels = summaryQuery.data?.channelPerformance ?? [];
-  const totalViews = channels.reduce((sum, channel) => sum + channel.opens, 0);
-  const totalSales = channels.reduce((sum, channel) => sum + channel.paidOrders, 0);
-  const totalRevenue = channels.reduce((sum, channel) => sum + channel.revenue, 0);
-  const totalConversion = totalViews ? (totalSales / totalViews) * 100 : 0;
-  const rankedChannels = [...channels].sort((left, right) => right.opens - left.opens);
+  const [selectedChannel, setSelectedChannel] = useState('all');
+  const { rankedChannels, visibleChannels, totalViews, totalSales, totalRevenue, totalConversion } = getChannelConversionView(channels, selectedChannel);
+  const selectedChannelLabel = selectedChannel === 'all' ? 'all channels' : channelName(selectedChannel);
 
   return <Shell>
     <PageHeading title="Channel conversion" action={<Link href="/"><Button variant="outline"><ArrowLeft size={15} />Back to dashboard</Button></Link>} />
@@ -933,12 +949,21 @@ export function ChannelConversionInsight() {
       </section>
       <Card className="channel-insight-card" data-testid="card-channel-conversion-detail">
         <div className="channel-insight-heading">
-          <div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Channel breakdown</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Where views become sales</h2><p>Compare attention, paid sales, and revenue across every recorded channel.</p></div>
-          <BarChart3 size={20} className="text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
+          <div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Channel breakdown</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Where views become sales</h2><p>Compare attention, paid sales, and revenue for {selectedChannelLabel}.</p></div>
+          <div className="channel-insight-heading-tools">
+            <div className="channel-insight-filter">
+              <label htmlFor="channel-conversion-filter">Focus channel</label>
+              <select id="channel-conversion-filter" data-testid="select-channel-conversion" value={selectedChannel} onChange={(event) => setSelectedChannel(event.target.value)} className="field-input">
+                <option value="all">All channels</option>
+                {rankedChannels.map((channel) => <option key={channel.channel} value={channel.channel}>{channelName(channel.channel)}</option>)}
+              </select>
+            </div>
+            <BarChart3 size={20} className="channel-insight-heading-icon text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
+          </div>
         </div>
-        {rankedChannels.length ? <div className="channel-insight-list">
+        {visibleChannels.length ? <div className="channel-insight-list">
           <div className="channel-insight-list-head" aria-hidden="true"><span>Channel</span><span>Views</span><span>Sales</span><span>Revenue</span><span>Conversion</span></div>
-          {rankedChannels.map((channel) => <article key={channel.channel} className="channel-insight-row" data-testid={`row-channel-insight-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.opens)} views, ${number(channel.paidOrders)} sales, ${money(channel.revenue)}, ${channel.conversionRate.toFixed(1)}% conversion`}>
+          {visibleChannels.map((channel) => <article key={channel.channel} className="channel-insight-row" data-testid={`row-channel-insight-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.opens)} views, ${number(channel.paidOrders)} sales, ${money(channel.revenue)}, ${channel.conversionRate.toFixed(1)}% conversion`}>
             <div className="channel-insight-identity"><span className="channel-conversion-mark"><ChannelMark value={channel.channel} size={19} /></span><ChannelLabel value={channel.channel} className="channel-conversion-name" /></div>
              <strong className="channel-insight-number data-value" data-label="Views">{number(channel.opens)}</strong>
              <strong className="channel-insight-number data-value" data-label="Sales">{number(channel.paidOrders)}</strong>

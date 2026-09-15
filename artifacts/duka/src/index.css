@@ -457,6 +457,11 @@ button { cursor: pointer; }
 .channel-insight-card { overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--card)); }
 .channel-insight-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid hsl(var(--border)); padding: 1.25rem 1.35rem; }
 .channel-insight-heading p { margin-top: .4rem; color: hsl(var(--muted-foreground)); font-size: .8rem; line-height: 1.5; }
+.channel-insight-heading-tools { display: flex; align-items: flex-start; gap: .75rem; }
+.channel-insight-filter { display: grid; gap: .35rem; min-width: 170px; }
+.channel-insight-filter label { color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; }
+.channel-insight-filter .field-input { min-height: 2.25rem; padding-block: .45rem; font-size: .75rem; }
+.channel-insight-heading-icon { margin-top: .45rem; flex: 0 0 auto; }
 .channel-insight-list { padding: .75rem 1.35rem 1.35rem; }
 .channel-insight-list-head, .channel-insight-row { display: grid; grid-template-columns: minmax(0, 1.45fr) repeat(4, minmax(0, .7fr)); align-items: center; gap: .75rem; }
 .channel-insight-list-head { padding: .45rem 0 .65rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; }
@@ -726,7 +731,10 @@ button { cursor: pointer; }
 @media (max-width: 639px) {
   .dashboard-period-menu { right: auto; left: 0; }
   .channel-insight-page .reports-metric-grid { grid-template-columns: minmax(0, 1fr); }
-  .channel-insight-heading { padding: 1.1rem 1rem; }
+  .channel-insight-heading { flex-direction: column; padding: 1.1rem 1rem; }
+  .channel-insight-heading-tools { width: 100%; align-items: stretch; justify-content: space-between; }
+  .channel-insight-filter { flex: 1 1 auto; min-width: 0; }
+  .channel-insight-heading-icon { margin-top: 1.9rem; }
   .channel-insight-list { padding: .55rem 1rem 1rem; }
   .channel-insight-list-head { display: none; }
   .channel-insight-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem .75rem; padding: 1rem 0; }
