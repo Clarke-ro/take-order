@@ -281,6 +281,7 @@
 @layer utilities {
   .font-display { font-family: var(--app-font-serif); }
   .font-mono-ui { font-family: var(--app-font-mono); font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum", "lnum"; }
+  .data-value { font-family: var(--app-font-sans); font-style: normal; font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum", "lnum"; }
   .font-bold { font-weight: 600; }
   .font-semibold { font-weight: 500; }
 }
@@ -301,7 +302,7 @@ button { cursor: pointer; }
 .metric-value-row { display: flex; min-width: 0; align-items: center; gap: .35rem; }
 .metric-card-heading { display: flex; min-width: 0; align-items: baseline; gap: .55rem; flex-wrap: wrap; }
 .metric-card-title { color: hsl(var(--foreground)); font-size: .86rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.2; }
-.metric-card-period { color: hsl(var(--muted-foreground)); opacity: .62; font-family: var(--app-font); font-size: .74rem; font-weight: 400; letter-spacing: 0; line-height: 1.2; white-space: nowrap; }
+.metric-card-period { color: hsl(var(--muted-foreground)); opacity: .62; font-family: var(--app-font-sans); font-size: .74rem; font-weight: 400; letter-spacing: 0; line-height: 1.2; white-space: nowrap; }
 .metric-channel-stack { display: inline-flex; align-items: center; flex: 0 0 auto; margin-right: .25rem; padding-left: .15rem; }
 .metric-channel-stack-mark { display: inline-flex; height: 1.65rem; width: 1.65rem; align-items: center; justify-content: center; margin-left: -.48rem; border: 2px solid hsl(var(--card)); border-radius: 999px; background: hsl(var(--muted)); font-size: 0; }
 .metric-channel-stack-mark:first-child { margin-left: 0; }
@@ -310,6 +311,21 @@ button { cursor: pointer; }
 .metric-value { font-size: 1.75rem; font-weight: 600; color: hsl(var(--foreground)); }
 .catalog-number strong, .catalog-stock strong, .orders-value-cell .font-mono-ui, .reports-table .font-mono-ui.font-bold { color: hsl(var(--foreground)); }
 .font-mono-ui.font-bold { font-weight: 500; }
+.reports-table td .font-mono-ui,
+.list-table td .font-mono-ui,
+.orders-table-row .font-mono-ui,
+.clients-table-row .font-mono-ui,
+.catalog-product-row .font-mono-ui,
+[data-testid^="row-expense-"] .font-mono-ui,
+.overview-product-card .font-mono-ui,
+.channel-conversion-card .channel-conversion-stat .font-mono-ui,
+.channel-conversion-card .channel-conversion-rate .font-mono-ui,
+.channel-insight-row .font-mono-ui {
+  font-family: var(--app-font-sans);
+  font-style: normal;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum", "lnum";
+}
 .duka-shell { min-height: 100dvh; background: hsl(var(--background)); }
 .page-content { max-width: 1600px; }
 .page-content .orders-panel-heading p,
