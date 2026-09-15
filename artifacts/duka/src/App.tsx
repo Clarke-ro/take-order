@@ -888,10 +888,10 @@ function ChannelConversionInsight() {
           <div className="channel-insight-list-head" aria-hidden="true"><span>Channel</span><span>Views</span><span>Sales</span><span>Revenue</span><span>Conversion</span></div>
           {rankedChannels.map((channel) => <article key={channel.channel} className="channel-insight-row" data-testid={`row-channel-insight-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.opens)} views, ${number(channel.paidOrders)} sales, ${money(channel.revenue)}, ${channel.conversionRate.toFixed(1)}% conversion`}>
             <div className="channel-insight-identity"><span className="channel-conversion-mark"><ChannelMark value={channel.channel} size={19} /></span><ChannelLabel value={channel.channel} className="channel-conversion-name" /></div>
-            <strong className="channel-insight-number">{number(channel.opens)}</strong>
-            <strong className="channel-insight-number">{number(channel.paidOrders)}</strong>
-            <strong className="channel-insight-number">{money(channel.revenue)}</strong>
-            <div className="channel-insight-conversion"><strong className="font-mono-ui">{channel.conversionRate.toFixed(1)}%</strong><span className="channel-insight-progress"><span style={{ width: `${Math.min(100, Math.max(0, channel.conversionRate))}%` }} /></span></div>
+            <strong className="channel-insight-number" data-label="Views">{number(channel.opens)}</strong>
+            <strong className="channel-insight-number" data-label="Sales">{number(channel.paidOrders)}</strong>
+            <strong className="channel-insight-number" data-label="Revenue">{money(channel.revenue)}</strong>
+            <div className="channel-insight-conversion"><strong className="font-mono-ui" data-label="Conversion">{channel.conversionRate.toFixed(1)}%</strong><span className="channel-insight-progress"><span style={{ width: `${Math.min(100, Math.max(0, channel.conversionRate))}%` }} /></span></div>
           </article>)}
         </div> : <div className="p-6"><EmptyState icon={BarChart3} title="No channel activity yet" description="Share a buyer link to start building channel conversion insight." /></div>}
       </Card>

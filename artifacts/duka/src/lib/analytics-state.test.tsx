@@ -327,7 +327,23 @@ async function inspectResponsiveMarkup(markup: string, viewport: { width: number
             const box = element.getBoundingClientRect();
             return { left: box.left, right: box.right, width: box.width };
           }),
-          viewport: { width: window.innerWidth, height: window.innerHeight },
+          detailCard: rect('[data-testid="card-channel-conversion-detail"]'),
+          summaryCards: [...document.querySelectorAll('[data-testid^="card-channel-insight-"]')].map((element) => {
+            const box = element.getBoundingClientRect();
+            return { left: box.left, right: box.right, width: box.width };
+          }),
+          rows: [...document.querySelectorAll('[data-testid^="row-channel-insight-"]')].map((element) => {
+            const box = element.getBoundingClientRect();
+            const conversion = element.querySelector('.channel-insight-conversion')?.getBoundingClientRect();
+            return {
+              left: box.left,
+              right: box.right,
+              width: box.width,
+              conversion: conversion ? { left: conversion.left, right: conversion.right, width: conversion.width } : null,
+            };
+          }),
+          backLink: rect('[data-testid="channel-back-link"]'),
+          viewport: { width: window.innerWidth, height: window.innerHeight, scrollWidth: document.documentElement.scrollWidth },
         };
       })()`,
       returnByValue: true,
@@ -419,6 +435,65 @@ test("keeps four social channel marks beside the metric value on narrow cards", 
 
   const stack = result.tree.find((node) => node.name?.value === "Active social channels: WhatsApp, Instagram, TikTok, Snapchat");
   assert.equal(stack?.name?.value, "Active social channels: WhatsApp, Instagram, TikTok, Snapchat");
+});
+
+test("keeps channel conversion details readable and keyboard reachable on narrow screens", async () => {
+  const styles = await readFile(new URL("../index.css", import.meta.url), "utf8");
+  const fixture = `<!doctype html>
+    <html><head><style>${styles}
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; min-width: 0; }
+      body { padding: .75rem; }
+      .channel-fixture { width: 100%; max-width: 620px; margin: 0 auto; }
+      .channel-fixture .app-card { border: 1px solid #ddd; padding: 1rem; }
+      .channel-fixture .channel-insight-row { border-top: 1px solid #ddd; }
+    </style></head><body>
+      <main class="channel-fixture channel-insight-page">
+        <a href="/" data-testid="channel-back-link">Back to dashboard</a>
+        <section class="reports-metric-grid" aria-label="Channel conversion summary">
+          <div class="app-card" data-testid="card-channel-insight-views">Total views <strong>12,480</strong></div>
+          <div class="app-card" data-testid="card-channel-insight-sales">Paid sales <strong>246</strong></div>
+          <div class="app-card" data-testid="card-channel-insight-revenue">Revenue <strong>$18,420</strong></div>
+          <div class="app-card" data-testid="card-channel-insight-conversion">Overall conversion <strong>2.0%</strong></div>
+        </section>
+        <section class="channel-insight-card" data-testid="card-channel-conversion-detail">
+          <div class="channel-insight-list">
+            <div class="channel-insight-list-head"><span>Channel</span><span>Views</span><span>Sales</span><span>Revenue</span><span>Conversion</span></div>
+            <article class="channel-insight-row" data-testid="row-channel-insight-instagram">
+              <div class="channel-insight-identity"><span class="channel-conversion-mark">IG</span><span class="channel-conversion-name">Instagram</span></div>
+              <strong class="channel-insight-number" data-label="Views">8,240</strong>
+              <strong class="channel-insight-number" data-label="Sales">164</strong>
+              <strong class="channel-insight-number" data-label="Revenue">$12,300</strong>
+              <div class="channel-insight-conversion"><strong data-label="Conversion">2.0%</strong><span class="channel-insight-progress"><span style="width: 2%"></span></span></div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </body></html>`;
+
+  const result = await inspectResponsiveMarkup(fixture, { width: 360, height: 800 });
+  const geometry = result.inspection as {
+    detailCard: { left: number; right: number; width: number };
+    summaryCards: Array<{ left: number; right: number; width: number }>;
+    rows: Array<{ left: number; right: number; width: number; conversion: { left: number; right: number; width: number } | null }>;
+    backLink: { left: number; right: number; width: number };
+    viewport: { width: number; scrollWidth: number };
+  };
+  assert.equal(geometry.summaryCards.length, 4);
+  assert.ok(geometry.detailCard);
+  assert.ok(geometry.backLink);
+  assert.ok(geometry.backLink.width > 0, "Back to dashboard should remain a visible keyboard target");
+  assert.equal(geometry.rows.length, 1);
+  assert.ok(geometry.detailCard.right <= geometry.viewport.width, `Detail card should not clip horizontally: ${JSON.stringify(geometry)}`);
+  assert.ok(geometry.viewport.scrollWidth <= geometry.viewport.width, `Channel insight page should not overflow horizontally: ${JSON.stringify(geometry)}`);
+  for (const card of geometry.summaryCards) {
+    assert.ok(card.left >= 0 && card.right <= geometry.viewport.width, `Summary card should fit inside the viewport: ${JSON.stringify({ geometry, card })}`);
+    assert.ok(card.width > 0, "Summary card should retain visible width");
+  }
+  const [row] = geometry.rows;
+  assert.ok(row && row.left >= 0 && row.right <= geometry.viewport.width, `Channel row should fit inside the viewport: ${JSON.stringify(geometry)}`);
+  assert.ok(row?.conversion && row.conversion.width > 0, "Conversion indicator should retain visible width");
+  assert.deepEqual(result.tree.filter((node) => node.role?.value === "link").map((node) => node.name?.value), ["Back to dashboard"]);
 });
 
 test("keeps the custom dashboard picker usable with enlarged text", async () => {
