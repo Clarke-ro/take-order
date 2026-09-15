@@ -163,21 +163,37 @@ const ONBOARDING_KEY = 'duka-onboarding-profile';
 const ONBOARDING_STEP_KEY = 'duka-onboarding-step';
 const ONBOARDING_DONE_KEY = 'duka-onboarding-complete';
 export const CONNECTED_TOOLS_KEY = 'duka-connected-tools';
+
+export const CONNECTED_TOOL_NAMES = [
+  'WhatsApp',
+  'Instagram',
+  'TikTok',
+  'Facebook Ads',
+  'Snapchat',
+  'Paystack',
+  'Mobile Money',
+  'X',
+] as const;
 type PreferenceStorage = Pick<Storage, 'getItem' | 'setItem'>;
 const getPreferenceStorage = (): Storage | null => {
   try { return window.localStorage; } catch { return null; }
 };
+
+const normalizeConnectedTools = (tools: readonly string[]) =>
+  [...new Set(tools.filter((tool) => connectedToolNames.has(tool)))];
 export const readConnectedTools = (storage: PreferenceStorage | null = getPreferenceStorage()): string[] => {
   if (!storage) return [];
   try {
     const value = storage.getItem(CONNECTED_TOOLS_KEY);
     const parsed: unknown = value ? JSON.parse(value) : [];
-    return Array.isArray(parsed) && parsed.every((item): item is string => typeof item === 'string') ? parsed : [];
+    return Array.isArray(parsed) && parsed.every((item): item is string => typeof item === 'string')
+      ? normalizeConnectedTools(parsed)
+      : [];
   } catch { return []; }
 };
 export const writeConnectedTools = (tools: readonly string[], storage: PreferenceStorage | null = getPreferenceStorage()) => {
   if (!storage) return;
-  try { storage.setItem(CONNECTED_TOOLS_KEY, JSON.stringify([...tools])); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+  try { storage.setItem(CONNECTED_TOOLS_KEY, JSON.stringify(normalizeConnectedTools(tools))); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
 };
 export const clearConnectedTools = (storage: Pick<Storage, 'removeItem'> | null = getPreferenceStorage()) => {
   if (!storage) return;
@@ -1334,3 +1350,5 @@ export function BuyerOrderForm({
     <Button type="submit" disabled={submitPending} className="w-full py-3.5" data-testid="button-submit-public-order">{submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}{paymentMode === 'reserve' || form.action === 'reserve' ? 'Reserve these items' : showMockPayment ? 'Complete mock payment' : 'Continue to mock payment'} <ArrowUpRight aria-hidden="true" size={15} /></Button>
   </form>;
 }
+
+const connectedToolNames = new Set<string>(CONNECTED_TOOL_NAMES);

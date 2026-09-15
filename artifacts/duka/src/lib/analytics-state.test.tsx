@@ -12,6 +12,7 @@ import {
   getAnalyticsViewState,
 } from "./analytics-state";
 import {
+  CONNECTED_TOOL_NAMES,
   CONNECTED_TOOLS_KEY,
   clearConnectedTools,
   readConnectedTools,
@@ -531,6 +532,27 @@ test("Connect choices persist exact local preferences across a remount", () => {
     "Paystack, saved preference. Select to remove this preference.",
   );
   assert.doesNotMatch(values.get(CONNECTED_TOOLS_KEY) ?? "", /authoriz|integrat/i);
+});
+
+test("Connect excludes stale tool names from saved preferences and tile state", () => {
+  const values = new Map<string, string>([
+    [CONNECTED_TOOLS_KEY, '["Legacy Messenger","WhatsApp","Removed Payment Tool","WhatsApp"]'],
+  ]);
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+  };
+
+  const connected = readConnectedTools(storage);
+
+  assert.deepEqual(connected, ["WhatsApp"]);
+  assert.equal(connected.length, 1);
+  assert.equal(connected.includes("Legacy Messenger"), false);
+  assert.equal(connected.includes("Instagram"), false);
+  assert.equal(CONNECTED_TOOL_NAMES.includes(connected[0] as (typeof CONNECTED_TOOL_NAMES)[number]), true);
+
+  writeConnectedTools(["WhatsApp", "Legacy Messenger", "Removed Payment Tool"], storage);
+  assert.equal(values.get(CONNECTED_TOOLS_KEY), '["WhatsApp"]');
 });
 
 test("Connect clear-all removes saved preferences without touching other local storage", () => {
