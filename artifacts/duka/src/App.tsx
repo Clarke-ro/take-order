@@ -247,15 +247,12 @@ function ChannelMark({ value, size = 17, className = '', colorful = true }: { va
   return <Icon size={size} aria-hidden="true" className={className} style={color ? { color } : undefined} />;
 }
 
-function SocialChannelStack({ channels }: { channels: Array<{ channel: string; opens: number; orders: number }> }) {
-  const activeChannels = channels.filter((channel) => {
-    const mark = markCatalog[markKeyFor(channel.channel)];
-    return mark.kind === 'brand' && (channel.opens > 0 || channel.orders > 0);
-  }).slice(0, 4);
+function SocialChannelStack({ channels }: { channels: readonly string[] }) {
+  const activeChannels = channels.filter((channel) => markCatalog[markKeyFor(channel)].kind === 'brand').slice(0, 4);
   if (!activeChannels.length) return null;
-  const labels = activeChannels.map((channel) => markCatalog[markKeyFor(channel.channel)].label).join(', ');
+  const labels = activeChannels.map((channel) => markCatalog[markKeyFor(channel)].label).join(', ');
   return <div className="metric-channel-stack" role="img" aria-label={`Active social channels: ${labels}`} title={labels}>
-    {activeChannels.map((channel, index) => <span key={channel.channel} className="metric-channel-stack-mark" style={{ zIndex: activeChannels.length - index }}><ChannelMark value={channel.channel} size={15} /></span>)}
+    {activeChannels.map((channel, index) => <span key={channel} className="metric-channel-stack-mark" style={{ zIndex: activeChannels.length - index }}><ChannelMark value={channel} size={15} /></span>)}
   </div>;
 }
 
@@ -561,6 +558,16 @@ function Overview() {
   const [draftPeriod, setDraftPeriod] = useState<DashboardPeriod>('week');
   const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
   const periodMenuRef = useRef<HTMLDivElement>(null);
+  const [connectedTools, setConnectedTools] = useState<string[]>(readConnectedTools);
+  useEffect(() => {
+    const storage = getPreferenceStorage();
+    if (!storage) return;
+    setConnectedTools(readConnectedTools(storage));
+    return subscribeToPreferenceChanges(CONNECTED_TOOLS_KEY, (event) => {
+      if (event.storageArea && event.storageArea !== storage) return;
+      setConnectedTools(readConnectedTools(storage));
+    });
+  }, []);
   const initialCustomRange = useMemo(() => ({ from: shiftInputDate(today, -29), to: today }), [today]);
   const [appliedCustomRange, setAppliedCustomRange] = useState<DashboardDateRange>(() => initialCustomRange);
   const [draftCustomRange, setDraftCustomRange] = useState<DashboardDateRange>(() => initialCustomRange);
@@ -612,8 +619,8 @@ function Overview() {
   const secondaryStatCards = [
     { label: 'Outstanding balances', value: money(summary?.outstanding), trend: stateTrend((summary?.outstanding ?? 0) === 0), note: `${waitingPayments} waiting payments` },
     { label: 'Orders', value: summary?.orders ?? 0, trend: movement('orders'), note: `${shippedOrders} shipped` },
-    { label: 'Shares', value: '—', valueAccessory: <SocialChannelStack channels={channels} />, trend: stateTrend(false), note: 'Social channel activity' },
-    { label: 'Likes', value: '—', valueAccessory: <SocialChannelStack channels={channels} />, trend: stateTrend(false), note: 'Social channel activity' },
+    { label: 'Shares', value: '—', valueAccessory: <SocialChannelStack channels={connectedTools} />, trend: stateTrend(false), note: connectedTools.length ? 'Connected social channels' : 'Connect a social channel' },
+    { label: 'Likes', value: '—', valueAccessory: <SocialChannelStack channels={connectedTools} />, trend: stateTrend(false), note: connectedTools.length ? 'Connected social channels' : 'Connect a social channel' },
   ] as const;
   const analyticsState = getAnalyticsViewState({
     isLoading: summaryQuery.isLoading && !summaryQuery.data,
