@@ -631,7 +631,7 @@ export function Overview() {
   const salesTrend = movement('orders');
   const revenueTrend = movement('revenue');
   const stateTrend = (isPositive: boolean): MetricTrend => ({ direction: isPositive ? 'up' : 'down', percentage: isPositive ? 100 : 0 });
-  const engagementValue = (value: number | null | undefined) => value == null ? 'Not recorded' : number(value);
+  const engagementValue = (value: number | null | undefined) => value == null ? '—' : number(value);
   const primaryStatCards: DashboardStatCard[] = [
     { label: 'Sales', value: ordersQuery.isLoading ? '—' : periodOrders.length, trend: salesTrend, note: `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` },
       { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: `Total profit made: ${money(summary?.profit)}` },
