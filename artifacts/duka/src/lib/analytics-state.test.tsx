@@ -801,7 +801,7 @@ test("keeps the custom dashboard picker inside desktop and narrow viewports", as
   }
 });
 
-test("returns focus after closing or applying the dashboard range picker without leaking draft dates", async () => {
+test("rejects reversed dashboard ranges before applying and returns focus without leaking draft dates", async () => {
   const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
     url: "http://localhost/",
   });
@@ -913,26 +913,43 @@ test("returns focus after closing or applying the dashboard range picker without
     await click("button-dashboard-period");
     await click("button-dashboard-period-custom");
     assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, initialFrom);
-    await setDate("input-dashboard-period-from", "2020-01-01");
-    await setDate("input-dashboard-period-to", "2020-01-10");
+    await setDate("input-dashboard-period-from", "2020-01-10");
+    await setDate("input-dashboard-period-to", "2020-01-01");
+    const summaryRequestCountBeforeInvalidRange = summaryRequests.length;
+    const invalidApply = get<HTMLButtonElement>("button-dashboard-period-apply");
+    assert.equal(invalidApply.disabled, true);
+    await click("button-dashboard-period-apply");
+    assert.equal(summaryRequests.length, summaryRequestCountBeforeInvalidRange);
+    assert.equal(
+      summaryRequests.some((request) => (
+        request.searchParams.get("from") === "2020-01-10"
+        && request.searchParams.get("to") === "2020-01-01"
+      )),
+      false,
+      "The dashboard should not query an invalid reversed range",
+    );
+    assert.ok(container.querySelector('[role="dialog"][aria-label="Choose reporting period"]'));
+
+    await setDate("input-dashboard-period-to", "2020-01-20");
+    assert.equal(get<HTMLButtonElement>("button-dashboard-period-apply").disabled, false);
     await click("button-dashboard-period-apply");
     assert.equal(dom.window.document.activeElement, trigger);
     assert.equal(container.querySelector('[data-testid="dashboard-period-menu"]'), null);
-    assert.match(trigger.textContent ?? "", /Jan 1/);
     assert.match(trigger.textContent ?? "", /Jan 10/);
+    assert.match(trigger.textContent ?? "", /Jan 20/);
 
     const appliedSummaryRequest = await waitFor(() => summaryRequests.find((request) => (
-      request.searchParams.get("from") === "2020-01-01"
-      && request.searchParams.get("to") === "2020-01-10"
+      request.searchParams.get("from") === "2020-01-10"
+      && request.searchParams.get("to") === "2020-01-20"
     )));
     assert.ok(appliedSummaryRequest, "Expected the dashboard query to use the applied custom range");
 
     await click("button-dashboard-period");
-    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-01-01");
-    assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-01-10");
-    assert.match(trigger.textContent ?? "", /^Jan 1 – Jan 10$/);
-    assert.equal(appliedSummaryRequest.searchParams.get("from"), "2020-01-01");
-    assert.equal(appliedSummaryRequest.searchParams.get("to"), "2020-01-10");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-01-10");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-01-20");
+    assert.match(trigger.textContent ?? "", /^Jan 10 – Jan 20$/);
+    assert.equal(appliedSummaryRequest.searchParams.get("from"), "2020-01-10");
+    assert.equal(appliedSummaryRequest.searchParams.get("to"), "2020-01-20");
     await act(async () => {
       dom.window.document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
@@ -945,8 +962,8 @@ test("returns focus after closing or applying the dashboard range picker without
     });
     const reloadedTrigger = get<HTMLButtonElement>("button-dashboard-period");
     await click("button-dashboard-period");
-    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-01-01");
-    assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-01-10");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-01-10");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-01-20");
     await click("button-dashboard-period-close");
     assert.equal(dom.window.document.activeElement, reloadedTrigger);
     assert.equal(container.querySelector('[data-testid="dashboard-period-menu"]'), null);
