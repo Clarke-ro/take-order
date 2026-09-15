@@ -161,7 +161,7 @@ test("calculates channel conversion from paid orders over link opens", () => {
   ]);
 });
 
-test("aggregates recorded engagement and preserves unavailable totals", () => {
+test("scopes recorded engagement to custom ranges and preserves unavailable totals", () => {
   const summary = calculateDashboardSummary(
     products,
     [
@@ -170,22 +170,33 @@ test("aggregates recorded engagement and preserves unavailable totals", () => {
         status: "paid",
         amount: 100,
         shares: 7,
-        likes: 12,
+        likes: null,
+        createdAt: new Date("2026-09-13T12:00:00.000Z"),
       }),
       order({
         productId: 2,
         status: "reserved",
         amount: 50,
-        shares: 3,
+        shares: null,
         likes: 0,
+        createdAt: new Date("2026-09-12T12:00:00.000Z"),
+      }),
+      order({
+        productId: 1,
+        status: "paid",
+        amount: 100,
+        shares: 100,
+        likes: 200,
+        createdAt: new Date("2026-08-31T12:00:00.000Z"),
       }),
     ],
     [],
     now,
+    { from: "2026-09-12", to: "2026-09-13" },
   );
 
-  assert.equal(summary.shares, 10);
-  assert.equal(summary.likes, 12);
+  assert.equal(summary.shares, 7);
+  assert.equal(summary.likes, 0);
 
   const unavailable = calculateDashboardSummary(
     products,

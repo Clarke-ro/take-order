@@ -81,7 +81,7 @@ async function requestJson(
   return { status: response.status, body: await response.json() };
 }
 
-async function requestSummary(seed: Seed): Promise<{
+async function requestSummary(seed: Seed, query = ""): Promise<{
   status: number;
   body: unknown;
 }> {
@@ -92,7 +92,7 @@ async function requestSummary(seed: Seed): Promise<{
     const address = server.address();
     assert(address && typeof address !== "string");
     const response = await fetch(
-      `http://127.0.0.1:${address.port}/api/dashboard/summary`,
+      `http://127.0.0.1:${address.port}/api/dashboard/summary${query}`,
     );
     return {
       status: response.status,
@@ -211,6 +211,78 @@ test("GET /dashboard/summary adapts seeded database records into the response co
       legacyOrders: 0,
     },
   ]);
+});
+
+test("GET /dashboard/summary scopes engagement totals to a custom range", async () => {
+  const response = await requestSummary(
+    {
+      products: [
+        {
+          id: 1,
+          name: "Range test item",
+          category: "Test",
+          price: "100.00",
+          cost: null,
+          stock: 10,
+          variants: [],
+          accent: "#0F6E6B",
+        },
+      ],
+      orders: [
+        {
+          id: 1,
+          token: "in-range-order",
+          productId: 1,
+          productName: "Range test item",
+          customerName: "Ama",
+          customerPhone: null,
+          channel: "whatsapp",
+          amount: "100.00",
+          productCost: null,
+          depositAmount: null,
+          paymentMode: "full",
+          status: "paid",
+          fulfillment: "pending",
+          createdAt: new Date("2026-09-13T12:00:00.000Z"),
+          linkOpens: 0,
+          shares: 7,
+          likes: null,
+          engagementSource: "manual_import",
+          referenceImage: null,
+          buyerDetails: null,
+        },
+        {
+          id: 2,
+          token: "out-of-range-order",
+          productId: 1,
+          productName: "Range test item",
+          customerName: "Kojo",
+          customerPhone: null,
+          channel: "instagram",
+          amount: "100.00",
+          productCost: null,
+          depositAmount: null,
+          paymentMode: "full",
+          status: "paid",
+          fulfillment: "pending",
+          createdAt: new Date("2026-08-31T12:00:00.000Z"),
+          linkOpens: 0,
+          shares: 100,
+          likes: 200,
+          engagementSource: "manual_import",
+          referenceImage: null,
+          buyerDetails: null,
+        },
+      ],
+      expenses: [],
+    },
+    "?from=2026-09-12&to=2026-09-13",
+  );
+
+  assert.equal(response.status, 200);
+  const summary = GetDashboardSummaryResponse.parse(response.body);
+  assert.equal(summary.shares, 7);
+  assert.equal(summary.likes, null);
 });
 
 test("GET /dashboard/summary identifies a legacy sale with no captured cost", async () => {

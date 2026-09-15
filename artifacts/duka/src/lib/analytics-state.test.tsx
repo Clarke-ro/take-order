@@ -911,9 +911,19 @@ test("rejects reversed dashboard ranges before applying and returns focus withou
   const summaryRequests: URL[] = [];
   globalThis.fetch = async (input) => {
     const url = String(input);
-    if (url.includes("/api/dashboard/summary")) summaryRequests.push(new URL(url, "http://localhost"));
+    const requestUrl = new URL(url, "http://localhost");
+    if (url.includes("/api/dashboard/summary")) summaryRequests.push(requestUrl);
+    const isAppliedCustomRange = requestUrl.searchParams.get("from") === "2020-01-10"
+      && requestUrl.searchParams.get("to") === "2020-01-20";
     const body = url.includes("/api/dashboard/summary")
-      ? { orders: 0, shares: 12, likes: 8, channelPerformance: [], productPerformance: [], dailyPerformance: [] }
+      ? {
+        orders: isAppliedCustomRange ? 1 : 0,
+        shares: isAppliedCustomRange ? 3 : 12,
+        likes: isAppliedCustomRange ? 5 : 8,
+        channelPerformance: [],
+        productPerformance: [],
+        dailyPerformance: [],
+      }
       : [];
     return new Response(JSON.stringify(body), {
       status: 200,
@@ -1024,6 +1034,26 @@ test("rejects reversed dashboard ranges before applying and returns focus withou
       && request.searchParams.get("to") === "2020-01-20"
     )));
     assert.ok(appliedSummaryRequest, "Expected the dashboard query to use the applied custom range");
+    await act(async () => {
+      await waitFor(() => {
+        const text = container.querySelector<HTMLElement>('[data-testid="card-kpi-secondary-shares"]')?.textContent;
+        return text?.includes("3") ? text : undefined;
+      });
+      await waitFor(() => {
+        const text = container.querySelector<HTMLElement>('[data-testid="card-kpi-secondary-likes"]')?.textContent;
+        return text?.includes("5") ? text : undefined;
+      });
+    });
+    assert.match(
+      get<HTMLElement>("card-kpi-secondary-shares").textContent ?? "",
+      /3/,
+      "The shares card should use the selected custom range",
+    );
+    assert.match(
+      get<HTMLElement>("card-kpi-secondary-likes").textContent ?? "",
+      /5/,
+      "The likes card should use the selected custom range",
+    );
 
     await click("button-dashboard-period");
     assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-01-10");
