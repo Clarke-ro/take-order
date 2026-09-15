@@ -423,6 +423,7 @@ button { cursor: pointer; }
 .orders-icon-mint { background: hsl(157 42% 45% / .14); color: hsl(165 34% 28%); }
 .orders-icon-blue { background: hsl(220 45% 47% / .13); color: hsl(220 45% 37%); }
 .orders-panel-heading, .orders-workspace-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid hsl(var(--border)); padding: 1.25rem 1.5rem; }
+.orders-list-heading { margin: 0 0 .65rem; color: hsl(var(--foreground)); font-family: var(--app-font-serif); font-size: 1.35rem; font-weight: 800; letter-spacing: -.045em; line-height: 1.1; }
 .orders-channel-total { display: flex; min-width: 54px; flex-direction: column; align-items: flex-end; border-left: 1px solid hsl(var(--border)); padding-left: 1rem; }
 .orders-channel-total span { font-family: var(--app-font-serif); font-size: 1.55rem; font-weight: 800; letter-spacing: -.06em; line-height: 1; }
 .orders-channel-total small { margin-top: .35rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .55rem; text-transform: uppercase; letter-spacing: .1em; }
