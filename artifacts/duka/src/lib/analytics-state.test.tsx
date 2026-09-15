@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { JSDOM } from "jsdom";
 import {
   AnalyticsStateMarker,
   getAnalyticsViewState,
@@ -18,7 +19,8 @@ import {
   orderChannels,
   togglePreference,
 } from "./channel-preferences";
-import { ChannelPicker, MobileMenuButton, OnboardingChannelPicker } from "../App";
+import { ChannelPicker, MobileMenuButton, Onboarding, OnboardingChannelPicker } from "../App";
+import { Router } from "wouter";
 
 const emptySummary = {
   orders: 0,
@@ -250,4 +252,126 @@ test("names the mobile menu in both closed and open states", () => {
   assert.match(openMarkup, /aria-label="Close navigation menu"/);
   assert.match(openMarkup, /aria-expanded="true"/);
   assert.match(openMarkup, /aria-hidden="true"/);
+});
+
+test("completes onboarding with keyboard-only focus, activation, and saved channels", async () => {
+  const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
+    url: "http://localhost/onboarding",
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    HTMLInputElement: dom.window.HTMLInputElement,
+    HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
+    KeyboardEvent: dom.window.KeyboardEvent,
+    Event: dom.window.Event,
+    addEventListener: dom.window.addEventListener.bind(dom.window),
+    removeEventListener: dom.window.removeEventListener.bind(dom.window),
+  });
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: dom.window.navigator,
+  });
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: dom.window.location,
+  });
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    configurable: true,
+    value: true,
+  });
+
+  const { act } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const container = dom.window.document.getElementById("root")!;
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(createElement(Router, null, createElement(Onboarding)));
+  });
+
+  const get = <T extends HTMLElement>(testId: string) => {
+    const element = container.querySelector<T>(`[data-testid="${testId}"]`);
+    assert.ok(element, `Expected ${testId} to be present`);
+    return element;
+  };
+  const focusable = () =>
+    [...container.querySelectorAll<HTMLElement>(
+      "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])",
+    )];
+  const tab = async () => {
+    const controls = focusable();
+    const current = dom.window.document.activeElement;
+    const nextIndex = controls.indexOf(current as HTMLElement) + 1;
+    const next = controls[nextIndex] ?? controls[0];
+    await act(async () => {
+      next?.focus();
+      next?.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+      next?.dispatchEvent(new dom.window.KeyboardEvent("keyup", { key: "Tab", bubbles: true }));
+    });
+    assert.equal(dom.window.document.activeElement, next);
+    return next;
+  };
+  const activate = async (element: HTMLElement, key: "Enter" | " ") => {
+    await act(async () => {
+      element.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key, bubbles: true }));
+      element.dispatchEvent(new dom.window.KeyboardEvent("keyup", { key, bubbles: true }));
+      // JSDOM does not perform the browser's default keyboard activation.
+      element.click();
+    });
+  };
+  const type = async (element: HTMLInputElement | HTMLTextAreaElement, value: string) => {
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(element.constructor.prototype, "value")?.set;
+      setter?.call(element, value);
+      element.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+      element.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    });
+  };
+
+  dom.window.document.body.tabIndex = -1;
+  dom.window.document.body.focus();
+  assert.equal((await tab()).getAttribute("data-testid"), "link-onboarding-logo");
+  assert.equal((await tab()).getAttribute("data-testid"), "button-skip-onboarding");
+  assert.equal((await tab()).getAttribute("data-testid"), "input-onboarding-description");
+  await type(get<HTMLTextAreaElement>("input-onboarding-description"), "Handmade jewellery");
+  assert.equal((await tab()).getAttribute("data-testid"), "button-onboarding-back");
+  assert.equal((await tab()).getAttribute("data-testid"), "button-onboarding-continue");
+  await activate(dom.window.document.activeElement as HTMLElement, "Enter");
+
+  assert.equal(dom.window.document.activeElement?.getAttribute("data-testid"), "input-onboarding-seller-name");
+  await type(get<HTMLInputElement>("input-onboarding-seller-name"), "Amina Mensah");
+  assert.equal((await tab()).getAttribute("id"), "onboarding-business-name");
+  const businessName = container.querySelector<HTMLInputElement>("#onboarding-business-name");
+  assert.ok(businessName, "Expected onboarding-business-name to be present");
+  await type(businessName, "The Sunday Edit");
+  assert.equal((await tab()).getAttribute("data-testid"), "button-onboarding-back");
+  assert.equal((await tab()).getAttribute("data-testid"), "button-onboarding-continue");
+  await activate(dom.window.document.activeElement as HTMLElement, "Enter");
+
+  dom.window.document.body.focus();
+  assert.equal((await tab()).getAttribute("data-testid"), "link-onboarding-logo");
+  assert.equal((await tab()).getAttribute("data-testid"), "button-skip-onboarding");
+  const selectedChannels = ["WhatsApp", "Instagram"];
+  for (const channel of onboardingChannels) {
+    const inputTestId = `input-onboarding-channel-${channel.toLowerCase().replaceAll(" ", "-")}`;
+    const channelInput = await tab();
+    assert.equal(channelInput.getAttribute("data-testid"), inputTestId);
+    if (selectedChannels.includes(channel)) await activate(channelInput, " ");
+  }
+  assert.equal((await tab()).getAttribute("data-testid"), "button-onboarding-back");
+  assert.equal((await tab()).getAttribute("data-testid"), "button-onboarding-continue");
+  await activate(dom.window.document.activeElement as HTMLElement, "Enter");
+  await act(async () => {});
+
+  assert.match(container.textContent ?? "", /Setup complete/);
+  assert.equal(dom.window.localStorage.getItem("duka-onboarding-complete"), "true");
+  assert.deepEqual(
+    JSON.parse(dom.window.localStorage.getItem("duka-onboarding-profile") ?? "{}").channels,
+    selectedChannels,
+  );
+  await act(async () => {
+    root.unmount();
+  });
+  dom.window.close();
 });
