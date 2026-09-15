@@ -362,6 +362,7 @@ button { cursor: pointer; }
 .overview-channel-card .channel-performance-track { min-width: 0; }
 .overview-channel-card .channel-performance-fill { min-width: 5px; }
 .overview-channel-card .channel-performance-orders { color: hsl(var(--foreground)); font-size: .7rem; }
+.overview-channel-card .channel-performance-mark { display: inline-flex; height: 1.9rem; width: 1.9rem; flex-shrink: 0; align-items: center; justify-content: center; border: 1px solid hsl(var(--border)); border-radius: .65rem; }
 .chart-tooltip { min-width: 150px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .7rem .8rem; color: hsl(var(--foreground)); box-shadow: none; font-size: .75rem; }
 .chart-tooltip > div + div { margin-top: .3rem; }
 .page-in { animation: page-in .45s ease both; }
