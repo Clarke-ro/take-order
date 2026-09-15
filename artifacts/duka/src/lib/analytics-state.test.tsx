@@ -742,8 +742,10 @@ test("returns focus after closing or applying the dashboard range picker without
   });
 
   const originalFetch = globalThis.fetch;
+  const summaryRequests: URL[] = [];
   globalThis.fetch = async (input) => {
     const url = String(input);
+    if (url.includes("/api/dashboard/summary")) summaryRequests.push(new URL(url, "http://localhost"));
     const body = url.includes("/api/dashboard/summary")
       ? { orders: 0, channelPerformance: [], productPerformance: [], dailyPerformance: [] }
       : [];
@@ -819,9 +821,18 @@ test("returns focus after closing or applying the dashboard range picker without
     assert.match(trigger.textContent ?? "", /Jan 1/);
     assert.match(trigger.textContent ?? "", /Jan 10/);
 
+    const appliedSummaryRequest = await waitFor(() => summaryRequests.find((request) => (
+      request.searchParams.get("from") === "2020-01-01"
+      && request.searchParams.get("to") === "2020-01-10"
+    )));
+    assert.ok(appliedSummaryRequest, "Expected the dashboard query to use the applied custom range");
+
     await click("button-dashboard-period");
     assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-01-01");
     assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-01-10");
+    assert.match(trigger.textContent ?? "", /^Jan 1 – Jan 10$/);
+    assert.equal(appliedSummaryRequest.searchParams.get("from"), "2020-01-01");
+    assert.equal(appliedSummaryRequest.searchParams.get("to"), "2020-01-10");
     await act(async () => {
       dom.window.document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
