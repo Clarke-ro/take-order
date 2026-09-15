@@ -797,14 +797,31 @@ function ChannelPerformance({ channels, loading = false }: { channels: Array<{ c
         <span>Filters</span><SlidersHorizontal size={14} aria-hidden="true" />
       </button>
     </div>
-    <h2 className="sr-only" id="channel-performance-title">Channel conversion</h2>
+    <div className="channel-conversion-title">
+      <div>
+        <h2 id="channel-performance-title">Channel conversion</h2>
+        <p>Views turned into paid sales</p>
+      </div>
+      <span className="font-mono-ui">BY CHANNEL</span>
+    </div>
     {loading ? <div className="space-y-4 p-5"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : visibleChannels.length ? <div className="channel-conversion-list">
-      {visibleChannels.slice(0, 4).map((channel) => <div key={channel.channel} className="channel-conversion-row" data-testid={`row-channel-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${money(channel.revenue)}, ${channel.conversionRate}% conversion`}>
-        <span className="channel-conversion-mark"><ChannelMark value={channel.channel} size={18} /></span>
-        <ChannelLabel value={channel.channel} className="channel-conversion-name" />
-        <strong className="channel-conversion-revenue">{money(channel.revenue)}</strong>
-        <span className="channel-conversion-rate">{channel.conversionRate}%</span>
-      </div>)}
+      {visibleChannels.slice(0, 4).map((channel) => <article key={channel.channel} className="channel-conversion-row" data-testid={`row-channel-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.opens)} views, ${number(channel.paidOrders)} sales, ${channel.conversionRate.toFixed(1)}% conversion`}>
+        <div className="channel-conversion-row-top">
+          <div className="channel-conversion-identity">
+            <span className="channel-conversion-mark"><ChannelMark value={channel.channel} size={18} /></span>
+            <ChannelLabel value={channel.channel} className="channel-conversion-name" />
+          </div>
+          <div className="channel-conversion-rate">
+            <span>Conversion</span>
+            <strong className="font-mono-ui">{channel.conversionRate.toFixed(1)}%</strong>
+          </div>
+        </div>
+        <div className="channel-conversion-metrics">
+          <div><span>Views</span><strong className="font-mono-ui">{number(channel.opens)}</strong></div>
+          <div><span>Sales</span><strong className="font-mono-ui">{number(channel.paidOrders)}</strong></div>
+          <div><span>Revenue</span><strong className="font-mono-ui">{money(channel.revenue)}</strong></div>
+        </div>
+      </article>)}
     </div> : <div className="channel-conversion-empty"><ChartEmpty message="Channel conversion will appear after you share a link." /></div>}
   </section>;
 }
