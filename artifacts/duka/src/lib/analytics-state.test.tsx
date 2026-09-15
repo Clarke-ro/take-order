@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import test from "node:test";
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -32,6 +32,7 @@ import {
   ChannelPicker,
   BuyerOrderForm,
   Connect,
+  DashboardCustomRangePicker,
   ExpenseActions,
   ExpenseModal,
   MobileMenuButton,
@@ -129,6 +130,107 @@ async function readAccessibilityTree(markup: string): Promise<AccessibilityNode[
     const tree = await send("Accessibility.getFullAXTree");
     socket.close();
     return tree.nodes as AccessibilityNode[];
+  } finally {
+    if (!browser.killed) browser.kill();
+    await Promise.race([
+      browserExit,
+      new Promise((resolve) => setTimeout(resolve, 2_000)),
+    ]);
+    await rm(profileDirectory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}
+
+async function inspectDashboardPicker(markup: string, viewport: { width: number; height: number }) {
+  const profileDirectory = await mkdtemp(`${tmpdir()}/duka-picker-`);
+  const browser = spawn("chromium", [
+    "--headless=new",
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--remote-allow-origins=*",
+    "--remote-debugging-port=0",
+    `--user-data-dir=${profileDirectory}`,
+    "about:blank",
+  ], { stdio: ["ignore", "ignore", "pipe"] });
+  const browserExit = new Promise<void>((resolve) => browser.once("exit", () => resolve()));
+
+  try {
+    let debuggingUrl = "";
+    browser.stderr.on("data", (chunk: Buffer) => {
+      const match = chunk.toString().match(/DevTools listening on (ws:\/\/127\.0\.0\.1:\d+)/);
+      if (match) debuggingUrl = match[1]!;
+    });
+    const endpoint = await waitFor(() => debuggingUrl || undefined);
+    const port = new URL(endpoint).port;
+    const page = await waitFor(async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/json/list`);
+      if (!response.ok) return undefined;
+      const pages = await response.json() as Array<{ type: string; webSocketDebuggerUrl?: string }>;
+      return pages.find((item) => item.type === "page" && item.webSocketDebuggerUrl);
+    });
+    const socket = new WebSocket(page.webSocketDebuggerUrl!);
+    let nextMessageId = 0;
+    const pending = new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void }>();
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data)) as { id?: number; result?: any; error?: { message?: string } };
+      if (message.id === undefined) return;
+      const request = pending.get(message.id);
+      if (!request) return;
+      pending.delete(message.id);
+      if (message.error) request.reject(new Error(message.error.message ?? "Chromium request failed"));
+      else request.resolve(message.result);
+    });
+    await waitFor(() => socket.readyState === WebSocket.OPEN ? true : undefined);
+    const send = (method: string, params: Record<string, unknown> = {}) => new Promise<any>((resolve, reject) => {
+      const id = ++nextMessageId;
+      pending.set(id, { resolve, reject });
+      socket.send(JSON.stringify({ id, method, params }));
+    });
+
+    await send("Page.enable");
+    await send("Emulation.setDeviceMetricsOverride", {
+      width: viewport.width,
+      height: viewport.height,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await send("Page.navigate", {
+      url: `data:text/html;charset=utf-8,${encodeURIComponent(markup)}`,
+    });
+    await waitFor(async () => {
+      const result = await send("Runtime.evaluate", { expression: "document.readyState" });
+      return result?.result?.value === "complete" ? true : undefined;
+    });
+    await send("Runtime.evaluate", { expression: "document.querySelector('[aria-label=\"Start date\"]')?.focus()" });
+    const tabStops: string[] = [];
+    for (let index = 0; index < 64; index += 1) {
+      const result = await send("Runtime.evaluate", {
+        expression: `(() => { const active = document.activeElement; return active?.getAttribute('aria-label') || active?.textContent?.trim() || active?.tagName || ''; })()`,
+        returnByValue: true,
+      });
+      tabStops.push(result?.result?.value ?? "");
+      await send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9 });
+      await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9 });
+    }
+    const inspection = await send("Runtime.evaluate", {
+      expression: `(() => {
+        const rect = (selector) => {
+          const element = document.querySelector(selector);
+          const box = element?.getBoundingClientRect();
+          return box ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height } : null;
+        };
+        return {
+          menu: rect('[data-testid="dashboard-period-menu"]'),
+          calendar: rect('[data-testid="dashboard-period-calendar"]'),
+          controls: [...document.querySelectorAll('[data-testid="dashboard-period-menu"] input, [data-testid="dashboard-period-menu"] button')].map((element) => element.getAttribute('aria-label') || element.textContent?.trim() || ''),
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+        };
+      })()`,
+      returnByValue: true,
+    });
+    const tree = await send("Accessibility.getFullAXTree");
+    socket.close();
+    return { inspection: inspection?.result?.value, tabStops, tree: tree.nodes as AccessibilityNode[] };
   } finally {
     if (!browser.killed) browser.kill();
     await Promise.race([
@@ -312,6 +414,83 @@ test("exposes channel groups, names, roles, and state in the live accessibility 
     onboardingCheckboxes.map((node) => ({ name: node.name?.value, checked: propertyValue(node, "checked") })),
     onboardingChannels.map((channel) => ({ name: channel, checked: selectedOnboardingChannels.includes(channel) })),
   );
+});
+
+test("keeps the custom dashboard picker inside desktop and narrow viewports", async () => {
+  const styles = await readFile(new URL("../index.css", import.meta.url), "utf8");
+  const pickerMarkup = renderToStaticMarkup(createElement(DashboardCustomRangePicker, {
+    from: "2026-09-01",
+    to: "2026-09-15",
+    onFromChange: () => undefined,
+    onToChange: () => undefined,
+    onClose: () => undefined,
+    onApply: () => undefined,
+    canApply: true,
+  }));
+  const fixture = `<!doctype html>
+    <html><head><style>${styles}
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; min-width: 0; }
+      body { min-height: 100vh; }
+      .picker-fixture { box-sizing: border-box; width: 100vw; min-height: 100vh; padding: 1rem 1.25rem; }
+      .picker-heading { display: flex; align-items: flex-start; justify-content: space-between; }
+      .picker-action { display: flex; align-items: center; gap: .5rem; }
+      .picker-card { position: relative; z-index: 1; height: 180px; margin-top: -1rem; border: 1px solid #ddd; background: white; }
+      .relative { position: relative; }
+      @media (max-width: 639px) {
+        .picker-heading { flex-direction: column; gap: 1rem; }
+      }
+    </style></head><body>
+      <main class="picker-fixture">
+        <div class="picker-heading">
+          <h1>Dashboard</h1>
+          <div class="picker-action">
+            <div class="relative">
+              <button type="button" class="period-chip" aria-label="Reporting period" aria-expanded="true">Sep 1 – Sep 15</button>
+              <div class="dashboard-period-menu is-custom" role="dialog" aria-label="Choose reporting period" data-testid="dashboard-period-menu">${pickerMarkup}</div>
+            </div>
+          </div>
+        </div>
+        <div class="picker-card" data-testid="dashboard-card">Dashboard cards</div>
+      </main>
+    </body></html>`;
+
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 480 }]) {
+    const result = await inspectDashboardPicker(fixture, viewport);
+    const geometry = result.inspection as {
+      menu: { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      calendar: { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      controls: string[];
+      viewport: { width: number; height: number };
+    };
+    assert.ok(geometry.menu, `Picker menu should render at ${viewport.width}px`);
+    assert.ok(geometry.calendar, `Picker calendar should render at ${viewport.width}px`);
+    assert.ok(geometry.menu.left >= 0, `Picker left edge should stay in the viewport at ${viewport.width}px`);
+    assert.ok(geometry.menu.right <= geometry.viewport.width, `Picker right edge should stay in the viewport at ${viewport.width}px`);
+    assert.ok(geometry.menu.top >= 0, `Picker top edge should stay in the viewport at ${viewport.width}px`);
+    assert.ok(geometry.menu.bottom <= geometry.viewport.height, `Picker should not exceed the viewport height at ${viewport.width}px`);
+    assert.ok(
+      geometry.calendar.left >= geometry.menu.left && geometry.calendar.right <= geometry.menu.right,
+      `Calendar should fit inside picker: ${JSON.stringify({ viewport, menu: geometry.menu, calendar: geometry.calendar })}`,
+    );
+    assert.equal(geometry.controls.filter((name) => name === "Close").length, 1);
+    assert.equal(geometry.controls.filter((name) => name === "Apply range").length, 1);
+    assert.equal(result.tabStops[0], "Start date");
+    assert.ok(result.tabStops.includes("End date"));
+    assert.ok(result.tabStops.includes("Previous month"));
+    assert.ok(result.tabStops.includes("Next month"));
+    assert.ok(result.tabStops.includes("Close"), `Tab sequence did not reach Close: ${JSON.stringify(result.tabStops)}`);
+    assert.ok(result.tabStops.includes("Apply range"), `Tab sequence did not reach Apply range: ${JSON.stringify(result.tabStops)}`);
+    assert.ok(
+      result.tabStops.indexOf("Apply range") > result.tabStops.indexOf("Close"),
+      `Apply range should follow Close in the tab sequence: ${JSON.stringify(result.tabStops)}`,
+    );
+
+    const dialog = result.tree.find((node) => node.role?.value === "dialog");
+    assert.equal(dialog?.name?.value, "Choose reporting period");
+    const calendar = result.tree.find((node) => node.role?.value === "group");
+    assert.equal(calendar?.name?.value, "Choose date range");
+  }
 });
 
 test("exposes buyer order fields, payment choices, and submit state in the live accessibility tree", async () => {

@@ -5,3 +5,4 @@
 - [Take Order typography system](typography-system.md) — Use Inter for interface and display text; reserve IBM Plex Mono for utility metadata.
 - [Cardless dashboard stats](cardless-dashboard-stats.md) — Prefer open Insight-style stat sections with flat tracks over wrapping every metric group in a card.
 - [Live accessibility checks](live-accessibility-checks.md) — Chromium CDP is available for browser-level accessibility-tree assertions without adding a browser automation package.
+- [Dashboard picker browser checks](dashboard-picker-browser-checks.md) — Native date inputs expose segmented tab stops in Chromium; responsive keyboard tests must allow repeated field stops.

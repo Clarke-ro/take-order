@@ -115,7 +115,7 @@ type DashboardCustomRangePickerProps = {
   canApply: boolean;
 };
 
-function DashboardCustomRangePicker({ from, to, onFromChange, onToChange, onClose, onApply, canApply }: DashboardCustomRangePickerProps) {
+export function DashboardCustomRangePicker({ from, to, onFromChange, onToChange, onClose, onApply, canApply }: DashboardCustomRangePickerProps) {
   const [monthCursor, setMonthCursor] = useState(() => (from ? from.slice(0, 7) : inputDate(new Date()).slice(0, 7)));
   const monthStart = new Date(`${monthCursor}-01T12:00:00`);
   const firstVisibleDate = new Date(monthStart);
@@ -165,7 +165,7 @@ function DashboardCustomRangePicker({ from, to, onFromChange, onToChange, onClos
         </span>
       </label>
     </div>
-    <div className="dashboard-calendar" aria-label="Choose date range">
+    <div className="dashboard-calendar" aria-label="Choose date range" role="group" data-testid="dashboard-period-calendar">
       <div className="dashboard-calendar-header">
         <button type="button" className="dashboard-calendar-nav" onClick={() => setMonthCursor(shiftCalendarMonth(monthCursor, -1))} aria-label="Previous month"><ChevronLeft size={15} /></button>
         <strong aria-live="polite">{calendarMonthLabel(monthCursor)}</strong>
@@ -192,8 +192,8 @@ function DashboardCustomRangePicker({ from, to, onFromChange, onToChange, onClos
       </div>
     </div>
     <div className="dashboard-custom-range-actions">
-      <button type="button" className="dashboard-period-close" onClick={onClose}>Close</button>
-      <button type="button" className="dashboard-period-apply" onClick={onApply} disabled={!canApply}>Apply range</button>
+      <button type="button" className="dashboard-period-close" onClick={onClose} data-testid="button-dashboard-period-close">Close</button>
+      <button type="button" className="dashboard-period-apply" onClick={onApply} disabled={!canApply} data-testid="button-dashboard-period-apply">Apply range</button>
     </div>
   </div>;
 }
