@@ -477,16 +477,37 @@ const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 're
   status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';
 const paymentLabel = (order: Order) => order.status === 'deposit_paid' ? 'Deposit paid' : order.status === 'paid' ? 'Paid in full' : 'Awaiting payment';
 type MetricTrend = { direction: 'up' | 'down'; percentage: number };
+type MetricIndicator = { direction: 'up' | 'down' | 'neutral'; label: string };
 type DashboardStatCard = {
   label: string;
   value: ReactNode;
   valueAccessory?: ReactNode;
   trend?: MetricTrend;
+  indicator?: MetricIndicator;
   note: ReactNode;
 };
-function MetricCard({ label, value, valueAccessory, note, period, trend, loading = false, dataTestId, className = '', style }: { label: string; value: ReactNode; valueAccessory?: ReactNode; note?: ReactNode; period?: string; trend?: MetricTrend; loading?: boolean; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
+function MetricCard({ label, value, valueAccessory, note, period, trend, indicator, loading = false, dataTestId, className = '', style }: { label: string; value: ReactNode; valueAccessory?: ReactNode; note?: ReactNode; period?: string; trend?: MetricTrend; indicator?: MetricIndicator; loading?: boolean; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
   const isUp = trend?.direction === 'up';
-  return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}><div className="flex items-start justify-between gap-3"><div className={cn('metric-card-heading', period && 'has-period')}><div className={period ? 'metric-card-title' : 'text-[10px] font-normal uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]'}>{label}</div>{period && <span className="metric-card-period">{period}</span>}</div>{loading ? <Skeleton className="h-5 w-12 rounded-full" /> : trend && <span className={cn('metric-trend-badge', isUp ? 'metric-trend-up' : 'metric-trend-down')} aria-label={`${isUp ? 'Up' : 'Down'} ${trend.percentage}%`}><span>{isUp ? '+' : '−'}{trend.percentage}%</span></span>}</div><div className="metric-value-row mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">{loading ? <Skeleton className="h-9 w-24" /> : <>{valueAccessory}<span className="metric-value-content">{value}</span>{trend && <span className={cn('metric-value-trend', isUp ? 'metric-trend-up' : 'metric-trend-down')} aria-hidden="true">{isUp ? <ArrowUp size={16} strokeWidth={2.5} /> : <ArrowDown size={16} strokeWidth={2.5} />}</span>}</>}</div>{note && (loading ? <Skeleton className="mt-3 h-3 w-40" /> : <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>)}</Card>;
+  const indicatorDirection = trend?.direction ?? indicator?.direction;
+  const indicatorTone = indicatorDirection === 'up' ? 'metric-trend-up' : indicatorDirection === 'down' ? 'metric-trend-down' : 'metric-trend-neutral';
+  const indicatorLabel = trend ? `${isUp ? '+' : '−'}${trend.percentage}%` : indicator?.label;
+  const IndicatorIcon = indicatorDirection === 'up' ? ArrowUp : indicatorDirection === 'down' ? ArrowDown : null;
+  return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}>
+    <div className="flex items-start justify-between gap-3">
+      <div className={cn('metric-card-heading', period && 'has-period')}>
+        <div className={period ? 'metric-card-title' : 'text-[10px] font-normal uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]'}>{label}</div>
+        {period && <span className="metric-card-period">{period}</span>}
+      </div>
+      {loading ? <Skeleton className="h-5 w-12 rounded-full" /> : (trend || indicator) && <span className={cn('metric-trend-badge', indicatorTone)} aria-label={trend ? `${isUp ? 'Up' : 'Down'} ${trend.percentage}%` : indicator?.label}>
+        {IndicatorIcon && <IndicatorIcon size={11} strokeWidth={2.5} aria-hidden="true" />}
+        <span>{indicatorLabel}</span>
+      </span>}
+    </div>
+    <div className="metric-value-row mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">
+      {loading ? <Skeleton className="h-9 w-24" /> : <>{valueAccessory}<span className="metric-value-content">{value}</span>{(trend || indicator) && <span className={cn('metric-value-trend', indicatorTone)} aria-hidden="true">{IndicatorIcon && <IndicatorIcon size={16} strokeWidth={2.5} />}</span>}</>}
+    </div>
+    {note && (loading ? <Skeleton className="mt-3 h-3 w-40" /> : <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>)}
+  </Card>;
 }
 function InsightCard({ icon: Icon, title, description, className = '', dataTestId }: { icon: typeof CircleDollarSign; title: string; description?: string; className?: string; dataTestId?: string }) {
   return <Card className={cn('flex items-center gap-4 p-5', className)} data-testid={dataTestId}><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/25 text-[hsl(var(--accent-foreground))]"><Icon size={18} /></div><div><div className="text-sm font-bold">{title}</div>{description && <p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}</div></Card>;
