@@ -6,6 +6,14 @@ import {
   AnalyticsStateMarker,
   getAnalyticsViewState,
 } from "./analytics-state";
+import {
+  connectPreferenceAriaLabel,
+  connectPreferenceLabel,
+  onboardingChannels,
+  orderChannels,
+  togglePreference,
+} from "./channel-preferences";
+import { ChannelPicker, MobileMenuButton } from "../App";
 
 const emptySummary = {
   orders: 0,
@@ -60,4 +68,82 @@ test("prioritizes loading and error states over stale analytics data", () => {
     }),
     "error",
   );
+});
+
+test("keeps every supported channel value stable while selecting and toggling", () => {
+  const orderValues = orderChannels.map((channel) => channel.value);
+  assert.deepEqual(orderValues, [
+    "whatsapp",
+    "instagram",
+    "tiktok",
+    "snapchat",
+    "in_person",
+  ]);
+
+  let selected: string[] = [];
+  for (const value of orderValues) {
+    const previous = [...selected];
+    selected = togglePreference(selected, value);
+    assert.deepEqual(selected, [...previous, value]);
+    selected = togglePreference(selected, value);
+    assert.deepEqual(selected, previous);
+  }
+
+  for (const label of onboardingChannels.slice(0, 5)) {
+    const toggledOn = togglePreference([], label);
+    assert.deepEqual(toggledOn, [label]);
+    assert.deepEqual(togglePreference(toggledOn, label), []);
+  }
+});
+
+test("renders order-channel controls with one selected value at a time", () => {
+  for (const selectedValue of orderChannels.map((channel) => channel.value)) {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelPicker, {
+        value: selectedValue,
+        onChange: () => undefined,
+        testId: "order-channel",
+      }),
+    );
+
+    for (const channel of orderChannels) {
+      assert.match(
+        markup,
+        new RegExp(
+          `aria-checked="${channel.value === selectedValue}"[^>]*data-testid="order-channel-${channel.value}"`,
+        ),
+      );
+      assert.match(markup, new RegExp(`>${channel.label}</span>`));
+    }
+  }
+});
+
+test("Connect preference labels describe saved preferences, not authorization", () => {
+  assert.equal(connectPreferenceLabel(false), "Not saved");
+  assert.equal(connectPreferenceLabel(true), "Saved preference");
+  assert.equal(
+    connectPreferenceAriaLabel("WhatsApp", false),
+    "WhatsApp, not saved. Select to save this preference.",
+  );
+  assert.equal(
+    connectPreferenceAriaLabel("WhatsApp", true),
+    "WhatsApp, saved preference. Select to remove this preference.",
+  );
+  assert.doesNotMatch(connectPreferenceAriaLabel("WhatsApp", true), /authoriz|connect/i);
+});
+
+test("names the mobile menu in both closed and open states", () => {
+  const closedMarkup = renderToStaticMarkup(
+    createElement(MobileMenuButton, { open: false, onClick: () => undefined }),
+  );
+  assert.match(closedMarkup, /aria-label="Open navigation menu"/);
+  assert.match(closedMarkup, /aria-expanded="false"/);
+  assert.match(closedMarkup, /aria-hidden="true"/);
+
+  const openMarkup = renderToStaticMarkup(
+    createElement(MobileMenuButton, { open: true, onClick: () => undefined }),
+  );
+  assert.match(openMarkup, /aria-label="Close navigation menu"/);
+  assert.match(openMarkup, /aria-expanded="true"/);
+  assert.match(openMarkup, /aria-hidden="true"/);
 });

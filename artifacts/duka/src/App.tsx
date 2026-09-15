@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import {
@@ -25,6 +25,13 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AnalyticsStateMarker, getAnalyticsViewState } from '@/lib/analytics-state';
+import {
+  connectPreferenceAriaLabel,
+  connectPreferenceLabel,
+  onboardingChannels,
+  orderChannels,
+  togglePreference,
+} from '@/lib/channel-preferences';
 
 const queryClient = new QueryClient();
 const money = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
@@ -118,15 +125,7 @@ function ChannelInline({ value }: { value: string }) {
   return <span className="inline-flex items-center gap-1.5"><ChannelMark value={value} size={14} /><ChannelLabel value={value} /></span>;
 }
 
-const orderChannels = [
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'instagram', label: 'Instagram' },
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'snapchat', label: 'Snapchat' },
-  { value: 'in_person', label: 'In person' },
-] as const satisfies ReadonlyArray<{ value: OrderInput['channel']; label: string }>;
-
-function ChannelPicker({ value, onChange, testId }: { value: OrderInput['channel']; onChange: (value: OrderInput['channel']) => void; testId: string }) {
+export function ChannelPicker({ value, onChange, testId }: { value: OrderInput['channel']; onChange: (value: OrderInput['channel']) => void; testId: string }) {
   return <div data-testid={testId} className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Conversation channel">
     {orderChannels.map((channel) => {
       const selected = value === channel.value;
@@ -184,10 +183,14 @@ function Sidebar() {
   </aside>;
 }
 
+export function MobileMenuButton({ open, onClick }: { open: boolean; onClick: () => void }) {
+  return <button type="button" aria-label={open ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={open} data-testid="button-mobile-menu" onClick={onClick} className="rounded-lg p-2 hover:bg-black/5">{open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}</button>;
+}
+
 function MobileTopbar() {
   const [open, setOpen] = useState(false);
   const nav = [{ href: '/', label: 'Overview' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/expenses', label: 'Expenses' }, { href: '/take-order', label: 'Take an order' }, { href: '/connect', label: 'Connect tools' }];
-  return <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md"><Link href="/" aria-label="Duka overview"><BrandLockup className="gap-2" /></Link><button type="button" aria-label={open ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={open} data-testid="button-mobile-menu" onClick={() => setOpen(!open)} className="rounded-lg p-2 hover:bg-black/5">{open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}</button>{open && <div className="absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3">{nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-sm hover:bg-[hsl(var(--muted))]">{item.label}</Link>)}</div>}</div>;
+  return <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md"><Link href="/" aria-label="Duka overview"><BrandLockup className="gap-2" /></Link><MobileMenuButton open={open} onClick={() => setOpen(!open)} />{open && <div className="absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3">{nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-sm hover:bg-[hsl(var(--muted))]">{item.label}</Link>)}</div>}</div>;
 }
 
 function Shell({ children }: { children: ReactNode }) {
@@ -223,7 +226,6 @@ function InsightCard({ icon: Icon, title, description, className = '', dataTestI
   return <Card className={cn('flex items-center gap-4 p-5', className)} data-testid={dataTestId}><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/25 text-[hsl(var(--accent-foreground))]"><Icon size={18} /></div><div><div className="text-sm font-bold">{title}</div>{description && <p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}</div></Card>;
 }
 
-const onboardingChannels = ['WhatsApp', 'Instagram', 'TikTok', 'Snapchat', 'In person', 'Other'];
 function Onboarding() {
   const [, setLocation] = useLocation();
   const [step, setStep] = useState(0);
@@ -232,7 +234,7 @@ function Onboarding() {
     window.localStorage.setItem(ONBOARDING_KEY, JSON.stringify(profile));
   }, [profile]);
   const update = (key: keyof SellerProfile, value: string) => setProfile((current) => ({ ...current, [key]: value }));
-  const toggleChannel = (channel: string) => setProfile((current) => ({ ...current, channels: current.channels.includes(channel) ? current.channels.filter((item) => item !== channel) : [...current.channels, channel] }));
+  const toggleChannel = (channel: string) => setProfile((current) => ({ ...current, channels: togglePreference(current.channels, channel) }));
   const skip = () => { finishOnboarding(); setLocation('/'); };
   const next = () => {
     if (step === 0 && profile.description.trim()) setStep(1);
