@@ -86,9 +86,9 @@ function PoweredByTakeOrder({ className = '' }: { className?: string }) {
 type MarkKey = 'whatsapp' | 'instagram' | 'tiktok' | 'snapchat' | 'facebook_ads' | 'paystack' | 'mobile_money' | 'x' | 'in_person' | 'other';
 const markCatalog = {
   whatsapp: { label: 'WhatsApp', Icon: SiWhatsapp, color: '#25D366', kind: 'brand' },
-  instagram: { label: 'Instagram', Icon: SiInstagram, color: '#C13584', kind: 'brand' },
+  instagram: { label: 'Instagram', Icon: SiInstagram, color: '#E4405F', kind: 'brand' },
   tiktok: { label: 'TikTok', Icon: SiTiktok, color: '#111111', kind: 'brand' },
-  snapchat: { label: 'Snapchat', Icon: SiSnapchat, color: '#111111', kind: 'brand' },
+  snapchat: { label: 'Snapchat', Icon: SiSnapchat, color: '#FFFC00', kind: 'brand' },
   facebook_ads: { label: 'Facebook Ads', Icon: SiFacebook, color: '#1877F2', kind: 'brand' },
   paystack: { label: 'Paystack', Icon: WalletCards, color: '#00C3F7', kind: 'provider' },
   mobile_money: { label: 'Mobile Money', Icon: WalletCards, color: '#111111', kind: 'category' },
@@ -102,10 +102,11 @@ const markKeyFor = (value: string): MarkKey => {
   return key in markCatalog ? key : 'other';
 };
 
-function ChannelMark({ value, size = 17, className = '' }: { value: string; size?: number; className?: string }) {
+function ChannelMark({ value, size = 17, className = '', colorful = true }: { value: string; size?: number; className?: string; colorful?: boolean }) {
   const mark = markCatalog[markKeyFor(value)];
   const Icon = mark.Icon;
-  return <Icon size={size} aria-hidden="true" className={className} />;
+  const color = colorful && (mark.kind === 'brand' || mark.kind === 'provider') ? mark.color : undefined;
+  return <Icon size={size} aria-hidden="true" className={className} style={color ? { color } : undefined} />;
 }
 
 function ChannelLabel({ value, className = '' }: { value: string; className?: string }) {
@@ -130,7 +131,7 @@ function ChannelPicker({ value, onChange, testId }: { value: OrderInput['channel
     {orderChannels.map((channel) => {
       const selected = value === channel.value;
       return <button key={channel.value} type="button" role="radio" aria-checked={selected} data-testid={`${testId}-${channel.value}`} onClick={() => onChange(channel.value)} className={cn('flex items-center gap-2 rounded-[10px] border px-3 py-2.5 text-left text-xs font-semibold transition-colors', selected ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))]')}>
-        <ChannelMark value={channel.value} size={15} className={selected ? 'text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--foreground))]'} />
+         <ChannelMark value={channel.value} size={15} colorful={!selected} className={selected ? 'text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--foreground))]'} />
         <span>{channel.label}</span>
       </button>;
     })}
