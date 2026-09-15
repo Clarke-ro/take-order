@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { JSDOM } from "jsdom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   AnalyticsStateMarker,
   getAnalyticsViewState,
@@ -24,7 +25,17 @@ import {
   orderChannels,
   togglePreference,
 } from "./channel-preferences";
-import { ChannelPicker, MobileMenuButton, Onboarding, OnboardingChannelPicker } from "../App";
+import {
+  CatalogActions,
+  ChannelPicker,
+  ExpenseActions,
+  ExpenseModal,
+  MobileMenuButton,
+  Onboarding,
+  OnboardingChannelPicker,
+  ProductModal,
+  Sidebar,
+} from "../App";
 import { Router } from "wouter";
 
 const emptySummary = {
@@ -120,13 +131,19 @@ async function readAccessibilityTree(markup: string): Promise<AccessibilityNode[
       browserExit,
       new Promise((resolve) => setTimeout(resolve, 2_000)),
     ]);
-    await rm(profileDirectory, { recursive: true, force: true });
+    await rm(profileDirectory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }
 
 function propertyValue(node: AccessibilityNode, propertyName: string): unknown {
   const value = node.properties?.find((property) => property.name === propertyName)?.value?.value;
   return value === "true" ? true : value === "false" ? false : value;
+}
+
+function controlsByRole(tree: AccessibilityNode[], role: string) {
+  return tree
+    .filter((node) => node.role?.value === role)
+    .map((node) => node.name?.value ?? "");
 }
 
 test("renders loading, empty, and populated analytics states without errors", () => {
@@ -291,6 +308,74 @@ test("exposes channel groups, names, roles, and state in the live accessibility 
     onboardingCheckboxes.map((node) => ({ name: node.name?.value, checked: propertyValue(node, "checked") })),
     onboardingChannels.map((channel) => ({ name: channel, checked: selectedOnboardingChannels.includes(channel) })),
   );
+});
+
+test("names seller navigation and icon-only actions in the live accessibility tree", async () => {
+  const navigationTree = await readAccessibilityTree(
+    renderToStaticMarkup(createElement(
+      Router,
+      {
+        hook: () => ["/", (_path: string, ..._args: any[]) => undefined] as [string, (path: string, ...args: any[]) => any],
+        children: createElement(Sidebar),
+      },
+    )),
+  );
+  assert.equal(
+    navigationTree.find((node) => node.role?.value === "navigation")?.name?.value,
+    "Seller workspace navigation",
+  );
+  assert.deepEqual(controlsByRole(navigationTree, "link"), [
+    "Dashboard",
+    "Catalog",
+    "Orders12",
+    "Reports",
+    "Clients",
+    "Expenses",
+    "Take an order",
+    "Connect tools",
+  ]);
+
+  const queryClient = new QueryClient();
+  const actionMarkup = [
+    renderToStaticMarkup(createElement(CatalogActions, {
+      productName: "Linen wrap top",
+      onEdit: () => undefined,
+      onDelete: () => undefined,
+    })),
+    renderToStaticMarkup(createElement(ExpenseActions, {
+      expenseTitle: "Studio rent",
+      onEdit: () => undefined,
+      onDelete: () => undefined,
+    })),
+    renderToStaticMarkup(createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(ProductModal, { onClose: () => undefined }),
+    )),
+    renderToStaticMarkup(createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(ExpenseModal, { onClose: () => undefined }),
+    )),
+  ].join("");
+  const actionTree = await readAccessibilityTree(actionMarkup);
+  const buttonNames = controlsByRole(actionTree, "button");
+  assert.ok(buttonNames.every((name) => name.length > 0), "Every seller button needs an accessible name");
+  for (const expectedName of [
+    "Edit Linen wrap top",
+    "Delete Linen wrap top",
+    "Edit Studio rent",
+    "Delete Studio rent",
+    "Close item editor",
+    "Use gold accent color",
+    "Use green accent color",
+    "Use rose accent color",
+    "Use blue accent color",
+    "Use orange accent color",
+    "Close expense editor",
+  ]) {
+    assert.ok(buttonNames.includes(expectedName), `Expected live seller action named "${expectedName}"`);
+  }
 });
 
 test("activating a channel control calls back with only its channel", () => {
