@@ -439,12 +439,13 @@ button { cursor: pointer; }
 .orders-filter-button:hover, .orders-filter-button.is-active { color: hsl(var(--foreground)); }
 .orders-filter-button.is-active { border-bottom-color: hsl(var(--foreground)); }
 .orders-table-wrap { overflow-x: auto; }
-.orders-table-head, .orders-table-row { display: grid; grid-template-columns: minmax(220px, 1.35fr) 4.5rem minmax(118px, .8fr) minmax(82px, .55fr) minmax(126px, .86fr) minmax(112px, .78fr); min-width: 900px; gap: 1.5rem; align-items: center; }
+.orders-table-head, .orders-table-row { display: grid; grid-template-columns: minmax(96px, .55fr) minmax(220px, 1.35fr) 4.5rem minmax(118px, .8fr) minmax(82px, .55fr) minmax(126px, .86fr) minmax(112px, .78fr); min-width: 1000px; gap: 1.5rem; align-items: center; }
 .orders-table-head { background: hsl(var(--card)); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
-.orders-table-head > span:nth-child(2) { text-align: center; transform: translateX(-.35rem); }
+.orders-table-head > span:nth-child(3) { text-align: center; transform: translateX(-.35rem); }
 .orders-table-row { border-bottom: 1px solid hsl(var(--border)); padding: 1.05rem 1.5rem; transition: background-color .18s; }
 .orders-table-row:last-child { border-bottom: 0; }
 .orders-table-row:hover { background: hsl(var(--muted) / .42); }
+.orders-order-id-cell { min-width: 0; }
 .orders-buyer-cell { display: flex; min-width: 0; align-items: center; gap: .75rem; }
 .orders-table-row .font-semibold, .orders-table-row .font-bold { font-weight: 500; }
 .orders-buyer-cell > div:last-child > div:last-child { font-size: .75rem; font-weight: 400; }
@@ -571,6 +572,7 @@ button { cursor: pointer; }
   .orders-table-head { display: none; }
   .orders-table-wrap { overflow: visible; }
   .orders-table-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-width: 0; gap: .95rem .75rem; padding: 1rem; }
+  .orders-order-id-cell { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: .6rem; }
   .orders-buyer-cell { grid-column: 1 / -1; }
   .orders-traffic-cell, .orders-cell-labeled, .orders-value-cell, .orders-date-cell { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
   .orders-mobile-label { display: inline; }
