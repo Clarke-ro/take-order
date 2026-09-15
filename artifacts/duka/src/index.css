@@ -315,34 +315,34 @@ button { cursor: pointer; }
 .page-content .catalog-toolbar p,
 .page-content .clients-workspace-heading p { font-size: .875rem; line-height: 1.55; opacity: 1; }
 .period-chip { display: inline-flex; align-items: center; gap: .5rem; border: 1px solid hsl(var(--border)); border-radius: 999px; background: hsl(var(--card)); padding: .65rem .85rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .625rem; line-height: 1; }
-.dashboard-period-menu { position: absolute; top: calc(100% + .55rem); right: 0; z-index: 30; width: min(300px, calc(100vw - 2rem)); border: 1px solid hsl(var(--border)); border-radius: 14px; background: hsl(var(--card)); padding: .45rem; box-shadow: 0 16px 40px hsl(220 25% 18% / .12); }
-.dashboard-period-menu.is-custom { width: min(340px, calc(100vw - 2rem)); padding: 0; overflow: hidden; }
+.dashboard-period-menu { position: absolute; top: calc(100% + .55rem); right: 0; z-index: 60; width: min(300px, calc(100vw - 2rem)); border: 1px solid hsl(var(--border)); border-radius: 14px; background: hsl(var(--card)); padding: .45rem; box-shadow: 0 16px 40px hsl(220 25% 18% / .12); }
+.dashboard-period-menu.is-custom { width: min(320px, calc(100vw - 2rem)); padding: 0; overflow: hidden; }
 .dashboard-period-options { display: grid; gap: .15rem; }
 .dashboard-period-option { width: 100%; border-radius: 9px; padding: .65rem .7rem; color: hsl(var(--muted-foreground)); font-size: .72rem; text-align: left; }
 .dashboard-period-option:hover, .dashboard-period-option.is-active { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
-.dashboard-custom-range { display: grid; gap: .7rem; border-top: 1px solid hsl(var(--border)); margin-top: .4rem; padding: .75rem .25rem .25rem; }
+.dashboard-custom-range { display: grid; gap: .55rem; padding: .65rem; }
 .dashboard-custom-range-header, .dashboard-custom-range-fields, .dashboard-custom-range-actions, .dashboard-calendar-header { display: flex; align-items: center; justify-content: space-between; }
 .dashboard-custom-range-title { color: hsl(var(--foreground)); font-size: .72rem; font-weight: 600; line-height: 1.2; }
 .dashboard-custom-range-badge { display: inline-flex; margin-left: .25rem; border-radius: 999px; background: hsl(var(--muted)); padding: .18rem .35rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .5rem; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; vertical-align: .08rem; }
 .dashboard-custom-range-help { margin-top: .18rem; color: hsl(var(--muted-foreground)); font-size: .6rem; line-height: 1.2; }
 .dashboard-custom-range-zone { border: 1px solid hsl(var(--border)); border-radius: 999px; padding: .25rem .45rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .56rem; letter-spacing: .08em; }
-.dashboard-custom-range-fields { align-items: flex-start; gap: .5rem; }
+.dashboard-custom-range-fields { align-items: flex-start; gap: .45rem; }
 .dashboard-custom-range-fields label { min-width: 0; flex: 1; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .56rem; text-transform: uppercase; letter-spacing: .08em; }
 .dashboard-date-input { position: relative; display: block; margin-top: .3rem; }
 .dashboard-date-input svg { position: absolute; top: 50%; left: .48rem; z-index: 1; transform: translateY(-50%); color: hsl(var(--muted-foreground)); pointer-events: none; }
-.dashboard-custom-range input { display: block; width: 100%; min-width: 0; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--background)); padding: .52rem .35rem .52rem 1.75rem; color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .61rem; outline: none; }
+.dashboard-custom-range input { display: block; width: 100%; min-width: 0; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--background)); padding: .45rem .3rem .45rem 1.65rem; color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .59rem; outline: none; }
 .dashboard-custom-range input:focus { border-color: hsl(var(--ring)); outline: 2px solid hsl(var(--ring) / .18); outline-offset: 1px; }
 .dashboard-custom-range input::-webkit-calendar-picker-indicator { opacity: .55; }
-.dashboard-calendar { border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--background)); padding: .55rem; }
-.dashboard-calendar-header { padding: 0 .05rem .45rem; color: hsl(var(--foreground)); font-size: .68rem; }
+.dashboard-calendar { border: 1px solid hsl(var(--border)); border-radius: 9px; background: hsl(var(--background)); padding: .4rem; }
+.dashboard-calendar-header { padding: 0 .05rem .3rem; color: hsl(var(--foreground)); font-size: .65rem; }
 .dashboard-calendar-header strong { font-weight: 600; }
 .dashboard-calendar-nav { display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; padding: .25rem; color: hsl(var(--muted-foreground)); }
 .dashboard-calendar-nav:hover, .dashboard-calendar-nav:focus-visible { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
 .dashboard-calendar-weekdays, .dashboard-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
-.dashboard-calendar-weekdays { margin-bottom: .2rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .52rem; text-align: center; }
-.dashboard-calendar-day { position: relative; display: flex; min-height: 1.75rem; align-items: center; justify-content: center; color: hsl(var(--foreground)); font-size: .62rem; }
+.dashboard-calendar-weekdays { margin-bottom: .1rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .5rem; text-align: center; }
+.dashboard-calendar-day { position: relative; display: flex; min-height: 1.5rem; align-items: center; justify-content: center; color: hsl(var(--foreground)); font-size: .59rem; }
 .dashboard-calendar-day::before { position: absolute; inset: .1rem 0; z-index: 0; content: ''; background: transparent; }
-.dashboard-calendar-day > span { position: relative; z-index: 1; display: inline-flex; width: 1.45rem; height: 1.45rem; align-items: center; justify-content: center; border-radius: 999px; }
+.dashboard-calendar-day > span { position: relative; z-index: 1; display: inline-flex; width: 1.3rem; height: 1.3rem; align-items: center; justify-content: center; border-radius: 999px; }
 .dashboard-calendar-day:hover > span, .dashboard-calendar-day:focus-visible > span { background: hsl(var(--muted)); }
 .dashboard-calendar-day.is-outside { color: hsl(var(--muted-foreground) / .45); }
 .dashboard-calendar-day.is-in-range::before { background: hsl(var(--primary) / .08); }

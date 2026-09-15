@@ -149,13 +149,6 @@ function DashboardCustomRangePicker({ from, to, onFromChange, onToChange, onClos
   const rangeEnd = from && to && from <= to ? to : '';
 
   return <div className="dashboard-custom-range">
-    <div className="dashboard-custom-range-header">
-      <div>
-        <p className="dashboard-custom-range-title">Custom range <span className="dashboard-custom-range-badge">Custom</span></p>
-        <p className="dashboard-custom-range-help">Set a reporting window</p>
-      </div>
-      <span className="dashboard-custom-range-zone">UTC</span>
-    </div>
     <div className="dashboard-custom-range-fields">
       <label>
         From
