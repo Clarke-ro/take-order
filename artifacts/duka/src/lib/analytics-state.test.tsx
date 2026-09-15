@@ -38,6 +38,7 @@ import {
   MobileMenuButton,
   Onboarding,
   OnboardingChannelPicker,
+  Overview,
   ProductModal,
   Sidebar,
 } from "../App";
@@ -575,6 +576,126 @@ test("keeps the custom dashboard picker inside desktop and narrow viewports", as
     assert.equal(dialog?.name?.value, "Choose reporting period");
     const calendar = result.tree.find((node) => node.role?.value === "group");
     assert.equal(calendar?.name?.value, "Choose date range");
+  }
+});
+
+test("returns focus after closing or applying the dashboard range picker without leaking draft dates", async () => {
+  const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
+    url: "http://localhost/",
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    HTMLInputElement: dom.window.HTMLInputElement,
+    addEventListener: dom.window.addEventListener.bind(dom.window),
+    removeEventListener: dom.window.removeEventListener.bind(dom.window),
+  });
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: dom.window.navigator,
+  });
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: dom.window.location,
+  });
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    configurable: true,
+    value: true,
+  });
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    const body = url.includes("/api/dashboard/summary")
+      ? { orders: 0, channelPerformance: [], productPerformance: [], dailyPerformance: [] }
+      : [];
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  const { act } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const container = dom.window.document.getElementById("root")!;
+  const root = createRoot(container);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const renderOverview = () => createElement(
+    QueryClientProvider,
+    {
+      client: queryClient,
+      children: createElement(
+        Router,
+        {
+          hook: () => ["/", (_path: string, ..._args: any[]) => undefined] as [string, (path: string, ...args: any[]) => any],
+          children: createElement(Overview),
+        },
+      ),
+    },
+  );
+  const get = <T extends HTMLElement>(testId: string) => {
+    const element = container.querySelector<T>(`[data-testid="${testId}"]`);
+    assert.ok(element, `Expected ${testId} to be present`);
+    return element;
+  };
+  const click = async (testId: string) => {
+    await act(async () => {
+      get<HTMLButtonElement>(testId).click();
+    });
+  };
+  const setDate = async (testId: string, value: string) => {
+    await act(async () => {
+      const input = get<HTMLInputElement>(testId);
+      const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")?.set;
+      setter?.call(input, value);
+      input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+      input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    });
+  };
+
+  try {
+    await act(async () => {
+      root.render(renderOverview());
+    });
+
+    const trigger = get<HTMLButtonElement>("button-dashboard-period");
+    await click("button-dashboard-period");
+    await click("button-dashboard-period-custom");
+    const initialFrom = get<HTMLInputElement>("input-dashboard-period-from").value;
+    await setDate("input-dashboard-period-from", "2020-01-01");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-01-01");
+
+    await click("button-dashboard-period-close");
+    assert.equal(dom.window.document.activeElement, trigger);
+    assert.equal(container.querySelector('[data-testid="dashboard-period-menu"]'), null);
+    assert.match(trigger.textContent ?? "", /Last 7 days/);
+
+    await click("button-dashboard-period");
+    await click("button-dashboard-period-custom");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, initialFrom);
+    await setDate("input-dashboard-period-from", "2020-01-01");
+    await setDate("input-dashboard-period-to", "2020-01-10");
+    await click("button-dashboard-period-apply");
+    assert.equal(dom.window.document.activeElement, trigger);
+    assert.equal(container.querySelector('[data-testid="dashboard-period-menu"]'), null);
+    assert.match(trigger.textContent ?? "", /Jan 1/);
+    assert.match(trigger.textContent ?? "", /Jan 10/);
+
+    await click("button-dashboard-period");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-01-01");
+    assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-01-10");
+    await act(async () => {
+      dom.window.document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    assert.equal(dom.window.document.activeElement, trigger);
+    assert.equal(container.querySelector('[data-testid="dashboard-period-menu"]'), null);
+  } finally {
+    await act(async () => {
+      root.unmount();
+    });
+    globalThis.fetch = originalFetch;
+    dom.window.close();
   }
 });
 

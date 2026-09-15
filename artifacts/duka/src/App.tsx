@@ -552,12 +552,14 @@ function HomeRoute() {
   return <Overview />;
 }
 
-function Overview() {
+export function Overview() {
   const today = inputDate(new Date());
   const [period, setPeriod] = useState<DashboardPeriod>('week');
   const [draftPeriod, setDraftPeriod] = useState<DashboardPeriod>('week');
   const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
   const periodMenuRef = useRef<HTMLDivElement>(null);
+  const periodTriggerRef = useRef<HTMLButtonElement>(null);
+  const periodMenuWasOpen = useRef(false);
   const [connectedTools, setConnectedTools] = useState<string[]>(readConnectedTools);
   useEffect(() => {
     const storage = getPreferenceStorage();
@@ -644,14 +646,34 @@ function Overview() {
     setPeriodMenuOpen(false);
   };
   useEffect(() => {
+    if (periodMenuOpen) {
+      periodMenuWasOpen.current = true;
+      return;
+    }
+    if (periodMenuWasOpen.current) {
+      periodMenuWasOpen.current = false;
+      periodTriggerRef.current?.focus();
+    }
+  }, [periodMenuOpen]);
+  useEffect(() => {
     if (!periodMenuOpen) return;
     const dismissOnOutsidePointer = (event: PointerEvent) => {
       if (periodMenuRef.current && !periodMenuRef.current.contains(event.target as Node)) closePeriodMenu();
     };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closePeriodMenu();
+      }
+    };
     document.addEventListener('pointerdown', dismissOnOutsidePointer);
-    return () => document.removeEventListener('pointerdown', dismissOnOutsidePointer);
+    document.addEventListener('keydown', dismissOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', dismissOnOutsidePointer);
+      document.removeEventListener('keydown', dismissOnEscape);
+    };
   }, [periodMenuOpen, period, appliedCustomRange]);
-  return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading title="Dashboard" action={<div className="flex flex-wrap items-center gap-2"><div className="relative" ref={periodMenuRef}><button type="button" className="period-chip" aria-label="Reporting period" aria-expanded={periodMenuOpen} onClick={() => { setDraftPeriod(period); setDraftCustomRange(appliedCustomRange); setPeriodMenuOpen((open) => !open); }} data-testid="button-dashboard-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{periodLabel}<ChevronDown size={14} className={cn('transition-transform', periodMenuOpen && 'rotate-180')} /></button>{periodMenuOpen && <div className={cn('dashboard-period-menu', draftPeriod === 'custom' && 'is-custom')} role="dialog" aria-label="Choose reporting period">{draftPeriod !== 'custom' && <div className="dashboard-period-options">{dashboardPeriodOptions.map((option) => <button type="button" key={option.value} className={cn('dashboard-period-option', draftPeriod === option.value && 'is-active')} onClick={() => { setPeriod(option.value); setDraftPeriod(option.value); setPeriodMenuOpen(false); }} aria-pressed={draftPeriod === option.value}>{option.label}</button>)}<button type="button" className="dashboard-period-option" onClick={chooseCustomPeriod} aria-pressed={false}>Custom range</button></div>}{draftPeriod === 'custom' && <DashboardCustomRangePicker from={draftCustomRange.from} to={draftCustomRange.to} onFromChange={(from) => setDraftCustomRange((current) => ({ ...current, from }))} onToChange={(to) => setDraftCustomRange((current) => ({ ...current, to }))} onClose={closePeriodMenu} onApply={applyCustomPeriod} canApply={Boolean(draftPeriodRange)} />}</div>}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
+  return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading title="Dashboard" action={<div className="flex flex-wrap items-center gap-2"><div className="relative" ref={periodMenuRef}><button ref={periodTriggerRef} type="button" className="period-chip" aria-label="Reporting period" aria-expanded={periodMenuOpen} onClick={() => { setDraftPeriod(period); setDraftCustomRange(appliedCustomRange); setPeriodMenuOpen((open) => !open); }} data-testid="button-dashboard-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{periodLabel}<ChevronDown size={14} className={cn('transition-transform', periodMenuOpen && 'rotate-180')} /></button>{periodMenuOpen && <div className={cn('dashboard-period-menu', draftPeriod === 'custom' && 'is-custom')} role="dialog" aria-label="Choose reporting period">{draftPeriod !== 'custom' && <div className="dashboard-period-options">{dashboardPeriodOptions.map((option) => <button type="button" key={option.value} className={cn('dashboard-period-option', draftPeriod === option.value && 'is-active')} onClick={() => { setPeriod(option.value); setDraftPeriod(option.value); setPeriodMenuOpen(false); }} aria-pressed={draftPeriod === option.value}>{option.label}</button>)}<button type="button" className="dashboard-period-option" onClick={chooseCustomPeriod} aria-pressed={false} data-testid="button-dashboard-period-custom">Custom range</button></div>}{draftPeriod === 'custom' && <DashboardCustomRangePicker from={draftCustomRange.from} to={draftCustomRange.to} onFromChange={(from) => setDraftCustomRange((current) => ({ ...current, from }))} onToChange={(to) => setDraftCustomRange((current) => ({ ...current, to }))} onClose={closePeriodMenu} onApply={applyCustomPeriod} canApply={Boolean(draftPeriodRange)} />}</div>}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
     {summaryQuery.isLoading && !summaryQuery.data ? <OverviewSkeleton /> : summaryQuery.isError && !summaryQuery.data ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
          {primaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} trend={stat.trend} note={stat.note} period={periodLabel} loading={summaryRefreshing} />)}
