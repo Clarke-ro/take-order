@@ -24,6 +24,7 @@ import {
   connectPreferenceLabel,
   onboardingChannels,
   orderChannels,
+  subscribeToPreferenceChanges,
   togglePreference,
 } from "./channel-preferences";
 import {
@@ -572,6 +573,113 @@ test("Connect clear-all removes saved preferences without touching other local s
   assert.equal(values.has(CONNECTED_TOOLS_KEY), false);
   assert.deepEqual(readConnectedTools(storage), []);
   assert.equal(values.get("duka-onboarding-profile"), '{"businessName":"The Sunday Edit"}');
+});
+
+test("Connect preference changes can be observed from another tab", () => {
+  const events: StorageEvent[] = [];
+  const listeners = new Set<(event: StorageEvent) => void>();
+  const target = {
+    addEventListener: (_type: "storage", listener: (event: StorageEvent) => void) => listeners.add(listener),
+    removeEventListener: (_type: "storage", listener: (event: StorageEvent) => void) => listeners.delete(listener),
+  };
+  const unsubscribe = subscribeToPreferenceChanges(CONNECTED_TOOLS_KEY, (event) => events.push(event), target);
+  const matchingEvent = { key: CONNECTED_TOOLS_KEY } as StorageEvent;
+  const unrelatedEvent = { key: "duka-onboarding-profile" } as StorageEvent;
+
+  listeners.forEach((listener) => listener(unrelatedEvent));
+  assert.deepEqual(events, []);
+  listeners.forEach((listener) => listener(matchingEvent));
+  assert.deepEqual(events, [matchingEvent]);
+
+  unsubscribe();
+  listeners.forEach((listener) => listener(matchingEvent));
+  assert.deepEqual(events, [matchingEvent]);
+});
+
+test("Connect updates tiles and saved summary when another tab changes preferences", async () => {
+  const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
+    url: "http://localhost/connect",
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    addEventListener: dom.window.addEventListener.bind(dom.window),
+    removeEventListener: dom.window.removeEventListener.bind(dom.window),
+  });
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: dom.window.navigator,
+  });
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: dom.window.location,
+  });
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    configurable: true,
+    value: true,
+  });
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ status: "ok" }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+  const { act } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const container = dom.window.document.getElementById("root")!;
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(createElement(
+      QueryClientProvider,
+      {
+        client: new QueryClient(),
+        children: createElement(
+          Router,
+          {
+            hook: () => ["/connect", (_path: string, ..._args: any[]) => undefined] as [string, (path: string, ...args: any[]) => any],
+            children: createElement(Connect),
+          },
+        ),
+      },
+    ));
+  });
+
+  const tool = container.querySelector<HTMLButtonElement>('[data-testid="button-connect-whatsapp"]');
+  assert.ok(tool, "Expected the WhatsApp preference control to be present");
+  assert.equal(tool.getAttribute("aria-pressed"), "false");
+  assert.match(container.textContent ?? "", /No tool preferences yet/);
+
+  await act(async () => {
+    dom.window.localStorage.setItem(CONNECTED_TOOLS_KEY, JSON.stringify(["WhatsApp"]));
+    dom.window.dispatchEvent(new dom.window.StorageEvent("storage", {
+      key: CONNECTED_TOOLS_KEY,
+      newValue: JSON.stringify(["WhatsApp"]),
+      storageArea: dom.window.localStorage,
+    }));
+  });
+  assert.equal(tool.getAttribute("aria-pressed"), "true");
+  assert.match(tool.textContent ?? "", /Saved preference/);
+  assert.match(container.textContent ?? "", /1 tool preference saved/);
+
+  await act(async () => {
+    dom.window.localStorage.removeItem(CONNECTED_TOOLS_KEY);
+    dom.window.dispatchEvent(new dom.window.StorageEvent("storage", {
+      key: CONNECTED_TOOLS_KEY,
+      oldValue: JSON.stringify(["WhatsApp"]),
+      storageArea: dom.window.localStorage,
+    }));
+  });
+  assert.equal(tool.getAttribute("aria-pressed"), "false");
+  assert.match(tool.textContent ?? "", /Not saved/);
+  assert.match(container.textContent ?? "", /No tool preferences yet/);
+
+  await act(async () => {
+    root.unmount();
+  });
+  globalThis.fetch = originalFetch;
+  dom.window.close();
 });
 
 test("Connect ignores malformed saved preferences and returns to the non-saved state", () => {

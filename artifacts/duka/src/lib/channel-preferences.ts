@@ -32,3 +32,20 @@ export function connectPreferenceLabel(isSaved: boolean) {
 export function connectPreferenceAriaLabel(name: string, isSaved: boolean) {
   return `${name}, ${isSaved ? 'saved preference' : 'not saved'}. Select to ${isSaved ? 'remove' : 'save'} this preference.`;
 }
+
+type PreferenceChangeTarget = Pick<Window, 'addEventListener' | 'removeEventListener'>;
+
+export function subscribeToPreferenceChanges(
+  key: string,
+  onChange: (event: StorageEvent) => void,
+  target: PreferenceChangeTarget | null = typeof window === 'undefined' ? null : window,
+) {
+  if (!target) return () => undefined;
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === key) onChange(event);
+  };
+
+  target.addEventListener('storage', handleStorage);
+  return () => target.removeEventListener('storage', handleStorage);
+}

@@ -31,6 +31,7 @@ import {
   connectPreferenceLabel,
   onboardingChannels,
   orderChannels,
+  subscribeToPreferenceChanges,
   togglePreference,
 } from '@/lib/channel-preferences';
 
@@ -1294,6 +1295,15 @@ export function Connect() {
     { name: 'X', detail: 'Keep sales from X in your view', markKey: 'x', group: 'Social' },
   ];
   const [connected, setConnected] = useState<string[]>(readConnectedTools);
+  useEffect(() => {
+    const storage = getPreferenceStorage();
+    if (!storage) return;
+
+    return subscribeToPreferenceChanges(CONNECTED_TOOLS_KEY, (event) => {
+      if (event.storageArea && event.storageArea !== storage) return;
+      setConnected(readConnectedTools(storage));
+    });
+  }, []);
   const toggle = (name: string) => setConnected((current) => {
     const next = togglePreference(current, name);
     writeConnectedTools(next);
