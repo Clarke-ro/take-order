@@ -1510,8 +1510,8 @@ function TakeOrderFeedback({ message }: { message: string | null }) {
   return <div className="take-order-feedback" role="alert"><AlertTriangle size={16} aria-hidden="true" /><span>{message}</span></div>;
 }
 
-function TakeOrderCheckoutCard({ items, total, feedback, onRemove, onOneOff, buttonTestId, disabled = false }: { items: DraftOrderItem[]; total: number; feedback?: string | null; onRemove: (key: number) => void; onOneOff: () => void; buttonTestId: string; disabled?: boolean }) {
-  return <div className="take-order-catalog-selection take-order-review-checkout-card">
+function TakeOrderCheckoutCard({ items, total, feedback, onRemove, onOneOff, buttonTestId, disabled = false, className }: { items: DraftOrderItem[]; total: number; feedback?: string | null; onRemove: (key: number) => void; onOneOff: () => void; buttonTestId: string; disabled?: boolean; className?: string }) {
+  return <div className={cn('take-order-catalog-selection', className)}>
     <div className="take-order-section-eyebrow">Client checkout</div>
     <div className="take-order-catalog-selection-heading"><h2>{items.length ? `${items.length} items selected` : 'No items selected'}</h2>{items.length > 0 && <strong>{moneyExact(total)}</strong>}</div>
     <div className="take-order-catalog-selection-list">
@@ -1718,11 +1718,7 @@ function MultiItemTakeOrderModern() {
               </div>
              </TakeOrderSection>}
              {step === 2 && <TakeOrderSection eyebrow="Step 02 · Confirm checkout" title="Review the client's checkout." description="Confirm the selected items, then choose how the buyer should complete the payment.">
-               <div className="take-order-checkout-items">
-                 <div className="take-order-checkout-items-heading"><span>Client checkout</span><strong>{items.length} item{items.length === 1 ? '' : 's'}</strong></div>
-                 <div className="take-order-checkout-items-list">{items.map((item) => <div key={item.key} className="take-order-checkout-item"><span>{item.name}</span><b>{moneyExact(item.amount)}</b></div>)}</div>
-               </div>
-              <div className="take-order-order-summary"><div><span>Order total</span><strong>{moneyExact(total)}</strong></div><div><span>{items.length} item{items.length === 1 ? '' : 's'}</span><button type="button" onClick={() => setStep(1)}>Edit items</button></div></div>
+               <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => { setItems((current) => current.filter((candidate) => candidate.key !== key)); setFeedback(null); }} onOneOff={() => { setItemSource('custom'); setStep(1); setFeedback(null); }} buttonTestId="button-payment-checkout" disabled={busy} className="take-order-payment-checkout-card" />
               <div className="take-order-field-group"><div className="field-label">How should they pay?</div><div className="take-order-payment-options">{[['full', 'Pay in full', 'Collect the full total now'], ['deposit', 'Pay a deposit', 'Secure the order with part-payment'], ['reserve', 'Reserve it', 'Confirm the details first']].map(([value, title, note]) => <button type="button" key={value} onClick={() => { setPaymentMode(value as 'full' | 'deposit' | 'reserve'); setFeedback(null); }} data-testid={`button-payment-mode-${value}`} className={cn('take-order-payment-option', paymentMode === value && 'is-selected')}><span className="take-order-radio">{paymentMode === value && <span />}</span><span><strong>{title}</strong><small>{note}</small></span></button>)}</div></div>
               {paymentMode === 'deposit' && <div className="take-order-deposit-field"><label className="field-label" htmlFor="input-order-deposit">Deposit amount <span>of {moneyExact(total)}</span></label><div className="relative max-w-[260px]"><span className="take-order-currency">$</span><input id="input-order-deposit" data-testid="input-order-deposit" required type="number" min="0.01" max={total} step=".01" value={depositAmount} onChange={(event) => { setDepositAmount(event.target.value); setFeedback(null); }} className={cn('field-input pl-7', depositAmount && !validDeposit && 'is-invalid')} placeholder="0.00" /></div>{depositAmount && !validDeposit && <p className="take-order-field-error">Use an amount between $0.01 and {moneyExact(total)}.</p>}</div>}
               <div className="take-order-field-group"><div className="field-label">Conversation started on</div><ChannelPicker value={channel} onChange={setChannel} testId="select-order-channel" /></div>
