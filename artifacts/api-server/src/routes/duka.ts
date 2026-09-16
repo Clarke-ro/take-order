@@ -45,6 +45,68 @@ import {
   type DashboardRange,
 } from "../lib/dashboard-analytics";
 
+export function preferencesForProduct(
+  preferences: ProductPreferenceGroup[] | null | undefined,
+  variants: string[] = [],
+): ProductPreferenceGroup[] {
+  const isSizeOption = (value: string) => /^(xxxs?|[smlx]{1,4}|small|medium|large|extra small|extra large|one size)$/i.test(value.trim());
+  const colorWords = new Set([
+    "aqua", "beige", "black", "blue", "bronze", "brown", "burgundy", "camel",
+    "charcoal", "clay", "clear", "cobalt", "coral", "cream", "cyan", "gold",
+    "gray", "grey", "green", "ivory", "khaki", "lavender", "lilac", "magenta",
+    "maroon", "mint", "navy", "nude", "olive", "orange", "peach", "pink",
+    "purple", "red", "rose", "rust", "sage", "salmon", "silver", "tan",
+    "teal", "transparent", "turquoise", "violet", "white", "wine", "yellow",
+  ]);
+  const isColorOption = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    if (/^#[0-9a-f]{3,8}$/i.test(normalized)) return true;
+    return normalized.split(/[\s/&-]+/).filter(Boolean).every((word) => colorWords.has(word) || word === "light" || word === "dark");
+  };
+  const isLegacyChoiceGroup = (label: string) => label.trim().toLowerCase() === "choose an option";
+  const normalizeGroups = (groups: ProductPreferenceGroup[]): ProductPreferenceGroup[] => {
+    const normalized = groups.flatMap((group) => {
+      const sizeOptions = group.options.filter(isSizeOption);
+      const otherOptions = group.options.filter((option) => !isSizeOption(option));
+      if (isLegacyChoiceGroup(group.label) && sizeOptions.length === group.options.length) {
+        return [{ ...group, label: "Size" }];
+      }
+      if (isLegacyChoiceGroup(group.label) && sizeOptions.length > 0 && otherOptions.length > 0 && otherOptions.every(isColorOption)) {
+        return [
+          { label: "Color", options: otherOptions },
+          { label: "Size", options: sizeOptions },
+        ];
+      }
+      return [group];
+    });
+    return normalized.sort((left, right) => Number(left.label.trim().toLowerCase() === "size") - Number(right.label.trim().toLowerCase() === "size"));
+  };
+  const validPreferences = Array.isArray(preferences)
+    ? normalizeGroups(
+      preferences
+        .map((group) => ({
+          label: typeof group?.label === "string" ? group.label.trim() : "",
+          options: Array.isArray(group?.options)
+            ? group.options.filter((option): option is string => typeof option === "string").map((option) => option.trim()).filter(Boolean)
+            : [],
+        }))
+        .filter((group) => group.label && group.options.length > 0),
+    )
+    : [];
+  if (validPreferences.length > 0) return validPreferences;
+  if (variants.length === 0) return [];
+  const sizeOptions = variants.filter(isSizeOption);
+  const otherOptions = variants.filter((option) => !isSizeOption(option));
+  if (sizeOptions.length === variants.length) return [{ label: "Size", options: sizeOptions }];
+  if (sizeOptions.length > 0 && otherOptions.every(isColorOption)) {
+    return normalizeGroups([
+      { label: "Color", options: otherOptions },
+      { label: "Size", options: sizeOptions },
+    ]);
+  }
+  return [{ label: "Choose an option", options: variants }];
+}
+
 export function createDukaRouter(database: typeof db): IRouter {
   const router: IRouter = Router();
 
@@ -65,34 +127,6 @@ function productResponse(product: typeof productsTable.$inferSelect) {
     variants: product.variants ?? [],
     preferences: preferencesForProduct(product.preferences, product.variants ?? []),
   };
-}
-
-function preferencesForProduct(
-  preferences: ProductPreferenceGroup[] | null | undefined,
-  variants: string[] = [],
-): ProductPreferenceGroup[] {
-  const isSizeOption = (value: string) => /^(xxxs?|[smlx]{1,4}|small|medium|large|extra small|extra large|one size)$/i.test(value.trim());
-  const normalizeGroupLabel = (label: string, options: string) =>
-    label.trim().toLowerCase() === "choose an option" && options.split(" · ").every(isSizeOption) ? "Size" : label;
-  const validPreferences = Array.isArray(preferences)
-    ? preferences
-      .map((group) => ({
-        label: typeof group?.label === "string" ? group.label.trim() : "",
-        options: Array.isArray(group?.options)
-          ? group.options.filter((option): option is string => typeof option === "string").map((option) => option.trim()).filter(Boolean)
-          : [],
-      }))
-      .filter((group) => group.label && group.options.length > 0)
-      .map((group) => ({
-        ...group,
-        label: normalizeGroupLabel(group.label, group.options.join(" · ")),
-      }))
-    : [];
-  return validPreferences.length > 0
-    ? validPreferences
-    : variants.length > 0
-      ? [{ label: variants.every(isSizeOption) ? "Size" : "Choose an option", options: variants }]
-      : [];
 }
 
 function orderResponse(order: typeof ordersTable.$inferSelect, items: SellerOrderItem[] = []) {

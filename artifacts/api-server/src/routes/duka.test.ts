@@ -10,12 +10,30 @@ import {
 import { db, pool } from "@workspace/db";
 import { GetDashboardSummaryResponse } from "@workspace/api-zod";
 import { createApp } from "../app.js";
+import { preferencesForProduct } from "./duka.js";
 
 type Seed = {
   products: Array<typeof productsTable.$inferSelect>;
   orders: Array<typeof ordersTable.$inferSelect>;
   expenses: Array<typeof expensesTable.$inferSelect>;
 };
+
+test("normalizes mixed legacy color and size variants into stacked buyer groups", () => {
+  assert.deepEqual(
+    preferencesForProduct([], ["Black", "White", "M", "L"]),
+    [
+      { label: "Color", options: ["Black", "White"] },
+      { label: "Size", options: ["M", "L"] },
+    ],
+  );
+  assert.deepEqual(
+    preferencesForProduct([{ label: "Choose an option", options: ["Navy", "Medium"] }], []),
+    [
+      { label: "Color", options: ["Navy"] },
+      { label: "Size", options: ["Medium"] },
+    ],
+  );
+});
 
 function createSeededDatabase(seed: Seed): typeof db {
   return {
