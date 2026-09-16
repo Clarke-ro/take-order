@@ -2055,7 +2055,7 @@ type BuyerOrderFormValues = {
   details?: string;
   image?: string;
   imagePreview?: string;
-  action: 'pay' | 'reserve';
+  action?: 'pay' | 'reserve';
 };
 
 type BuyerItemFormValues = {
@@ -2077,7 +2077,7 @@ function PublicOrderPage() {
   const [submitted, setSubmitted] = useState(false);
   const [showMockPayment, setShowMockPayment] = useState(false);
   const [mockPayment, setMockPayment] = useState({ cardNumber: '', expiry: '', cvc: '' });
-  const [form, setForm] = useState<BuyerOrderFormValues>({ name: '', phone: '', address: '', orderDetails: '', action: 'pay' });
+  const [form, setForm] = useState<BuyerOrderFormValues>({ name: '', phone: '', address: '', orderDetails: '' });
   const [contactComplete, setContactComplete] = useState(false);
   const [contactStep, setContactStep] = useState(false);
   const [itemStep, setItemStep] = useState(0);
@@ -2131,6 +2131,8 @@ function PublicOrderPage() {
       setShowMockPayment(true);
       return;
     }
+    const paymentAction = order?.paymentMode === 'reserve' ? 'reserve' : form.action;
+    if (!paymentAction) return;
     const data: PublicOrderInput = {
       customerName: form.name.trim(),
       customerPhone: form.phone.trim(),
@@ -2143,7 +2145,7 @@ function PublicOrderPage() {
         details: item.details || undefined,
         referenceImage: item.image || undefined,
       })),
-      paymentAction: order?.paymentMode === 'reserve' ? 'reserve' : form.action,
+      paymentAction,
     };
     submit.mutate({ token, data }, { onSuccess: () => { invalidateDashboardSummary(queryClient); setSubmitted(true); } });
   };
@@ -2290,7 +2292,7 @@ export function BuyerOrderForm({
       <div><span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span><label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{form.image ? form.image : 'Attach an image'}</label><input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />{form.imagePreview && <img src={form.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>
       {showMockPayment && <div className="buyer-mock-payment" aria-labelledby="mock-payment-heading"><div className="flex items-center justify-between gap-3"><h3 id="mock-payment-heading" className="flex items-center gap-2 text-sm font-bold"><WalletCards aria-hidden="true" size={16} />Mock payment checkout</h3><StatusPill tone="gold">Demo</StatusPill></div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">No real charge will be made. Use any test details to continue.</p><div className="mt-4 space-y-3"><div><label htmlFor="mock-card-number" className="field-label">Card number</label><input id="mock-card-number" data-testid="input-mock-card-number" required inputMode="numeric" value={mockPayment.cardNumber} onChange={(event) => onMockPaymentChange('cardNumber', event.target.value)} placeholder="4242 4242 4242 4242" className="field-input" /></div><div className="grid grid-cols-2 gap-3"><div><label htmlFor="mock-expiry" className="field-label">Expiry</label><input id="mock-expiry" data-testid="input-mock-expiry" required value={mockPayment.expiry} onChange={(event) => onMockPaymentChange('expiry', event.target.value)} placeholder="12/30" className="field-input" /></div><div><label htmlFor="mock-cvc" className="field-label">CVC</label><input id="mock-cvc" data-testid="input-mock-cvc" required inputMode="numeric" value={mockPayment.cvc} onChange={(event) => onMockPaymentChange('cvc', event.target.value)} placeholder="123" className="field-input" /></div></div></div></div>}
        {paymentMode !== 'reserve' && <fieldset className="grid grid-cols-2 gap-2" aria-label="Payment options"><legend className="sr-only">Payment options</legend><button type="button" role="radio" aria-checked={form.action === 'pay'} onClick={() => onPaymentAction('pay')} data-testid="button-buyer-pay" className={cn('buyer-payment-option', form.action === 'pay' && 'is-selected')}>{paymentMode === 'deposit' ? `Pay deposit · ${moneyExact(payableDeposit)}` : `Pay ${moneyExact(amount)}`}</button><button type="button" role="radio" aria-checked={form.action === 'reserve'} onClick={() => onPaymentAction('reserve')} data-testid="button-buyer-reserve" className={cn('buyer-payment-option', form.action === 'reserve' && 'is-selected')}>Reserve for later</button></fieldset>}
-      <Button type="submit" disabled={submitPending} className="w-full py-3.5" data-testid="button-submit-public-order">{submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}{paymentMode === 'reserve' || form.action === 'reserve' ? 'Reserve these items' : showMockPayment ? 'Complete mock payment' : 'Continue to mock payment'} <ArrowUpRight aria-hidden="true" size={15} /></Button>
+      <Button type="submit" disabled={submitPending || (paymentMode !== 'reserve' && !form.action)} className="w-full py-3.5" data-testid="button-submit-public-order">{submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}{paymentMode === 'reserve' || form.action === 'reserve' ? 'Reserve these items' : showMockPayment ? 'Complete mock payment' : 'Continue to mock payment'} <ArrowUpRight aria-hidden="true" size={15} /></Button>
     </form>;
   }
   return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="buyer-order-form">
@@ -2386,10 +2388,10 @@ export function BuyerOrderForm({
         </section>
         <div className="buyer-form-actions">{itemIndex > 0 ? <Button type="button" variant="ghost" onClick={onBack}><ArrowLeft size={15} />Back</Button> : <span /> }<Button type="submit" disabled={submitPending} data-testid="button-submit-public-order">{itemIndex + 1 < itemCount ? 'Next item' : 'Continue to contact information'} <ArrowRight size={15} /></Button></div>
       </div> : reviewConfirmed ? <div className="buyer-payment-page">
-       <div className="buyer-final-heading"><div><div className="take-order-section-eyebrow">Payment</div><h2 id="buyer-order-form-heading">Choose how to pay.</h2><p>Your order details are confirmed. Select a payment option to continue.</p></div><WalletCards size={20} /></div>
+       <div className="buyer-final-heading"><div><div className="take-order-section-eyebrow">Payment</div><h2 id="buyer-order-form-heading">Choose how to pay.</h2></div><WalletCards size={20} /></div>
        {paymentMode !== 'reserve' && <fieldset className="buyer-payment-options" aria-label="Payment options"><legend className="field-label">How would you like to complete this?</legend><button type="button" role="radio" aria-checked={form.action === 'pay'} onClick={() => onPaymentAction('pay')} data-testid="button-buyer-pay" className={cn('buyer-payment-option', form.action === 'pay' && 'is-selected')}>{paymentMode === 'deposit' ? `Pay deposit · ${moneyExact(payableDeposit)}` : `Pay ${moneyExact(amount)}`}</button><button type="button" role="radio" aria-checked={form.action === 'reserve'} onClick={() => onPaymentAction('reserve')} data-testid="button-buyer-reserve" className={cn('buyer-payment-option', form.action === 'reserve' && 'is-selected')}>Reserve for later</button></fieldset>}
        {showMockPayment && <div className="buyer-mock-payment" aria-labelledby="mock-payment-heading"><div className="flex items-center justify-between gap-3"><h3 id="mock-payment-heading" className="flex items-center gap-2 text-sm font-bold"><WalletCards aria-hidden="true" size={16} />Mock payment checkout</h3><StatusPill tone="gold">Demo</StatusPill></div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">No real charge will be made. Use any test details to continue.</p><div className="mt-4 space-y-3"><div><label htmlFor="mock-card-number" className="field-label">Card number</label><input id="mock-card-number" data-testid="input-mock-card-number" required inputMode="numeric" value={mockPayment.cardNumber} onChange={(event) => onMockPaymentChange('cardNumber', event.target.value)} placeholder="4242 4242 4242 4242" className="field-input" /></div><div className="grid grid-cols-2 gap-3"><div><label htmlFor="mock-expiry" className="field-label">Expiry</label><input id="mock-expiry" data-testid="input-mock-expiry" required value={mockPayment.expiry} onChange={(event) => onMockPaymentChange('expiry', event.target.value)} placeholder="12/30" className="field-input" /></div><div><label htmlFor="mock-cvc" className="field-label">CVC</label><input id="mock-cvc" data-testid="input-mock-cvc" required inputMode="numeric" value={mockPayment.cvc} onChange={(event) => onMockPaymentChange('cvc', event.target.value)} placeholder="123" className="field-input" /></div></div></div></div>}
-       <div className="buyer-form-actions"><Button type="button" variant="ghost" onClick={() => { setReviewConfirmed(false); onBackToReview?.(); }}><ArrowLeft size={15} />Back to review</Button><Button type="submit" disabled={submitPending} data-testid="button-submit-public-order">{submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}{paymentMode === 'reserve' || form.action === 'reserve' ? 'Reserve these items' : showMockPayment ? 'Complete checkout' : 'Continue to payment'} <ArrowUpRight aria-hidden="true" size={15} /></Button></div>
+       <div className="buyer-form-actions"><Button type="button" variant="ghost" onClick={() => { setReviewConfirmed(false); onBackToReview?.(); }}><ArrowLeft size={15} />Back to review</Button><Button type="submit" disabled={submitPending || (paymentMode !== 'reserve' && !form.action)} data-testid="button-submit-public-order">{submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}{paymentMode === 'reserve' || form.action === 'reserve' ? 'Reserve these items' : showMockPayment ? 'Complete checkout' : 'Continue to payment'} <ArrowUpRight aria-hidden="true" size={15} /></Button></div>
     </div> : <div className="buyer-final-checkout">
        <div className="buyer-final-heading"><div><div className="take-order-section-eyebrow">Final checkout</div><h2 id="buyer-order-form-heading">Review your order.</h2><p>Check your items, preferences, and contact details before moving to payment.</p></div><CheckCircle2 size={20} /></div>
         <section className="buyer-review-card buyer-review-items" aria-labelledby="buyer-review-items-heading">

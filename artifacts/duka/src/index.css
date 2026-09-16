@@ -1384,7 +1384,7 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-form-actions .button:last-child { min-height: 2.8rem; }
 .buyer-final-heading > svg { color: hsl(var(--accent-foreground)); }
 .buyer-final-heading p { margin-top: .55rem; max-width: 31rem; color: hsl(var(--muted-foreground)); font-size: .75rem; line-height: 1.55; }
-.buyer-payment-page { display: grid; max-width: 34rem; gap: 1rem; margin-inline: auto; }
+.buyer-payment-page { display: grid; max-width: 44rem; gap: 1rem; margin-inline: auto; }
 .buyer-payment-page .buyer-final-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .buyer-payment-page .buyer-payment-options, .buyer-payment-page .buyer-mock-payment, .buyer-payment-page .buyer-form-actions { width: 100%; }
 .buyer-review-card { min-width: 0; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--card)); padding: 1.1rem; }
@@ -1412,8 +1412,9 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-saved-contact span, .buyer-saved-contact small { color: hsl(var(--muted-foreground)); font-size: .62rem; }
 .buyer-saved-contact strong { font-size: .72rem; }
 .buyer-saved-contact small { grid-column: 2; }
-.buyer-payment-options { display: grid; gap: .6rem; }
-.buyer-payment-option { min-height: 2.8rem; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .75rem; color: hsl(var(--foreground)); font-size: .72rem; font-weight: 700; text-align: left; transition: border-color .18s, background-color .18s, transform .18s; }
+.buyer-payment-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.buyer-payment-options .field-label { grid-column: 1 / -1; }
+.buyer-payment-option { min-height: 4.4rem; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: 1rem; color: hsl(var(--foreground)); font-size: .72rem; font-weight: 700; text-align: left; transition: border-color .18s, background-color .18s, transform .18s; }
 .buyer-payment-option:hover { border-color: hsl(var(--foreground) / .35); transform: translateY(-1px); }
 .buyer-payment-option.is-selected { border-color: hsl(var(--foreground)); background: hsl(var(--foreground)); color: hsl(var(--background)); }
 .buyer-mock-payment { border: 1px solid hsl(var(--accent)) / .55; border-radius: 13px; background: hsl(var(--accent) / .1); padding: 1rem; }
@@ -1492,6 +1493,8 @@ button[data-testid="button-buyer-reserve"].text-white {
   .buyer-form-actions { align-items: stretch; flex-direction: column-reverse; }
   .buyer-form-actions .button { width: 100%; justify-content: center; }
   .buyer-form-actions > span { display: none; }
+  .buyer-payment-options { grid-template-columns: 1fr; }
+  .buyer-payment-options .field-label { grid-column: auto; }
 }
 
 /* Status controls keep a visible keyboard target on both Paper and Ink surfaces. */
