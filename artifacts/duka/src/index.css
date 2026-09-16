@@ -1014,7 +1014,15 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-catalog-selection-row > button:hover, .take-order-catalog-selection-row > button:focus-visible { background: hsl(var(--muted)); color: hsl(var(--destructive)); }
 .take-order-catalog-selection-empty { border: 1px dashed hsl(var(--border)); border-radius: 9px; padding: .8rem .6rem; color: hsl(var(--muted-foreground)); font-size: .62rem; line-height: 1.4; text-align: center; }
 .take-order-catalog-selection .take-order-feedback { margin: .75rem 0 0; }
-.take-order-review-checkout-card, .take-order-payment-checkout-card { position: static; max-width: 290px; margin-bottom: 1.2rem; }
+.take-order-review-checkout-card { position: static; max-width: 290px; margin-bottom: 1.2rem; }
+.take-order-payment-checkout-card { position: static; width: 100%; max-width: none; margin-bottom: 1.2rem; }
+.take-order-checkout-payable { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: .9rem; border-top: 1px solid hsl(var(--border)); padding-top: .8rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .62rem; letter-spacing: .05em; text-transform: uppercase; }
+.take-order-checkout-payable strong { color: hsl(var(--foreground)); font-family: var(--app-font-sans); font-size: 1rem; font-variant-numeric: tabular-nums lining-nums; letter-spacing: -.02em; }
+.take-order-payment-config-card { border: 1px solid hsl(var(--border)); border-radius: 18px; background: hsl(var(--card)); padding: 1.2rem; }
+.take-order-payment-config-heading { padding-bottom: .9rem; border-bottom: 1px solid hsl(var(--border)); }
+.take-order-payment-config-heading h3 { margin-top: .35rem; color: hsl(var(--foreground)); font-family: var(--app-font-sans); font-size: 1.05rem; font-weight: 700; letter-spacing: -.035em; }
+.take-order-payment-config-heading p { margin-top: .4rem; color: hsl(var(--muted-foreground)); font-size: .7rem; line-height: 1.45; }
+.take-order-payment-config-card .take-order-field-group:first-of-type { margin-top: 1rem; }
 .take-order-catalog-continue { width: 100%; min-height: 3.2rem; justify-content: center; margin-top: .85rem; border-radius: 10px; background: hsl(var(--foreground)); color: hsl(var(--background)); font-size: 1rem; }
 .take-order-catalog-custom-link { width: 100%; margin-top: .7rem; color: hsl(var(--foreground)); font-size: .68rem; text-decoration: underline; text-underline-offset: 2px; }
 .take-order-catalog-custom-link:hover { color: hsl(var(--foreground)); }
