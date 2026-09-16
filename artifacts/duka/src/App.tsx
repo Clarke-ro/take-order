@@ -1949,12 +1949,13 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
             aria-current={active ? 'true' : undefined}
             aria-label={`${item.productName}, ${moduleLabel}, ${moneyExact(item.amount)}${active ? ', current item' : ''}`}
           >
-            <span className="buyer-product-module-art">
-              <img src={item.imageUrl || productImageFor(item.productName)} alt="" />
-            </span>
             <span className="buyer-product-module-copy">
+               <small className="buyer-product-module-kicker">{moduleLabel}</small>
               <strong>{item.productName}</strong>
-              <small>{active ? moneyExact(item.amount) : `${String(index + 1).padStart(2, '0')} · ${moduleLabel}`}</small>
+               <small className="buyer-product-module-price">{moneyExact(item.amount)}</small>
+             </span>
+             <span className="buyer-product-module-art">
+               <img src={item.imageUrl || productImageFor(item.productName)} alt="" />
             </span>
           </button>;
         })}
