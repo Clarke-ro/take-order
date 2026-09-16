@@ -1233,7 +1233,6 @@ type ClientSummary = {
   collected: number;
   outstanding: number;
   latestPurchase: string;
-  latestChannel: string;
 };
 
 function Clients() {
@@ -1255,7 +1254,6 @@ function Clients() {
         existing.outstanding += Math.max(0, order.amount - collected);
         if (new Date(order.createdAt).getTime() > new Date(existing.latestPurchase).getTime()) {
           existing.latestPurchase = order.createdAt;
-          existing.latestChannel = order.channel;
           if (name) existing.displayName = name;
         }
         if (!existing.phone && phone) existing.phone = phone;
@@ -1269,7 +1267,6 @@ function Clients() {
           collected,
           outstanding: Math.max(0, order.amount - collected),
           latestPurchase: order.createdAt,
-          latestChannel: order.channel,
         });
       }
     });
@@ -1283,8 +1280,9 @@ function Clients() {
     if (!term) return clients;
     return clients.filter((client) => `${client.displayName} ${client.phone}`.toLowerCase().includes(term));
   }, [clients, search]);
-  const totalCollected = clients.reduce((sum, client) => sum + client.collected, 0);
   const repeatClients = clients.filter((client) => client.orderCount > 1).length;
+  const balanceDueClients = clients.filter((client) => client.outstanding > 0).length;
+  const clientsToServe = clients.filter((client) => client.orders.some((order) => order.fulfillment !== 'delivered')).length;
 
   return <Shell>
     <PageHeading
@@ -1292,18 +1290,18 @@ function Clients() {
     />
     {query.isLoading ? <ClientsSkeleton /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : !clients.length ? <EmptyState icon={Users} title="Your client list starts with an order" description="When a buyer shares their details, Take Order will keep their purchase history together here." action={<Link href="/take-order" data-testid="link-clients-empty-order"><Button><Plus size={15} />Take an order</Button></Link>} /> : <>
       <section className="clients-overview" aria-label="Client summary">
-        <MetricCard className="rise-in" dataTestId="card-clients-return-visits" label="Return visits" value={<span data-testid="text-client-count">{clients.length}</span>} indicator={clients.length ? { direction: repeatClients > 0 ? 'up' : 'down', percentage: (repeatClients / clients.length) * 100 } : undefined} note={repeatClients ? `${repeatClients} ${repeatClients === 1 ? 'client has' : 'clients have'} ordered more than once.` : 'Every new buyer begins a relationship here.'} />
-        <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-clients-known" label="Known clients" value={<span data-testid="text-total-clients">{clients.length}</span>} note={`${money(totalCollected)} collected across ${clients.reduce((sum, client) => sum + client.orderCount, 0)} orders`} />
-         <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-clients-average" label="Average collected" value={<span data-testid="text-average-client-spend">{money(clients.length ? totalCollected / clients.length : 0)}</span>} note="Collected value per known client" />
+        <MetricCard className="rise-in" dataTestId="card-clients-return-visits" label="Return visits" value={<span data-testid="text-client-return-visits">{repeatClients}</span>} />
+        <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-clients-total" label="Total clients" value={<span data-testid="text-total-clients">{clients.length}</span>} />
+        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-clients-balance-due" label="Balance due" value={<span data-testid="text-clients-balance-due">{balanceDueClients}</span>} />
+        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-clients-to-serve" label="To serve" value={<span data-testid="text-clients-to-serve">{clientsToServe}</span>} />
       </section>
       <section className="mt-5">
         <Card className="overflow-hidden">
           <div className="clients-workspace-heading">
-            <div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Clients / repeat buyers</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.04em]">People worth remembering</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Sorted by the latest purchase. Select a client to see their orders.</p></div>
-            <div className="clients-result-count" data-testid="text-clients-result-count"><strong>{filteredClients.length}</strong> of {clients.length}</div>
+             <h2>Clients</h2>
+             <div className="clients-search"><Search aria-hidden="true" /><input aria-label="Search clients" data-testid="input-search-clients" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search clients" /></div>
           </div>
-           <div className="clients-controls"><div className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={16} /><input aria-label="Search clients" data-testid="input-search-clients" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by client name or phone" className="field-input pl-9" /></div></div>
-          {filteredClients.length ? <div className="clients-table-wrap"><div className="clients-table-head"><span>Client</span><span>Total orders</span><span>Collected</span><span>Last purchase</span><span>Latest detail</span><span className="sr-only">Details</span></div>{filteredClients.map((client) => <div className="clients-table-row" key={client.key} data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="clients-buyer-cell"><div className="clients-avatar">{initials(client.displayName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold" data-testid={`text-client-name-${client.key}`}>{client.displayName}</div><div className="mt-1 truncate text-[11px] text-[hsl(var(--muted-foreground))]">{client.phone || (client.orders[0]?.productName ? `Buyer details pending · ${client.orders[0].productName}` : 'Buyer details pending')}</div></div></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Total orders</span><span className="font-mono-ui text-xs font-bold">{client.orderCount}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Collected</span><div><div className="font-mono-ui text-xs font-bold">{moneyExact(client.collected)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{client.outstanding ? `${moneyExact(client.outstanding)} outstanding` : 'Up to date'}</div></div></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Last purchase</span><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{dateShort(client.latestPurchase)}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Latest detail</span><span className="text-right text-xs text-[hsl(var(--muted-foreground))]">{client.outstanding ? `${moneyExact(client.outstanding)} outstanding` : channelName(client.latestChannel)}</span></div><div className="clients-actions"><Link href={`/orders?customer=${encodeURIComponent(client.displayName)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link">View <ArrowRight size={13} /></Link></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={Search} title="No clients match" description="Try a different name or phone number." /></div>}
+           {filteredClients.length ? <div className="clients-table-wrap"><div className="clients-table-head"><span>Client</span><span>Phone</span><span>Orders</span><span>Collected</span><span>Balance due</span><span>Last purchase</span><span className="sr-only">Details</span></div>{filteredClients.map((client) => <div className="clients-table-row" key={client.key} data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="clients-buyer-cell"><div className="clients-avatar">{initials(client.displayName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold" data-testid={`text-client-name-${client.key}`}>{client.displayName}</div></div></div><div className="clients-cell-labeled clients-phone-cell"><span className="clients-mobile-label">Phone</span><span>{client.phone || '—'}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Orders</span><span className="font-mono-ui text-xs font-bold">{client.orderCount}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Collected</span><span className="font-mono-ui text-xs font-bold">{moneyExact(client.collected)}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Balance due</span><span className="font-mono-ui text-xs font-bold">{client.outstanding ? moneyExact(client.outstanding) : '—'}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Last purchase</span><span className="font-mono-ui text-xs">{dateShort(client.latestPurchase)}</span></div><div className="clients-actions"><Link href={`/orders?customer=${encodeURIComponent(client.displayName)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link">View <ArrowRight size={13} /></Link></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={Search} title="No clients match" /></div>}
         </Card>
       </section>
     </>}
@@ -1311,7 +1309,7 @@ function Clients() {
 }
 
 function ClientsSkeleton() {
-  return <div className="space-y-5" aria-label="Loading clients"><div className="clients-overview"><Card className="h-[190px] p-5"><Skeleton className="h-3 w-24" /><Skeleton className="mt-6 h-10 w-28" /><Skeleton className="mt-3 h-3 w-48" /></Card><Card className="h-[190px] p-5"><Skeleton className="h-9 w-9 rounded-[11px]" /><Skeleton className="mt-6 h-8 w-20" /><Skeleton className="mt-3 h-3 w-32" /></Card><Card className="h-[190px] p-5"><Skeleton className="h-9 w-9 rounded-[11px]" /><Skeleton className="mt-6 h-8 w-24" /><Skeleton className="mt-3 h-3 w-36" /></Card></div><Card className="h-[360px] p-5"><Skeleton className="h-5 w-48" /><Skeleton className="mt-3 h-3 w-72" /><Skeleton className="mt-8 h-11 w-full" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div>;
+  return <div className="space-y-5" aria-label="Loading clients"><div className="clients-overview">{Array.from({ length: 4 }, (_, index) => <Card key={index} className="h-[150px] p-5"><Skeleton className="h-3 w-24" /><Skeleton className="mt-7 h-10 w-16" /></Card>)}</div><Card className="h-[360px] p-5"><Skeleton className="h-6 w-24" /><Skeleton className="mt-8 h-11 w-56 ml-auto" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div>;
 }
 
 type TakeOrderPath = 'catalog' | 'custom';
