@@ -1494,8 +1494,8 @@ function TakeOrderStepRail({ step, onStepChange }: { step: TakeOrderStep; onStep
   </nav>;
 }
 
-function TakeOrderSection({ eyebrow, title, description, children }: { eyebrow: string; title: string; description?: string; children: ReactNode }) {
-  return <section className="take-order-section">
+function TakeOrderSection({ eyebrow, title, description, children, className }: { eyebrow: string; title: string; description?: string; children: ReactNode; className?: string }) {
+  return <section className={cn('take-order-section', className)}>
     <div className="take-order-section-heading">
       <div className="take-order-section-eyebrow">{eyebrow}</div>
       <h2>{title}</h2>
@@ -1723,7 +1723,7 @@ function MultiItemTakeOrderModern() {
                </div>
                <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />
               </div>}
-              {step === 1 && itemSource === 'custom' && <TakeOrderSection eyebrow="Step 01 · One-off item" title="Add something outside the catalog." description="Create a quick item for this client's checkout.">
+              {step === 1 && itemSource === 'custom' && <TakeOrderSection className="take-order-one-off-section" eyebrow="Step 01 · One-off item" title="Add something outside the catalog." description="Create a quick item for this client's checkout.">
                <div className="take-order-choice-form">
                 <div className="take-order-custom-control"><input data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="What are they buying?" className="field-input" /><div className="relative"><span className="take-order-currency">$</span><input data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="Price" className="field-input pl-7" /></div><Button type="button" variant="outline" disabled={!customDraft.name.trim() || !customDraft.amount} onClick={addCustomItem}><Plus size={15} />Add item</Button></div>
                </div>

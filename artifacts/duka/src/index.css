@@ -1044,6 +1044,18 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-section-heading h2 { margin-top: .45rem; color: hsl(var(--foreground)); font-family: var(--app-font-display); font-size: clamp(1.45rem, 2.3vw, 1.8rem); font-weight: 800; letter-spacing: -.055em; line-height: 1; }
 .take-order-section-heading p { margin-top: .6rem; color: hsl(var(--muted-foreground)); font-size: .8rem; line-height: 1.55; }
 .take-order-choice-form { margin-top: .7rem; border-radius: 12px; background: hsl(var(--muted) / .45); padding: .75rem; }
+.take-order-one-off-section .take-order-section-heading h2 { font-family: var(--app-font-sans); font-size: clamp(1.35rem, 2.1vw, 1.7rem); letter-spacing: -.045em; line-height: 1.05; }
+.take-order-one-off-section .take-order-section-heading p { max-width: 30rem; font-size: .74rem; line-height: 1.45; }
+.take-order-one-off-section .take-order-choice-form { margin-top: 1.1rem; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); padding: .85rem; }
+.take-order-one-off-section .take-order-custom-control { grid-template-columns: minmax(0, 1fr) 9rem auto; gap: .6rem; }
+.take-order-one-off-section .field-input { min-height: 2.65rem; font-family: var(--app-font-sans); font-size: .74rem; letter-spacing: -.005em; }
+.take-order-one-off-section .take-order-custom-control .relative .field-input { font-family: var(--app-font-mono); font-variant-numeric: tabular-nums lining-nums; }
+.take-order-one-off-section .take-order-custom-control .button { min-height: 2.65rem; font-family: var(--app-font-sans); font-size: .72rem; font-weight: 600; }
+.take-order-one-off-section .take-order-items-heading h3 { font-family: var(--app-font-sans); font-size: .82rem; letter-spacing: -.015em; }
+.take-order-one-off-section .take-order-item-copy strong { font-family: var(--app-font-sans); font-size: .72rem; letter-spacing: -.005em; }
+.take-order-one-off-section .take-order-item-copy span, .take-order-one-off-section .take-order-item-number { font-family: var(--app-font-mono); font-size: .54rem; letter-spacing: .055em; }
+.take-order-one-off-section .take-order-item-price .field-input { font-family: var(--app-font-mono); font-size: .7rem; font-variant-numeric: tabular-nums lining-nums; }
+.take-order-one-off-section .take-order-total-chip { font-family: var(--app-font-mono); font-size: .64rem; font-variant-numeric: tabular-nums lining-nums; }
 .take-order-catalog-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .7rem; }
 .take-order-catalog-item { position: relative; display: flex; min-width: 0; min-height: 170px; flex-direction: column; align-items: stretch; justify-content: flex-end; overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--card)); padding: 0; color: hsl(var(--foreground)); font-family: var(--app-font-sans); text-align: left; transition: border-color .18s, background-color .18s, box-shadow .18s; }
 .take-order-catalog-item:hover { border-color: hsl(var(--foreground) / .3); background: hsl(var(--muted) / .45); box-shadow: 0 5px 14px rgb(0 0 0 / .06); }
