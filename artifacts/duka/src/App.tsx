@@ -2030,12 +2030,14 @@ type BuyerOrderFormValues = {
 
 type BuyerItemFormValues = {
   variant: string;
+  size: string;
   details: string;
   image: string;
   imagePreview: string;
 };
 
-const emptyBuyerItemForm = (): BuyerItemFormValues => ({ variant: '', details: '', image: '', imagePreview: '' });
+const buyerSizeOptions = ['XS', 'S', 'M', 'L', 'XL'] as const;
+const emptyBuyerItemForm = (): BuyerItemFormValues => ({ variant: '', size: '', details: '', image: '', imagePreview: '' });
 
 function PublicOrderPage() {
   const { token = '' } = useParams<{ token: string }>();
@@ -2103,7 +2105,7 @@ function PublicOrderPage() {
       deliveryAddress: form.deliveryMethod === 'delivery' ? form.address?.trim() || undefined : undefined,
       itemDetails: itemForms.map((item, itemIndex) => ({
         itemIndex,
-        variant: item.variant || undefined,
+        variant: [item.variant, item.size && `Size ${item.size}`].filter(Boolean).join(' · ') || undefined,
         details: item.details || undefined,
         referenceImage: item.image || undefined,
       })),
@@ -2253,23 +2255,30 @@ export function BuyerOrderForm({
               <div className="buyer-item-description">
                 <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Item {String(itemIndex + 1).padStart(2, '0')} of {String(itemCount).padStart(2, '0')}</div>
                 <h2 id="buyer-item-preferences-heading">{item.productName}</h2>
-                <p>Choose the options and details you would like for this item.</p>
+                <strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong>
+                <p>Choose a color and size for this item.</p>
               </div>
-              {item.variants.length > 0 && <fieldset className="buyer-variant-field">
-                <legend className="field-label">Choose a size or variation</legend>
-                <div className="buyer-variant-options">
-                  {item.variants.map((variant) => <label key={variant} className={cn('buyer-variant-option', itemForm.variant === variant && 'is-selected')}>
+              {item.variants.length > 0 && <fieldset className="buyer-color-field">
+                <legend className="field-label">Choose a color</legend>
+                <div className="buyer-color-options">
+                  {item.variants.map((variant) => <label key={variant} className={cn('buyer-color-option', itemForm.variant === variant && 'is-selected')}>
                     <input type="radio" name={`buyer-variant-${item.productId}`} value={variant} checked={itemForm.variant === variant} onChange={(event) => onItemChange('variant', event.target.value)} required={itemIndex === 0 || !itemForm.variant} />
-                    <span className="buyer-variant-option-image"><img src={productImageFor(`${item.productName} ${variant}`)} alt="" /></span>
-                    <span className="buyer-variant-option-copy"><strong>{variant}</strong>{itemForm.variant === variant && <small>Selected</small>}</span>
-                    <span className="buyer-variant-check" aria-hidden="true">{itemForm.variant === variant && <Check size={12} strokeWidth={3} />}</span>
+                    <span className="buyer-color-option-image"><img src={productImageFor(`${item.productName} ${variant}`)} alt="" /></span>
+                    <span className="buyer-color-option-copy"><strong>{variant}</strong></span>
+                    <span className="buyer-color-check" aria-hidden="true">{itemForm.variant === variant && <Check size={11} strokeWidth={3} />}</span>
                   </label>)}
                 </div>
               </fieldset>}
-              <div className="buyer-item-details">
-                <label htmlFor="buyer-details" className="field-label">Other preferences <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label>
-                <textarea id="buyer-details" data-testid="input-buyer-details" value={itemForm.details} onChange={(event) => onItemChange('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" />
-              </div>
+              <fieldset className="buyer-size-field">
+                <legend className="field-label">Choose a size</legend>
+                <div className="buyer-size-options">
+                  {buyerSizeOptions.map((size) => <label key={size} className={cn('buyer-size-option', itemForm.size === size && 'is-selected')}>
+                    <input type="radio" name={`buyer-size-${item.productId}`} value={size} checked={itemForm.size === size} onChange={(event) => onItemChange('size', event.target.value)} />
+                    <span className="buyer-size-check" aria-hidden="true">{itemForm.size === size && <Check size={11} strokeWidth={3} />}</span>
+                    <span>{size}</span>
+                  </label>)}
+                </div>
+              </fieldset>
               {item.source === 'custom' && <div className="buyer-image-field">
                 <span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span>
                 <label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{itemForm.image ? itemForm.image : 'Attach an image'}</label>
@@ -2282,7 +2291,7 @@ export function BuyerOrderForm({
         <div className="buyer-form-actions">{itemIndex > 0 ? <Button type="button" variant="ghost" onClick={onBack}><ArrowLeft size={15} />Back</Button> : <span /> }<Button type="submit" disabled={submitPending} data-testid="button-submit-public-order">{itemIndex + 1 < itemCount ? 'Next item' : 'Continue to payment'} <ArrowRight size={15} /></Button></div>
      </div> : <div className="buyer-final-checkout">
       <div className="buyer-final-heading"><div><div className="take-order-section-eyebrow">Final checkout</div><h2 id="buyer-order-form-heading">Review your order.</h2></div><CheckCircle2 size={20} /></div>
-      <div className="buyer-summary-list">{items.map((orderItem, index) => <div key={`${orderItem.productId}-${index}`} className="buyer-summary-row"><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{orderItem.productName}</strong><small>{orderItem.source === 'custom' ? 'One-off item' : 'Catalog item'}{orderItem.variants.length ? ` · ${itemIndex === index ? itemForm.variant || 'Variation selected' : 'Variation selected'}` : ''}</small></div><b>{moneyExact(orderItem.amount)}</b></div>)}{deliveryCharge > 0 && <div className="buyer-summary-row"><span>+</span><div><strong>Delivery</strong><small>Flat delivery fee</small></div><b>{moneyExact(deliveryCharge)}</b></div>}<div className="buyer-summary-total"><span>Total</span><strong>{moneyExact(amount)}</strong></div></div>
+       <div className="buyer-summary-list">{items.map((orderItem, index) => <div key={`${orderItem.productId}-${index}`} className="buyer-summary-row"><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{orderItem.productName}</strong><small>{orderItem.source === 'custom' ? 'One-off item' : 'Catalog item'}{itemIndex === index && (itemForm.variant || itemForm.size) ? ` · ${[itemForm.variant, itemForm.size && `Size ${itemForm.size}`].filter(Boolean).join(' · ')}` : orderItem.variants.length ? ' · Variation selected' : ''}</small></div><b>{moneyExact(orderItem.amount)}</b></div>)}{deliveryCharge > 0 && <div className="buyer-summary-row"><span>+</span><div><strong>Delivery</strong><small>Flat delivery fee</small></div><b>{moneyExact(deliveryCharge)}</b></div>}<div className="buyer-summary-total"><span>Total</span><strong>{moneyExact(amount)}</strong></div></div>
       <div className="buyer-saved-contact"><span>Buyer</span><strong>{form.name}</strong><small>{form.phone}</small></div>
       {paymentMode !== 'reserve' && <fieldset className="buyer-payment-options" aria-label="Payment options"><legend className="field-label">How would you like to complete this?</legend><button type="button" role="radio" aria-checked={form.action === 'pay'} onClick={() => onPaymentAction('pay')} data-testid="button-buyer-pay" className={cn('buyer-payment-option', form.action === 'pay' && 'is-selected')}>{paymentMode === 'deposit' ? `Pay deposit · ${moneyExact(payableDeposit)}` : `Pay ${moneyExact(amount)}`}</button><button type="button" role="radio" aria-checked={form.action === 'reserve'} onClick={() => onPaymentAction('reserve')} data-testid="button-buyer-reserve" className={cn('buyer-payment-option', form.action === 'reserve' && 'is-selected')}>Reserve for later</button></fieldset>}
       {showMockPayment && <div className="buyer-mock-payment" aria-labelledby="mock-payment-heading"><div className="flex items-center justify-between gap-3"><h3 id="mock-payment-heading" className="flex items-center gap-2 text-sm font-bold"><WalletCards aria-hidden="true" size={16} />Mock payment checkout</h3><StatusPill tone="gold">Demo</StatusPill></div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">No real charge will be made. Use any test details to continue.</p><div className="mt-4 space-y-3"><div><label htmlFor="mock-card-number" className="field-label">Card number</label><input id="mock-card-number" data-testid="input-mock-card-number" required inputMode="numeric" value={mockPayment.cardNumber} onChange={(event) => onMockPaymentChange('cardNumber', event.target.value)} placeholder="4242 4242 4242 4242" className="field-input" /></div><div className="grid grid-cols-2 gap-3"><div><label htmlFor="mock-expiry" className="field-label">Expiry</label><input id="mock-expiry" data-testid="input-mock-expiry" required value={mockPayment.expiry} onChange={(event) => onMockPaymentChange('expiry', event.target.value)} placeholder="12/30" className="field-input" /></div><div><label htmlFor="mock-cvc" className="field-label">CVC</label><input id="mock-cvc" data-testid="input-mock-cvc" required inputMode="numeric" value={mockPayment.cvc} onChange={(event) => onMockPaymentChange('cvc', event.target.value)} placeholder="123" className="field-input" /></div></div></div></div>}
