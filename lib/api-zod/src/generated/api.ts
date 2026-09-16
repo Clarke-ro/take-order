@@ -127,6 +127,9 @@ export const ListOrdersResponseItem = zod.object({
   "customerPhone": zod.string().nullish(),
   "channel": zod.string(),
   "amount": zod.number(),
+  "deliveryFee": zod.number(),
+  "deliveryMethod": zod.union([zod.literal('pickup'),zod.literal('delivery'),zod.literal(null)]).nullable(),
+  "deliveryAddress": zod.string().nullable(),
   "productCost": zod.number().nullable(),
   "depositAmount": zod.number().nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
@@ -156,6 +159,8 @@ export const createOrderBodyAmountMin = 0;
 export const createOrderBodyItemsItemAmountMin = 0;
 
 
+export const createOrderBodyDeliveryFeeMin = 0;
+
 export const createOrderBodyDepositAmountMin = 0;
 
 
@@ -167,6 +172,7 @@ export const CreateOrderBody = zod.object({
   "productId": zod.number().int(),
   "amount": zod.number().min(createOrderBodyItemsItemAmountMin)
 })).min(1).optional(),
+  "deliveryFee": zod.number().min(createOrderBodyDeliveryFeeMin).optional(),
   "depositAmount": zod.number().min(createOrderBodyDepositAmountMin).nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
   "channel": zod.enum(['whatsapp', 'instagram', 'tiktok', 'snapchat', 'in_person'])
@@ -181,6 +187,9 @@ export const CreateOrderResponse = zod.object({
   "customerPhone": zod.string().nullish(),
   "channel": zod.string(),
   "amount": zod.number(),
+  "deliveryFee": zod.number(),
+  "deliveryMethod": zod.union([zod.literal('pickup'),zod.literal('delivery'),zod.literal(null)]).nullable(),
+  "deliveryAddress": zod.string().nullable(),
   "productCost": zod.number().nullable(),
   "depositAmount": zod.number().nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
@@ -217,6 +226,9 @@ export const GetOrderResponse = zod.object({
   "customerPhone": zod.string().nullish(),
   "channel": zod.string(),
   "amount": zod.number(),
+  "deliveryFee": zod.number(),
+  "deliveryMethod": zod.union([zod.literal('pickup'),zod.literal('delivery'),zod.literal(null)]).nullable(),
+  "deliveryAddress": zod.string().nullable(),
   "productCost": zod.number().nullable(),
   "depositAmount": zod.number().nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
@@ -258,6 +270,9 @@ export const UpdateOrderResponse = zod.object({
   "customerPhone": zod.string().nullish(),
   "channel": zod.string(),
   "amount": zod.number(),
+  "deliveryFee": zod.number(),
+  "deliveryMethod": zod.union([zod.literal('pickup'),zod.literal('delivery'),zod.literal(null)]).nullable(),
+  "deliveryAddress": zod.string().nullable(),
   "productCost": zod.number().nullable(),
   "depositAmount": zod.number().nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
@@ -289,6 +304,9 @@ export const GetPublicOrderResponse = zod.object({
   "token": zod.string(),
   "productName": zod.string(),
   "amount": zod.number(),
+  "subtotal": zod.number(),
+  "deliveryFee": zod.number(),
+  "deliveryMethod": zod.union([zod.literal('pickup'),zod.literal('delivery'),zod.literal(null)]).nullish(),
   "depositAmount": zod.number().nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
   "status": zod.enum(['reserved', 'deposit_paid', 'paid']),
@@ -321,6 +339,8 @@ export const SubmitPublicOrderBody = zod.object({
   "customerName": zod.string().min(1),
   "customerPhone": zod.string().min(submitPublicOrderBodyCustomerPhoneMin),
   "buyerDetails": zod.string().optional(),
+  "deliveryMethod": zod.enum(['pickup', 'delivery']).optional(),
+  "deliveryAddress": zod.string().optional(),
   "referenceImage": zod.string().optional(),
   "itemDetails": zod.array(zod.object({
   "itemIndex": zod.number().int().min(submitPublicOrderBodyItemDetailsItemItemIndexMin),
@@ -340,6 +360,9 @@ export const SubmitPublicOrderResponse = zod.object({
   "customerPhone": zod.string().nullish(),
   "channel": zod.string(),
   "amount": zod.number(),
+  "deliveryFee": zod.number(),
+  "deliveryMethod": zod.union([zod.literal('pickup'),zod.literal('delivery'),zod.literal(null)]).nullable(),
+  "deliveryAddress": zod.string().nullable(),
   "productCost": zod.number().nullable(),
   "depositAmount": zod.number().nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),

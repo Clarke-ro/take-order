@@ -9,3 +9,4 @@
 - [Dashboard picker browser checks](dashboard-picker-browser-checks.md) — Native date inputs expose segmented tab stops in Chromium; responsive keyboard tests must allow repeated field stops.
 - [Social engagement totals](social-engagement.md) — Keep recorded zero distinct from missing share or like activity.
 - [Duka build environment](duka-build-env.md) — Direct Vite builds need the workflow-provided PORT and BASE_PATH values.
+- [Delivery order snapshots](delivery-order-snapshots.md) — Snapshot the flat fee on the buyer link and finalize it only after the buyer selects delivery.

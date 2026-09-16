@@ -11435,6 +11435,9 @@ var ordersTable = pgTable2("orders", {
   customerPhone: text2("customer_phone"),
   channel: text2("channel").notNull(),
   amount: numeric2("amount", { precision: 12, scale: 2 }).notNull(),
+  deliveryFee: numeric2("delivery_fee", { precision: 12, scale: 2 }).notNull().default("0"),
+  deliveryMethod: text2("delivery_method"),
+  deliveryAddress: text2("delivery_address"),
   productCost: numeric2("product_cost", { precision: 12, scale: 2 }),
   depositAmount: numeric2("deposit_amount", { precision: 12, scale: 2 }),
   paymentMode: text2("payment_mode").notNull(),
@@ -15451,6 +15454,9 @@ var ListOrdersResponseItem = objectType({
   "customerPhone": stringType().nullish(),
   "channel": stringType(),
   "amount": numberType(),
+  "deliveryFee": numberType(),
+  "deliveryMethod": unionType([literalType("pickup"), literalType("delivery"), literalType(null)]).nullable(),
+  "deliveryAddress": stringType().nullable(),
   "productCost": numberType().nullable(),
   "depositAmount": numberType().nullish(),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
@@ -15472,6 +15478,7 @@ var ListOrdersResponseItem = objectType({
 var ListOrdersResponse = arrayType(ListOrdersResponseItem);
 var createOrderBodyAmountMin = 0;
 var createOrderBodyItemsItemAmountMin = 0;
+var createOrderBodyDeliveryFeeMin = 0;
 var createOrderBodyDepositAmountMin = 0;
 var CreateOrderBody = objectType({
   "productId": numberType().int().optional(),
@@ -15480,6 +15487,7 @@ var CreateOrderBody = objectType({
     "productId": numberType().int(),
     "amount": numberType().min(createOrderBodyItemsItemAmountMin)
   })).min(1).optional(),
+  "deliveryFee": numberType().min(createOrderBodyDeliveryFeeMin).optional(),
   "depositAmount": numberType().min(createOrderBodyDepositAmountMin).nullish(),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
   "channel": enumType(["whatsapp", "instagram", "tiktok", "snapchat", "in_person"])
@@ -15493,6 +15501,9 @@ var CreateOrderResponse = objectType({
   "customerPhone": stringType().nullish(),
   "channel": stringType(),
   "amount": numberType(),
+  "deliveryFee": numberType(),
+  "deliveryMethod": unionType([literalType("pickup"), literalType("delivery"), literalType(null)]).nullable(),
+  "deliveryAddress": stringType().nullable(),
   "productCost": numberType().nullable(),
   "depositAmount": numberType().nullish(),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
@@ -15523,6 +15534,9 @@ var GetOrderResponse = objectType({
   "customerPhone": stringType().nullish(),
   "channel": stringType(),
   "amount": numberType(),
+  "deliveryFee": numberType(),
+  "deliveryMethod": unionType([literalType("pickup"), literalType("delivery"), literalType(null)]).nullable(),
+  "deliveryAddress": stringType().nullable(),
   "productCost": numberType().nullable(),
   "depositAmount": numberType().nullish(),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
@@ -15557,6 +15571,9 @@ var UpdateOrderResponse = objectType({
   "customerPhone": stringType().nullish(),
   "channel": stringType(),
   "amount": numberType(),
+  "deliveryFee": numberType(),
+  "deliveryMethod": unionType([literalType("pickup"), literalType("delivery"), literalType(null)]).nullable(),
+  "deliveryAddress": stringType().nullable(),
   "productCost": numberType().nullable(),
   "depositAmount": numberType().nullish(),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
@@ -15582,6 +15599,9 @@ var GetPublicOrderResponse = objectType({
   "token": stringType(),
   "productName": stringType(),
   "amount": numberType(),
+  "subtotal": numberType(),
+  "deliveryFee": numberType(),
+  "deliveryMethod": unionType([literalType("pickup"), literalType("delivery"), literalType(null)]).nullish(),
   "depositAmount": numberType().nullish(),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
   "status": enumType(["reserved", "deposit_paid", "paid"]),
@@ -15603,6 +15623,8 @@ var SubmitPublicOrderBody = objectType({
   "customerName": stringType().min(1),
   "customerPhone": stringType().min(submitPublicOrderBodyCustomerPhoneMin),
   "buyerDetails": stringType().optional(),
+  "deliveryMethod": enumType(["pickup", "delivery"]).optional(),
+  "deliveryAddress": stringType().optional(),
   "referenceImage": stringType().optional(),
   "itemDetails": arrayType(objectType({
     "itemIndex": numberType().int().min(submitPublicOrderBodyItemDetailsItemItemIndexMin),
@@ -15621,6 +15643,9 @@ var SubmitPublicOrderResponse = objectType({
   "customerPhone": stringType().nullish(),
   "channel": stringType(),
   "amount": numberType(),
+  "deliveryFee": numberType(),
+  "deliveryMethod": unionType([literalType("pickup"), literalType("delivery"), literalType(null)]).nullable(),
+  "deliveryAddress": stringType().nullable(),
   "productCost": numberType().nullable(),
   "depositAmount": numberType().nullish(),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
@@ -15959,6 +15984,9 @@ function createDukaRouter(database) {
     return {
       ...order,
       amount: Number(order.amount),
+      deliveryFee: toNumber(order.deliveryFee) ?? 0,
+      deliveryMethod: order.deliveryMethod ?? null,
+      deliveryAddress: order.deliveryAddress ?? null,
       productCost: toNumber(order.productCost),
       depositAmount: toNumber(order.depositAmount),
       createdAt: order.createdAt.toISOString(),
@@ -16005,6 +16033,9 @@ function createDukaRouter(database) {
       token: order.token,
       productName: order.productName,
       amount: Number(order.amount),
+      subtotal: items.reduce((sum, item) => sum + item.amount, 0),
+      deliveryFee: toNumber(order.deliveryFee) ?? 0,
+      deliveryMethod: order.deliveryMethod ?? null,
       depositAmount: toNumber(order.depositAmount),
       paymentMode: order.paymentMode,
       status: order.status,
@@ -16212,6 +16243,7 @@ function createDukaRouter(database) {
       productName: requestedItems.length === 1 ? firstProduct.name : `${firstProduct.name} + ${requestedItems.length - 1} more`,
       channel: parsed.data.channel,
       amount: totalAmount.toFixed(2),
+      deliveryFee: (parsed.data.deliveryFee ?? 0).toFixed(2),
       depositAmount: parsed.data.depositAmount == null ? null : parsed.data.depositAmount.toFixed(2),
       paymentMode: parsed.data.paymentMode,
       status: "reserved",
@@ -16302,6 +16334,15 @@ function createDukaRouter(database) {
       return;
     }
     const shouldReserve = parsed.data.paymentAction === "reserve" || existing.paymentMode === "reserve";
+    const deliveryMethod = parsed.data.deliveryMethod ?? "pickup";
+    const deliveryAddress = parsed.data.deliveryAddress?.trim() || null;
+    if (deliveryMethod === "delivery" && !deliveryAddress) {
+      res.status(400).json({ error: "A delivery address is required when delivery is selected" });
+      return;
+    }
+    const deliveryFee = Number(existing.deliveryFee ?? 0);
+    const baseAmount = Number(existing.amount) - (existing.deliveryMethod === "delivery" ? deliveryFee : 0);
+    const finalAmount = baseAmount + (deliveryMethod === "delivery" ? deliveryFee : 0);
     const nextStatus = shouldReserve ? "reserved" : existing.paymentMode === "deposit" ? "deposit_paid" : "paid";
     const saleProductCost = await productCostForSale(existing, nextStatus);
     const itemDetails = parsed.data.itemDetails ?? [];
@@ -16311,11 +16352,15 @@ function createDukaRouter(database) {
       const parts = [detail.variant?.trim(), detail.details?.trim()].filter(Boolean);
       return `Item ${detail.itemIndex + 1}: ${parts.join(" \xB7 ")}`;
     }).join("\n");
+    const combinedOrderDetails = [parsed.data.buyerDetails?.trim(), combinedBuyerDetails].filter(Boolean).join("\n");
     const firstReferenceImage = itemDetails.find((detail) => detail.referenceImage?.trim())?.referenceImage?.trim();
     const [order] = await database.update(ordersTable).set({
       customerName: parsed.data.customerName,
       customerPhone: parsed.data.customerPhone,
-      buyerDetails: parsed.data.buyerDetails ?? (combinedBuyerDetails || null),
+      amount: finalAmount.toFixed(2),
+      deliveryMethod,
+      deliveryAddress: deliveryMethod === "delivery" ? deliveryAddress : null,
+      buyerDetails: combinedOrderDetails || null,
       referenceImage: parsed.data.referenceImage ?? firstReferenceImage ?? null,
       status: nextStatus,
       ...saleProductCost === void 0 ? {} : { productCost: saleProductCost }
@@ -16535,6 +16580,9 @@ test("GET /dashboard/summary adapts seeded database records into the response co
         customerPhone: null,
         channel: "whatsapp",
         amount: "100.00",
+        deliveryFee: "0.00",
+        deliveryMethod: null,
+        deliveryAddress: null,
         productCost: "20.00",
         depositAmount: null,
         paymentMode: "full",
@@ -16617,6 +16665,9 @@ test("GET /dashboard/summary scopes engagement totals to a custom range", async 
           customerPhone: null,
           channel: "whatsapp",
           amount: "100.00",
+          deliveryFee: "0.00",
+          deliveryMethod: null,
+          deliveryAddress: null,
           productCost: null,
           depositAmount: null,
           paymentMode: "full",
@@ -16639,6 +16690,9 @@ test("GET /dashboard/summary scopes engagement totals to a custom range", async 
           customerPhone: null,
           channel: "instagram",
           amount: "100.00",
+          deliveryFee: "0.00",
+          deliveryMethod: null,
+          deliveryAddress: null,
           productCost: null,
           depositAmount: null,
           paymentMode: "full",
@@ -16686,6 +16740,9 @@ test("GET /dashboard/summary identifies a legacy sale with no captured cost", as
         customerPhone: null,
         channel: "whatsapp",
         amount: "100.00",
+        deliveryFee: "0.00",
+        deliveryMethod: null,
+        deliveryAddress: null,
         productCost: null,
         depositAmount: null,
         paymentMode: "full",
@@ -16906,5 +16963,100 @@ test("multi-item order links preserve item prices and compound the checkout tota
     const [secondAfterCheckout] = await database.select({ stock: productsTable.stock }).from(productsTable).where(eq2(productsTable.id, secondProduct.id));
     assert2.equal(firstAfterCheckout.stock, 9);
     assert2.equal(secondAfterCheckout.stock, 9);
+  });
+});
+test("buyer delivery choices use the link snapshot, require an address, and do not double-charge", async () => {
+  await withDatabaseTransaction(async (database, baseUrl) => {
+    const [product] = await database.insert(productsTable).values({
+      name: "Delivery fee fixture",
+      category: "Test",
+      price: "50.00",
+      cost: "15.00",
+      stock: 10,
+      variants: [],
+      accent: "#0F6E6B"
+    }).returning();
+    const created = await requestJson(baseUrl, "/api/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        productId: product.id,
+        amount: 50,
+        deliveryFee: 12.5,
+        paymentMode: "full",
+        channel: "whatsapp"
+      })
+    });
+    assert2.equal(created.status, 201);
+    assert2.equal(created.body.deliveryFee, 12.5);
+    const initial = await requestJson(baseUrl, `/api/public/orders/${created.body.token}`);
+    assert2.equal(initial.status, 200);
+    assert2.equal(initial.body.subtotal, 50);
+    assert2.equal(initial.body.amount, 50);
+    assert2.equal(initial.body.deliveryFee, 12.5);
+    const missingAddress = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ama",
+          customerPhone: "0241234567",
+          deliveryMethod: "delivery",
+          paymentAction: "pay"
+        })
+      }
+    );
+    assert2.equal(missingAddress.status, 400);
+    const pickup = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ama",
+          customerPhone: "0241234567",
+          deliveryMethod: "pickup",
+          paymentAction: "pay"
+        })
+      }
+    );
+    assert2.equal(pickup.status, 200);
+    assert2.equal(pickup.body.amount, 50);
+    assert2.equal(pickup.body.deliveryMethod, "pickup");
+    assert2.equal(pickup.body.deliveryAddress, null);
+    const delivery = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ama",
+          customerPhone: "0241234567",
+          deliveryMethod: "delivery",
+          deliveryAddress: "12 Market Street",
+          paymentAction: "pay"
+        })
+      }
+    );
+    assert2.equal(delivery.status, 200);
+    assert2.equal(delivery.body.amount, 62.5);
+    assert2.equal(delivery.body.deliveryMethod, "delivery");
+    assert2.equal(delivery.body.deliveryAddress, "12 Market Street");
+    const repeatedDelivery = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ama",
+          customerPhone: "0241234567",
+          deliveryMethod: "delivery",
+          deliveryAddress: "12 Market Street",
+          paymentAction: "pay"
+        })
+      }
+    );
+    assert2.equal(repeatedDelivery.status, 200);
+    assert2.equal(repeatedDelivery.body.amount, 62.5);
   });
 });

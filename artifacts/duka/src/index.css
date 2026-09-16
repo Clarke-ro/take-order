@@ -1246,6 +1246,7 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-form-module { border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--background) / .55); padding: 1rem; box-shadow: 0 1px 2px hsl(var(--foreground) / .04); }
 .buyer-contact-module, .buyer-delivery-module { border: 0; background: transparent; padding: 0; box-shadow: none; }
 .buyer-delivery-fields { display: grid; gap: 1rem; }
+.buyer-delivery-fee-note { margin-top: .45rem; color: hsl(var(--muted-foreground)); font-size: .68rem; line-height: 1.4; }
 .buyer-item-preferences-section { border-top: 1px solid hsl(var(--border)); padding-top: 1.2rem; }
 .buyer-item-preferences-module { display: grid; gap: 1rem; }
 .buyer-contact-confirmed { display: flex; align-items: center; gap: .45rem; border-radius: 10px; background: hsl(var(--accent) / .16); padding: .7rem .8rem; color: hsl(var(--accent-foreground)); font-size: .68rem; }

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PublicOrderInputDeliveryMethod } from './publicOrderInputDeliveryMethod';
 import type { PublicOrderInputPaymentAction } from './publicOrderInputPaymentAction';
 import type { PublicOrderItemDetails } from './publicOrderItemDetails';
 
@@ -14,6 +15,8 @@ export interface PublicOrderInput {
   /** @minLength 5 */
   customerPhone: string;
   buyerDetails?: string;
+  deliveryMethod?: PublicOrderInputDeliveryMethod;
+  deliveryAddress?: string;
   referenceImage?: string;
   itemDetails?: PublicOrderItemDetails[];
   paymentAction?: PublicOrderInputPaymentAction;

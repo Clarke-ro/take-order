@@ -154,6 +154,9 @@ test("GET /dashboard/summary adapts seeded database records into the response co
         customerPhone: null,
         channel: "whatsapp",
         amount: "100.00",
+        deliveryFee: "0.00",
+        deliveryMethod: null,
+        deliveryAddress: null,
         productCost: "20.00",
         depositAmount: null,
         paymentMode: "full",
@@ -238,6 +241,9 @@ test("GET /dashboard/summary scopes engagement totals to a custom range", async 
           customerPhone: null,
           channel: "whatsapp",
           amount: "100.00",
+          deliveryFee: "0.00",
+          deliveryMethod: null,
+          deliveryAddress: null,
           productCost: null,
           depositAmount: null,
           paymentMode: "full",
@@ -260,6 +266,9 @@ test("GET /dashboard/summary scopes engagement totals to a custom range", async 
           customerPhone: null,
           channel: "instagram",
           amount: "100.00",
+          deliveryFee: "0.00",
+          deliveryMethod: null,
+          deliveryAddress: null,
           productCost: null,
           depositAmount: null,
           paymentMode: "full",
@@ -309,6 +318,9 @@ test("GET /dashboard/summary identifies a legacy sale with no captured cost", as
         customerPhone: null,
         channel: "whatsapp",
         amount: "100.00",
+        deliveryFee: "0.00",
+        deliveryMethod: null,
+        deliveryAddress: null,
         productCost: null,
         depositAmount: null,
         paymentMode: "full",
@@ -579,5 +591,110 @@ test("multi-item order links preserve item prices and compound the checkout tota
       .where(eq(productsTable.id, secondProduct.id));
     assert.equal(firstAfterCheckout.stock, 9);
     assert.equal(secondAfterCheckout.stock, 9);
+  });
+});
+
+test("buyer delivery choices use the link snapshot, require an address, and do not double-charge", async () => {
+  await withDatabaseTransaction(async (database, baseUrl) => {
+    const [product] = await database
+      .insert(productsTable)
+      .values({
+        name: "Delivery fee fixture",
+        category: "Test",
+        price: "50.00",
+        cost: "15.00",
+        stock: 10,
+        variants: [],
+        accent: "#0F6E6B",
+      })
+      .returning();
+
+    const created = await requestJson(baseUrl, "/api/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        productId: product.id,
+        amount: 50,
+        deliveryFee: 12.5,
+        paymentMode: "full",
+        channel: "whatsapp",
+      }),
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.deliveryFee, 12.5);
+
+    const initial = await requestJson(baseUrl, `/api/public/orders/${created.body.token}`);
+    assert.equal(initial.status, 200);
+    assert.equal(initial.body.subtotal, 50);
+    assert.equal(initial.body.amount, 50);
+    assert.equal(initial.body.deliveryFee, 12.5);
+
+    const missingAddress = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ama",
+          customerPhone: "0241234567",
+          deliveryMethod: "delivery",
+          paymentAction: "pay",
+        }),
+      },
+    );
+    assert.equal(missingAddress.status, 400);
+
+    const pickup = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ama",
+          customerPhone: "0241234567",
+          deliveryMethod: "pickup",
+          paymentAction: "pay",
+        }),
+      },
+    );
+    assert.equal(pickup.status, 200);
+    assert.equal(pickup.body.amount, 50);
+    assert.equal(pickup.body.deliveryMethod, "pickup");
+    assert.equal(pickup.body.deliveryAddress, null);
+
+    const delivery = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ama",
+          customerPhone: "0241234567",
+          deliveryMethod: "delivery",
+          deliveryAddress: "12 Market Street",
+          paymentAction: "pay",
+        }),
+      },
+    );
+    assert.equal(delivery.status, 200);
+    assert.equal(delivery.body.amount, 62.5);
+    assert.equal(delivery.body.deliveryMethod, "delivery");
+    assert.equal(delivery.body.deliveryAddress, "12 Market Street");
+
+    const repeatedDelivery = await requestJson(
+      baseUrl,
+      `/api/public/orders/${created.body.token}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "Ama",
+          customerPhone: "0241234567",
+          deliveryMethod: "delivery",
+          deliveryAddress: "12 Market Street",
+          paymentAction: "pay",
+        }),
+      },
+    );
+    assert.equal(repeatedDelivery.status, 200);
+    assert.equal(repeatedDelivery.body.amount, 62.5);
   });
 });

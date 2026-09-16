@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PublicOrderDeliveryMethod } from './publicOrderDeliveryMethod';
 import type { PublicOrderItem } from './publicOrderItem';
 import type { PublicOrderPaymentMode } from './publicOrderPaymentMode';
 import type { PublicOrderStatus } from './publicOrderStatus';
@@ -13,6 +14,10 @@ export interface PublicOrder {
   token: string;
   productName: string;
   amount: number;
+  subtotal: number;
+  deliveryFee: number;
+  /** @nullable */
+  deliveryMethod?: PublicOrderDeliveryMethod;
   /** @nullable */
   depositAmount?: number | null;
   paymentMode: PublicOrderPaymentMode;

@@ -15,6 +15,8 @@ export interface OrderInput {
   amount?: number;
   /** @minItems 1 */
   items?: OrderItemInput[];
+  /** @minimum 0 */
+  deliveryFee?: number;
   /**
      * @minimum 0
      * @nullable

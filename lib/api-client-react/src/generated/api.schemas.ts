@@ -55,6 +55,17 @@ export interface ProductUpdate {
   accent?: string;
 }
 
+/**
+ * @nullable
+ */
+export type OrderDeliveryMethod = typeof OrderDeliveryMethod[keyof typeof OrderDeliveryMethod] | null;
+
+
+export const OrderDeliveryMethod = {
+  pickup: 'pickup',
+  delivery: 'delivery',
+} as const;
+
 export type OrderPaymentMode = typeof OrderPaymentMode[keyof typeof OrderPaymentMode];
 
 
@@ -109,6 +120,11 @@ export interface Order {
   customerPhone?: string | null;
   channel: string;
   amount: number;
+  deliveryFee: number;
+  /** @nullable */
+  deliveryMethod: OrderDeliveryMethod;
+  /** @nullable */
+  deliveryAddress: string | null;
   /** @nullable */
   productCost: number | null;
   /** @nullable */
@@ -172,6 +188,8 @@ export interface OrderInput {
   amount?: number;
   /** @minItems 1 */
   items?: OrderItemInput[];
+  /** @minimum 0 */
+  deliveryFee?: number;
   /**
      * @minimum 0
      * @nullable
@@ -203,6 +221,17 @@ export interface OrderUpdate {
   status?: OrderUpdateStatus;
   fulfillment?: OrderUpdateFulfillment;
 }
+
+/**
+ * @nullable
+ */
+export type PublicOrderDeliveryMethod = typeof PublicOrderDeliveryMethod[keyof typeof PublicOrderDeliveryMethod] | null;
+
+
+export const PublicOrderDeliveryMethod = {
+  pickup: 'pickup',
+  delivery: 'delivery',
+} as const;
 
 export type PublicOrderPaymentMode = typeof PublicOrderPaymentMode[keyof typeof PublicOrderPaymentMode];
 
@@ -242,6 +271,10 @@ export interface PublicOrder {
   token: string;
   productName: string;
   amount: number;
+  subtotal: number;
+  deliveryFee: number;
+  /** @nullable */
+  deliveryMethod?: PublicOrderDeliveryMethod;
   /** @nullable */
   depositAmount?: number | null;
   paymentMode: PublicOrderPaymentMode;
@@ -258,6 +291,14 @@ export interface PublicOrderItemDetails {
   referenceImage?: string;
 }
 
+export type PublicOrderInputDeliveryMethod = typeof PublicOrderInputDeliveryMethod[keyof typeof PublicOrderInputDeliveryMethod];
+
+
+export const PublicOrderInputDeliveryMethod = {
+  pickup: 'pickup',
+  delivery: 'delivery',
+} as const;
+
 export type PublicOrderInputPaymentAction = typeof PublicOrderInputPaymentAction[keyof typeof PublicOrderInputPaymentAction];
 
 
@@ -272,6 +313,8 @@ export interface PublicOrderInput {
   /** @minLength 5 */
   customerPhone: string;
   buyerDetails?: string;
+  deliveryMethod?: PublicOrderInputDeliveryMethod;
+  deliveryAddress?: string;
   referenceImage?: string;
   itemDetails?: PublicOrderItemDetails[];
   paymentAction?: PublicOrderInputPaymentAction;

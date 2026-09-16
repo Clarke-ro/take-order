@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { OrderDeliveryMethod } from './orderDeliveryMethod';
 import type { OrderEngagementSource } from './orderEngagementSource';
 import type { OrderFulfillment } from './orderFulfillment';
 import type { OrderLineItem } from './orderLineItem';
@@ -21,6 +22,11 @@ export interface Order {
   customerPhone?: string | null;
   channel: string;
   amount: number;
+  deliveryFee: number;
+  /** @nullable */
+  deliveryMethod: OrderDeliveryMethod;
+  /** @nullable */
+  deliveryAddress: string | null;
   /** @nullable */
   productCost: number | null;
   /** @nullable */

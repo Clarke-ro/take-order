@@ -339,7 +339,7 @@ components:
         accent: { type: string }
     Order:
       type: object
-      required: [id, token, productId, productName, customerName, channel, amount, productCost, paymentMode, status, fulfillment, createdAt, linkOpens, shares, likes, engagementSource, items]
+      required: [id, token, productId, productName, customerName, channel, amount, deliveryFee, deliveryMethod, deliveryAddress, productCost, paymentMode, status, fulfillment, createdAt, linkOpens, shares, likes, engagementSource, items]
       properties:
         id: { type: integer }
         token: { type: string }
@@ -349,6 +349,9 @@ components:
         customerPhone: { type: ["string", "null"] }
         channel: { type: string }
         amount: { type: number }
+        deliveryFee: { type: number }
+        deliveryMethod: { type: ["string", "null"], enum: [pickup, delivery, null] }
+        deliveryAddress: { type: ["string", "null"] }
         productCost: { type: ["number", "null"] }
         depositAmount: { type: ["number", "null"] }
         paymentMode: { type: string, enum: [full, deposit, reserve] }
@@ -389,6 +392,7 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/OrderItemInput"
+        deliveryFee: { type: number, minimum: 0 }
         depositAmount: { type: ["number", "null"], minimum: 0 }
         paymentMode: { type: string, enum: [full, deposit, reserve] }
         channel: { type: string, enum: [whatsapp, instagram, tiktok, snapchat, in_person] }
@@ -399,11 +403,14 @@ components:
         fulfillment: { type: string, enum: [pending, shipped, delivered] }
     PublicOrder:
       type: object
-      required: [token, productName, amount, paymentMode, status, variants, items]
+      required: [token, productName, amount, subtotal, deliveryFee, paymentMode, status, variants, items]
       properties:
         token: { type: string }
         productName: { type: string }
         amount: { type: number }
+        subtotal: { type: number }
+        deliveryFee: { type: number }
+        deliveryMethod: { type: ["string", "null"], enum: [pickup, delivery, null] }
         depositAmount: { type: ["number", "null"] }
         paymentMode: { type: string, enum: [full, deposit, reserve] }
         status: { type: string, enum: [reserved, deposit_paid, paid] }
@@ -440,6 +447,8 @@ components:
         customerName: { type: string, minLength: 1 }
         customerPhone: { type: string, minLength: 5 }
         buyerDetails: { type: string }
+        deliveryMethod: { type: string, enum: [pickup, delivery] }
+        deliveryAddress: { type: string }
         referenceImage: { type: string }
         itemDetails:
           type: array

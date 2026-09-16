@@ -69,6 +69,9 @@ function orderResponse(order: typeof ordersTable.$inferSelect, items: SellerOrde
   return {
     ...order,
     amount: Number(order.amount),
+    deliveryFee: toNumber(order.deliveryFee) ?? 0,
+    deliveryMethod: order.deliveryMethod ?? null,
+    deliveryAddress: order.deliveryAddress ?? null,
     productCost: toNumber(order.productCost),
     depositAmount: toNumber(order.depositAmount),
     createdAt: order.createdAt.toISOString(),
@@ -137,6 +140,9 @@ function publicOrderResponse(
     token: order.token,
     productName: order.productName,
     amount: Number(order.amount),
+    subtotal: items.reduce((sum, item) => sum + item.amount, 0),
+    deliveryFee: toNumber(order.deliveryFee) ?? 0,
+    deliveryMethod: order.deliveryMethod ?? null,
     depositAmount: toNumber(order.depositAmount),
     paymentMode: order.paymentMode,
     status: order.status,
@@ -444,6 +450,7 @@ router.post("/orders", async (req, res): Promise<void> => {
         : `${firstProduct.name} + ${requestedItems.length - 1} more`,
       channel: parsed.data.channel,
       amount: totalAmount.toFixed(2),
+      deliveryFee: (parsed.data.deliveryFee ?? 0).toFixed(2),
       depositAmount: parsed.data.depositAmount == null ? null : parsed.data.depositAmount.toFixed(2),
       paymentMode: parsed.data.paymentMode,
       status: "reserved",
@@ -549,6 +556,15 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
     return;
   }
   const shouldReserve = parsed.data.paymentAction === "reserve" || existing.paymentMode === "reserve";
+  const deliveryMethod = parsed.data.deliveryMethod ?? "pickup";
+  const deliveryAddress = parsed.data.deliveryAddress?.trim() || null;
+  if (deliveryMethod === "delivery" && !deliveryAddress) {
+    res.status(400).json({ error: "A delivery address is required when delivery is selected" });
+    return;
+  }
+  const deliveryFee = Number(existing.deliveryFee ?? 0);
+  const baseAmount = Number(existing.amount) - (existing.deliveryMethod === "delivery" ? deliveryFee : 0);
+  const finalAmount = baseAmount + (deliveryMethod === "delivery" ? deliveryFee : 0);
   const nextStatus = shouldReserve
     ? "reserved"
     : existing.paymentMode === "deposit"
@@ -578,6 +594,9 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
     .set({
       customerName: parsed.data.customerName,
       customerPhone: parsed.data.customerPhone,
+      amount: finalAmount.toFixed(2),
+      deliveryMethod,
+      deliveryAddress: deliveryMethod === "delivery" ? deliveryAddress : null,
       buyerDetails: combinedOrderDetails || null,
       referenceImage: parsed.data.referenceImage ?? firstReferenceImage ?? null,
       status: nextStatus,
