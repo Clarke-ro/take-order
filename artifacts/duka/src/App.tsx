@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import {
   AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
-  CheckCircle2, CircleDollarSign, Clipboard, Copy, ExternalLink, Eye, Heart, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
+  CheckCircle2, CircleDollarSign, Clipboard, Copy, ExternalLink, Eye, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
   Package, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Settings2, ShoppingBag, SlidersHorizontal, Sparkles,
   Trash2, TrendingUp, Truck, Users, WalletCards, X
 } from 'lucide-react';
@@ -1580,7 +1580,6 @@ function MultiItemTakeOrderModern() {
       ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div>
       : productsQuery.data?.length
         ? <div className="take-order-catalog-grid" aria-label="Catalog items">{productsQuery.data.map((product) => <button type="button" key={product.id} className="take-order-catalog-item" onClick={() => addCatalogProduct(product)} aria-label={`Add ${product.name} to order`}>
-          <span className="take-order-catalog-favorite" aria-hidden="true"><Heart size={16} strokeWidth={1.8} /></span>
           <img src={productImageFor(product.name)} alt="" className="take-order-catalog-image" />
           <span className="take-order-catalog-copy"><strong>{product.name}</strong><small>{product.variants.length ? `${product.variants.length} variant${product.variants.length === 1 ? '' : 's'}` : product.category || 'Catalog item'}</small><b>{moneyExact(product.price)}</b></span>
         </button>)}</div>
