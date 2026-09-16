@@ -71,6 +71,9 @@ function preferencesForProduct(
   preferences: ProductPreferenceGroup[] | null | undefined,
   variants: string[] = [],
 ): ProductPreferenceGroup[] {
+  const isSizeOption = (value: string) => /^(xxxs?|[smlx]{1,4}|small|medium|large|extra small|extra large|one size)$/i.test(value.trim());
+  const normalizeGroupLabel = (label: string, options: string) =>
+    label.trim().toLowerCase() === "choose an option" && options.split(" · ").every(isSizeOption) ? "Size" : label;
   const validPreferences = Array.isArray(preferences)
     ? preferences
       .map((group) => ({
@@ -80,11 +83,15 @@ function preferencesForProduct(
           : [],
       }))
       .filter((group) => group.label && group.options.length > 0)
+      .map((group) => ({
+        ...group,
+        label: normalizeGroupLabel(group.label, group.options.join(" · ")),
+      }))
     : [];
   return validPreferences.length > 0
     ? validPreferences
     : variants.length > 0
-      ? [{ label: "Choose an option", options: variants }]
+      ? [{ label: variants.every(isSizeOption) ? "Size" : "Choose an option", options: variants }]
       : [];
 }
 
