@@ -494,6 +494,7 @@ button { cursor: pointer; }
   background-image: linear-gradient(hsl(var(--foreground) / .045) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground) / .045) 1px, transparent 1px);
   background-size: 32px 32px;
 }
+.onboarding-form-panel { min-width: 0; }
 .tool-tile { transition: transform .2s ease, border-color .2s ease, background-color .2s ease; }
 .tool-tile:hover { transform: translateY(-2px); }
 .tool-mark { box-shadow: none; }
@@ -1075,11 +1076,10 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-catalog-selection-row > button:hover, .take-order-catalog-selection-row > button:focus-visible { background: hsl(var(--muted)); color: hsl(var(--destructive)); }
 .take-order-catalog-selection-empty { border: 1px dashed hsl(var(--border)); border-radius: 9px; padding: .8rem .6rem; color: hsl(var(--muted-foreground)); font-size: .62rem; line-height: 1.4; text-align: center; }
 .take-order-catalog-selection .take-order-feedback { margin: .75rem 0 0; }
-.take-order-review-checkout-card { position: static; max-width: 290px; margin-bottom: 1.2rem; }
-.take-order-payment-checkout-card { position: static; width: 100%; max-width: none; margin-bottom: 1.2rem; }
+.take-order-review-checkout-card, .take-order-payment-checkout-card { position: static; width: 100%; max-width: none; margin-bottom: 1.2rem; border: 0; border-radius: 0; background: transparent; padding: 0; box-shadow: none; }
 .take-order-checkout-payable { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: .9rem; border-top: 1px solid hsl(var(--border)); padding-top: .8rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .62rem; letter-spacing: .05em; text-transform: uppercase; }
 .take-order-checkout-payable strong { color: hsl(var(--foreground)); font-family: var(--app-font-sans); font-size: 1rem; font-variant-numeric: tabular-nums lining-nums; letter-spacing: -.02em; }
-.take-order-payment-config-card { border: 1px solid hsl(var(--border)); border-radius: 18px; background: hsl(var(--card)); padding: 1.2rem; }
+.take-order-payment-config-card { margin-top: 1.25rem; border-top: 1px solid hsl(var(--border)); padding-top: 1.25rem; }
 .take-order-payment-config-heading { padding-bottom: .9rem; border-bottom: 1px solid hsl(var(--border)); }
 .take-order-payment-config-heading h3 { margin-top: .35rem; color: hsl(var(--foreground)); font-family: var(--app-font-sans); font-size: 1.05rem; font-weight: 700; letter-spacing: -.035em; }
 .take-order-payment-config-heading p { margin-top: .4rem; color: hsl(var(--muted-foreground)); font-size: .7rem; line-height: 1.45; }
@@ -1259,8 +1259,6 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-service-choice-copy { display: grid; min-width: 0; gap: .2rem; }
 .buyer-service-choice-copy strong { font-size: .75rem; line-height: 1.2; }
 .buyer-service-choice-copy small { color: hsl(var(--muted-foreground)); font-size: .62rem; line-height: 1.35; }
-.buyer-address-card { border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); padding: .85rem; }
-.buyer-address-card { margin-top: .1rem; }
 .buyer-item-preferences-section { border-top: 1px solid hsl(var(--border)); padding-top: 1.2rem; }
 .buyer-item-preferences-module { display: grid; gap: 1rem; }
 .buyer-contact-confirmed { display: flex; align-items: center; gap: .45rem; border-radius: 10px; background: hsl(var(--accent) / .16); padding: .7rem .8rem; color: hsl(var(--accent-foreground)); font-size: .68rem; }
