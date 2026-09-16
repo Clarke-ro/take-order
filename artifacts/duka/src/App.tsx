@@ -1928,15 +1928,31 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
     </div>
     <div className="mt-10 text-center" onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={handleTouchEnd}>
       <div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">{isCheckout ? 'Final checkout' : displayItems.length > 1 ? `Item ${activeIndex + 1} of ${displayItems.length}` : 'Your order'}</div>
-      {!isCheckout && <div className="mt-5 flex items-center justify-center gap-2">
-        <button type="button" aria-label="Previous item" onClick={() => move(-1)} disabled={displayItems.length < 2 || Boolean(onActiveIndexChange)} className="rounded-full p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] disabled:invisible"><ArrowLeft size={16} /></button>
-        <div className="min-w-0 flex-1">
-          <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]">
-            <img src={activeItem.imageUrl || productImageFor(activeItem.productName)} alt={`${activeItem.productName} product preview`} className="h-full w-full object-cover" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/15 to-transparent" />
-          </div>
-        </div>
-        <button type="button" aria-label="Next item" onClick={() => move(1)} disabled={displayItems.length < 2 || Boolean(onActiveIndexChange)} className="rounded-full p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] disabled:invisible"><ArrowRight size={16} /></button>
+      {!isCheckout && <div className="buyer-product-modules" aria-label={displayItems.length > 1 ? 'Order items' : 'Product preview'}>
+        {displayItems.map((item, index) => {
+          const active = index === activeIndex;
+          const moduleLabel = item.source === 'custom' ? 'One-off item' : 'Catalog item';
+          return <button
+            type="button"
+            key={`${item.productId}-${index}`}
+            className={cn('buyer-product-module', active && 'is-active')}
+            onClick={() => {
+              if (onActiveIndexChange) onActiveIndexChange(index);
+              else setInternalIndex(index);
+            }}
+            disabled={Boolean(onActiveIndexChange)}
+            aria-current={active ? 'true' : undefined}
+            aria-label={`${item.productName}, ${moduleLabel}, ${moneyExact(item.amount)}${active ? ', current item' : ''}`}
+          >
+            <span className="buyer-product-module-art">
+              <img src={item.imageUrl || productImageFor(item.productName)} alt="" />
+            </span>
+            <span className="buyer-product-module-copy">
+              <strong>{item.productName}</strong>
+              <small>{active ? moneyExact(item.amount) : `${String(index + 1).padStart(2, '0')} · ${moduleLabel}`}</small>
+            </span>
+          </button>;
+        })}
       </div>}
       {displayItems.length > 1 && <div className="mt-3 flex items-center justify-center gap-2"><span className="text-[10px] text-[hsl(var(--muted-foreground))]">{isCheckout ? 'All items added' : 'Complete each item'}</span><span className="flex gap-1.5">{displayItems.map((item, index) => <span key={`${item.productId}-${index}`} className={cn('h-1.5 w-6 rounded-full', index <= activeIndex || isCheckout ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(var(--border))')} />)}</span></div>}
       <div className="mt-5">
