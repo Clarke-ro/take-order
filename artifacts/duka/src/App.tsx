@@ -1919,12 +1919,9 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
     <div className="flex justify-center">
       <BrandLockup className="gap-2" />
     </div>
-    <div className="mx-auto mt-7 flex max-w-[300px] items-center justify-center gap-3 rounded-[14px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary))] text-[10px] font-bold text-white">{initials(businessName)}</div>
-      <div className="min-w-0 text-left">
-        <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Seller brand</div>
-        <div className="truncate text-sm font-bold">{businessName}</div>
-      </div>
+    <div className="mt-7 text-center">
+      <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Seller brand</div>
+      <div className="mt-1 text-sm font-semibold">{businessName}</div>
     </div>
     {description && <p className="mx-auto mt-10 max-w-[360px] text-center text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}
     <div className="buyer-total-amount" aria-label={`Total amount ${moneyExact(total)}`}><span>Total amount</span><strong>{moneyExact(total)}</strong></div>
