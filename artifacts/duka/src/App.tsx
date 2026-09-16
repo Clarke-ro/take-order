@@ -1709,8 +1709,11 @@ function MultiItemTakeOrderModern() {
       </div>
       <TakeOrderStepRail step={step} onStepChange={setStep} />
       <div className="take-order-layout">
-         <Card className={cn('take-order-builder-card', catalogStage && 'take-order-catalog-stage-card')}>
+         <Card className={cn('take-order-builder-card', catalogStage && 'take-order-catalog-stage-card', choiceOnly && 'take-order-choice-stage-card')}>
           <form onSubmit={submit}>
+               {choiceOnly && <TakeOrderSection eyebrow="Step 01 · Add items" title="What are you adding to this checkout?" description="Start with a saved product from your catalog or add something unique to this order.">
+                 <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
+               </TakeOrderSection>}
               {step === 1 && catalogStage && <div className="take-order-catalog-stage">
                <div className="take-order-catalog-browser">
                  <div className="take-order-section-eyebrow">Catalog</div>
@@ -1751,7 +1754,7 @@ function MultiItemTakeOrderModern() {
               <div className="take-order-review-details"><div><span>Payment</span><strong>{paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'full' ? 'Pay in full' : 'Reserve for later'}</strong></div><div><span>Conversation</span><strong><ChannelInline value={channel} /></strong></div></div>
               <div className="take-order-review-note"><CheckCircle2 size={17} /><div><strong>Buyer details stay with the order.</strong><span>They can add their name, phone number, notes, and an optional reference image on the next page.</span></div></div>
             </TakeOrderSection>}
-             {!catalogStage && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step === 2 ? 'Confirm checkout' : step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
+              {!catalogStage && !choiceOnly && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step === 2 ? 'Confirm checkout' : step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
           </form>
         </Card>
         <aside className="take-order-preview-column">

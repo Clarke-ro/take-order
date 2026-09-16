@@ -994,6 +994,18 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); align-items: start; gap: 1.2rem; }
 .take-order-builder-card { overflow: hidden; padding: 0; }
 .take-order-catalog-stage-card { border-color: transparent; background: transparent; box-shadow: none; overflow: visible; }
+.take-order-choice-stage-card { background: hsl(var(--card)); }
+.take-order-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin-top: 1.2rem; }
+.take-order-choice-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .8rem; min-height: 8.5rem; border: 1px solid hsl(var(--border)); border-radius: 15px; background: hsl(var(--background)); padding: 1rem; color: hsl(var(--foreground)); text-align: left; transition: border-color .18s, background-color .18s, box-shadow .18s, transform .18s; }
+.take-order-choice-card:hover, .take-order-choice-card:focus-visible, .take-order-choice-card.is-active { border-color: hsl(var(--foreground) / .55); background: hsl(var(--muted) / .45); box-shadow: 0 6px 18px rgb(0 0 0 / .06); transform: translateY(-1px); }
+.take-order-choice-card:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+.take-order-choice-mark { display: inline-flex; height: 2.45rem; width: 2.45rem; align-items: center; justify-content: center; border-radius: 11px; background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+.take-order-choice-mark.is-custom { background: hsl(var(--accent) / .2); color: hsl(var(--accent-foreground)); }
+.take-order-choice-copy { min-width: 0; }
+.take-order-choice-copy strong, .take-order-choice-copy small { display: block; }
+.take-order-choice-copy strong { font-size: .8rem; font-weight: 700; }
+.take-order-choice-copy small { margin-top: .3rem; color: hsl(var(--muted-foreground)); font-size: .66rem; line-height: 1.45; }
+.take-order-choice-card > svg { color: hsl(var(--muted-foreground)); }
 .take-order-catalog-stage { display: grid; grid-template-areas: "browser selection"; grid-template-columns: minmax(0, 1fr) 250px; align-items: start; gap: .9rem; }
 .take-order-catalog-browser { grid-area: browser; }
 .take-order-catalog-selection { grid-area: selection; }
@@ -1163,6 +1175,8 @@ button[data-testid="button-buyer-reserve"].text-white {
   .take-order-step { min-width: 8.3rem; }
   .take-order-step-detail { display: none; }
   .take-order-section { padding: 1.25rem; }
+  .take-order-choice-grid { grid-template-columns: 1fr; }
+  .take-order-choice-card { min-height: 6.5rem; }
   .take-order-catalog-stage { grid-template-areas: "selection" "browser"; grid-template-columns: 1fr; }
   .take-order-catalog-selection { position: static; }
   .take-order-catalog-browser, .take-order-catalog-selection { padding: .85rem; }
