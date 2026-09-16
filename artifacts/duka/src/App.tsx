@@ -1711,9 +1711,9 @@ function MultiItemTakeOrderModern() {
       <div className="take-order-layout">
          <Card className={cn('take-order-builder-card', catalogStage && 'take-order-catalog-stage-card', choiceOnly && 'take-order-choice-stage-card')}>
           <form onSubmit={submit}>
-               {choiceOnly && <TakeOrderSection eyebrow="Step 01 · Add items" title="What are you adding to this checkout?" description="Start with a saved product from your catalog or add something unique to this order.">
+               {choiceOnly && <div className="take-order-choice-stage">
                  <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
-               </TakeOrderSection>}
+               </div>}
               {step === 1 && catalogStage && <div className="take-order-catalog-stage">
                <div className="take-order-catalog-browser">
                  <div className="take-order-section-eyebrow">Catalog</div>
