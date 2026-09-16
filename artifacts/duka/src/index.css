@@ -484,6 +484,15 @@ button { cursor: pointer; }
 .field-input { width: 100%; border: 1px solid hsl(var(--input)); border-radius: 10px; background: hsl(var(--card)); color: hsl(var(--foreground)); padding: .65rem .8rem; font-size: .8125rem; outline: none; transition: border-color .18s; }
 .field-input:focus { border-color: hsl(var(--ring)); outline: 2px solid hsl(var(--ring) / .24); outline-offset: 1px; }
 .field-input::placeholder { color: hsl(var(--muted-foreground) / .7); }
+.seller-logo-image, .seller-logo-graphic { display: flex; height: 3.5rem; width: 3.5rem; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 1.1rem; }
+.seller-logo-image { border: 1px solid hsl(var(--border)); background: hsl(var(--card)); padding: .3rem; }
+.seller-logo-graphic { position: relative; overflow: hidden; background: linear-gradient(135deg, hsl(220 25% 18%), hsl(157 42% 45%)); color: hsl(42 25% 91%); font-family: var(--app-font-serif); font-size: 1.05rem; font-weight: 700; letter-spacing: -.08em; box-shadow: inset 0 0 0 1px hsl(42 25% 91% / .15); }
+.seller-logo-graphic::before, .seller-logo-graphic::after, .seller-logo-graphic i { position: absolute; display: block; border: 1px solid hsl(42 25% 91% / .28); border-radius: 999px; content: ''; }
+.seller-logo-graphic::before { top: -.8rem; right: -.6rem; height: 2.8rem; width: 2.8rem; }
+.seller-logo-graphic::after { bottom: -.9rem; left: -.8rem; height: 3.2rem; width: 3.2rem; }
+.seller-logo-graphic i { top: .45rem; left: .45rem; height: .45rem; width: .45rem; border: 0; background: hsl(42 81% 67%); }
+.seller-logo-picker { display: flex; align-items: center; gap: .85rem; border: 1px solid hsl(var(--border)); border-radius: 14px; background: hsl(var(--background) / .55); padding: .85rem; }
+.seller-logo-picker-mark { height: 3rem; width: 3rem; border-radius: .9rem; font-size: .9rem; }
 .onboarding-shell {
   background:
     radial-gradient(circle at 10% 8%, hsl(42 81% 67% / .17), transparent 28rem),
@@ -1266,14 +1275,19 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-contact-confirmed span { min-width: 0; flex: 1; }
 .buyer-contact-confirmed button { color: inherit; font-size: .66rem; text-decoration: underline; text-underline-offset: 2px; }
 .buyer-checkout-surface { width: 100%; }
+.buyer-checkout-brand-bar { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; border: 1px solid hsl(var(--border)); border-radius: 18px; background: #f5ede4; padding: .9rem 1.15rem; box-shadow: 0 8px 22px hsl(var(--foreground) / .04); }
+.buyer-app-brand { flex: 0 0 auto; }
+.buyer-seller-identity { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: .7rem; text-align: right; }
+.buyer-seller-logo { height: 2.75rem; width: 2.75rem; border-radius: .85rem; font-size: .82rem; }
+.buyer-seller-copy { min-width: 0; }
+.buyer-seller-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .84rem; font-weight: 600; }
+.buyer-seller-copy p { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: hsl(var(--muted-foreground)); font-size: .65rem; line-height: 1.4; }
 .buyer-checkout-form-intro { max-width: 31rem; margin-bottom: 2rem; }
 .buyer-checkout-form-intro h1 { margin-top: .5rem; font-family: var(--app-font-sans); font-size: clamp(1.7rem, 4vw, 2.25rem); font-weight: 600; letter-spacing: -.045em; line-height: 1.05; }
 .buyer-checkout-form-intro p { margin-top: .65rem; max-width: 28rem; color: hsl(var(--muted-foreground)); font-size: .78rem; line-height: 1.55; }
 .buyer-order-detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, 34%); align-items: stretch; gap: 0; margin-top: 2.25rem; overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 18px; background: hsl(var(--card)); box-shadow: 0 12px 30px hsl(var(--foreground) / .06); }
 .buyer-product-rail { display: grid; align-content: start; align-self: stretch; gap: 1.15rem; min-width: 0; order: 2; border-left: 1px solid hsl(var(--border)); border-radius: 0; background: #f5ede4; padding: 2rem 1.45rem; }
-.buyer-product-brand { display: grid; justify-items: center; gap: .45rem; text-align: center; }
-.buyer-product-brand strong { margin-top: .15rem; font-size: .84rem; font-weight: 600; letter-spacing: -.015em; }
-.buyer-product-brand p { max-width: 13rem; color: hsl(var(--muted-foreground)); font-size: .68rem; line-height: 1.45; }
+.buyer-product-rail-heading { color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .58rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
 .buyer-product-list { display: grid; align-content: start; gap: .75rem; margin-top: 1rem; }
 .buyer-product-module { display: grid; grid-template-columns: minmax(0, 1fr) 5.15rem; align-items: center; gap: .55rem; width: 100%; min-width: 0; border: 1px solid hsl(var(--border)); border-radius: 14px; background: hsl(var(--card)); padding: .55rem; color: hsl(var(--foreground)); text-align: left; box-shadow: 0 2px 5px hsl(var(--foreground) / .05); transition: transform .18s, background-color .18s, border-color .18s, box-shadow .18s; }
 .buyer-product-module:hover:not(:disabled) { border-color: hsl(var(--foreground) / .3); background: hsl(var(--card)); box-shadow: 0 4px 10px hsl(var(--foreground) / .08); transform: translateY(-1px); }
@@ -1365,6 +1379,11 @@ button[data-testid="button-buyer-reserve"].text-white {
   .take-order-catalog-copy strong { font-size: .58rem; }
   .take-order-catalog-copy small, .take-order-catalog-copy b { font-size: .48rem; }
   .buyer-order-detail-layout { grid-template-columns: 1fr; gap: 0; margin-top: 1rem; }
+  .buyer-checkout-brand-bar { align-items: flex-start; padding: .8rem .9rem; }
+  .buyer-seller-identity { max-width: 62%; gap: .5rem; }
+  .buyer-seller-logo { height: 2.35rem; width: 2.35rem; border-radius: .7rem; }
+  .buyer-seller-copy strong { font-size: .75rem; }
+  .buyer-seller-copy p { font-size: .58rem; }
   .buyer-product-rail { display: grid; align-self: auto; gap: .75rem; overflow: visible; border-top: 1px solid hsl(var(--border)); border-left: 0; border-radius: 0; background: #f5ede4; padding: 1.25rem; }
   .buyer-product-list { gap: .55rem; margin-top: .65rem; }
   .buyer-product-module, .buyer-product-module.is-active { grid-template-columns: minmax(0, 1fr) 4.4rem; justify-items: stretch; width: 100%; gap: .45rem; padding: .5rem; text-align: left; }

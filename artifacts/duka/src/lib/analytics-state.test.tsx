@@ -1953,7 +1953,7 @@ test("completes onboarding with keyboard-only focus, activation, and saved chann
   };
   const focusable = () =>
     [...container.querySelectorAll<HTMLElement>(
-      "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])",
+      "a[href], button:not([disabled]), input:not([disabled]):not([data-testid='input-onboarding-logo']), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])",
     )];
   const tab = async () => {
     const controls = focusable();

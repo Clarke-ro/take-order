@@ -4,7 +4,7 @@ import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } f
 import {
   AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
   CheckCircle2, CircleDollarSign, Clipboard, Copy, ExternalLink, Eye, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
-  Package, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Settings2, ShoppingBag, SlidersHorizontal, Sparkles,
+  ImagePlus, Package, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Settings2, ShoppingBag, SlidersHorizontal, Sparkles,
   Trash2, TrendingUp, Truck, Users, WalletCards, X
 } from 'lucide-react';
 import { SiFacebook, SiInstagram, SiSnapchat, SiTiktok, SiWhatsapp, SiX } from 'react-icons/si';
@@ -225,6 +225,11 @@ function BrandLockup({ inverted = false, className = '' }: { inverted?: boolean;
   return <div className={cn('flex items-center', className)} aria-label="Take Order"><BrandWordmark inverted={inverted} className="h-8 w-auto max-w-[132px]" /></div>;
 }
 
+function SellerLogo({ businessName, logoDataUrl, className = '' }: { businessName: string; logoDataUrl?: string; className?: string }) {
+  if (logoDataUrl) return <img src={logoDataUrl} alt={`${businessName} logo`} className={cn('seller-logo-image object-contain', className)} />;
+  return <span className={cn('seller-logo-graphic', className)} role="img" aria-label={`${businessName} graphic logo`}><span>{initials(businessName || 'Shop')}</span><i aria-hidden="true" /></span>;
+}
+
 function PoweredByTakeOrder({ className = '' }: { className?: string }) {
   return <div className={cn('flex items-center justify-center gap-2 text-[10px] text-[hsl(var(--muted-foreground))]', className)}><span>Powered by</span><BrandWordmark className="h-4 w-auto opacity-70" /></div>;
 }
@@ -304,7 +309,7 @@ export function OnboardingChannelPicker({
   </div>;
 }
 
-type SellerProfile = { sellerName: string; businessName: string; description: string; channels: string[] };
+type SellerProfile = { sellerName: string; businessName: string; description: string; channels: string[]; logoDataUrl?: string };
 const ONBOARDING_KEY = 'duka-onboarding-profile';
 const ONBOARDING_STEP_KEY = 'duka-onboarding-step';
 const ONBOARDING_DONE_KEY = 'duka-onboarding-complete';
@@ -520,6 +525,7 @@ export function Onboarding() {
   const [, setLocation] = useLocation();
   const [step, setStep] = useState(() => readOnboardingStep());
   const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [] });
+  const [logoError, setLogoError] = useState('');
   useEffect(() => {
     writeSellerProfile(profile);
   }, [profile]);
@@ -530,6 +536,34 @@ export function Onboarding() {
     const next = { ...profile, [key]: value };
     setProfile(next);
     writeSellerProfile(next);
+  };
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setLogoError('Choose an image file.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError('Choose an image smaller than 2 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') return;
+      setLogoError('');
+      update('logoDataUrl', reader.result);
+    };
+    reader.onerror = () => setLogoError('That image could not be read. Try another file.');
+    reader.readAsDataURL(file);
+  };
+  const removeLogo = () => {
+    const next = { ...profile };
+    delete next.logoDataUrl;
+    setProfile(next);
+    writeSellerProfile(next);
+    setLogoError('');
   };
   const toggleChannel = (channel: string) => {
     const next = { ...profile, channels: togglePreference(profile.channels, channel) };
@@ -565,7 +599,7 @@ export function Onboarding() {
        <div className="onboarding-form-panel p-0 sm:p-0">
         {step < 3 && <div className="mb-8 flex items-center gap-2" aria-label="Setup progress">{[0, 1, 2].map((item) => <span key={item} className={cn('h-1.5 flex-1 rounded-full', item <= step ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(var(--muted))]')} />)}</div>}
         {step === 0 && <div className="page-in"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">First, in your own words</div><h2 className="mt-3 font-display text-2xl font-bold tracking-[-.04em]">What do you sell, and where do buyers find you?</h2><p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">Write it like you would tell a friend. We’ll use this to shape your checklist.</p><textarea autoFocus data-testid="input-onboarding-description" value={profile.description} onChange={(event) => update('description', event.target.value)} placeholder="I sell handmade jewellery, mostly through Instagram and WhatsApp." rows={6} className="field-input mt-6 resize-none leading-6" /><div className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]"><CheckCircle2 size={14} className="mt-0.5 shrink-0 text-[hsl(var(--accent-foreground))]" />No account connections are needed for setup.</div></div>}
-        {step === 1 && <div className="page-in"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Make it yours</div><h2 className="mt-3 font-display text-2xl font-bold tracking-[-.04em]">What should we call your workspace?</h2><p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">This stays on this device for now and helps Take Order speak like it belongs to you.</p><div className="mt-7 space-y-5"><div><label className="field-label" htmlFor="onboarding-seller-name">Your name</label><input autoFocus id="onboarding-seller-name" data-testid="input-onboarding-seller-name" value={profile.sellerName} onChange={(event) => update('sellerName', event.target.value)} placeholder="e.g. Amina Mensah" className="field-input" /></div><div><label className="field-label" htmlFor="onboarding-business-name">Business or shop name</label><input id="onboarding-business-name" data-testid="input-onboarding-business-name" value={profile.businessName} onChange={(event) => update('businessName', event.target.value)} placeholder="e.g. The Sunday Edit" className="field-input" /></div></div></div>}
+         {step === 1 && <div className="page-in"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Make it yours</div><h2 className="mt-3 font-display text-2xl font-bold tracking-[-.04em]">What should we call your workspace?</h2><p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">This stays on this device for now and helps Take Order speak like it belongs to you.</p><div className="mt-7 space-y-5"><div><label className="field-label" htmlFor="onboarding-seller-name">Your name</label><input autoFocus id="onboarding-seller-name" data-testid="input-onboarding-seller-name" value={profile.sellerName} onChange={(event) => update('sellerName', event.target.value)} placeholder="e.g. Amina Mensah" className="field-input" /></div><div><label className="field-label" htmlFor="onboarding-business-name">Business or shop name</label><input id="onboarding-business-name" data-testid="input-onboarding-business-name" value={profile.businessName} onChange={(event) => update('businessName', event.target.value)} placeholder="e.g. The Sunday Edit" className="field-input" /></div><div><div className="field-label">Business logo <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></div><div className="seller-logo-picker"><SellerLogo businessName={profile.businessName || 'Your shop'} logoDataUrl={profile.logoDataUrl} className="seller-logo-picker-mark" /><div className="min-w-0 flex-1"><div className="text-sm font-semibold">{profile.logoDataUrl ? 'Your logo is ready' : 'Use a logo or our generated graphic'}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">PNG, JPG, WebP, or SVG up to 2 MB.</p><div className="mt-3 flex flex-wrap gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] px-3 py-2 text-[11px] font-semibold text-[hsl(var(--primary-foreground))]"><ImagePlus size={14} />{profile.logoDataUrl ? 'Replace logo' : 'Upload logo'}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" tabIndex={-1} className="sr-only" onChange={handleLogoChange} data-testid="input-onboarding-logo" /></label>{profile.logoDataUrl && <button type="button" onClick={removeLogo} className="inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--border))] px-3 py-2 text-[11px] font-semibold hover:bg-[hsl(var(--muted))]" data-testid="button-remove-onboarding-logo"><X size={14} />Remove</button>}</div>{logoError && <p role="alert" className="mt-2 text-xs text-[hsl(var(--destructive))]">{logoError}</p>}</div></div></div></div></div>}
         {step === 2 && <div className="page-in"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">One useful detail</div><h2 className="mt-3 font-display text-2xl font-bold tracking-[-.04em]">Where do you usually sell?</h2><p className="mt-2 text-sm leading-6 text-[hsl(var(--muted-foreground))]">Pick any that fit. These are just workspace preferences; Take Order does not connect or read them.</p><div className="mt-7"><OnboardingChannelPicker selectedChannels={profile.channels} onToggle={toggleChannel} /></div></div>}
         {step === 3 && <div className="page-in"><div className="flex h-12 w-12 items-center justify-center rounded-[15px] bg-[hsl(var(--accent))] text-white"><Check size={23} /></div><div className="mt-7 font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Setup complete</div><h2 className="mt-3 font-display text-3xl font-bold tracking-[-.05em]">A good first week starts with one item.</h2><p className="mt-3 text-sm leading-6 text-[hsl(var(--muted-foreground))]">Your preferences are saved locally. Choose the next useful step and Take Order will keep the rest tidy.</p><div className="mt-7 space-y-2"><Link href="/catalog" data-testid="link-onboarding-add-item" className="flex items-center gap-3 rounded-[13px] border border-[hsl(var(--border))] p-4 transition-colors hover:bg-[hsl(var(--muted))]"><span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(42_81%_67%/.3)] font-mono-ui text-xs font-bold">01</span><span className="flex-1"><span className="block text-sm font-bold">Add your first catalog item</span><span className="mt-1 block text-xs text-[hsl(var(--muted-foreground))]">Name, price, cost, and stock — that’s the foundation.</span></span><ArrowRight size={16} /></Link><Link href="/connect" data-testid="link-onboarding-connect-tools" className="flex items-center gap-3 rounded-[13px] border border-[hsl(var(--border))] p-4 transition-colors hover:bg-[hsl(var(--muted))]"><span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(157_42%_45%/.16)] font-mono-ui text-xs font-bold">02</span><span className="flex-1"><span className="block text-sm font-bold">Review optional tools</span><span className="mt-1 block text-xs text-[hsl(var(--muted-foreground))]">Save the channels and payment tools you use.</span></span><ArrowRight size={16} /></Link></div><Button onClick={() => setLocation('/')} className="mt-7 w-full" data-testid="button-open-workspace">Open my workspace <ArrowRight size={15} /></Button></div>}
         {step < 3 && <div className="mt-8 border-t border-[hsl(var(--border))] pt-5">
@@ -1884,6 +1918,7 @@ function MultiItemTakeOrder() {
 type BuyerOrderSurfaceProps = {
   businessName: string;
   description?: string;
+  logoDataUrl?: string;
   productName?: string;
   amount?: number;
   paymentMode: 'full' | 'deposit' | 'reserve';
@@ -1906,13 +1941,14 @@ type BuyerOrderItem = {
   source: 'catalog' | 'custom';
 };
 
-export function BuyerOrderSurface({ businessName, description, productName, amount, paymentMode, depositAmount, totalAmount, variants = [], items, activeIndex: controlledIndex, onActiveIndexChange, isCheckout = false, children }: BuyerOrderSurfaceProps) {
+export function BuyerOrderSurface({ businessName, description, logoDataUrl, productName, amount, paymentMode, depositAmount, totalAmount, variants = [], items, activeIndex: controlledIndex, onActiveIndexChange, isCheckout = false, children }: BuyerOrderSurfaceProps) {
   const displayItems = items?.length ? items : [{ productId: 0, productName: productName || 'Your item', amount: amount || 0, variants, source: 'catalog' as const }];
   const [internalIndex, setInternalIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const activeIndex = Math.min(controlledIndex ?? internalIndex, displayItems.length - 1);
   const activeItem = displayItems[activeIndex]!;
   const total = totalAmount ?? displayItems.reduce((sum, item) => sum + item.amount, 0);
+  const resolvedLogoDataUrl = logoDataUrl ?? readSellerProfile()?.logoDataUrl;
   useEffect(() => setInternalIndex(0), [displayItems.length]);
   const move = (direction: -1 | 1) => {
     const nextIndex = (activeIndex + direction + displayItems.length) % displayItems.length;
@@ -1927,6 +1963,16 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
     if (Math.abs(delta) > 36) move(delta < 0 ? 1 : -1);
   };
   return <div className="buyer-checkout-surface">
+    <header className="buyer-checkout-brand-bar">
+      <BrandLockup className="buyer-app-brand" />
+      <div className="buyer-seller-identity">
+        <SellerLogo businessName={businessName} logoDataUrl={resolvedLogoDataUrl} className="buyer-seller-logo" />
+        <div className="buyer-seller-copy">
+          <strong>{businessName}</strong>
+          {description && <p>{description}</p>}
+        </div>
+      </div>
+    </header>
     <div className="buyer-order-detail-layout">
       <div className="buyer-order-detail-card p-6 sm:p-8">
         <div className="buyer-checkout-form-intro">
@@ -1938,11 +1984,7 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
         {typeof children === 'function' ? children(activeItem) : children}
       </div>
       <aside className="buyer-product-rail" aria-label={displayItems.length > 1 ? 'Order items' : 'Product preview'}>
-        <div className="buyer-product-brand">
-          <BrandWordmark className="buyer-business-logo" />
-          <strong>{businessName}</strong>
-          {description && <p>{description}</p>}
-        </div>
+        <div className="buyer-product-rail-heading">Order items</div>
         <div className="buyer-product-list">
         {displayItems.map((item, index) => {
           const active = index === activeIndex;
