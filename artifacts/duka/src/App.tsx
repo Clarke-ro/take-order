@@ -2284,16 +2284,25 @@ export function BuyerOrderForm({
                 <strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong>
                  {item.preferences.length > 0 && <p>Choose the options that apply to this item.</p>}
               </div>
-               {item.preferences.map((preference, preferenceIndex) => <fieldset className="buyer-color-field" key={`${item.productId}-${preference.label}`}>
-                 <legend className="field-label">{preference.label}</legend>
-                 <div className="buyer-color-options">
-                   {preference.options.map((option) => <label key={option} className={cn('buyer-color-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
-                     <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
-                     <span className="buyer-color-option-image"><img src={productImageFor(`${item.productName} ${preference.label} ${option}`)} alt="" /></span>
-                     <span className="buyer-color-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
-                   </label>)}
-                 </div>
-               </fieldset>)}
+               {item.preferences.map((preference, preferenceIndex) => {
+                 const isSizePreference = preference.label.trim().toLowerCase() === 'size';
+                 return <fieldset className={cn('buyer-color-field', isSizePreference && 'buyer-size-field')} key={`${item.productId}-${preference.label}`}>
+                   <legend className="field-label">{preference.label}</legend>
+                   <div className={isSizePreference ? 'buyer-size-options' : 'buyer-color-options'}>
+                     {preference.options.map((option) => isSizePreference
+                       ? <label key={option} className={cn('buyer-size-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
+                           <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
+                           <span className="buyer-size-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
+                           <span>{option}</span>
+                         </label>
+                       : <label key={option} className={cn('buyer-color-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
+                           <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
+                           <span className="buyer-color-option-image"><img src={productImageFor(`${item.productName} ${preference.label} ${option}`)} alt="" /></span>
+                           <span className="buyer-color-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
+                         </label>)}
+                   </div>
+                 </fieldset>;
+               })}
               {item.source === 'custom' && <div className="buyer-image-field">
                 <span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span>
                 <label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{itemForm.image ? itemForm.image : 'Attach an image'}</label>
