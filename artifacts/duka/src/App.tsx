@@ -1990,6 +1990,12 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
     if (Math.abs(delta) > 36) move(delta < 0 ? 1 : -1);
   };
   return <div className="buyer-checkout-surface">
+    <div className="buyer-checkout-form-intro">
+      <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Buyer checkout</div>
+      <h1>Complete your order.</h1>
+      <p>Share a few details so the seller can prepare everything correctly.</p>
+      <div className="buyer-total-amount" aria-label={`Total amount ${moneyExact(total)}`}><span>Total amount</span><strong>{moneyExact(total)}</strong></div>
+    </div>
     <header className="buyer-checkout-brand-bar">
       <div className="buyer-seller-identity">
         <BrandMark variant="icon" className="buyer-seller-logo buyer-app-seller-mark" />
@@ -1999,12 +2005,6 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
         </div>
       </div>
     </header>
-    <div className="buyer-checkout-form-intro">
-      <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Buyer checkout</div>
-      <h1>Complete your order.</h1>
-      <p>Share a few details so the seller can prepare everything correctly.</p>
-      <div className="buyer-total-amount" aria-label={`Total amount ${moneyExact(total)}`}><span>Total amount</span><strong>{moneyExact(total)}</strong></div>
-    </div>
     <div className="buyer-order-detail-layout">
       <div className="buyer-order-detail-card p-6 sm:p-8">
         {typeof children === 'function' ? children(activeItem) : children}
