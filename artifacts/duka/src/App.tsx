@@ -1926,11 +1926,7 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
         <div className="truncate text-sm font-bold">{businessName}</div>
       </div>
     </div>
-    <div className="mt-10 text-center" onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={handleTouchEnd}>
-      <div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">{isCheckout ? 'Final checkout' : displayItems.length > 1 ? `Item ${activeIndex + 1} of ${displayItems.length}` : 'Your order'}</div>
-      {displayItems.length > 1 && <div className="mt-3 flex items-center justify-center gap-2"><span className="text-[10px] text-[hsl(var(--muted-foreground))]">{isCheckout ? 'All items added' : 'Complete each item'}</span><span className="flex gap-1.5">{displayItems.map((item, index) => <span key={`${item.productId}-${index}`} className={cn('h-1.5 w-6 rounded-full', index <= activeIndex || isCheckout ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(var(--border))')} />)}</span></div>}
-      {description && <p className="mx-auto mt-3 max-w-[360px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}
-    </div>
+    {description && <p className="mx-auto mt-10 max-w-[360px] text-center text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}
     <div className="buyer-total-amount" aria-label={`Total amount ${moneyExact(total)}`}><span>Total amount</span><strong>{moneyExact(total)}</strong></div>
     <div className="buyer-order-detail-layout">
       <aside className="buyer-product-rail" aria-label={displayItems.length > 1 ? 'Order items' : 'Product preview'}>
