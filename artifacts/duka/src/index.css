@@ -620,12 +620,12 @@ button { cursor: pointer; }
 .clients-search input { display: block; width: 100%; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--background)); padding: .55rem .7rem .55rem 2rem; color: hsl(var(--foreground)); font-family: var(--app-font-sans); font-size: .7rem; outline: none; }
 .clients-search input:focus { border-color: hsl(var(--ring)); outline: 2px solid hsl(var(--ring) / .18); outline-offset: 1px; }
 .clients-search input::placeholder { color: hsl(var(--muted-foreground) / .7); }
-.clients-filter-card { margin: .7rem 1rem .8rem; padding: .35rem .5rem; }
+.clients-filter-card { margin: .7rem 1rem .8rem; padding: .05rem 0; }
 .clients-filter-bar { display: flex; align-items: center; gap: .25rem; overflow-x: auto; padding: 0; scrollbar-width: none; }
 .clients-filter-bar::-webkit-scrollbar { display: none; }
-.clients-filter-tab { display: inline-flex; align-items: center; gap: .4rem; flex-shrink: 0; border: 0; border-radius: 8px; background: transparent; padding: .45rem .65rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-sans); font-size: .68rem; font-weight: 500; white-space: nowrap; }
+.clients-filter-tab { display: inline-flex; align-items: center; gap: .4rem; flex-shrink: 0; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--card)); box-shadow: 0 1px 2px hsl(220 18% 35% / .06); padding: .45rem .65rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-sans); font-size: .68rem; font-weight: 500; white-space: nowrap; }
 .clients-filter-tab:hover, .clients-filter-tab.is-active { color: hsl(var(--foreground)); }
-.clients-filter-tab.is-active { background: hsl(var(--card)); box-shadow: 0 1px 3px hsl(220 18% 35% / .1); }
+.clients-filter-tab.is-active { border-color: hsl(var(--foreground) / .22); box-shadow: 0 1px 3px hsl(220 18% 35% / .11); }
 .clients-filter-tab strong { border-radius: 999px; background: hsl(var(--muted)); padding: .15rem .35rem; color: inherit; font-family: var(--app-font-mono); font-size: .53rem; font-weight: 500; line-height: 1; }
 .clients-search-hint { flex-shrink: 0; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .57rem; letter-spacing: .05em; }
 .clients-header-note { display: inline-flex; align-items: center; gap: .5rem; border: 1px solid hsl(var(--border)); border-radius: 999px; background: hsl(var(--card)); padding: .65rem .85rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .6rem; line-height: 1; }
