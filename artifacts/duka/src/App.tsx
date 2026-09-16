@@ -2238,8 +2238,48 @@ export function BuyerOrderForm({
        <div className="buyer-form-actions"><span /><Button type="submit" disabled={submitPending} data-testid="button-submit-public-order">Continue to item preferences <ArrowRight size={15} /></Button></div>
      </div> : <div className="buyer-item-entry">
        {itemIndex > 0 && <div className="buyer-contact-confirmed"><CheckCircle2 size={15} /><span>Contact details saved for {form.name || 'this order'}</span><button type="button" onClick={onBack}>Edit</button></div>}
-       <section className={cn('buyer-item-preferences-section', item.variants.length > 0 && 'has-variants')} aria-labelledby="buyer-item-preferences-heading"><div className="buyer-item-entry-heading"><div><h2 id="buyer-item-preferences-heading">Item preferences</h2><p className="buyer-item-name">{item.productName} · Item {String(itemIndex + 1).padStart(2, '0')} of {String(itemCount).padStart(2, '0')}</p></div><span className="buyer-item-source">{item.source === 'custom' ? 'One-off' : 'Catalog'}</span></div><div className="buyer-form-module buyer-item-preferences-module">{item.variants.length > 0 && <fieldset className="buyer-variant-field"><legend className="field-label">Choose a variation</legend><div className="buyer-variant-options">{item.variants.map((variant) => <label key={variant} className={cn('buyer-variant-option', itemForm.variant === variant && 'is-selected')}><input type="radio" name={`buyer-variant-${item.productId}`} value={variant} checked={itemForm.variant === variant} onChange={(event) => onItemChange('variant', event.target.value)} required={itemIndex === 0 || !itemForm.variant} /><span>{variant}</span></label>)}</div></fieldset>}<div className="buyer-item-details"><label htmlFor="buyer-details" className="field-label">Details for this item <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-details" data-testid="input-buyer-details" value={itemForm.details} onChange={(event) => onItemChange('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>{item.source === 'custom' && <div className="buyer-image-field"><span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span><label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{itemForm.image ? itemForm.image : 'Attach an image'}</label><input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />{itemForm.imagePreview && <img src={itemForm.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>}</div></section>
-       <div className="buyer-form-actions">{itemIndex > 0 ? <Button type="button" variant="ghost" onClick={onBack}><ArrowLeft size={15} />Back</Button> : <span /> }<Button type="submit" disabled={submitPending} data-testid="button-submit-public-order">{itemIndex + 1 < itemCount ? 'Continue to next item' : 'Continue to payment'} <ArrowRight size={15} /></Button></div>
+        <section className={cn('buyer-item-preferences-section', item.variants.length > 0 && 'has-variants')} aria-labelledby="buyer-item-preferences-heading">
+          <div className="buyer-item-preferences-layout">
+            <div className="buyer-item-visual">
+              <div className="buyer-item-hero-image">
+                <img src={item.imageUrl || productImageFor(item.productName)} alt={`${item.productName} preview`} />
+              </div>
+              <div className="buyer-item-visual-meta">
+                <span>{item.source === 'custom' ? 'One-off item' : 'Catalog item'}</span>
+                <strong>{moneyExact(item.amount)}</strong>
+              </div>
+            </div>
+            <div className="buyer-item-preferences-content">
+              <div className="buyer-item-description">
+                <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Item {String(itemIndex + 1).padStart(2, '0')} of {String(itemCount).padStart(2, '0')}</div>
+                <h2 id="buyer-item-preferences-heading">{item.productName}</h2>
+                <p>Choose the options and details you would like for this item.</p>
+              </div>
+              {item.variants.length > 0 && <fieldset className="buyer-variant-field">
+                <legend className="field-label">Choose a size or variation</legend>
+                <div className="buyer-variant-options">
+                  {item.variants.map((variant) => <label key={variant} className={cn('buyer-variant-option', itemForm.variant === variant && 'is-selected')}>
+                    <input type="radio" name={`buyer-variant-${item.productId}`} value={variant} checked={itemForm.variant === variant} onChange={(event) => onItemChange('variant', event.target.value)} required={itemIndex === 0 || !itemForm.variant} />
+                    <span className="buyer-variant-option-image"><img src={productImageFor(`${item.productName} ${variant}`)} alt="" /></span>
+                    <span className="buyer-variant-option-copy"><strong>{variant}</strong>{itemForm.variant === variant && <small>Selected</small>}</span>
+                    <span className="buyer-variant-check" aria-hidden="true">{itemForm.variant === variant && <Check size={12} strokeWidth={3} />}</span>
+                  </label>)}
+                </div>
+              </fieldset>}
+              <div className="buyer-item-details">
+                <label htmlFor="buyer-details" className="field-label">Other preferences <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label>
+                <textarea id="buyer-details" data-testid="input-buyer-details" value={itemForm.details} onChange={(event) => onItemChange('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" />
+              </div>
+              {item.source === 'custom' && <div className="buyer-image-field">
+                <span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span>
+                <label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{itemForm.image ? itemForm.image : 'Attach an image'}</label>
+                <input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />
+                {itemForm.imagePreview && <img src={itemForm.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}
+              </div>}
+            </div>
+          </div>
+        </section>
+        <div className="buyer-form-actions">{itemIndex > 0 ? <Button type="button" variant="ghost" onClick={onBack}><ArrowLeft size={15} />Back</Button> : <span /> }<Button type="submit" disabled={submitPending} data-testid="button-submit-public-order">{itemIndex + 1 < itemCount ? 'Next item' : 'Continue to payment'} <ArrowRight size={15} /></Button></div>
      </div> : <div className="buyer-final-checkout">
       <div className="buyer-final-heading"><div><div className="take-order-section-eyebrow">Final checkout</div><h2 id="buyer-order-form-heading">Review your order.</h2></div><CheckCircle2 size={20} /></div>
       <div className="buyer-summary-list">{items.map((orderItem, index) => <div key={`${orderItem.productId}-${index}`} className="buyer-summary-row"><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{orderItem.productName}</strong><small>{orderItem.source === 'custom' ? 'One-off item' : 'Catalog item'}{orderItem.variants.length ? ` · ${itemIndex === index ? itemForm.variant || 'Variation selected' : 'Variation selected'}` : ''}</small></div><b>{moneyExact(orderItem.amount)}</b></div>)}{deliveryCharge > 0 && <div className="buyer-summary-row"><span>+</span><div><strong>Delivery</strong><small>Flat delivery fee</small></div><b>{moneyExact(deliveryCharge)}</b></div>}<div className="buyer-summary-total"><span>Total</span><strong>{moneyExact(amount)}</strong></div></div>
