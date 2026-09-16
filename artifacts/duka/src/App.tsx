@@ -1535,7 +1535,7 @@ function MultiItemTakeOrderModern() {
   const [step, setStep] = useState<TakeOrderStep>(1);
   const [items, setItems] = useState<DraftOrderItem[]>([]);
   const [nextKey, setNextKey] = useState(1);
-  const [itemSource, setItemSource] = useState<'catalog' | 'custom' | null>(null);
+  const [itemSource, setItemSource] = useState<'catalog' | 'custom'>('catalog');
   const [customDraft, setCustomDraft] = useState({ name: '', amount: '' });
   const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
   const [depositAmount, setDepositAmount] = useState('');
@@ -1545,8 +1545,6 @@ function MultiItemTakeOrderModern() {
   const [copyError, setCopyError] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
-  const choiceOnly = step === 1 && items.length === 0 && itemSource === null;
-  const catalogOnly = step === 1 && items.length === 0 && itemSource === 'catalog';
   const previewItems: BuyerOrderItem[] = items.length
     ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants }))
     : [{ productId: 0, productName: 'Your item', amount: 0, variants: [] }];
@@ -1558,8 +1556,12 @@ function MultiItemTakeOrderModern() {
     : total > 0 && validDeposit;
 
   const getErrorMessage = (error: unknown, fallback: string) => error instanceof Error && error.message ? error.message : fallback;
-  const addCatalogProduct = (product: Product) => {
-    setItems((current) => [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, accent: product.accent }]);
+  const toggleCatalogProduct = (product: Product) => {
+    setItems((current) => {
+      const existing = current.some((item) => item.productId === product.id);
+      if (existing) return current.filter((item) => item.productId !== product.id);
+      return [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, accent: product.accent }];
+    });
     setNextKey((current) => current + 1);
     setFeedback(null);
   };
@@ -1579,7 +1581,8 @@ function MultiItemTakeOrderModern() {
     : productsQuery.isError
       ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div>
       : productsQuery.data?.length
-        ? <div className="take-order-catalog-grid" aria-label="Catalog items">{productsQuery.data.map((product) => <button type="button" key={product.id} className="take-order-catalog-item" onClick={() => addCatalogProduct(product)} aria-label={`Add ${product.name} to order`}>
+        ? <div className="take-order-catalog-grid" aria-label="Catalog items">{productsQuery.data.map((product) => <button type="button" key={product.id} className={cn('take-order-catalog-item', items.some((item) => item.productId === product.id) && 'is-selected')} onClick={() => toggleCatalogProduct(product)} aria-label={`${items.some((item) => item.productId === product.id) ? 'Remove' : 'Add'} ${product.name} ${items.some((item) => item.productId === product.id) ? 'from' : 'to'} order`} aria-pressed={items.some((item) => item.productId === product.id)}>
+          <span className="take-order-catalog-toggle" aria-hidden="true">{items.some((item) => item.productId === product.id) ? <Check size={13} strokeWidth={3} /> : <Plus size={13} />}</span>
           <img src={productImageFor(product.name)} alt="" className="take-order-catalog-image" />
           <span className="take-order-catalog-copy"><strong>{product.name}</strong><small>{product.variants.length ? `${product.variants.length} variant${product.variants.length === 1 ? '' : 's'}` : product.category || 'Catalog item'}</small><b>{moneyExact(product.price)}</b></span>
         </button>)}</div>
