@@ -1527,7 +1527,7 @@ function TakeOrderFeedback({ message }: { message: string | null }) {
   return <div className="take-order-feedback" role="alert"><AlertTriangle size={16} aria-hidden="true" /><span>{message}</span></div>;
 }
 
-function TakeOrderCheckoutCard({ items, total, feedback, onRemove, onOneOff, buttonTestId, disabled = false, className, showActions = true, showPayableTotal = false }: { items: DraftOrderItem[]; total: number; feedback?: string | null; onRemove: (key: number) => void; onOneOff: () => void; buttonTestId: string; disabled?: boolean; className?: string; showActions?: boolean; showPayableTotal?: boolean }) {
+function TakeOrderCheckoutCard({ items, total, feedback, onRemove, onOneOff, buttonTestId, disabled = false, className, showActions = true, showContinue = true, showPayableTotal = false }: { items: DraftOrderItem[]; total: number; feedback?: string | null; onRemove: (key: number) => void; onOneOff: () => void; buttonTestId: string; disabled?: boolean; className?: string; showActions?: boolean; showContinue?: boolean; showPayableTotal?: boolean }) {
   return <div className={cn('take-order-catalog-selection', className)}>
     <div className="take-order-section-eyebrow">Client checkout</div>
     <div className="take-order-catalog-selection-heading"><h2>{items.length ? `${items.length} items selected` : 'No items selected'}</h2>{items.length > 0 && <strong>{moneyExact(total)}</strong>}</div>
@@ -1536,7 +1536,7 @@ function TakeOrderCheckoutCard({ items, total, feedback, onRemove, onOneOff, but
     </div>
     {showPayableTotal && <div className="take-order-checkout-payable"><span>Total payable amount</span><strong>{moneyExact(total)}</strong></div>}
     {feedback && <TakeOrderFeedback message={feedback} />}
-    {showActions && <><Button type="submit" className="take-order-catalog-continue" disabled={disabled || !items.length || items.some((item) => item.amount <= 0)} data-testid={buttonTestId}>Continue <ArrowRight size={15} /></Button><button type="button" className="take-order-catalog-custom-link" onClick={onOneOff}>Add a one-off item instead</button></>}
+    {showActions && <>{showContinue && <Button type="submit" className="take-order-catalog-continue" disabled={disabled || !items.length || items.some((item) => item.amount <= 0)} data-testid={buttonTestId}>Continue <ArrowRight size={15} /></Button>}<button type="button" className="take-order-catalog-custom-link" onClick={onOneOff}>Add a one-off item instead</button></>}
   </div>;
 }
 
@@ -1748,7 +1748,7 @@ function MultiItemTakeOrderModern() {
                </div>
             </TakeOrderSection>}
               {step === 3 && <TakeOrderSection eyebrow="Step 03 · Review" title="Review checkout.">
-               <TakeOrderCheckoutCard items={items} total={total} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setStep(1); setFeedback(null); }} buttonTestId="button-review-checkout" disabled={busy} />
+                <TakeOrderCheckoutCard items={items} total={total} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setStep(1); setFeedback(null); }} buttonTestId="button-review-checkout" disabled={busy} showContinue={false} />
               <div className="take-order-review-details"><div><span>Payment</span><strong>{paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'full' ? 'Pay in full' : 'Reserve for later'}</strong></div><div><span>Conversation</span><strong><ChannelInline value={channel} /></strong></div></div>
               <div className="take-order-review-note"><CheckCircle2 size={17} /><div><strong>Buyer details stay with the order.</strong><span>They can add their name, phone number, notes, and an optional reference image on the next page.</span></div></div>
             </TakeOrderSection>}
