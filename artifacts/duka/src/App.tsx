@@ -1234,10 +1234,12 @@ type ClientSummary = {
   outstanding: number;
   latestPurchase: string;
 };
+type ClientFilter = 'all' | 'repeat' | 'balance' | 'serve';
 
 function Clients() {
   const query = useListOrders();
   const [search, setSearch] = useState('');
+  const [clientFilter, setClientFilter] = useState<ClientFilter>('all');
   const clients = useMemo<ClientSummary[]>(() => {
     const grouped = new Map<string, ClientSummary>();
     (query.data ?? []).forEach((order) => {
@@ -1277,12 +1279,28 @@ function Clients() {
   }, [query.data]);
   const filteredClients = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return clients;
-    return clients.filter((client) => `${client.displayName} ${client.phone}`.toLowerCase().includes(term));
-  }, [clients, search]);
+    return clients.filter((client) => {
+      const matchesFilter = clientFilter === 'all'
+        || (clientFilter === 'repeat' && client.orderCount > 1)
+        || (clientFilter === 'balance' && client.outstanding > 0)
+        || (clientFilter === 'serve' && client.orders.some((order) => order.fulfillment !== 'delivered'));
+      const matchesSearch = !term || `${client.displayName} ${client.phone}`.toLowerCase().includes(term);
+      return matchesFilter && matchesSearch;
+    });
+  }, [clients, clientFilter, search]);
   const repeatClients = clients.filter((client) => client.orderCount > 1).length;
   const balanceDueClients = clients.filter((client) => client.outstanding > 0).length;
   const clientsToServe = clients.filter((client) => client.orders.some((order) => order.fulfillment !== 'delivered')).length;
+  const repeatRate = clients.length ? (repeatClients / clients.length) * 100 : 0;
+  const settledRate = clients.length ? ((clients.length - balanceDueClients) / clients.length) * 100 : 0;
+  const balanceRate = clients.length ? (balanceDueClients / clients.length) * 100 : 0;
+  const serviceRate = clients.length ? (clientsToServe / clients.length) * 100 : 0;
+  const clientFilters: Array<{ value: ClientFilter; label: string; count: number }> = [
+    { value: 'all', label: 'All clients', count: clients.length },
+    { value: 'repeat', label: 'Return visits', count: repeatClients },
+    { value: 'balance', label: 'Balance due', count: balanceDueClients },
+    { value: 'serve', label: 'To serve', count: clientsToServe },
+  ];
 
   return <Shell>
     <PageHeading
@@ -1290,10 +1308,10 @@ function Clients() {
     />
     {query.isLoading ? <ClientsSkeleton /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : !clients.length ? <EmptyState icon={Users} title="Your client list starts with an order" description="When a buyer shares their details, Take Order will keep their purchase history together here." action={<Link href="/take-order" data-testid="link-clients-empty-order"><Button><Plus size={15} />Take an order</Button></Link>} /> : <>
       <section className="clients-overview" aria-label="Client summary">
-        <MetricCard className="rise-in" dataTestId="card-clients-return-visits" label="Return visits" value={<span data-testid="text-client-return-visits">{repeatClients}</span>} />
-        <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-clients-total" label="Total clients" value={<span data-testid="text-total-clients">{clients.length}</span>} />
-        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-clients-balance-due" label="Balance due" value={<span data-testid="text-clients-balance-due">{balanceDueClients}</span>} />
-        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-clients-to-serve" label="To serve" value={<span data-testid="text-clients-to-serve">{clientsToServe}</span>} />
+        <MetricCard className="rise-in" dataTestId="card-clients-return-visits" label="Return visits" value={<span data-testid="text-client-return-visits">{repeatClients}</span>} indicator={clients.length ? { direction: repeatClients ? 'up' : 'neutral', percentage: repeatRate } : undefined} note={`${repeatClients} ${repeatClients === 1 ? 'client has' : 'clients have'} ordered more than once`} />
+        <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-clients-total" label="Total clients" value={<span data-testid="text-total-clients">{clients.length}</span>} indicator={clients.length ? { direction: settledRate >= 50 ? 'up' : 'down', percentage: settledRate } : undefined} note={`${clients.length - balanceDueClients} without an outstanding balance`} />
+        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-clients-balance-due" label="Balance due" value={<span data-testid="text-clients-balance-due">{balanceDueClients}</span>} indicator={clients.length ? { direction: balanceDueClients ? 'down' : 'neutral', percentage: balanceRate } : undefined} note={`${balanceDueClients} ${balanceDueClients === 1 ? 'client needs' : 'clients need'} payment follow-up`} />
+        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-clients-to-serve" label="To serve" value={<span data-testid="text-clients-to-serve">{clientsToServe}</span>} indicator={clients.length ? { direction: clientsToServe ? 'down' : 'neutral', percentage: serviceRate } : undefined} note={`${clientsToServe} ${clientsToServe === 1 ? 'client has' : 'clients have'} unfinished orders`} />
       </section>
       <section className="mt-5">
         <Card className="overflow-hidden">
@@ -1301,6 +1319,7 @@ function Clients() {
              <h2>Clients</h2>
              <div className="clients-search"><Search aria-hidden="true" /><input aria-label="Search clients" data-testid="input-search-clients" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search clients" /></div>
           </div>
+           <div className="clients-filter-bar" role="group" aria-label="Filter clients">{clientFilters.map((filterOption) => <button key={filterOption.value} type="button" className={cn('clients-filter-tab', clientFilter === filterOption.value && 'is-active')} aria-pressed={clientFilter === filterOption.value} data-testid={`button-client-filter-${filterOption.value}`} onClick={() => setClientFilter(filterOption.value)}><span>{filterOption.label}</span><strong>{filterOption.count}</strong></button>)}</div>
            {filteredClients.length ? <div className="clients-table-wrap"><div className="clients-table-head"><span>Client</span><span>Phone</span><span>Orders</span><span>Collected</span><span>Balance due</span><span>Last purchase</span><span className="sr-only">Details</span></div>{filteredClients.map((client) => <div className="clients-table-row" key={client.key} data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="clients-buyer-cell"><div className="clients-avatar">{initials(client.displayName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold" data-testid={`text-client-name-${client.key}`}>{client.displayName}</div></div></div><div className="clients-cell-labeled clients-phone-cell"><span className="clients-mobile-label">Phone</span><span>{client.phone || '—'}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Orders</span><span className="font-mono-ui text-xs font-bold">{client.orderCount}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Collected</span><span className="font-mono-ui text-xs font-bold">{moneyExact(client.collected)}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Balance due</span><span className="font-mono-ui text-xs font-bold">{client.outstanding ? moneyExact(client.outstanding) : '—'}</span></div><div className="clients-cell-labeled"><span className="clients-mobile-label">Last purchase</span><span className="font-mono-ui text-xs">{dateShort(client.latestPurchase)}</span></div><div className="clients-actions"><Link href={`/orders?customer=${encodeURIComponent(client.displayName)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link">View <ArrowRight size={13} /></Link></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={Search} title="No clients match" /></div>}
         </Card>
       </section>
