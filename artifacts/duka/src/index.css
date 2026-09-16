@@ -1300,7 +1300,7 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-seller-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.05rem; font-weight: 600; }
 .buyer-seller-copy p { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: hsl(var(--muted-foreground)); font-size: .7rem; line-height: 1.4; }
 .buyer-checkout-form-intro { max-width: 31rem; margin-bottom: 2rem; }
-.buyer-checkout-header-row .buyer-checkout-form-intro { margin-inline: 0; margin-bottom: 0; }
+.buyer-checkout-header-row .buyer-checkout-form-intro { margin-inline: 0; margin-top: 7.5rem; margin-bottom: 0; }
 .buyer-checkout-form-intro h1 { margin-top: .5rem; font-family: var(--app-font-sans); font-size: clamp(1.7rem, 4vw, 2.25rem); font-weight: 600; letter-spacing: -.045em; line-height: 1.05; }
 .buyer-checkout-form-intro p { margin-top: .65rem; max-width: 28rem; color: hsl(var(--muted-foreground)); font-size: .78rem; line-height: 1.55; }
 .buyer-order-detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, 34%); align-items: stretch; gap: 0; margin-top: 2.25rem; overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 18px; background: hsl(var(--card)); box-shadow: 0 12px 30px hsl(var(--foreground) / .06); }
@@ -1409,7 +1409,7 @@ button[data-testid="button-buyer-reserve"].text-white {
   .take-order-catalog-copy small, .take-order-catalog-copy b { font-size: .48rem; }
   .buyer-checkout-header-row { grid-template-columns: 1fr; gap: 0; margin-bottom: 0; }
   .buyer-checkout-header-row .buyer-checkout-brand-bar { justify-content: center; padding-inline: .5rem; }
-  .buyer-checkout-header-row .buyer-checkout-form-intro { margin-bottom: 2rem; }
+  .buyer-checkout-header-row .buyer-checkout-form-intro { margin-top: 0; margin-bottom: 2rem; }
   .buyer-order-detail-layout { grid-template-columns: 1fr; gap: 0; margin-top: 1rem; }
   .buyer-checkout-brand-bar { align-items: center; padding: .25rem .5rem .75rem; }
   .buyer-app-brand { top: .25rem; right: 0; }
