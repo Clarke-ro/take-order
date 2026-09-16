@@ -1546,6 +1546,7 @@ function MultiItemTakeOrderModern() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
   const choiceOnly = step === 1 && items.length === 0 && itemSource === null;
+  const catalogOnly = step === 1 && items.length === 0 && itemSource === 'catalog';
   const previewItems: BuyerOrderItem[] = items.length
     ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants }))
     : [{ productId: 0, productName: 'Your item', amount: 0, variants: [] }];
@@ -1573,6 +1574,13 @@ function MultiItemTakeOrderModern() {
     setCustomDraft({ name: '', amount: '' });
     setFeedback(null);
   };
+  const catalogItems = productsQuery.isLoading
+    ? <div className="take-order-catalog-list" aria-label="Loading catalog items"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>
+    : productsQuery.isError
+      ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div>
+      : productsQuery.data?.length
+        ? <div className="take-order-catalog-list" aria-label="Catalog items">{productsQuery.data.map((product) => <button type="button" key={product.id} className="take-order-catalog-item" onClick={() => addCatalogProduct(product)} aria-label={`Add ${product.name}`}><span className="take-order-catalog-mark" style={{ color: product.accent }}><Package size={16} /></span><span className="take-order-catalog-copy"><strong>{product.name}</strong><small>{product.variants.length ? `${product.variants.length} variant${product.variants.length === 1 ? '' : 's'}` : product.category || 'Catalog item'}</small></span><span className="take-order-catalog-price">{moneyExact(product.price)}</span><Plus size={15} aria-hidden="true" /></button>)}</div>
+        : <p className="take-order-help">No products yet. Choose “Not from catalog” to add this order without a catalog product.</p>;
   const updateAmount = (key: number, value: string) => {
     const amount = Number(value);
     setItems((current) => current.map((item) => item.key === key ? { ...item, amount: Number.isFinite(amount) && amount >= 0 ? amount : 0 } : item));
@@ -1680,14 +1688,14 @@ function MultiItemTakeOrderModern() {
       </div>
       <TakeOrderStepRail step={step} onStepChange={setStep} />
       <div className="take-order-layout">
-         <Card className={cn('take-order-builder-card', choiceOnly && 'take-order-choice-only-card')}>
+         <Card className={cn('take-order-builder-card', (choiceOnly || catalogOnly) && 'take-order-choice-only-card')}>
           <form onSubmit={submit}>
              {step === 1 && choiceOnly && <div className="take-order-choice-only"><TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} /></div>}
-             {step === 1 && !choiceOnly && <TakeOrderSection eyebrow="Step 01 · Items" title="What are they buying?" description="Add the products you agreed on. You can mix catalog items with one-off items from the conversation.">
+             {step === 1 && catalogOnly && <div className="take-order-catalog-only">{catalogItems}</div>}
+             {step === 1 && !choiceOnly && !catalogOnly && <TakeOrderSection eyebrow="Step 01 · Items" title="What are they buying?" description="Add the products you agreed on. You can mix catalog items with one-off items from the conversation.">
               <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
               {itemSource === 'catalog' && <div className="take-order-choice-form">
-                {productsQuery.isLoading ? <div className="take-order-catalog-list" aria-label="Loading catalog items"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div> : productsQuery.isError ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div> : productsQuery.data?.length ? <div className="take-order-catalog-list" aria-label="Catalog items">{productsQuery.data.map((product) => <button type="button" key={product.id} className="take-order-catalog-item" onClick={() => addCatalogProduct(product)} aria-label={`Add ${product.name}`}><span className="take-order-catalog-mark" style={{ color: product.accent }}><Package size={16} /></span><span className="take-order-catalog-copy"><strong>{product.name}</strong><small>{product.variants.length ? `${product.variants.length} variant${product.variants.length === 1 ? '' : 's'}` : product.category || 'Catalog item'}</small></span><span className="take-order-catalog-price">{moneyExact(product.price)}</span><Plus size={15} aria-hidden="true" /></button>)}</div> : null}
-                {!productsQuery.isLoading && !productsQuery.isError && productsQuery.data?.length === 0 && <p className="take-order-help">No products yet. Choose “Something else” to add this order without a catalog product.</p>}
+                 {catalogItems}
               </div>}
               {itemSource === 'custom' && <div className="take-order-choice-form">
                 <div className="take-order-custom-control"><input data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="What are they buying?" className="field-input" /><div className="relative"><span className="take-order-currency">$</span><input data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="Price" className="field-input pl-7" /></div><Button type="button" variant="outline" disabled={!customDraft.name.trim() || !customDraft.amount} onClick={addCustomItem}><Plus size={15} />Add item</Button></div>
@@ -1715,7 +1723,7 @@ function MultiItemTakeOrderModern() {
               <div className="take-order-review-details"><div><span>Payment</span><strong>{paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'full' ? 'Pay in full' : 'Reserve for later'}</strong></div><div><span>Conversation</span><strong><ChannelInline value={channel} /></strong></div></div>
               <div className="take-order-review-note"><CheckCircle2 size={17} /><div><strong>Buyer details stay with the order.</strong><span>They can add their name, phone number, notes, and an optional reference image on the next page.</span></div></div>
             </TakeOrderSection>}
-             {!choiceOnly && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
+             {!choiceOnly && !catalogOnly && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
           </form>
         </Card>
         <aside className="take-order-preview-column">
