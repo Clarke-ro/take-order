@@ -1132,6 +1132,14 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-radio { display: inline-flex; height: 1.1rem; width: 1.1rem; flex: 0 0 auto; align-items: center; justify-content: center; margin-top: .05rem; border: 1px solid hsl(var(--muted-foreground) / .55); border-radius: 999px; }
 .take-order-radio span { height: .5rem; width: .5rem; border-radius: 999px; background: hsl(var(--foreground)); }
 .take-order-deposit-field { margin-top: 1.4rem; border-radius: 13px; background: hsl(var(--muted) / .58); padding: 1rem; }
+.take-order-deposit-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; max-width: 26rem; margin: .7rem 0 .75rem; }
+.take-order-deposit-preset { display: grid; gap: .18rem; border: 1px solid hsl(var(--border)); border-radius: 9px; background: hsl(var(--card)); padding: .55rem .6rem; color: hsl(var(--foreground)); text-align: left; transition: border-color .18s, background-color .18s, transform .18s; }
+.take-order-deposit-preset:hover, .take-order-deposit-preset:focus-visible { border-color: hsl(var(--foreground) / .4); background: hsl(var(--background)); transform: translateY(-1px); }
+.take-order-deposit-preset:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.take-order-deposit-preset.is-selected { border-color: hsl(var(--foreground)); background: hsl(var(--foreground)); color: hsl(var(--background)); }
+.take-order-deposit-preset strong { font-family: var(--app-font-sans); font-size: .73rem; font-weight: 700; }
+.take-order-deposit-preset span { color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .56rem; font-variant-numeric: tabular-nums lining-nums; }
+.take-order-deposit-preset.is-selected span { color: hsl(var(--background) / .72); }
 .take-order-deposit-field .field-label span { color: hsl(var(--muted-foreground)); font-weight: 400; }
 .take-order-deposit-field .field-input.is-invalid { border-color: hsl(var(--destructive)); }
 .take-order-field-error { margin-top: .4rem; color: hsl(var(--destructive)); font-size: .66rem; }
