@@ -1950,7 +1950,7 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
             aria-label={`${item.productName}, ${moduleLabel}, ${moneyExact(item.amount)}${active ? ', current item' : ''}`}
           >
             <span className="buyer-product-module-copy">
-               <small className="buyer-product-module-kicker">{moduleLabel}</small>
+               {item.source === 'custom' && <small className="buyer-product-module-kicker">{moduleLabel}</small>}
               <strong>{item.productName}</strong>
                <small className="buyer-product-module-price">{moneyExact(item.amount)}</small>
              </span>
