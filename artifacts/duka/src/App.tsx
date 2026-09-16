@@ -2154,7 +2154,7 @@ function PublicOrderPage() {
   const buyerDeliveryFee = form.deliveryMethod === 'delivery' ? order.deliveryFee : 0;
   const buyerTotal = orderSubtotal + buyerDeliveryFee;
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-    return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-8 sm:py-14"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
+    return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-8 sm:py-14"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm brandName={businessName} paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
 }
 
 export function Connect() {
@@ -2210,6 +2210,7 @@ export function BuyerOrderForm({
   amount,
   depositAmount,
   deliveryFee = 0,
+  brandName,
   item: providedItem,
   itemIndex = 0,
   itemCount = 1,
@@ -2235,6 +2236,7 @@ export function BuyerOrderForm({
   amount: number;
   depositAmount: number | null | undefined;
   deliveryFee?: number;
+  brandName?: string;
   item?: BuyerOrderItem;
   itemIndex?: number;
   itemCount?: number;
@@ -2262,8 +2264,16 @@ export function BuyerOrderForm({
   const deliveryCharge = selectedDeliveryMethod === 'delivery' ? deliveryFee : 0;
   const payableDeposit = Math.min((depositAmount ?? 0) + deliveryCharge, amount);
   const [editingContact, setEditingContact] = useState(false);
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
+  const galleryImages = useMemo(() => {
+    if (item.imageUrl) return [item.imageUrl];
+    return ['hero', 'detail', 'close-up', 'back'].map((view) => productImageFor(`${item.productName} ${view}`));
+  }, [item.imageUrl, item.productName]);
+  const activeGalleryImage = galleryImages[Math.min(activeGalleryIndex, galleryImages.length - 1)] ?? productImageFor(item.productName);
+  const sellerLabel = brandName?.trim() || 'Seller catalog';
   useEffect(() => {
     setEditingContact(false);
+    setActiveGalleryIndex(0);
   }, [itemIndex, contactStep, checkout]);
   if (!providedItem) {
     return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="space-y-5">
@@ -2302,39 +2312,62 @@ export function BuyerOrderForm({
             <button type="button" className="buyer-inline-contact-done" onClick={() => setEditingContact(false)} data-testid="button-done-editing-buyer-contact">Done editing</button>
            </section>}
          </div>}
-        <section className={cn('buyer-item-preferences-section', item.preferences.length > 0 && 'has-variants')} aria-labelledby="buyer-item-preferences-heading">
+         <section className={cn('buyer-item-preferences-section buyer-product-detail', item.preferences.length > 0 && 'has-variants')} aria-labelledby="buyer-item-preferences-heading">
           <div className="buyer-item-preferences-layout">
-             <div className="buyer-item-visual">
-              <div className="buyer-item-hero-image">
-                <img src={item.imageUrl || productImageFor(item.productName)} alt={`${item.productName} preview`} />
+             <div className="buyer-item-visual buyer-product-gallery">
+              <div className="buyer-item-hero-image buyer-product-gallery-main">
+                <img src={activeGalleryImage} alt={`${item.productName} product view ${activeGalleryIndex + 1}`} />
+                {galleryImages.length > 1 && <div className="buyer-gallery-controls">
+                  <button type="button" aria-label="Previous product image" onClick={() => setActiveGalleryIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length)}><ChevronLeft size={16} /></button>
+                  <span>{String(activeGalleryIndex + 1).padStart(2, '0')} / {String(galleryImages.length).padStart(2, '0')}</span>
+                  <button type="button" aria-label="Next product image" onClick={() => setActiveGalleryIndex((current) => (current + 1) % galleryImages.length)}><ChevronRight size={16} /></button>
+                </div>}
               </div>
+              <div className="buyer-product-gallery-thumbs" aria-label="Product images">
+                {galleryImages.map((image, imageIndex) => <button type="button" key={`${image}-${imageIndex}`} className={cn('buyer-product-gallery-thumb', activeGalleryIndex === imageIndex && 'is-selected')} onClick={() => setActiveGalleryIndex(imageIndex)} aria-label={`Show product image ${imageIndex + 1}`} aria-pressed={activeGalleryIndex === imageIndex}><img src={image} alt="" /></button>)}
+              </div>
+              <div className="buyer-gallery-caption"><Package size={13} aria-hidden="true" /> Product preview</div>
             </div>
-            <div className="buyer-item-preferences-content">
-              <div className="buyer-item-description">
-                <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Item {String(itemIndex + 1).padStart(2, '0')} of {String(itemCount).padStart(2, '0')}</div>
+            <div className="buyer-item-preferences-content buyer-product-detail-content">
+              <div className="buyer-item-description buyer-product-detail-header">
+                <div className="buyer-product-detail-kicker"><span>{item.source === 'custom' ? 'Custom item' : 'Catalog item'}</span><span>Item {String(itemIndex + 1).padStart(2, '0')} of {String(itemCount).padStart(2, '0')}</span></div>
                 <h2 id="buyer-item-preferences-heading">{item.productName}</h2>
-                <strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong>
-                 {item.preferences.length > 0 && <p>Choose the options that apply to this item.</p>}
+                <div className="buyer-product-detail-meta"><span>Sold by {sellerLabel}</span><span aria-hidden="true">·</span><span>Order item</span></div>
+                <div className="buyer-product-price-row"><strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong><span>Agreed item price</span></div>
+                <p>{item.preferences.length > 0 ? 'Choose the options that apply to this item.' : 'This item is ready to add to your order.'}</p>
               </div>
-               {item.preferences.map((preference, preferenceIndex) => {
-                 const isSizePreference = preference.label.trim().toLowerCase() === 'size';
-                 return <fieldset className={cn('buyer-color-field', isSizePreference && 'buyer-size-field')} key={`${item.productId}-${preference.label}`}>
-                   <legend className="field-label">{preference.label}</legend>
-                   <div className={isSizePreference ? 'buyer-size-options' : 'buyer-color-options'}>
-                     {preference.options.map((option) => isSizePreference
-                       ? <label key={option} className={cn('buyer-size-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
-                           <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
-                           <span className="buyer-size-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
-                           <span>{option}</span>
-                         </label>
-                       : <label key={option} className={cn('buyer-color-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
-                           <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
-                           <span className="buyer-color-option-image"><img src={productImageFor(`${item.productName} ${preference.label} ${option}`)} alt="" /></span>
-                           <span className="buyer-color-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
-                         </label>)}
-                   </div>
-                 </fieldset>;
-               })}
+              {item.preferences.map((preference, preferenceIndex) => {
+                const preferenceLabel = preference.label.trim().toLowerCase();
+                const isSizePreference = preferenceLabel === 'size';
+                const isSwatchPreference = /colou?r|finish/.test(preferenceLabel);
+                return <fieldset className={cn('buyer-color-field', isSizePreference && 'buyer-size-field', !isSizePreference && !isSwatchPreference && 'buyer-choice-field')} key={`${item.productId}-${preference.label}`}>
+                  <legend className="buyer-preference-legend"><span>{preference.label}</span><small>{isSizePreference ? 'Select one' : 'Required'}</small></legend>
+                  <div className={isSizePreference ? 'buyer-size-options' : isSwatchPreference ? 'buyer-color-options' : 'buyer-choice-options'}>
+                    {preference.options.map((option) => isSizePreference
+                      ? <label key={option} className={cn('buyer-size-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
+                          <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
+                          <span className="buyer-size-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
+                          <span>{option}</span>
+                        </label>
+                      : isSwatchPreference
+                        ? <label key={option} className={cn('buyer-color-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
+                            <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
+                            <span className="buyer-color-option-image"><img src={productImageFor(`${item.productName} ${preference.label} ${option}`)} alt="" /></span>
+                            <span className="buyer-color-option-label">{option}</span>
+                            <span className="buyer-color-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
+                          </label>
+                        : <label key={option} className={cn('buyer-choice-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
+                            <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
+                            <span>{option}</span>
+                            {itemForm.preferences[preference.label] === option && <Check size={13} aria-hidden="true" />}
+                          </label>)}
+                  </div>
+                </fieldset>;
+              })}
+              <div className="buyer-product-note-field">
+                <label htmlFor="buyer-item-details" className="field-label">Note for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label>
+                <textarea id="buyer-item-details" data-testid="input-buyer-item-details" value={itemForm.details} onChange={(event) => onChange('details', event.target.value)} placeholder="Add a detail about this item..." rows={2} className="field-input resize-none" />
+              </div>
               {item.source === 'custom' && <div className="buyer-image-field">
                 <span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span>
                 <label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{itemForm.image ? itemForm.image : 'Attach an image'}</label>
