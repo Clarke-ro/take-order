@@ -1536,7 +1536,6 @@ function MultiItemTakeOrderModern() {
   const [items, setItems] = useState<DraftOrderItem[]>([]);
   const [nextKey, setNextKey] = useState(1);
   const [itemSource, setItemSource] = useState<'catalog' | 'custom' | null>(null);
-  const [catalogChoice, setCatalogChoice] = useState('');
   const [customDraft, setCustomDraft] = useState({ name: '', amount: '' });
   const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
   const [depositAmount, setDepositAmount] = useState('');
@@ -1558,12 +1557,9 @@ function MultiItemTakeOrderModern() {
     : total > 0 && validDeposit;
 
   const getErrorMessage = (error: unknown, fallback: string) => error instanceof Error && error.message ? error.message : fallback;
-  const addCatalogItem = () => {
-    const product = (productsQuery.data ?? []).find((item) => item.id === Number(catalogChoice));
-    if (!product) return;
+  const addCatalogProduct = (product: Product) => {
     setItems((current) => [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, accent: product.accent }]);
     setNextKey((current) => current + 1);
-    setCatalogChoice('');
     setFeedback(null);
   };
   const addCustomItem = () => {
@@ -1651,7 +1647,6 @@ function MultiItemTakeOrderModern() {
     setItems([]);
     setNextKey(1);
     setItemSource(null);
-    setCatalogChoice('');
     setCustomDraft({ name: '', amount: '' });
     setPaymentMode('full');
     setDepositAmount('');
@@ -1691,7 +1686,7 @@ function MultiItemTakeOrderModern() {
              {step === 1 && !choiceOnly && <TakeOrderSection eyebrow="Step 01 · Items" title="What are they buying?" description="Add the products you agreed on. You can mix catalog items with one-off items from the conversation.">
               <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
               {itemSource === 'catalog' && <div className="take-order-choice-form">
-                {productsQuery.isLoading ? <Skeleton className="h-11 w-full" /> : productsQuery.isError ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div> : <div className="take-order-add-control"><select data-testid="select-order-product" value={catalogChoice} onChange={(event) => setCatalogChoice(event.target.value)} className="field-input"><option value="">Choose a product</option>{(productsQuery.data ?? []).map((product) => <option key={product.id} value={product.id}>{product.name} · {moneyExact(product.price)}</option>)}</select><Button type="button" variant="outline" disabled={!catalogChoice} onClick={addCatalogItem}><Plus size={15} />Add item</Button></div>}
+                {productsQuery.isLoading ? <div className="take-order-catalog-list" aria-label="Loading catalog items"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div> : productsQuery.isError ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div> : productsQuery.data?.length ? <div className="take-order-catalog-list" aria-label="Catalog items">{productsQuery.data.map((product) => <button type="button" key={product.id} className="take-order-catalog-item" onClick={() => addCatalogProduct(product)} aria-label={`Add ${product.name}`}><span className="take-order-catalog-mark" style={{ color: product.accent }}><Package size={16} /></span><span className="take-order-catalog-copy"><strong>{product.name}</strong><small>{product.variants.length ? `${product.variants.length} variant${product.variants.length === 1 ? '' : 's'}` : product.category || 'Catalog item'}</small></span><span className="take-order-catalog-price">{moneyExact(product.price)}</span><Plus size={15} aria-hidden="true" /></button>)}</div> : null}
                 {!productsQuery.isLoading && !productsQuery.isError && productsQuery.data?.length === 0 && <p className="take-order-help">No products yet. Choose “Something else” to add this order without a catalog product.</p>}
               </div>}
               {itemSource === 'custom' && <div className="take-order-choice-form">

@@ -1013,6 +1013,17 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-choice-copy strong { color: hsl(var(--foreground)); font-size: .86rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.2; }
 .take-order-choice-copy small { margin-top: .35rem; color: hsl(var(--muted-foreground)); font-size: .74rem; font-weight: 400; line-height: 1.35; }
 .take-order-choice-form { margin-top: .7rem; border-radius: 12px; background: hsl(var(--muted) / .45); padding: .75rem; }
+.take-order-catalog-list { display: grid; gap: .45rem; }
+.take-order-catalog-item { display: grid; grid-template-columns: 2.1rem minmax(0, 1fr) auto auto; align-items: center; gap: .7rem; width: 100%; border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); padding: .65rem .75rem; color: hsl(var(--foreground)); text-align: left; transition: border-color .18s, background-color .18s, transform .18s; }
+.take-order-catalog-item:hover { border-color: hsl(var(--foreground) / .35); background: hsl(var(--background)); transform: translateX(2px); }
+.take-order-catalog-item:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.take-order-catalog-mark { display: inline-flex; height: 2.1rem; width: 2.1rem; align-items: center; justify-content: center; border-radius: 9px; background: hsl(var(--muted)); }
+.take-order-catalog-copy { min-width: 0; }
+.take-order-catalog-copy strong, .take-order-catalog-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.take-order-catalog-copy strong { font-size: .76rem; font-weight: 600; }
+.take-order-catalog-copy small { margin-top: .18rem; color: hsl(var(--muted-foreground)); font-size: .62rem; }
+.take-order-catalog-price { font-family: var(--app-font-sans); font-size: .74rem; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
+.take-order-catalog-item > svg { color: hsl(var(--muted-foreground)); }
 .take-order-add-panel { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .8rem 1rem; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--card)); padding: 1rem; }
 .take-order-add-panel.is-custom { border-style: dashed; background: hsl(var(--background)); }
 .take-order-panel-icon { display: inline-flex; height: 2.2rem; width: 2.2rem; align-items: center; justify-content: center; border-radius: 10px; background: hsl(var(--muted)); color: hsl(var(--foreground)); }
