@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import {
   AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
-  CheckCircle2, CircleDollarSign, Clipboard, Copy, ExternalLink, Eye, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
+  CheckCircle2, CircleDollarSign, Clipboard, Copy, ExternalLink, Eye, Heart, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
   Package, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Settings2, ShoppingBag, SlidersHorizontal, Sparkles,
   Trash2, TrendingUp, Truck, Users, WalletCards, X
 } from 'lucide-react';
@@ -1575,11 +1575,15 @@ function MultiItemTakeOrderModern() {
     setFeedback(null);
   };
   const catalogItems = productsQuery.isLoading
-    ? <div className="take-order-catalog-list" aria-label="Loading catalog items"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>
+    ? <div className="take-order-catalog-grid" aria-label="Loading catalog items">{[1, 2, 3, 4].map((item) => <div key={item} className="take-order-catalog-skeleton" />)}</div>
     : productsQuery.isError
       ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div>
       : productsQuery.data?.length
-        ? <div className="take-order-catalog-list" aria-label="Catalog items">{productsQuery.data.map((product) => <button type="button" key={product.id} className="take-order-catalog-item" onClick={() => addCatalogProduct(product)} aria-label={`Add ${product.name}`}><span className="take-order-catalog-mark" style={{ color: product.accent }}><Package size={16} /></span><span className="take-order-catalog-copy"><strong>{product.name}</strong><small>{product.variants.length ? `${product.variants.length} variant${product.variants.length === 1 ? '' : 's'}` : product.category || 'Catalog item'}</small></span><span className="take-order-catalog-price">{moneyExact(product.price)}</span><Plus size={15} aria-hidden="true" /></button>)}</div>
+        ? <div className="take-order-catalog-grid" aria-label="Catalog items">{productsQuery.data.map((product) => <button type="button" key={product.id} className="take-order-catalog-item" onClick={() => addCatalogProduct(product)} aria-label={`Add ${product.name} to order`}>
+          <span className="take-order-catalog-favorite" aria-hidden="true"><Heart size={16} strokeWidth={1.8} /></span>
+          <img src={productImageFor(product.name)} alt="" className="take-order-catalog-image" />
+          <span className="take-order-catalog-copy"><strong>{product.name}</strong><small>{product.variants.length ? `${product.variants.length} variant${product.variants.length === 1 ? '' : 's'}` : product.category || 'Catalog item'}</small><b>{moneyExact(product.price)}</b></span>
+        </button>)}</div>
         : <p className="take-order-help">No products yet. Choose “Not from catalog” to add this order without a catalog product.</p>;
   const updateAmount = (key: number, value: string) => {
     const amount = Number(value);
