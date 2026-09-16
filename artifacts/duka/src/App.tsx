@@ -1505,6 +1505,23 @@ function TakeOrderSection({ eyebrow, title, description, children }: { eyebrow: 
   </section>;
 }
 
+type TakeOrderItemSource = 'catalog' | 'custom';
+
+function TakeOrderChoiceCards({ selected, onSelect }: { selected: TakeOrderItemSource | null; onSelect: (source: TakeOrderItemSource) => void }) {
+  return <div className="take-order-choice-grid" aria-label="Choose how to add an item">
+    <button type="button" className={cn('take-order-choice-card', selected === 'catalog' && 'is-active')} onClick={() => onSelect('catalog')}>
+      <span className="take-order-choice-mark"><Boxes size={17} /></span>
+      <span className="take-order-choice-copy"><strong>From catalog</strong><small>Use a saved product and price.</small></span>
+      <ChevronRight size={16} aria-hidden="true" />
+    </button>
+    <button type="button" className={cn('take-order-choice-card', selected === 'custom' && 'is-active')} onClick={() => onSelect('custom')}>
+      <span className="take-order-choice-mark is-custom"><Sparkles size={17} /></span>
+      <span className="take-order-choice-copy"><strong>Not from catalog</strong><small>Add a one-off item from your conversation.</small></span>
+      <ChevronRight size={16} aria-hidden="true" />
+    </button>
+  </div>;
+}
+
 function TakeOrderFeedback({ message }: { message: string | null }) {
   if (!message) return null;
   return <div className="take-order-feedback" role="alert"><AlertTriangle size={16} aria-hidden="true" /><span>{message}</span></div>;
@@ -1531,7 +1548,7 @@ function MultiItemTakeOrderModern() {
   const [step, setStep] = useState<TakeOrderStep>(1);
   const [items, setItems] = useState<DraftOrderItem[]>([]);
   const [nextKey, setNextKey] = useState(1);
-  const [itemSource, setItemSource] = useState<'catalog' | 'custom'>('catalog');
+  const [itemSource, setItemSource] = useState<TakeOrderItemSource | null>(null);
   const [customDraft, setCustomDraft] = useState({ name: '', amount: '' });
   const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
   const [depositAmount, setDepositAmount] = useState('');
@@ -1541,6 +1558,7 @@ function MultiItemTakeOrderModern() {
   const [copyError, setCopyError] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
+  const choiceOnly = step === 1 && itemSource === null && items.length === 0;
   const catalogStage = step === 1 && itemSource === 'catalog';
   const previewItems: BuyerOrderItem[] = items.length
     ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants }))
@@ -1657,7 +1675,7 @@ function MultiItemTakeOrderModern() {
     setStep(1);
     setItems([]);
     setNextKey(1);
-     setItemSource('catalog');
+     setItemSource(null);
     setCustomDraft({ name: '', amount: '' });
     setPaymentMode('full');
     setDepositAmount('');
