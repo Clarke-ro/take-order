@@ -1294,6 +1294,16 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-payment-option.is-selected { border-color: hsl(var(--foreground)); background: hsl(var(--foreground)); color: hsl(var(--background)); }
 .buyer-mock-payment { border: 1px solid hsl(var(--accent)) / .55; border-radius: 13px; background: hsl(var(--accent) / .1); padding: 1rem; }
 
+@media (min-width: 641px) {
+  .buyer-item-entry { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.35rem; }
+  .buyer-item-entry-heading, .buyer-contact-fields, .buyer-form-actions { grid-column: 1 / -1; }
+  .buyer-item-details { grid-column: 2; }
+  .buyer-image-field { grid-column: 1; }
+  .buyer-final-checkout { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.35rem; }
+  .buyer-final-heading, .buyer-summary-list, .buyer-saved-contact, .buyer-form-actions, .buyer-mock-payment { grid-column: 1 / -1; }
+  .buyer-payment-options { grid-column: 1 / -1; }
+}
+
 @media (max-width: 980px) {
   .take-order-layout { grid-template-columns: minmax(0, 1fr); }
   .take-order-preview-column { position: static; }
