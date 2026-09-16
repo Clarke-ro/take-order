@@ -1259,7 +1259,7 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-service-choice-copy { display: grid; min-width: 0; gap: .2rem; }
 .buyer-service-choice-copy strong { font-size: .75rem; line-height: 1.2; }
 .buyer-service-choice-copy small { color: hsl(var(--muted-foreground)); font-size: .62rem; line-height: 1.35; }
-.buyer-address-card, .buyer-useful-details-card { border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); padding: .85rem; }
+.buyer-address-card { border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); padding: .85rem; }
 .buyer-address-card { margin-top: .1rem; }
 .buyer-item-preferences-section { border-top: 1px solid hsl(var(--border)); padding-top: 1.2rem; }
 .buyer-item-preferences-module { display: grid; gap: 1rem; }
