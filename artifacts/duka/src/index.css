@@ -1384,6 +1384,9 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-form-actions .button:last-child { min-height: 2.8rem; }
 .buyer-final-heading > svg { color: hsl(var(--accent-foreground)); }
 .buyer-final-heading p { margin-top: .55rem; max-width: 31rem; color: hsl(var(--muted-foreground)); font-size: .75rem; line-height: 1.55; }
+.buyer-payment-page { display: grid; max-width: 34rem; gap: 1rem; margin-inline: auto; }
+.buyer-payment-page .buyer-final-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.buyer-payment-page .buyer-payment-options, .buyer-payment-page .buyer-mock-payment, .buyer-payment-page .buyer-form-actions { width: 100%; }
 .buyer-review-card { min-width: 0; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--card)); padding: 1.1rem; }
 .buyer-review-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: .9rem; }
 .buyer-review-card-heading h3 { margin-top: .25rem; color: hsl(var(--foreground)); font-size: .95rem; font-weight: 600; letter-spacing: -.025em; }
