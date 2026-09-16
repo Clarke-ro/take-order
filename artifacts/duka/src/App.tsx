@@ -1191,14 +1191,6 @@ function Orders() {
     const paidOrders = allOrders.filter((order) => order.status === 'paid').length;
     return { orderValue, collected, outstanding: Math.max(0, orderValue - collected), paidOrders, collectionRate: orderValue ? (collected / orderValue) * 100 : 0, average: allOrders.length ? orderValue / allOrders.length : 0 };
   }, [allOrders]);
-  const channelMix = useMemo(() => {
-    const counts = allOrders.reduce<Record<string, number>>((result, order) => {
-      result[order.channel] = (result[order.channel] ?? 0) + 1;
-      return result;
-    }, {});
-    return Object.entries(counts).sort(([, left], [, right]) => right - left);
-  }, [allOrders]);
-  const maxChannelOrders = Math.max(1, ...channelMix.map(([, count]) => count));
   const updateOrder = (order: Order, data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => {
     update.mutate({ id: order.id, data }, { onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); invalidateDashboardSummary(queryClient); } });
   };
@@ -1212,7 +1204,6 @@ function Orders() {
     { value: 'delivered', label: 'Delivered' },
   ];
   const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value;
-  const pendingFulfillment = allOrders.filter((order) => order.fulfillment === 'pending').length;
 
   return <Shell>
     <PageHeading title="Orders" action={<Link href="/take-order" data-testid="link-take-order-orders"><Button><Plus size={16} />Take an order</Button></Link>} />
@@ -1221,13 +1212,6 @@ function Orders() {
        <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-orders-total" label="Total orders" value={<span data-testid="text-total-orders">{allOrders.length}</span>} indicator={allOrders.length ? { direction: metrics.paidOrders > 0 ? 'up' : 'down', percentage: (metrics.paidOrders / allOrders.length) * 100 } : undefined} note={`${metrics.paidOrders} paid in full`} />
        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-orders-average" label="Average order value" value={<span data-testid="text-average-order-value">{money(metrics.average)}</span>} note="Based on live order value" />
        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-orders-collection-rate" label="Collection rate" value={<span data-testid="text-collection-rate">{metrics.collectionRate.toFixed(1)}%</span>} indicator={metrics.orderValue ? { direction: metrics.collectionRate >= 70 ? 'up' : 'down', percentage: metrics.collectionRate } : undefined} note="Paid amount against order value" />
-    </section>
-     <section className="orders-performance-grid">
-       <Card className="orders-channel-panel">
-         <div className="orders-panel-heading"><div><div className="orders-panel-eyebrow">Order sources</div><h2>Where buyers found you</h2><p>{allOrders.length ? `Your ${allOrders.length} live ${allOrders.length === 1 ? 'order' : 'orders'}, grouped by channel.` : 'Your live order mix will appear here.'}</p></div><div className="orders-channel-total"><span>{channelMix.length}</span><small>{channelMix.length === 1 ? 'channel' : 'channels'}</small></div></div>
-          {query.isLoading ? <div className="orders-channel-list"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-4/5" /><Skeleton className="h-8 w-3/5" /></div> : channelMix.length ? <div className="orders-channel-list">{channelMix.slice(0, 5).map(([channel, count]) => <div className="orders-channel-row" key={channel} data-testid={`row-channel-mix-${channel}`}><div className="orders-channel-row-heading"><span>{channelName(channel)}</span><span>{count} {count === 1 ? 'order' : 'orders'}</span></div><div className="orders-channel-progress" role="progressbar" aria-label={`${channelName(channel)} orders`} aria-valuemin={0} aria-valuemax={maxChannelOrders} aria-valuenow={count}><span style={{ width: `${(count / maxChannelOrders) * 100}%` }} /></div></div>)}</div> : <div className="orders-channel-empty"><ChartEmpty message="Channel mix will appear when buyers use a link." /></div>}
-      </Card>
-       <Card className="orders-signal-card"><div className="orders-signal-header"><Sparkles size={15} aria-hidden="true" /><div className="orders-panel-eyebrow">Next useful move</div></div><h2>{metrics.outstanding > 0 ? 'Collect outstanding payments.' : pendingFulfillment ? 'Move a delivery forward.' : 'Your desk is caught up.'}</h2><p>{metrics.outstanding > 0 ? `${money(metrics.outstanding)} remains to collect from ${allOrders.filter((order) => order.status !== 'paid').length} open ${allOrders.filter((order) => order.status !== 'paid').length === 1 ? 'order' : 'orders'}.` : pendingFulfillment ? `${pendingFulfillment} ${pendingFulfillment === 1 ? 'order is' : 'orders are'} ready for a fulfillment update.` : 'Payment and fulfillment have no pending handoffs.'}</p><div className="orders-signal-rule" /><div className="orders-signal-stats"><div><span>To ship</span><strong data-testid="text-orders-to-ship">{pendingFulfillment}</strong></div><div><span>Delivered</span><strong data-testid="text-orders-delivered">{allOrders.filter((order) => order.fulfillment === 'delivered').length}</strong></div></div></Card>
     </section>
     <section className="mt-5">
       <Card className="overflow-hidden">
