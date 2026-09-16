@@ -1918,7 +1918,6 @@ function MultiItemTakeOrder() {
 type BuyerOrderSurfaceProps = {
   businessName: string;
   description?: string;
-  logoDataUrl?: string;
   productName?: string;
   amount?: number;
   paymentMode: 'full' | 'deposit' | 'reserve';
@@ -1941,14 +1940,14 @@ type BuyerOrderItem = {
   source: 'catalog' | 'custom';
 };
 
-export function BuyerOrderSurface({ businessName, description, logoDataUrl, productName, amount, paymentMode, depositAmount, totalAmount, variants = [], items, activeIndex: controlledIndex, onActiveIndexChange, isCheckout = false, children }: BuyerOrderSurfaceProps) {
+export function BuyerOrderSurface({ businessName, description, productName, amount, paymentMode, depositAmount, totalAmount, variants = [], items, activeIndex: controlledIndex, onActiveIndexChange, isCheckout = false, children }: BuyerOrderSurfaceProps) {
   const displayItems = items?.length ? items : [{ productId: 0, productName: productName || 'Your item', amount: amount || 0, variants, source: 'catalog' as const }];
   const [internalIndex, setInternalIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const activeIndex = Math.min(controlledIndex ?? internalIndex, displayItems.length - 1);
   const activeItem = displayItems[activeIndex]!;
   const total = totalAmount ?? displayItems.reduce((sum, item) => sum + item.amount, 0);
-  const resolvedLogoDataUrl = logoDataUrl ?? readSellerProfile()?.logoDataUrl;
+  const sellerDescription = description?.trim() || `Shop directly from ${businessName}.`;
   useEffect(() => setInternalIndex(0), [displayItems.length]);
   const move = (direction: -1 | 1) => {
     const nextIndex = (activeIndex + direction + displayItems.length) % displayItems.length;
@@ -1966,10 +1965,10 @@ export function BuyerOrderSurface({ businessName, description, logoDataUrl, prod
     <header className="buyer-checkout-brand-bar">
       <BrandLockup className="buyer-app-brand" />
       <div className="buyer-seller-identity">
-        <SellerLogo businessName={businessName} logoDataUrl={resolvedLogoDataUrl} className="buyer-seller-logo" />
+        <BrandMark variant="app" className="buyer-seller-logo buyer-app-seller-mark" />
         <div className="buyer-seller-copy">
           <strong>{businessName}</strong>
-          {description && <p>{description}</p>}
+          <p>{sellerDescription}</p>
         </div>
       </div>
     </header>
