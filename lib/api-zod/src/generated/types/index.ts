@@ -39,5 +39,7 @@ export * from './publicOrder';
 export * from './publicOrderInput';
 export * from './publicOrderInputPaymentAction';
 export * from './publicOrderItem';
+export * from './publicOrderItemDetails';
+export * from './publicOrderItemSource';
 export * from './publicOrderPaymentMode';
 export * from './publicOrderStatus';

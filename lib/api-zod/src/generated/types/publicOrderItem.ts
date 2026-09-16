@@ -5,10 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PublicOrderItemSource } from './publicOrderItemSource';
 
 export interface PublicOrderItem {
   productId: number;
   productName: string;
   amount: number;
   variants: string[];
+  source: PublicOrderItemSource;
 }

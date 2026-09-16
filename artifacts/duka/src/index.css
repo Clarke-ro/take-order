@@ -1231,6 +1231,47 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-copy-error { margin-top: .55rem; color: hsl(var(--destructive)); font-size: .65rem; line-height: 1.4; }
 .take-order-success-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1.2rem; }
 
+/* Public buyer checkout. The buyer completes one item card at a time, then sees payment once. */
+.buyer-order-form { display: block; }
+.buyer-item-entry, .buyer-final-checkout { display: grid; gap: 1.25rem; }
+.buyer-item-entry-heading, .buyer-final-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid hsl(var(--border)); padding-bottom: 1rem; }
+.buyer-item-entry-heading h2, .buyer-final-heading h2 { margin-top: .42rem; font-family: var(--app-font-display); font-size: clamp(1.35rem, 4vw, 1.75rem); font-weight: 800; letter-spacing: -.05em; line-height: 1; }
+.buyer-item-source { flex: 0 0 auto; border-radius: 999px; background: hsl(var(--muted)); padding: .42rem .58rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .54rem; letter-spacing: .08em; text-transform: uppercase; }
+.buyer-contact-fields { display: grid; gap: 1rem; }
+.buyer-contact-confirmed { display: flex; align-items: center; gap: .45rem; border-radius: 10px; background: hsl(var(--accent) / .16); padding: .7rem .8rem; color: hsl(var(--accent-foreground)); font-size: .68rem; }
+.buyer-contact-confirmed svg { flex: 0 0 auto; }
+.buyer-contact-confirmed span { min-width: 0; flex: 1; }
+.buyer-contact-confirmed button { color: inherit; font-size: .66rem; text-decoration: underline; text-underline-offset: 2px; }
+.buyer-variant-field { display: grid; gap: .65rem; }
+.buyer-variant-options { display: grid; gap: .55rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.buyer-variant-option { display: flex; align-items: center; gap: .55rem; min-height: 2.7rem; border: 1px solid hsl(var(--border)); border-radius: 10px; padding: .65rem .75rem; font-size: .72rem; cursor: pointer; transition: border-color .18s, background-color .18s, transform .18s; }
+.buyer-variant-option:hover { border-color: hsl(var(--foreground) / .35); transform: translateY(-1px); }
+.buyer-variant-option.is-selected { border-color: hsl(var(--foreground)); background: hsl(var(--muted)); }
+.buyer-variant-option input { accent-color: hsl(var(--foreground)); }
+.buyer-image-upload { display: flex; align-items: center; gap: .6rem; border: 1px dashed hsl(var(--border)); border-radius: 10px; padding: .8rem; color: hsl(var(--muted-foreground)); font-size: .7rem; cursor: pointer; transition: background-color .18s, border-color .18s; }
+.buyer-image-upload:hover { border-color: hsl(var(--foreground) / .35); background: hsl(var(--muted)); }
+.buyer-form-actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; border-top: 1px solid hsl(var(--border)); padding-top: 1.1rem; }
+.buyer-form-actions .button:last-child { min-height: 2.8rem; }
+.buyer-final-heading > svg { color: hsl(var(--accent-foreground)); }
+.buyer-summary-list { display: grid; border: 1px solid hsl(var(--border)); border-radius: 13px; background: hsl(var(--muted) / .35); padding: .75rem .85rem; }
+.buyer-summary-row { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr) auto; align-items: center; gap: .55rem; border-bottom: 1px solid hsl(var(--border)); padding: .7rem 0; }
+.buyer-summary-row > span { color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .55rem; }
+.buyer-summary-row strong, .buyer-summary-row small { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.buyer-summary-row strong { font-size: .72rem; }
+.buyer-summary-row small { margin-top: .18rem; color: hsl(var(--muted-foreground)); font-size: .6rem; }
+.buyer-summary-row b { font-family: var(--app-font-mono); font-size: .65rem; white-space: nowrap; }
+.buyer-summary-total { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .85rem; font-size: .74rem; }
+.buyer-summary-total strong { font-family: var(--app-font-mono); font-size: 1rem; }
+.buyer-saved-contact { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .15rem .6rem; border-radius: 11px; background: hsl(var(--background)); padding: .75rem; }
+.buyer-saved-contact span, .buyer-saved-contact small { color: hsl(var(--muted-foreground)); font-size: .62rem; }
+.buyer-saved-contact strong { font-size: .72rem; }
+.buyer-saved-contact small { grid-column: 2; }
+.buyer-payment-options { display: grid; gap: .6rem; }
+.buyer-payment-option { min-height: 2.8rem; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: .75rem; color: hsl(var(--foreground)); font-size: .72rem; font-weight: 700; text-align: left; transition: border-color .18s, background-color .18s, transform .18s; }
+.buyer-payment-option:hover { border-color: hsl(var(--foreground) / .35); transform: translateY(-1px); }
+.buyer-payment-option.is-selected { border-color: hsl(var(--foreground)); background: hsl(var(--foreground)); color: hsl(var(--background)); }
+.buyer-mock-payment { border: 1px solid hsl(var(--accent)) / .55; border-radius: 13px; background: hsl(var(--accent) / .1); padding: 1rem; }
+
 @media (max-width: 980px) {
   .take-order-layout { grid-template-columns: minmax(0, 1fr); }
   .take-order-preview-column { position: static; }
@@ -1270,6 +1311,10 @@ button[data-testid="button-buyer-reserve"].text-white {
   .take-order-feedback { margin-inline: 1.25rem; }
   .take-order-review-details { grid-template-columns: 1fr; }
   .take-order-preview-frame { padding: 1.25rem .85rem; }
+  .buyer-variant-options { grid-template-columns: 1fr; }
+  .buyer-form-actions { align-items: stretch; flex-direction: column-reverse; }
+  .buyer-form-actions .button { width: 100%; justify-content: center; }
+  .buyer-form-actions > span { display: none; }
 }
 
 /* Status controls keep a visible keyboard target on both Paper and Ink surfaces. */

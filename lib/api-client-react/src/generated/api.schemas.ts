@@ -222,11 +222,20 @@ export const PublicOrderStatus = {
   paid: 'paid',
 } as const;
 
+export type PublicOrderItemSource = typeof PublicOrderItemSource[keyof typeof PublicOrderItemSource];
+
+
+export const PublicOrderItemSource = {
+  catalog: 'catalog',
+  custom: 'custom',
+} as const;
+
 export interface PublicOrderItem {
   productId: number;
   productName: string;
   amount: number;
   variants: string[];
+  source: PublicOrderItemSource;
 }
 
 export interface PublicOrder {
@@ -239,6 +248,14 @@ export interface PublicOrder {
   status: PublicOrderStatus;
   variants: string[];
   items: PublicOrderItem[];
+}
+
+export interface PublicOrderItemDetails {
+  /** @minimum 0 */
+  itemIndex: number;
+  variant?: string;
+  details?: string;
+  referenceImage?: string;
 }
 
 export type PublicOrderInputPaymentAction = typeof PublicOrderInputPaymentAction[keyof typeof PublicOrderInputPaymentAction];
@@ -256,6 +273,7 @@ export interface PublicOrderInput {
   customerPhone: string;
   buyerDetails?: string;
   referenceImage?: string;
+  itemDetails?: PublicOrderItemDetails[];
   paymentAction?: PublicOrderInputPaymentAction;
 }
 

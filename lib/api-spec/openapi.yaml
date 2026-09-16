@@ -416,7 +416,7 @@ components:
             $ref: "#/components/schemas/PublicOrderItem"
     PublicOrderItem:
       type: object
-      required: [productId, productName, amount, variants]
+      required: [productId, productName, amount, variants, source]
       properties:
         productId: { type: integer }
         productName: { type: string }
@@ -424,6 +424,15 @@ components:
         variants:
           type: array
           items: { type: string }
+        source: { type: string, enum: [catalog, custom] }
+    PublicOrderItemDetails:
+      type: object
+      required: [itemIndex]
+      properties:
+        itemIndex: { type: integer, minimum: 0 }
+        variant: { type: string }
+        details: { type: string }
+        referenceImage: { type: string }
     PublicOrderInput:
       type: object
       required: [customerName, customerPhone]
@@ -432,6 +441,10 @@ components:
         customerPhone: { type: string, minLength: 5 }
         buyerDetails: { type: string }
         referenceImage: { type: string }
+        itemDetails:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicOrderItemDetails"
         paymentAction: { type: string, enum: [pay, reserve] }
     DashboardSummary:
       type: object

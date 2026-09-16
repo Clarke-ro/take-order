@@ -9,6 +9,9 @@ export const orderItemsTable = pgTable("order_items", {
   productName: text("product_name").notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   position: integer("position").notNull().default(0),
+  buyerVariant: text("buyer_variant"),
+  buyerDetails: text("buyer_details"),
+  referenceImage: text("reference_image"),
 });
 
 export const insertOrderItemSchema = createInsertSchema(orderItemsTable).omit({ id: true });

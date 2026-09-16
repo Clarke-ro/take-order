@@ -130,6 +130,7 @@ function publicOrderResponse(
     productName: string;
     amount: number;
     variants: string[];
+    source: "catalog" | "custom";
   }>,
 ) {
   return {
@@ -161,6 +162,7 @@ async function publicItemsForOrder(order: typeof ordersTable.$inferSelect) {
       productName: order.productName,
       amount: Number(order.amount),
       variants: product?.variants ?? [],
+      source: (product?.category === "Custom order" ? "custom" : "catalog") as "custom" | "catalog",
     }];
   }
 
@@ -176,6 +178,7 @@ async function publicItemsForOrder(order: typeof ordersTable.$inferSelect) {
     productName: item.productName,
     amount: Number(item.amount),
     variants: productsById.get(item.productId)?.variants ?? [],
+    source: (productsById.get(item.productId)?.category === "Custom order" ? "custom" : "catalog") as "custom" | "catalog",
   }));
 }
 
@@ -552,18 +555,45 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
       ? "deposit_paid"
       : "paid";
   const saleProductCost = await productCostForSale(existing, nextStatus);
+  const itemDetails = parsed.data.itemDetails ?? [];
+  const itemDetailsByIndex = new Map(itemDetails.map((detail) => [detail.itemIndex, detail]));
+  const storedItems = await database
+    .select()
+    .from(orderItemsTable)
+    .where(eq(orderItemsTable.orderId, existing.id))
+    .orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+  const combinedBuyerDetails = itemDetails
+    .filter((detail) => detail.details?.trim() || detail.variant?.trim())
+    .map((detail) => {
+      const parts = [detail.variant?.trim(), detail.details?.trim()].filter(Boolean);
+      return `Item ${detail.itemIndex + 1}: ${parts.join(" · ")}`;
+    })
+    .join("\n");
+  const firstReferenceImage = itemDetails.find((detail) => detail.referenceImage?.trim())?.referenceImage?.trim();
   const [order] = await database
     .update(ordersTable)
     .set({
       customerName: parsed.data.customerName,
       customerPhone: parsed.data.customerPhone,
-      buyerDetails: parsed.data.buyerDetails ?? null,
-      referenceImage: parsed.data.referenceImage ?? null,
+      buyerDetails: parsed.data.buyerDetails ?? (combinedBuyerDetails || null),
+      referenceImage: parsed.data.referenceImage ?? firstReferenceImage ?? null,
       status: nextStatus,
       ...(saleProductCost === undefined ? {} : { productCost: saleProductCost }),
     })
     .where(eq(ordersTable.id, existing.id))
     .returning();
+  await Promise.all(storedItems.map((item, index) => {
+    const detail = itemDetailsByIndex.get(index);
+    if (!detail) return Promise.resolve();
+    return database
+      .update(orderItemsTable)
+      .set({
+        buyerVariant: detail.variant?.trim() || null,
+        buyerDetails: detail.details?.trim() || null,
+        referenceImage: detail.referenceImage?.trim() || null,
+      })
+      .where(eq(orderItemsTable.id, item.id));
+  }));
   if (nextStatus === "paid" && existing.status !== "paid") await adjustOrderStock(existing, -1);
   res.json(SubmitPublicOrderResponse.parse(orderResponse(order)));
 });

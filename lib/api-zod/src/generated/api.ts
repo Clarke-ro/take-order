@@ -297,7 +297,8 @@ export const GetPublicOrderResponse = zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
   "amount": zod.number(),
-  "variants": zod.array(zod.string())
+  "variants": zod.array(zod.string()),
+  "source": zod.enum(['catalog', 'custom'])
 }))
 })
 
@@ -312,6 +313,8 @@ export const SubmitPublicOrderParams = zod.object({
 
 export const submitPublicOrderBodyCustomerPhoneMin = 5;
 
+export const submitPublicOrderBodyItemDetailsItemItemIndexMin = 0;
+
 
 
 export const SubmitPublicOrderBody = zod.object({
@@ -319,6 +322,12 @@ export const SubmitPublicOrderBody = zod.object({
   "customerPhone": zod.string().min(submitPublicOrderBodyCustomerPhoneMin),
   "buyerDetails": zod.string().optional(),
   "referenceImage": zod.string().optional(),
+  "itemDetails": zod.array(zod.object({
+  "itemIndex": zod.number().int().min(submitPublicOrderBodyItemDetailsItemItemIndexMin),
+  "variant": zod.string().optional(),
+  "details": zod.string().optional(),
+  "referenceImage": zod.string().optional()
+})).optional(),
   "paymentAction": zod.enum(['pay', 'reserve']).optional()
 })
 
