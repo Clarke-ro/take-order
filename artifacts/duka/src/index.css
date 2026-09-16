@@ -994,7 +994,9 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); align-items: start; gap: 1.2rem; }
 .take-order-builder-card { overflow: hidden; padding: 0; }
 .take-order-catalog-stage-card { border-color: transparent; background: transparent; box-shadow: none; overflow: visible; }
-.take-order-catalog-stage { display: grid; grid-template-columns: minmax(0, 1fr) 250px; align-items: start; gap: .9rem; }
+.take-order-catalog-stage { display: grid; grid-template-areas: "browser selection"; grid-template-columns: minmax(0, 1fr) 250px; align-items: start; gap: .9rem; }
+.take-order-catalog-browser { grid-area: browser; }
+.take-order-catalog-selection { grid-area: selection; }
 .take-order-catalog-browser, .take-order-catalog-selection { min-width: 0; border: 1px solid hsl(var(--border)); border-radius: 18px; background: hsl(var(--card)); padding: 1.2rem; }
 .take-order-catalog-browser h2, .take-order-catalog-selection-heading h2 { margin-top: .35rem; color: hsl(var(--foreground)); font-family: var(--app-font-sans); font-size: 1.15rem; font-weight: 700; letter-spacing: -.04em; line-height: 1.05; }
 .take-order-catalog-browser > p { margin: .45rem 0 1rem; color: hsl(var(--muted-foreground)); font-size: .68rem; line-height: 1.45; }
@@ -1152,7 +1154,7 @@ button[data-testid="button-buyer-reserve"].text-white {
   .take-order-step { min-width: 8.3rem; }
   .take-order-step-detail { display: none; }
   .take-order-section { padding: 1.25rem; }
-  .take-order-catalog-stage { grid-template-columns: 1fr; }
+  .take-order-catalog-stage { grid-template-areas: "selection" "browser"; grid-template-columns: 1fr; }
   .take-order-catalog-selection { position: static; }
   .take-order-catalog-browser, .take-order-catalog-selection { padding: .85rem; }
   .take-order-section-heading { margin-bottom: 1.25rem; }
