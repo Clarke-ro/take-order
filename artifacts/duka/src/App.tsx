@@ -1926,18 +1926,24 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
     const delta = event.changedTouches[0]!.clientX - start;
     if (Math.abs(delta) > 36) move(delta < 0 ? 1 : -1);
   };
-  return <>
-    <div className="flex justify-center">
-      <BrandLockup className="gap-2" />
-    </div>
-    <div className="mt-7 flex flex-col items-center text-center">
-      <BrandWordmark className="buyer-business-logo" />
-      <div className="mt-2 text-sm font-semibold">{businessName}</div>
-    </div>
-    {description && <p className="mx-auto mt-10 max-w-[360px] text-center text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}
-    <div className="buyer-total-amount" aria-label={`Total amount ${moneyExact(total)}`}><span>Total amount</span><strong>{moneyExact(total)}</strong></div>
+  return <div className="buyer-checkout-surface">
     <div className="buyer-order-detail-layout">
+      <Card className="buyer-order-detail-card p-6 sm:p-8">
+        <div className="buyer-checkout-form-intro">
+          <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Buyer checkout</div>
+          <h1>Complete your order.</h1>
+          <p>Share a few details so the seller can prepare everything correctly.</p>
+          <div className="buyer-total-amount" aria-label={`Total amount ${moneyExact(total)}`}><span>Total amount</span><strong>{moneyExact(total)}</strong></div>
+        </div>
+        {typeof children === 'function' ? children(activeItem) : children}
+      </Card>
       <aside className="buyer-product-rail" aria-label={displayItems.length > 1 ? 'Order items' : 'Product preview'}>
+        <div className="buyer-product-brand">
+          <BrandWordmark className="buyer-business-logo" />
+          <strong>{businessName}</strong>
+          {description && <p>{description}</p>}
+        </div>
+        <div className="buyer-product-list">
         {displayItems.map((item, index) => {
           const active = index === activeIndex;
           const moduleLabel = item.source === 'custom' ? 'One-off item' : 'Catalog item';
@@ -1963,13 +1969,11 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
             </span>
           </button>;
         })}
+        </div>
       </aside>
-      <Card className="buyer-order-detail-card p-6 sm:p-8">
-        {typeof children === 'function' ? children(activeItem) : children}
-      </Card>
     </div>
     <PoweredByTakeOrder className="mt-6" />
-  </>;
+  </div>;
 }
 
 type BuyerOrderFormValues = {
