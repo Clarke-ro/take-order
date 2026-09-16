@@ -1999,14 +1999,14 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
         </div>
       </div>
     </header>
+    <div className="buyer-checkout-form-intro">
+      <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Buyer checkout</div>
+      <h1>Complete your order.</h1>
+      <p>Share a few details so the seller can prepare everything correctly.</p>
+      <div className="buyer-total-amount" aria-label={`Total amount ${moneyExact(total)}`}><span>Total amount</span><strong>{moneyExact(total)}</strong></div>
+    </div>
     <div className="buyer-order-detail-layout">
       <div className="buyer-order-detail-card p-6 sm:p-8">
-        <div className="buyer-checkout-form-intro">
-          <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Buyer checkout</div>
-          <h1>Complete your order.</h1>
-          <p>Share a few details so the seller can prepare everything correctly.</p>
-          <div className="buyer-total-amount" aria-label={`Total amount ${moneyExact(total)}`}><span>Total amount</span><strong>{moneyExact(total)}</strong></div>
-        </div>
         {typeof children === 'function' ? children(activeItem) : children}
       </div>
       <aside className="buyer-product-rail" aria-label={displayItems.length > 1 ? 'Order items' : 'Product preview'}>
