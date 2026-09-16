@@ -7,6 +7,7 @@ import {
   ordersTable,
   productsTable,
 } from "@workspace/db/schema";
+import type { ProductPreferenceGroup } from "@workspace/db/schema";
 import type { db } from "@workspace/db";
 import {
   CreateProductBody,
@@ -62,7 +63,29 @@ function productResponse(product: typeof productsTable.$inferSelect) {
     price: Number(product.price),
     cost: toNumber(product.cost),
     variants: product.variants ?? [],
+    preferences: preferencesForProduct(product.preferences, product.variants ?? []),
   };
+}
+
+function preferencesForProduct(
+  preferences: ProductPreferenceGroup[] | null | undefined,
+  variants: string[] = [],
+): ProductPreferenceGroup[] {
+  const validPreferences = Array.isArray(preferences)
+    ? preferences
+      .map((group) => ({
+        label: typeof group?.label === "string" ? group.label.trim() : "",
+        options: Array.isArray(group?.options)
+          ? group.options.filter((option): option is string => typeof option === "string").map((option) => option.trim()).filter(Boolean)
+          : [],
+      }))
+      .filter((group) => group.label && group.options.length > 0)
+    : [];
+  return validPreferences.length > 0
+    ? validPreferences
+    : variants.length > 0
+      ? [{ label: "Choose an option", options: variants }]
+      : [];
 }
 
 function orderResponse(order: typeof ordersTable.$inferSelect, items: SellerOrderItem[] = []) {
@@ -133,6 +156,7 @@ function publicOrderResponse(
     productName: string;
     amount: number;
     variants: string[];
+    preferences: ProductPreferenceGroup[];
     source: "catalog" | "custom";
   }>,
 ) {
@@ -168,6 +192,7 @@ async function publicItemsForOrder(order: typeof ordersTable.$inferSelect) {
       productName: order.productName,
       amount: Number(order.amount),
       variants: product?.variants ?? [],
+      preferences: preferencesForProduct(product?.preferences, product?.variants ?? []),
       source: (product?.category === "Custom order" ? "custom" : "catalog") as "custom" | "catalog",
     }];
   }
@@ -184,6 +209,7 @@ async function publicItemsForOrder(order: typeof ordersTable.$inferSelect) {
     productName: item.productName,
     amount: Number(item.amount),
     variants: productsById.get(item.productId)?.variants ?? [],
+    preferences: preferencesForProduct(productsById.get(item.productId)?.preferences, productsById.get(item.productId)?.variants ?? []),
     source: (productsById.get(item.productId)?.category === "Custom order" ? "custom" : "catalog") as "custom" | "catalog",
   }));
 }
@@ -264,6 +290,7 @@ router.post("/products", async (req, res): Promise<void> => {
       price: parsed.data.price.toFixed(2),
       cost: parsed.data.cost == null ? null : parsed.data.cost.toFixed(2),
       variants: parsed.data.variants ?? [],
+      preferences: parsed.data.preferences ?? [],
       accent: parsed.data.accent ?? "#0F6E6B",
     })
     .returning();
@@ -288,6 +315,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
     cost?: string | null;
     stock?: number;
     variants?: string[];
+    preferences?: ProductPreferenceGroup[];
     accent?: string;
   } = {};
   if (parsed.data.name !== undefined) update.name = parsed.data.name;
@@ -295,7 +323,14 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   if (parsed.data.price !== undefined) update.price = parsed.data.price.toFixed(2);
   if (parsed.data.cost !== undefined) update.cost = parsed.data.cost == null ? null : parsed.data.cost.toFixed(2);
   if (parsed.data.stock !== undefined) update.stock = parsed.data.stock;
-  if (parsed.data.variants !== undefined) update.variants = parsed.data.variants;
+  if (parsed.data.variants !== undefined) {
+    update.variants = parsed.data.variants;
+    if (parsed.data.preferences === undefined) update.preferences = [];
+  }
+  if (parsed.data.preferences !== undefined) {
+    update.preferences = parsed.data.preferences;
+    update.variants = parsed.data.preferences.flatMap((group) => group.options);
+  }
   if (parsed.data.accent !== undefined) update.accent = parsed.data.accent;
   const [product] = await database
     .update(productsTable)

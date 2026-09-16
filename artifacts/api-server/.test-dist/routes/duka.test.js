@@ -11411,7 +11411,7 @@ var createInsertSchema = (entity, refine2) => {
 };
 
 // ../../lib/db/src/schema/products.ts
-import { integer as integer2, numeric, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { integer as integer2, jsonb, numeric, pgTable, serial, text } from "drizzle-orm/pg-core";
 var productsTable = pgTable("products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -11420,6 +11420,7 @@ var productsTable = pgTable("products", {
   cost: numeric("cost", { precision: 12, scale: 2 }),
   stock: integer2("stock").notNull().default(0),
   variants: text("variants").array().notNull().default([]),
+  preferences: jsonb("preferences").$type().notNull().default([]),
   accent: text("accent").notNull().default("#0F6E6B")
 });
 var insertProductSchema = createInsertSchema(productsTable).omit({ id: true });
@@ -15391,6 +15392,10 @@ var ListProductsResponseItem = objectType({
   "cost": numberType().nullable(),
   "stock": numberType().int(),
   "variants": arrayType(stringType()),
+  "preferences": arrayType(objectType({
+    "label": stringType().min(1),
+    "options": arrayType(stringType().min(1)).min(1)
+  })),
   "accent": stringType()
 });
 var ListProductsResponse = arrayType(ListProductsResponseItem);
@@ -15404,6 +15409,10 @@ var CreateProductBody = objectType({
   "cost": numberType().min(createProductBodyCostMin).nullish(),
   "stock": numberType().int().min(createProductBodyStockMin),
   "variants": arrayType(stringType()).optional(),
+  "preferences": arrayType(objectType({
+    "label": stringType().min(1),
+    "options": arrayType(stringType().min(1)).min(1)
+  })).optional(),
   "accent": stringType().optional()
 });
 var CreateProductResponse = objectType({
@@ -15414,6 +15423,10 @@ var CreateProductResponse = objectType({
   "cost": numberType().nullable(),
   "stock": numberType().int(),
   "variants": arrayType(stringType()),
+  "preferences": arrayType(objectType({
+    "label": stringType().min(1),
+    "options": arrayType(stringType().min(1)).min(1)
+  })),
   "accent": stringType()
 });
 var UpdateProductParams = objectType({
@@ -15429,6 +15442,10 @@ var UpdateProductBody = objectType({
   "cost": numberType().min(updateProductBodyCostMin).nullish(),
   "stock": numberType().int().min(updateProductBodyStockMin).optional(),
   "variants": arrayType(stringType()).optional(),
+  "preferences": arrayType(objectType({
+    "label": stringType().min(1),
+    "options": arrayType(stringType().min(1)).min(1)
+  })).optional(),
   "accent": stringType().optional()
 });
 var UpdateProductResponse = objectType({
@@ -15439,6 +15456,10 @@ var UpdateProductResponse = objectType({
   "cost": numberType().nullable(),
   "stock": numberType().int(),
   "variants": arrayType(stringType()),
+  "preferences": arrayType(objectType({
+    "label": stringType().min(1),
+    "options": arrayType(stringType().min(1)).min(1)
+  })),
   "accent": stringType()
 });
 var DeleteProductParams = objectType({
@@ -15611,6 +15632,10 @@ var GetPublicOrderResponse = objectType({
     "productName": stringType(),
     "amount": numberType(),
     "variants": arrayType(stringType()),
+    "preferences": arrayType(objectType({
+      "label": stringType().min(1),
+      "options": arrayType(stringType().min(1)).min(1)
+    })),
     "source": enumType(["catalog", "custom"])
   }))
 });
@@ -15977,8 +16002,16 @@ function createDukaRouter(database) {
       ...product,
       price: Number(product.price),
       cost: toNumber(product.cost),
-      variants: product.variants ?? []
+      variants: product.variants ?? [],
+      preferences: preferencesForProduct(product.preferences, product.variants ?? [])
     };
+  }
+  function preferencesForProduct(preferences, variants = []) {
+    const validPreferences = Array.isArray(preferences) ? preferences.map((group) => ({
+      label: typeof group?.label === "string" ? group.label.trim() : "",
+      options: Array.isArray(group?.options) ? group.options.filter((option) => typeof option === "string").map((option) => option.trim()).filter(Boolean) : []
+    })).filter((group) => group.label && group.options.length > 0) : [];
+    return validPreferences.length > 0 ? validPreferences : variants.length > 0 ? [{ label: "Choose an option", options: variants }] : [];
   }
   function orderResponse(order, items = []) {
     return {
@@ -16052,6 +16085,7 @@ function createDukaRouter(database) {
         productName: order.productName,
         amount: Number(order.amount),
         variants: product?.variants ?? [],
+        preferences: preferencesForProduct(product?.preferences, product?.variants ?? []),
         source: product?.category === "Custom order" ? "custom" : "catalog"
       }];
     }
@@ -16063,6 +16097,7 @@ function createDukaRouter(database) {
       productName: item.productName,
       amount: Number(item.amount),
       variants: productsById.get(item.productId)?.variants ?? [],
+      preferences: preferencesForProduct(productsById.get(item.productId)?.preferences, productsById.get(item.productId)?.variants ?? []),
       source: productsById.get(item.productId)?.category === "Custom order" ? "custom" : "catalog"
     }));
   }
@@ -16108,6 +16143,7 @@ function createDukaRouter(database) {
       price: parsed.data.price.toFixed(2),
       cost: parsed.data.cost == null ? null : parsed.data.cost.toFixed(2),
       variants: parsed.data.variants ?? [],
+      preferences: parsed.data.preferences ?? [],
       accent: parsed.data.accent ?? "#0F6E6B"
     }).returning();
     res.status(201).json(CreateProductResponse.parse(productResponse(product)));
@@ -16129,7 +16165,14 @@ function createDukaRouter(database) {
     if (parsed.data.price !== void 0) update.price = parsed.data.price.toFixed(2);
     if (parsed.data.cost !== void 0) update.cost = parsed.data.cost == null ? null : parsed.data.cost.toFixed(2);
     if (parsed.data.stock !== void 0) update.stock = parsed.data.stock;
-    if (parsed.data.variants !== void 0) update.variants = parsed.data.variants;
+    if (parsed.data.variants !== void 0) {
+      update.variants = parsed.data.variants;
+      if (parsed.data.preferences === void 0) update.preferences = [];
+    }
+    if (parsed.data.preferences !== void 0) {
+      update.preferences = parsed.data.preferences;
+      update.variants = parsed.data.preferences.flatMap((group) => group.options);
+    }
     if (parsed.data.accent !== void 0) update.accent = parsed.data.accent;
     const [product] = await database.update(productsTable).set(update).where(eq(productsTable.id, params.data.id)).returning();
     if (!product) {
@@ -16567,6 +16610,7 @@ test("GET /dashboard/summary adapts seeded database records into the response co
         cost: "20.00",
         stock: 2,
         variants: ["S", "M"],
+        preferences: [],
         accent: "#0F6E6B"
       }
     ],
@@ -16652,6 +16696,7 @@ test("GET /dashboard/summary scopes engagement totals to a custom range", async 
           cost: null,
           stock: 10,
           variants: [],
+          preferences: [],
           accent: "#0F6E6B"
         }
       ],
@@ -16727,6 +16772,7 @@ test("GET /dashboard/summary identifies a legacy sale with no captured cost", as
         cost: "20.00",
         stock: 2,
         variants: [],
+        preferences: [],
         accent: "#0F6E6B"
       }
     ],

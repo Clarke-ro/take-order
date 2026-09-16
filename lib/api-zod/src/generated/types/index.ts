@@ -35,6 +35,7 @@ export * from './product';
 export * from './productInput';
 export * from './productPerformance';
 export * from './productPerformanceMarginStatus';
+export * from './productPreferenceGroup';
 export * from './productUpdate';
 export * from './publicOrder';
 export * from './publicOrderDeliveryMethod';

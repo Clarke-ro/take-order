@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductPreferenceGroup } from './productPreferenceGroup';
 import type { PublicOrderItemSource } from './publicOrderItemSource';
 
 export interface PublicOrderItem {
@@ -12,5 +13,6 @@ export interface PublicOrderItem {
   productName: string;
   amount: number;
   variants: string[];
+  preferences: ProductPreferenceGroup[];
   source: PublicOrderItemSource;
 }

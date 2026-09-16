@@ -20,6 +20,11 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary List catalog products
  */
+
+
+
+
+
 export const ListProductsResponseItem = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -28,6 +33,10 @@ export const ListProductsResponseItem = zod.object({
   "cost": zod.number().nullable(),
   "stock": zod.number().int(),
   "variants": zod.array(zod.string()),
+  "preferences": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "options": zod.array(zod.string().min(1)).min(1)
+})),
   "accent": zod.string()
 })
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
@@ -45,6 +54,9 @@ export const createProductBodyStockMin = 0;
 
 
 
+
+
+
 export const CreateProductBody = zod.object({
   "name": zod.string().min(1),
   "category": zod.string(),
@@ -52,8 +64,17 @@ export const CreateProductBody = zod.object({
   "cost": zod.number().min(createProductBodyCostMin).nullish(),
   "stock": zod.number().int().min(createProductBodyStockMin),
   "variants": zod.array(zod.string()).optional(),
+  "preferences": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "options": zod.array(zod.string().min(1)).min(1)
+})).optional(),
   "accent": zod.string().optional()
 })
+
+
+
+
+
 
 export const CreateProductResponse = zod.object({
   "id": zod.number().int(),
@@ -63,6 +84,10 @@ export const CreateProductResponse = zod.object({
   "cost": zod.number().nullable(),
   "stock": zod.number().int(),
   "variants": zod.array(zod.string()),
+  "preferences": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "options": zod.array(zod.string().min(1)).min(1)
+})),
   "accent": zod.string()
 })
 
@@ -83,6 +108,9 @@ export const updateProductBodyStockMin = 0;
 
 
 
+
+
+
 export const UpdateProductBody = zod.object({
   "name": zod.string().min(1).optional(),
   "category": zod.string().optional(),
@@ -90,8 +118,17 @@ export const UpdateProductBody = zod.object({
   "cost": zod.number().min(updateProductBodyCostMin).nullish(),
   "stock": zod.number().int().min(updateProductBodyStockMin).optional(),
   "variants": zod.array(zod.string()).optional(),
+  "preferences": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "options": zod.array(zod.string().min(1)).min(1)
+})).optional(),
   "accent": zod.string().optional()
 })
+
+
+
+
+
 
 export const UpdateProductResponse = zod.object({
   "id": zod.number().int(),
@@ -101,6 +138,10 @@ export const UpdateProductResponse = zod.object({
   "cost": zod.number().nullable(),
   "stock": zod.number().int(),
   "variants": zod.array(zod.string()),
+  "preferences": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "options": zod.array(zod.string().min(1)).min(1)
+})),
   "accent": zod.string()
 })
 
@@ -300,6 +341,11 @@ export const GetPublicOrderParams = zod.object({
   "token": zod.coerce.string()
 })
 
+
+
+
+
+
 export const GetPublicOrderResponse = zod.object({
   "token": zod.string(),
   "productName": zod.string(),
@@ -316,6 +362,10 @@ export const GetPublicOrderResponse = zod.object({
   "productName": zod.string(),
   "amount": zod.number(),
   "variants": zod.array(zod.string()),
+  "preferences": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "options": zod.array(zod.string().min(1)).min(1)
+})),
   "source": zod.enum(['catalog', 'custom'])
 }))
 })

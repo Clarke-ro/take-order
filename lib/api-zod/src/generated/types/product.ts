@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductPreferenceGroup } from './productPreferenceGroup';
 
 export interface Product {
   id: number;
@@ -15,5 +16,6 @@ export interface Product {
   cost: number | null;
   stock: number;
   variants: string[];
+  preferences: ProductPreferenceGroup[];
   accent: string;
 }

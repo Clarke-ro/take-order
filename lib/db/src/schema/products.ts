@@ -1,6 +1,11 @@
 import { createInsertSchema } from "drizzle-zod";
-import { integer, numeric, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { integer, jsonb, numeric, pgTable, serial, text } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
+
+export type ProductPreferenceGroup = {
+  label: string;
+  options: string[];
+};
 
 export const productsTable = pgTable("products", {
   id: serial("id").primaryKey(),
@@ -10,6 +15,7 @@ export const productsTable = pgTable("products", {
   cost: numeric("cost", { precision: 12, scale: 2 }),
   stock: integer("stock").notNull().default(0),
   variants: text("variants").array().notNull().default([]),
+  preferences: jsonb("preferences").$type<ProductPreferenceGroup[]>().notNull().default([]),
   accent: text("accent").notNull().default("#0F6E6B"),
 });
 

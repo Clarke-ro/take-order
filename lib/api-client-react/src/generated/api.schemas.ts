@@ -9,6 +9,16 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface ProductPreferenceGroup {
+  /** @minLength 1 */
+  label: string;
+  /**
+     * @minItems 1
+     * @items.minLength 1
+     */
+  options: string[];
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -18,6 +28,7 @@ export interface Product {
   cost: number | null;
   stock: number;
   variants: string[];
+  preferences: ProductPreferenceGroup[];
   accent: string;
 }
 
@@ -35,6 +46,7 @@ export interface ProductInput {
   /** @minimum 0 */
   stock: number;
   variants?: string[];
+  preferences?: ProductPreferenceGroup[];
   accent?: string;
 }
 
@@ -52,6 +64,7 @@ export interface ProductUpdate {
   /** @minimum 0 */
   stock?: number;
   variants?: string[];
+  preferences?: ProductPreferenceGroup[];
   accent?: string;
 }
 
@@ -264,6 +277,7 @@ export interface PublicOrderItem {
   productName: string;
   amount: number;
   variants: string[];
+  preferences: ProductPreferenceGroup[];
   source: PublicOrderItemSource;
 }
 

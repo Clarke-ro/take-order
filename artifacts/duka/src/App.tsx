@@ -19,7 +19,7 @@ import {
   useGetDashboardSummary, useGetPublicOrder, useHealthCheck, useListOrders, useListProducts,
   useListExpenses, useSubmitPublicOrder, useUpdateExpense, useUpdateOrder, useUpdateProduct
 } from '@workspace/api-client-react';
-import type { Expense, ExpenseInput, ExpenseUpdate, Order, OrderInput, Product, ProductInput, PublicOrderInput } from '@workspace/api-client-react';
+import type { Expense, ExpenseInput, ExpenseUpdate, Order, OrderInput, Product, ProductInput, ProductPreferenceGroup, PublicOrderInput } from '@workspace/api-client-react';
 import NotFound from '@/pages/not-found';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -1048,8 +1048,9 @@ function OrderRow({ order, compact = false }: { order: Order; compact?: boolean 
   return <div className={cn('flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between', compact && 'py-3.5')} data-testid={`row-order-${order.id}`}><div className="flex items-center gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] font-mono-ui text-[10px] font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName} · <ChannelInline value={order.channel} /></div></div></div><div className="flex items-center gap-4 pl-12 sm:pl-0"><div className="text-right"><div className="font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</div></div><StatusPill tone={paymentTone(order.status)}>{order.status.replace('_', ' ')}</StatusPill></div></div>;
 }
 
-type ProductFormState = { name: string; category: string; price: string; cost: string; stock: string; variants: string; accent: string };
-const blankProduct: ProductFormState = { name: '', category: 'Apparel', price: '', cost: '', stock: '0', variants: '', accent: '#E6B85C' };
+type ProductPreferenceDraft = { label: string; options: string };
+type ProductFormState = { name: string; category: string; price: string; cost: string; stock: string; preferences: ProductPreferenceDraft[]; accent: string };
+const blankProduct: ProductFormState = { name: '', category: 'Apparel', price: '', cost: '', stock: '0', preferences: [], accent: '#E6B85C' };
 const accentOptions = [
   { value: '#E6B85C', label: 'gold' },
   { value: '#8BBDA9', label: 'green' },
@@ -1061,11 +1062,36 @@ const accentOptions = [
 export function ProductModal({ product, onClose }: { product?: Product; onClose: () => void }) {
   const queryClient = useQueryClient();
   const create = useCreateProduct(); const update = useUpdateProduct();
-  const [form, setForm] = useState<ProductFormState>(product ? { name: product.name, category: product.category, price: String(product.price), cost: product.cost == null ? '' : String(product.cost), stock: String(product.stock), variants: product.variants.join(', '), accent: product.accent } : blankProduct);
+  const [form, setForm] = useState<ProductFormState>(product ? {
+    name: product.name,
+    category: product.category,
+    price: String(product.price),
+    cost: product.cost == null ? '' : String(product.cost),
+    stock: String(product.stock),
+    preferences: product.preferences.length
+      ? product.preferences.map((group) => ({ label: group.label, options: group.options.join(', ') }))
+      : product.variants.length
+        ? [{ label: 'Choose an option', options: product.variants.join(', ') }]
+        : [],
+    accent: product.accent,
+  } : blankProduct);
   const pending = create.isPending || update.isPending;
   const change = (key: keyof ProductFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
-  const save = (event: React.FormEvent) => { event.preventDefault(); const data: ProductInput = { name: form.name.trim(), category: form.category, price: Number(form.price), cost: form.cost === '' ? null : Number(form.cost), stock: Number(form.stock), variants: form.variants.split(',').map((item) => item.trim()).filter(Boolean), accent: form.accent }; if (!data.name || Number.isNaN(data.price)) return; const onSuccess = () => { queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() }); onClose(); }; product ? update.mutate({ id: product.id, data }, { onSuccess }) : create.mutate({ data }, { onSuccess }); };
-  return <div className="fixed inset-0 z-50 flex items-end justify-center bg-[hsl(220_30%_17%/.45)] p-0 backdrop-blur-sm sm:items-center sm:p-5"><div className="max-h-[92dvh] w-full max-w-[560px] overflow-y-auto rounded-t-[20px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-6 sm:rounded-[20px] sm:p-8"><div className="flex items-start justify-between"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">{product ? 'Edit item' : 'New item'}</div><h2 className="mt-2 font-display text-2xl font-bold tracking-[-.04em]">{product ? 'Update your item.' : 'Add to your catalog.'}</h2></div><button type="button" onClick={onClose} aria-label="Close item editor" data-testid="button-close-product-modal" className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><X aria-hidden="true" size={18} /></button></div><form onSubmit={save} className="mt-7 space-y-5"><div><label className="field-label">Item name</label><input data-testid="input-product-name" autoFocus required value={form.name} onChange={(e) => change('name', e.target.value)} placeholder="e.g. Linen wrap top" className="field-input" /></div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Category</label><select data-testid="select-product-category" value={form.category} onChange={(e) => change('category', e.target.value)} className="field-input"><option>Apparel</option><option>Accessories</option><option>Home</option><option>Beauty</option><option>Food & drink</option><option>Other</option></select></div><div><label className="field-label">Stock on hand</label><input data-testid="input-product-stock" type="number" min="0" required value={form.stock} onChange={(e) => change('stock', e.target.value)} className="field-input" /></div></div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Selling price</label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-price" type="number" min="0" step=".01" required value={form.price} onChange={(e) => change('price', e.target.value)} className="field-input pl-7" /></div></div><div><label className="field-label">Cost <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-cost" type="number" min="0" step=".01" value={form.cost} onChange={(e) => change('cost', e.target.value)} placeholder="Not tracked" className="field-input pl-7" /></div></div></div><div><label className="field-label">Variants <span className="font-normal text-[hsl(var(--muted-foreground))]">(comma separated)</span></label><input data-testid="input-product-variants" value={form.variants} onChange={(e) => change('variants', e.target.value)} placeholder="Small, Medium, Large" className="field-input" /></div><div><label className="field-label">Accent color</label><div className="flex gap-2">{accentOptions.map(({ value, label }) => <button type="button" key={value} onClick={() => change('accent', value)} aria-label={`Use ${label} accent color`} aria-pressed={form.accent === value} data-testid={`button-accent-${value.slice(1)}`} className={cn('h-8 w-8 rounded-full border-2 transition-transform', form.accent === value ? 'scale-110 border-[hsl(var(--foreground))]' : 'border-transparent')} style={{ backgroundColor: value }} />)}</div></div><div className="flex justify-end gap-3 border-t border-[hsl(var(--border))] pt-5"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending}>{pending && <Loader2 size={15} className="animate-spin" />}{product ? 'Save changes' : 'Add item'}</Button></div></form></div></div>;
+  const updatePreference = (index: number, key: keyof ProductPreferenceDraft, value: string) => setForm((current) => ({ ...current, preferences: current.preferences.map((preference, preferenceIndex) => preferenceIndex === index ? { ...preference, [key]: value } : preference) }));
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    const preferences: ProductPreferenceGroup[] = form.preferences
+      .map((preference) => ({
+        label: preference.label.trim(),
+        options: preference.options.split(',').map((option) => option.trim()).filter(Boolean),
+      }))
+      .filter((preference) => preference.label && preference.options.length > 0);
+    const data: ProductInput = { name: form.name.trim(), category: form.category, price: Number(form.price), cost: form.cost === '' ? null : Number(form.cost), stock: Number(form.stock), variants: preferences.flatMap((preference) => preference.options), preferences, accent: form.accent };
+    if (!data.name || Number.isNaN(data.price)) return;
+    const onSuccess = () => { queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() }); onClose(); };
+    product ? update.mutate({ id: product.id, data }, { onSuccess }) : create.mutate({ data }, { onSuccess });
+  };
+  return <div className="fixed inset-0 z-50 flex items-end justify-center bg-[hsl(220_30%_17%/.45)] p-0 backdrop-blur-sm sm:items-center sm:p-5"><div className="max-h-[92dvh] w-full max-w-[560px] overflow-y-auto rounded-t-[20px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-6 sm:rounded-[20px] sm:p-8"><div className="flex items-start justify-between"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">{product ? 'Edit item' : 'New item'}</div><h2 className="mt-2 font-display text-2xl font-bold tracking-[-.04em]">{product ? 'Update your item.' : 'Add to your catalog.'}</h2></div><button type="button" onClick={onClose} aria-label="Close item editor" data-testid="button-close-product-modal" className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><X aria-hidden="true" size={18} /></button></div><form onSubmit={save} className="mt-7 space-y-5"><div><label className="field-label">Item name</label><input data-testid="input-product-name" autoFocus required value={form.name} onChange={(e) => change('name', e.target.value)} placeholder="e.g. Linen wrap top" className="field-input" /></div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Category</label><select data-testid="select-product-category" value={form.category} onChange={(e) => change('category', e.target.value)} className="field-input"><option>Apparel</option><option>Accessories</option><option>Home</option><option>Beauty</option><option>Food & drink</option><option>Other</option></select></div><div><label className="field-label">Stock on hand</label><input data-testid="input-product-stock" type="number" min="0" required value={form.stock} onChange={(e) => change('stock', e.target.value)} className="field-input" /></div></div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Selling price</label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-price" type="number" min="0" step=".01" required value={form.price} onChange={(e) => change('price', e.target.value)} className="field-input pl-7" /></div></div><div><label className="field-label">Cost <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-cost" type="number" min="0" step=".01" value={form.cost} onChange={(e) => change('cost', e.target.value)} placeholder="Not tracked" className="field-input pl-7" /></div></div></div><div className="catalog-preferences-editor"><div className="flex items-start justify-between gap-3"><div><label className="field-label">Buyer preferences <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Set the groups and choices buyers should see, such as Color or Size.</p></div><button type="button" className="shrink-0 rounded-full border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold" onClick={() => setForm((current) => ({ ...current, preferences: [...current.preferences, { label: '', options: '' }] }))}><Plus size={12} />Add group</button></div>{form.preferences.length > 0 && <div className="mt-3 space-y-2">{form.preferences.map((preference, index) => <div key={index} className="catalog-preference-row"><input aria-label={`Preference group ${index + 1} name`} value={preference.label} onChange={(event) => updatePreference(index, 'label', event.target.value)} placeholder="Group name, e.g. Color" className="field-input" /><input aria-label={`Choices for preference group ${index + 1}`} value={preference.options} onChange={(event) => updatePreference(index, 'options', event.target.value)} placeholder="Choices separated by commas" className="field-input" /><button type="button" aria-label={`Remove preference group ${index + 1}`} className="catalog-preference-remove" onClick={() => setForm((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))}><X size={14} /></button></div>)}</div>}</div><div><label className="field-label">Accent color</label><div className="flex gap-2">{accentOptions.map(({ value, label }) => <button type="button" key={value} onClick={() => change('accent', value)} aria-label={`Use ${label} accent color`} aria-pressed={form.accent === value} data-testid={`button-accent-${value.slice(1)}`} className={cn('h-8 w-8 rounded-full border-2 transition-transform', form.accent === value ? 'scale-110 border-[hsl(var(--foreground))]' : 'border-transparent')} style={{ backgroundColor: value }} />)}</div></div><div className="flex justify-end gap-3 border-t border-[hsl(var(--border))] pt-5"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending}>{pending && <Loader2 size={15} className="animate-spin" />}{product ? 'Save changes' : 'Add item'}</Button></div></form></div></div>;
 }
 
 type ExpenseFormState = { title: string; category: ExpenseInput['category']; amount: string; date: string; note: string };
@@ -1483,7 +1509,7 @@ function TakeOrder() {
         {step === 3 && <div className="page-in space-y-5"><div><div className="field-label">Review the buyer page</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">The buyer will see the item, agreed amount, seller name, contact fields, image upload, and payment choice.</p></div><div className="rounded-[14px] bg-[hsl(var(--muted))] p-4 text-sm"><div className="flex items-center justify-between"><span className="text-[hsl(var(--muted-foreground))]">Item</span><strong>{previewName || '—'}</strong></div><div className="mt-3 flex items-center justify-between"><span className="text-[hsl(var(--muted-foreground))]">Amount</span><strong>{form.amount ? moneyExact(Number(form.amount)) : '—'}</strong></div><div className="mt-3 flex items-center justify-between"><span className="text-[hsl(var(--muted-foreground))]">Payment</span><strong className="capitalize">{form.paymentMode === 'deposit' ? `Deposit · ${moneyExact(Number(form.depositAmount))}` : form.paymentMode}</strong></div></div></div>}
         <div className="flex justify-between border-t border-[hsl(var(--border))] pt-6">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span aria-hidden="true" />}<Button type="submit" disabled={!validStep || busy || (path === 'catalog' && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div>
       </form></Card>
-      <Card className="h-fit overflow-hidden"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-6 py-4"><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Buyer page preview</div><Eye size={17} className="text-[hsl(var(--muted-foreground))]" /></div><div className="max-h-[760px] overflow-hidden bg-[hsl(var(--background))] px-6 py-8"><BuyerOrderSurface businessName={seller?.businessName || 'The Sunday Edit'} description={seller?.description} productName={previewName || 'Your item'} amount={form.amount ? Number(form.amount) : 0} paymentMode={form.paymentMode} depositAmount={form.depositAmount ? Number(form.depositAmount) : null} variants={product?.variants ?? []}><div className="space-y-5"><div><label className="field-label">Your name</label><input disabled placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input disabled placeholder="Best number to reach you" className="field-input" /></div>{product?.variants?.length ? <div><label className="field-label">Available variants</label><div className="flex flex-wrap gap-2">{product.variants.map((variant) => <span key={variant} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{variant}</span>)}</div></div> : null}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea disabled placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div><div><label className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="flex items-center gap-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] p-3 text-xs text-[hsl(var(--muted-foreground))]"><Clipboard size={15} />Attach an image</div></div>{form.paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] p-3 text-left text-xs font-bold text-white">{form.paymentMode === 'deposit' ? `Pay deposit · ${form.depositAmount ? moneyExact(Number(form.depositAmount)) : '—'}` : `Pay ${form.amount ? moneyExact(Number(form.amount)) : '—'}`}</div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 text-left text-xs font-bold">Reserve for later</div></div>}<button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-70">{form.paymentMode === 'reserve' ? 'Reserve this item' : 'Continue to mock payment'} <ArrowUpRight size={15} /></button></div></BuyerOrderSurface></div></Card>
+      <Card className="h-fit overflow-hidden"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-6 py-4"><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Buyer page preview</div><Eye size={17} className="text-[hsl(var(--muted-foreground))]" /></div><div className="max-h-[760px] overflow-hidden bg-[hsl(var(--background))] px-6 py-8"><BuyerOrderSurface businessName={seller?.businessName || 'The Sunday Edit'} description={seller?.description} productName={previewName || 'Your item'} amount={form.amount ? Number(form.amount) : 0} paymentMode={form.paymentMode} depositAmount={form.depositAmount ? Number(form.depositAmount) : null} variants={product?.variants ?? []}><div className="space-y-5"><div><label className="field-label">Your name</label><input disabled placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input disabled placeholder="Best number to reach you" className="field-input" /></div>{product?.preferences?.length ? <div><label className="field-label">Buyer preferences</label><div className="space-y-3">{product.preferences.map((preference) => <div key={preference.label}><span className="text-xs font-semibold">{preference.label}</span><div className="mt-2 flex flex-wrap gap-2">{preference.options.map((option) => <span key={option} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{option}</span>)}</div></div>)}</div></div> : null}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea disabled placeholder="Anything already agreed..." rows={3} className="field-input resize-none" /></div><div><label className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="flex items-center gap-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] p-3 text-xs text-[hsl(var(--muted-foreground))]"><Clipboard size={15} />Attach an image</div></div>{form.paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] p-3 text-left text-xs font-bold text-white">{form.paymentMode === 'deposit' ? `Pay deposit · ${form.depositAmount ? moneyExact(Number(form.depositAmount)) : '—'}` : `Pay ${form.amount ? moneyExact(Number(form.amount)) : '—'}`}</div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 text-left text-xs font-bold">Reserve for later</div></div>}<button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-70">{form.paymentMode === 'reserve' ? 'Reserve this item' : 'Continue to mock payment'} <ArrowUpRight size={15} /></button></div></BuyerOrderSurface></div></Card>
     </div>
   </Shell>;
 }
@@ -1495,6 +1521,7 @@ type DraftOrderItem = {
   name: string;
   amount: number;
   variants: string[];
+  preferences: ProductPreferenceGroup[];
   accent: string;
 };
 
@@ -1598,8 +1625,8 @@ function MultiItemTakeOrderModern() {
   const choiceOnly = step === 1 && itemSource === null && items.length === 0;
   const catalogStage = step === 1 && itemSource === 'catalog';
   const previewItems: BuyerOrderItem[] = items.length
-    ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants, source: item.source }))
-    : [{ productId: 0, productName: 'Your item', amount: 0, variants: [], source: 'catalog' }];
+    ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants, preferences: item.preferences, source: item.source }))
+    : [{ productId: 0, productName: 'Your item', amount: 0, variants: [], preferences: [], source: 'catalog' }];
   const busy = createOrder.isPending || createProduct.isPending;
   const deposit = Number(depositAmount);
   const validDeposit = paymentMode !== 'deposit' || (Number.isFinite(deposit) && deposit > 0 && deposit <= total);
@@ -1614,7 +1641,7 @@ function MultiItemTakeOrderModern() {
     setItems((current) => {
       const existing = current.some((item) => item.productId === product.id);
       if (existing) return current.filter((item) => item.productId !== product.id);
-      return [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, accent: product.accent }];
+      return [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, preferences: product.preferences, accent: product.accent }];
     });
     setNextKey((current) => current + 1);
     setFeedback(null);
@@ -1625,7 +1652,7 @@ function MultiItemTakeOrderModern() {
       setFeedback('Add a name and a price greater than $0.00 before adding this item.');
       return;
     }
-    setItems((current) => [...current, { key: nextKey, source: 'custom', name: customDraft.name.trim(), amount, variants: [], accent: '#2F5BFF' }]);
+    setItems((current) => [...current, { key: nextKey, source: 'custom', name: customDraft.name.trim(), amount, variants: [], preferences: [], accent: '#2F5BFF' }]);
     setNextKey((current) => current + 1);
     setCustomDraft({ name: '', amount: '' });
     setFeedback(null);
@@ -1669,7 +1696,7 @@ function MultiItemTakeOrderModern() {
       resolveItems(index + 1, [...productIds, item.productId]);
       return;
     }
-    const data: ProductInput = { name: item.name, category: 'Custom order', price: item.amount, cost: null, stock: 0, variants: [], accent: item.accent };
+    const data: ProductInput = { name: item.name, category: 'Custom order', price: item.amount, cost: null, stock: 0, variants: [], preferences: [], accent: item.accent };
     createProduct.mutate({ data }, {
       onSuccess: (product) => {
         queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
@@ -1828,8 +1855,8 @@ function MultiItemTakeOrder() {
   const [copied, setCopied] = useState(false);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
   const previewItems: BuyerOrderItem[] = items.length
-    ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants, source: item.source }))
-    : [{ productId: 0, productName: 'Your item', amount: 0, variants: [], source: 'catalog' }];
+    ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants, preferences: item.preferences, source: item.source }))
+    : [{ productId: 0, productName: 'Your item', amount: 0, variants: [], preferences: [], source: 'catalog' }];
   const busy = createOrder.isPending || createProduct.isPending;
   const canContinue = step === 1
     ? items.length > 0
@@ -1838,14 +1865,14 @@ function MultiItemTakeOrder() {
   const addCatalogItem = () => {
     const product = (productsQuery.data ?? []).find((item) => item.id === Number(catalogChoice));
     if (!product) return;
-    setItems((current) => [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, accent: product.accent }]);
+    setItems((current) => [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, preferences: product.preferences, accent: product.accent }]);
     setNextKey((current) => current + 1);
     setCatalogChoice('');
   };
   const addCustomItem = () => {
     const amount = Number(customDraft.amount);
     if (!customDraft.name.trim() || !Number.isFinite(amount) || amount < 0) return;
-    setItems((current) => [...current, { key: nextKey, source: 'custom', name: customDraft.name.trim(), amount, variants: [], accent: '#2F5BFF' }]);
+    setItems((current) => [...current, { key: nextKey, source: 'custom', name: customDraft.name.trim(), amount, variants: [], preferences: [], accent: '#2F5BFF' }]);
     setNextKey((current) => current + 1);
     setCustomDraft({ name: '', amount: '' });
   };
@@ -1872,7 +1899,7 @@ function MultiItemTakeOrder() {
       resolveItems(index + 1, [...productIds, item.productId]);
       return;
     }
-    const data: ProductInput = { name: item.name, category: 'Custom order', price: item.amount, cost: null, stock: 0, variants: [], accent: item.accent };
+    const data: ProductInput = { name: item.name, category: 'Custom order', price: item.amount, cost: null, stock: 0, variants: [], preferences: [], accent: item.accent };
     createProduct.mutate({ data }, {
       onSuccess: (product) => {
         queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
@@ -1936,12 +1963,13 @@ type BuyerOrderItem = {
   productName: string;
   amount: number;
   variants: string[];
+  preferences: ProductPreferenceGroup[];
   imageUrl?: string;
   source: 'catalog' | 'custom';
 };
 
 export function BuyerOrderSurface({ businessName, description, productName, amount, paymentMode, depositAmount, totalAmount, variants = [], items, activeIndex: controlledIndex, onActiveIndexChange, isCheckout = false, children }: BuyerOrderSurfaceProps) {
-  const displayItems = items?.length ? items : [{ productId: 0, productName: productName || 'Your item', amount: amount || 0, variants, source: 'catalog' as const }];
+  const displayItems = items?.length ? items : [{ productId: 0, productName: productName || 'Your item', amount: amount || 0, variants, preferences: variants.length ? [{ label: 'Choose an option', options: variants }] : [], source: 'catalog' as const }];
   const [internalIndex, setInternalIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const activeIndex = Math.min(controlledIndex ?? internalIndex, displayItems.length - 1);
@@ -2029,15 +2057,13 @@ type BuyerOrderFormValues = {
 };
 
 type BuyerItemFormValues = {
-  variant: string;
-  size: string;
+  preferences: Record<string, string>;
   details: string;
   image: string;
   imagePreview: string;
 };
 
-const buyerSizeOptions = ['XS', 'S', 'M', 'L', 'XL'] as const;
-const emptyBuyerItemForm = (): BuyerItemFormValues => ({ variant: '', size: '', details: '', image: '', imagePreview: '' });
+const emptyBuyerItemForm = (): BuyerItemFormValues => ({ preferences: {}, details: '', image: '', imagePreview: '' });
 
 function PublicOrderPage() {
   const { token = '' } = useParams<{ token: string }>();
@@ -2085,7 +2111,7 @@ function PublicOrderPage() {
         setContactComplete(true);
         return;
       }
-      if (activeItem?.variants.length && !activeForm.variant) return;
+      if (activeItem?.preferences.some((group) => !activeForm.preferences[group.label])) return;
       if (order && itemStep < order.items.length - 1) {
         setItemStep((current) => current + 1);
       } else {
@@ -2103,9 +2129,9 @@ function PublicOrderPage() {
       buyerDetails: form.orderDetails?.trim() || undefined,
       deliveryMethod: form.deliveryMethod,
       deliveryAddress: form.deliveryMethod === 'delivery' ? form.address?.trim() || undefined : undefined,
-      itemDetails: itemForms.map((item, itemIndex) => ({
+        itemDetails: itemForms.map((item, itemIndex) => ({
         itemIndex,
-        variant: [item.variant, item.size && `Size ${item.size}`].filter(Boolean).join(' · ') || undefined,
+          variant: Object.values(item.preferences).filter(Boolean).join(' · ') || undefined,
         details: item.details || undefined,
         referenceImage: item.image || undefined,
       })),
@@ -2120,7 +2146,7 @@ function PublicOrderPage() {
   const buyerDeliveryFee = form.deliveryMethod === 'delivery' ? order.deliveryFee : 0;
   const buyerTotal = orderSubtotal + buyerDeliveryFee;
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-   return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-8 sm:py-14"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} contactStep={!contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); } else if (!contactComplete) { return; } else if (itemStep > 0) setItemStep((current) => current - 1); else setContactComplete(false); }} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
+   return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-8 sm:py-14"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} contactStep={!contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); } else if (!contactComplete) { return; } else if (itemStep > 0) setItemStep((current) => current - 1); else setContactComplete(false); }} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
 }
 
 export function Connect() {
@@ -2190,6 +2216,7 @@ export function BuyerOrderForm({
   onSubmit,
   onChange,
   onItemChange = () => undefined,
+  onPreferenceChange = () => undefined,
   onBack = () => undefined,
   onMockPaymentChange,
   onReferenceImageChange,
@@ -2213,12 +2240,13 @@ export function BuyerOrderForm({
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onChange: (key: 'name' | 'phone' | 'deliveryMethod' | 'address' | 'orderDetails' | 'details', value: string) => void;
   onItemChange?: (key: keyof BuyerItemFormValues, value: string) => void;
+  onPreferenceChange?: (label: string, value: string) => void;
   onBack?: () => void;
   onMockPaymentChange: (key: keyof MockPaymentValues, value: string) => void;
   onReferenceImageChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onPaymentAction: (action: 'pay' | 'reserve') => void;
 }) {
-  const item = providedItem ?? { productId: 0, productName: 'Your item', amount, variants: [], source: 'custom' as const };
+  const item = providedItem ?? { productId: 0, productName: 'Your item', amount, variants: [], preferences: [], source: 'custom' as const };
   const items = providedItems ?? [item];
   const selectedDeliveryMethod = form.deliveryMethod ?? 'pickup';
   const deliveryCharge = selectedDeliveryMethod === 'delivery' ? deliveryFee : 0;
@@ -2240,15 +2268,11 @@ export function BuyerOrderForm({
        <div className="buyer-form-actions"><span /><Button type="submit" disabled={submitPending} data-testid="button-submit-public-order">Continue to item preferences <ArrowRight size={15} /></Button></div>
      </div> : <div className="buyer-item-entry">
        {itemIndex > 0 && <div className="buyer-contact-confirmed"><CheckCircle2 size={15} /><span>Contact details saved for {form.name || 'this order'}</span><button type="button" onClick={onBack}>Edit</button></div>}
-        <section className={cn('buyer-item-preferences-section', item.variants.length > 0 && 'has-variants')} aria-labelledby="buyer-item-preferences-heading">
+        <section className={cn('buyer-item-preferences-section', item.preferences.length > 0 && 'has-variants')} aria-labelledby="buyer-item-preferences-heading">
           <div className="buyer-item-preferences-layout">
-            <div className="buyer-item-visual">
+             <div className="buyer-item-visual">
               <div className="buyer-item-hero-image">
                 <img src={item.imageUrl || productImageFor(item.productName)} alt={`${item.productName} preview`} />
-              </div>
-              <div className="buyer-item-visual-meta">
-                <span>{item.source === 'custom' ? 'One-off item' : 'Catalog item'}</span>
-                <strong>{moneyExact(item.amount)}</strong>
               </div>
             </div>
             <div className="buyer-item-preferences-content">
@@ -2256,29 +2280,18 @@ export function BuyerOrderForm({
                 <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Item {String(itemIndex + 1).padStart(2, '0')} of {String(itemCount).padStart(2, '0')}</div>
                 <h2 id="buyer-item-preferences-heading">{item.productName}</h2>
                 <strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong>
-                <p>Choose a color and size for this item.</p>
+                 {item.preferences.length > 0 && <p>Choose the options that apply to this item.</p>}
               </div>
-              {item.variants.length > 0 && <fieldset className="buyer-color-field">
-                <legend className="field-label">Choose a color</legend>
-                <div className="buyer-color-options">
-                  {item.variants.map((variant) => <label key={variant} className={cn('buyer-color-option', itemForm.variant === variant && 'is-selected')}>
-                    <input type="radio" name={`buyer-variant-${item.productId}`} value={variant} checked={itemForm.variant === variant} onChange={(event) => onItemChange('variant', event.target.value)} required={itemIndex === 0 || !itemForm.variant} />
-                    <span className="buyer-color-option-image"><img src={productImageFor(`${item.productName} ${variant}`)} alt="" /></span>
-                    <span className="buyer-color-option-copy"><strong>{variant}</strong></span>
-                    <span className="buyer-color-check" aria-hidden="true">{itemForm.variant === variant && <Check size={11} strokeWidth={3} />}</span>
-                  </label>)}
-                </div>
-              </fieldset>}
-              <fieldset className="buyer-size-field">
-                <legend className="field-label">Choose a size</legend>
-                <div className="buyer-size-options">
-                  {buyerSizeOptions.map((size) => <label key={size} className={cn('buyer-size-option', itemForm.size === size && 'is-selected')}>
-                    <input type="radio" name={`buyer-size-${item.productId}`} value={size} checked={itemForm.size === size} onChange={(event) => onItemChange('size', event.target.value)} />
-                    <span className="buyer-size-check" aria-hidden="true">{itemForm.size === size && <Check size={11} strokeWidth={3} />}</span>
-                    <span>{size}</span>
-                  </label>)}
-                </div>
-              </fieldset>
+               {item.preferences.map((preference, preferenceIndex) => <fieldset className="buyer-color-field" key={`${item.productId}-${preference.label}`}>
+                 <legend className="field-label">{preference.label}</legend>
+                 <div className="buyer-color-options">
+                   {preference.options.map((option) => <label key={option} className={cn('buyer-color-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
+                     <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
+                     <span className="buyer-color-option-image"><img src={productImageFor(`${item.productName} ${preference.label} ${option}`)} alt="" /></span>
+                     <span className="buyer-color-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
+                   </label>)}
+                 </div>
+               </fieldset>)}
               {item.source === 'custom' && <div className="buyer-image-field">
                 <span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span>
                 <label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{itemForm.image ? itemForm.image : 'Attach an image'}</label>
@@ -2291,7 +2304,7 @@ export function BuyerOrderForm({
         <div className="buyer-form-actions">{itemIndex > 0 ? <Button type="button" variant="ghost" onClick={onBack}><ArrowLeft size={15} />Back</Button> : <span /> }<Button type="submit" disabled={submitPending} data-testid="button-submit-public-order">{itemIndex + 1 < itemCount ? 'Next item' : 'Continue to payment'} <ArrowRight size={15} /></Button></div>
      </div> : <div className="buyer-final-checkout">
       <div className="buyer-final-heading"><div><div className="take-order-section-eyebrow">Final checkout</div><h2 id="buyer-order-form-heading">Review your order.</h2></div><CheckCircle2 size={20} /></div>
-       <div className="buyer-summary-list">{items.map((orderItem, index) => <div key={`${orderItem.productId}-${index}`} className="buyer-summary-row"><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{orderItem.productName}</strong><small>{orderItem.source === 'custom' ? 'One-off item' : 'Catalog item'}{itemIndex === index && (itemForm.variant || itemForm.size) ? ` · ${[itemForm.variant, itemForm.size && `Size ${itemForm.size}`].filter(Boolean).join(' · ')}` : orderItem.variants.length ? ' · Variation selected' : ''}</small></div><b>{moneyExact(orderItem.amount)}</b></div>)}{deliveryCharge > 0 && <div className="buyer-summary-row"><span>+</span><div><strong>Delivery</strong><small>Flat delivery fee</small></div><b>{moneyExact(deliveryCharge)}</b></div>}<div className="buyer-summary-total"><span>Total</span><strong>{moneyExact(amount)}</strong></div></div>
+       <div className="buyer-summary-list">{items.map((orderItem, index) => <div key={`${orderItem.productId}-${index}`} className="buyer-summary-row"><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{orderItem.productName}</strong><small>{orderItem.source === 'custom' ? 'One-off item' : 'Catalog item'}{itemIndex === index && Object.values(itemForm.preferences).length ? ` · ${Object.values(itemForm.preferences).join(' · ')}` : orderItem.preferences.length ? ' · Preferences available' : ''}</small></div><b>{moneyExact(orderItem.amount)}</b></div>)}{deliveryCharge > 0 && <div className="buyer-summary-row"><span>+</span><div><strong>Delivery</strong><small>Flat delivery fee</small></div><b>{moneyExact(deliveryCharge)}</b></div>}<div className="buyer-summary-total"><span>Total</span><strong>{moneyExact(amount)}</strong></div></div>
       <div className="buyer-saved-contact"><span>Buyer</span><strong>{form.name}</strong><small>{form.phone}</small></div>
       {paymentMode !== 'reserve' && <fieldset className="buyer-payment-options" aria-label="Payment options"><legend className="field-label">How would you like to complete this?</legend><button type="button" role="radio" aria-checked={form.action === 'pay'} onClick={() => onPaymentAction('pay')} data-testid="button-buyer-pay" className={cn('buyer-payment-option', form.action === 'pay' && 'is-selected')}>{paymentMode === 'deposit' ? `Pay deposit · ${moneyExact(payableDeposit)}` : `Pay ${moneyExact(amount)}`}</button><button type="button" role="radio" aria-checked={form.action === 'reserve'} onClick={() => onPaymentAction('reserve')} data-testid="button-buyer-reserve" className={cn('buyer-payment-option', form.action === 'reserve' && 'is-selected')}>Reserve for later</button></fieldset>}
       {showMockPayment && <div className="buyer-mock-payment" aria-labelledby="mock-payment-heading"><div className="flex items-center justify-between gap-3"><h3 id="mock-payment-heading" className="flex items-center gap-2 text-sm font-bold"><WalletCards aria-hidden="true" size={16} />Mock payment checkout</h3><StatusPill tone="gold">Demo</StatusPill></div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">No real charge will be made. Use any test details to continue.</p><div className="mt-4 space-y-3"><div><label htmlFor="mock-card-number" className="field-label">Card number</label><input id="mock-card-number" data-testid="input-mock-card-number" required inputMode="numeric" value={mockPayment.cardNumber} onChange={(event) => onMockPaymentChange('cardNumber', event.target.value)} placeholder="4242 4242 4242 4242" className="field-input" /></div><div className="grid grid-cols-2 gap-3"><div><label htmlFor="mock-expiry" className="field-label">Expiry</label><input id="mock-expiry" data-testid="input-mock-expiry" required value={mockPayment.expiry} onChange={(event) => onMockPaymentChange('expiry', event.target.value)} placeholder="12/30" className="field-input" /></div><div><label htmlFor="mock-cvc" className="field-label">CVC</label><input id="mock-cvc" data-testid="input-mock-cvc" required inputMode="numeric" value={mockPayment.cvc} onChange={(event) => onMockPaymentChange('cvc', event.target.value)} placeholder="123" className="field-input" /></div></div></div></div>}

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductPreferenceGroup } from './productPreferenceGroup';
 
 export interface ProductInput {
   /** @minLength 1 */
@@ -20,5 +21,6 @@ export interface ProductInput {
   /** @minimum 0 */
   stock: number;
   variants?: string[];
+  preferences?: ProductPreferenceGroup[];
   accent?: string;
 }
