@@ -2154,7 +2154,7 @@ function PublicOrderPage() {
   const buyerDeliveryFee = form.deliveryMethod === 'delivery' ? order.deliveryFee : 0;
   const buyerTotal = orderSubtotal + buyerDeliveryFee;
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-    return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-8 sm:py-14"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm brandName={businessName} paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
+    return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-8 sm:py-14"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm brandName={businessName} paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
 }
 
 export function Connect() {
@@ -2231,6 +2231,7 @@ export function BuyerOrderForm({
   onMockPaymentChange,
   onReferenceImageChange,
   onPaymentAction,
+  itemForms: providedItemForms,
 }: {
   paymentMode: 'full' | 'deposit' | 'reserve';
   amount: number;
@@ -2241,6 +2242,7 @@ export function BuyerOrderForm({
   itemIndex?: number;
   itemCount?: number;
   items?: BuyerOrderItem[];
+  itemForms?: BuyerItemFormValues[];
   contactStep?: boolean;
   contactComplete?: boolean;
   checkout?: boolean;
@@ -2260,10 +2262,12 @@ export function BuyerOrderForm({
 }) {
   const item = providedItem ?? { productId: 0, productName: 'Your item', amount, variants: [], preferences: [], source: 'custom' as const };
   const items = providedItems ?? [item];
+  const itemForms = providedItemForms ?? [];
   const selectedDeliveryMethod = form.deliveryMethod;
   const deliveryCharge = selectedDeliveryMethod === 'delivery' ? deliveryFee : 0;
   const payableDeposit = Math.min((depositAmount ?? 0) + deliveryCharge, amount);
   const [editingContact, setEditingContact] = useState(false);
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const galleryImages = useMemo(() => {
     if (item.imageUrl) return [item.imageUrl];
@@ -2274,6 +2278,7 @@ export function BuyerOrderForm({
   useEffect(() => {
     setEditingContact(false);
     setActiveGalleryIndex(0);
+    setReviewConfirmed(false);
   }, [itemIndex, contactStep, checkout]);
   if (!providedItem) {
     return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="space-y-5">
