@@ -1494,12 +1494,12 @@ function TakeOrderStepRail({ step, onStepChange }: { step: TakeOrderStep; onStep
   </nav>;
 }
 
-function TakeOrderSection({ eyebrow, title, description, children }: { eyebrow: string; title: string; description: string; children: ReactNode }) {
+function TakeOrderSection({ eyebrow, title, description, children }: { eyebrow: string; title: string; description?: string; children: ReactNode }) {
   return <section className="take-order-section">
     <div className="take-order-section-heading">
       <div className="take-order-section-eyebrow">{eyebrow}</div>
       <h2>{title}</h2>
-      <p>{description}</p>
+      {description && <p>{description}</p>}
     </div>
     {children}
   </section>;
@@ -1738,19 +1738,17 @@ function MultiItemTakeOrderModern() {
                  </div>) : <div className="take-order-empty-items"><PackageSearch size={22} /><strong>Your order starts here</strong><span>Choose how you want to add the first item.</span></div>}
               </div>
              </TakeOrderSection>}
-             {step === 2 && <TakeOrderSection eyebrow="Step 02 · Confirm checkout" title="Review the client's checkout." description="Confirm the selected items, then choose how the buyer should complete the payment.">
+              {step === 2 && <TakeOrderSection eyebrow="Step 02 · Confirm checkout" title="Review the client's checkout.">
                <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => { setItems((current) => current.filter((candidate) => candidate.key !== key)); setFeedback(null); }} onOneOff={() => { setItemSource('custom'); setStep(1); setFeedback(null); }} buttonTestId="button-payment-checkout" disabled={busy} showActions={false} showPayableTotal className="take-order-payment-checkout-card" />
                <div className="take-order-payment-config-card">
-                 <div className="take-order-payment-config-heading"><div className="take-order-section-eyebrow">Payment configuration</div><h3>Set the checkout terms.</h3><p>Choose how the buyer should complete this order and where the conversation started.</p></div>
+                  <div className="take-order-payment-config-heading"><div className="take-order-section-eyebrow">Payment configuration</div><h3>Set the checkout terms.</h3></div>
                  <div className="take-order-field-group"><div className="field-label">How should they pay?</div><div className="take-order-payment-options">{[['full', 'Pay in full', 'Collect the full total now'], ['deposit', 'Pay a deposit', 'Secure the order with part-payment'], ['reserve', 'Reserve it', 'Confirm the details first']].map(([value, title, note]) => <button type="button" key={value} onClick={() => { setPaymentMode(value as 'full' | 'deposit' | 'reserve'); setFeedback(null); }} data-testid={`button-payment-mode-${value}`} className={cn('take-order-payment-option', paymentMode === value && 'is-selected')}><span className="take-order-radio">{paymentMode === value && <span />}</span><span><strong>{title}</strong><small>{note}</small></span></button>)}</div></div>
                  {paymentMode === 'deposit' && <div className="take-order-deposit-field"><label className="field-label" htmlFor="input-order-deposit">Deposit amount <span>of {moneyExact(total)}</span></label><div className="relative max-w-[260px]"><span className="take-order-currency">$</span><input id="input-order-deposit" data-testid="input-order-deposit" required type="number" min="0.01" max={total} step=".01" value={depositAmount} onChange={(event) => { setDepositAmount(event.target.value); setFeedback(null); }} className={cn('field-input pl-7', depositAmount && !validDeposit && 'is-invalid')} placeholder="0.00" /></div>{depositAmount && !validDeposit && <p className="take-order-field-error">Use an amount between $0.01 and {moneyExact(total)}.</p>}</div>}
                  <div className="take-order-field-group"><div className="field-label">Conversation started on</div><ChannelPicker value={channel} onChange={setChannel} testId="select-order-channel" /></div>
                </div>
             </TakeOrderSection>}
-             {step === 3 && <TakeOrderSection eyebrow="Step 03 · Review" title="Review your client checkout." description="Check the selected items and details before creating the buyer link.">
+              {step === 3 && <TakeOrderSection eyebrow="Step 03 · Review" title="Review checkout.">
                <TakeOrderCheckoutCard items={items} total={total} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setStep(1); setFeedback(null); }} buttonTestId="button-review-checkout" disabled={busy} />
-              <div className="take-order-review-list">{items.map((item, index) => <div className="take-order-review-row" key={item.key}><span>{String(index + 1).padStart(2, '0')}</span><strong>{item.name}</strong><b>{moneyExact(item.amount)}</b></div>)}</div>
-              <div className="take-order-review-total"><span>Total to buyer</span><strong>{moneyExact(total)}</strong></div>
               <div className="take-order-review-details"><div><span>Payment</span><strong>{paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'full' ? 'Pay in full' : 'Reserve for later'}</strong></div><div><span>Conversation</span><strong><ChannelInline value={channel} /></strong></div></div>
               <div className="take-order-review-note"><CheckCircle2 size={17} /><div><strong>Buyer details stay with the order.</strong><span>They can add their name, phone number, notes, and an optional reference image on the next page.</span></div></div>
             </TakeOrderSection>}

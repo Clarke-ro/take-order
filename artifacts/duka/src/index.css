@@ -1041,7 +1041,7 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-catalog-custom-link:hover { color: hsl(var(--foreground)); }
 .take-order-section { padding: 2rem; }
 .take-order-section-heading { max-width: 40rem; margin-bottom: 1.7rem; }
-.take-order-section-heading h2 { margin-top: .45rem; color: hsl(var(--foreground)); font-family: var(--app-font-display); font-size: clamp(1.7rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -.055em; line-height: 1; }
+.take-order-section-heading h2 { margin-top: .45rem; color: hsl(var(--foreground)); font-family: var(--app-font-display); font-size: clamp(1.45rem, 2.3vw, 1.8rem); font-weight: 800; letter-spacing: -.055em; line-height: 1; }
 .take-order-section-heading p { margin-top: .6rem; color: hsl(var(--muted-foreground)); font-size: .8rem; line-height: 1.55; }
 .take-order-choice-form { margin-top: .7rem; border-radius: 12px; background: hsl(var(--muted) / .45); padding: .75rem; }
 .take-order-catalog-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .7rem; }
