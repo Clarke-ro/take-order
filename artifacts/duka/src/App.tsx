@@ -1696,7 +1696,6 @@ function MultiItemTakeOrderModern() {
              {step === 1 && choiceOnly && <div className="take-order-choice-only"><TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} /></div>}
              {step === 1 && catalogOnly && <div className="take-order-catalog-only">{catalogItems}</div>}
              {step === 1 && !choiceOnly && !catalogOnly && <TakeOrderSection eyebrow="Step 01 · Items" title="What are they buying?" description="Add the products you agreed on. You can mix catalog items with one-off items from the conversation.">
-              <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
               {itemSource === 'catalog' && <div className="take-order-choice-form">
                  {catalogItems}
               </div>}
