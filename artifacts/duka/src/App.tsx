@@ -1510,6 +1510,19 @@ function TakeOrderFeedback({ message }: { message: string | null }) {
   return <div className="take-order-feedback" role="alert"><AlertTriangle size={16} aria-hidden="true" /><span>{message}</span></div>;
 }
 
+function TakeOrderCheckoutCard({ items, total, feedback, onRemove, onOneOff, buttonTestId, disabled = false }: { items: DraftOrderItem[]; total: number; feedback?: string | null; onRemove: (key: number) => void; onOneOff: () => void; buttonTestId: string; disabled?: boolean }) {
+  return <div className="take-order-catalog-selection take-order-review-checkout-card">
+    <div className="take-order-section-eyebrow">Client checkout</div>
+    <div className="take-order-catalog-selection-heading"><h2>{items.length ? `${items.length} items selected` : 'No items selected'}</h2>{items.length > 0 && <strong>{moneyExact(total)}</strong>}</div>
+    <div className="take-order-catalog-selection-list">
+      {items.length ? items.map((item) => <div key={item.key} className="take-order-catalog-selection-row"><div className="take-order-item-mark" style={{ color: item.accent }}><Package size={15} /></div><span>{item.name}</span><b>{moneyExact(item.amount)}</b><button type="button" aria-label={`Remove ${item.name}`} onClick={() => onRemove(item.key)}><X size={14} /></button></div>) : <div className="take-order-catalog-selection-empty">Your selected products will appear here.</div>}
+    </div>
+    {feedback && <TakeOrderFeedback message={feedback} />}
+    <Button type="submit" className="take-order-catalog-continue" disabled={disabled || !items.length || items.some((item) => item.amount <= 0)} data-testid={buttonTestId}>Continue <ArrowRight size={15} /></Button>
+    <button type="button" className="take-order-catalog-custom-link" onClick={onOneOff}>Add a one-off item instead</button>
+  </div>;
+}
+
 function MultiItemTakeOrderModern() {
   const productsQuery = useListProducts();
   const createOrder = useCreateOrder();
@@ -1687,16 +1700,7 @@ function MultiItemTakeOrderModern() {
                  <p>Choose one or more products for the same client. Select a tile again to remove it.</p>
                  {catalogItems}
                </div>
-               <div className="take-order-catalog-selection">
-                 <div className="take-order-section-eyebrow">Client checkout</div>
-                 <div className="take-order-catalog-selection-heading"><h2>{items.length ? `${items.length} item${items.length === 1 ? '' : 's'} selected` : 'No items selected'}</h2>{items.length > 0 && <strong>{moneyExact(total)}</strong>}</div>
-                 <div className="take-order-catalog-selection-list">
-                   {items.length ? items.map((item) => <div key={item.key} className="take-order-catalog-selection-row"><div className="take-order-item-mark" style={{ color: item.accent }}><Package size={15} /></div><span>{item.name}</span><b>{moneyExact(item.amount)}</b><button type="button" aria-label={`Remove ${item.name}`} onClick={() => setItems((current) => current.filter((candidate) => candidate.key !== item.key))}><X size={14} /></button></div>) : <div className="take-order-catalog-selection-empty">Your selected products will appear here.</div>}
-                 </div>
-                 <TakeOrderFeedback message={feedback} />
-                 <Button type="submit" className="take-order-catalog-continue" disabled={!canContinue || busy || productsQuery.isLoading} data-testid="button-continue-catalog">{busy && <Loader2 className="animate-spin" size={15} />}Continue <ArrowRight size={15} /></Button>
-                 <button type="button" className="take-order-catalog-custom-link" onClick={() => { setItemSource('custom'); setFeedback(null); }}>Add a one-off item instead</button>
-               </div>
+               <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />
               </div>}
               {step === 1 && itemSource === 'custom' && <TakeOrderSection eyebrow="Step 01 · One-off item" title="Add something outside the catalog." description="Create a quick item for this client's checkout.">
                <div className="take-order-choice-form">
@@ -1723,7 +1727,8 @@ function MultiItemTakeOrderModern() {
               {paymentMode === 'deposit' && <div className="take-order-deposit-field"><label className="field-label" htmlFor="input-order-deposit">Deposit amount <span>of {moneyExact(total)}</span></label><div className="relative max-w-[260px]"><span className="take-order-currency">$</span><input id="input-order-deposit" data-testid="input-order-deposit" required type="number" min="0.01" max={total} step=".01" value={depositAmount} onChange={(event) => { setDepositAmount(event.target.value); setFeedback(null); }} className={cn('field-input pl-7', depositAmount && !validDeposit && 'is-invalid')} placeholder="0.00" /></div>{depositAmount && !validDeposit && <p className="take-order-field-error">Use an amount between $0.01 and {moneyExact(total)}.</p>}</div>}
               <div className="take-order-field-group"><div className="field-label">Conversation started on</div><ChannelPicker value={channel} onChange={setChannel} testId="select-order-channel" /></div>
             </TakeOrderSection>}
-            {step === 3 && <TakeOrderSection eyebrow="Step 03 · Review" title="Everything looks right?" description="This is what the buyer will receive. You can still go back and adjust any item or term.">
+             {step === 3 && <TakeOrderSection eyebrow="Step 03 · Review" title="Review your client checkout." description="Check the selected items and details before creating the buyer link.">
+               <TakeOrderCheckoutCard items={items} total={total} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setStep(1); setFeedback(null); }} buttonTestId="button-review-checkout" disabled={busy} />
               <div className="take-order-review-list">{items.map((item, index) => <div className="take-order-review-row" key={item.key}><span>{String(index + 1).padStart(2, '0')}</span><strong>{item.name}</strong><b>{moneyExact(item.amount)}</b></div>)}</div>
               <div className="take-order-review-total"><span>Total to buyer</span><strong>{moneyExact(total)}</strong></div>
               <div className="take-order-review-details"><div><span>Payment</span><strong>{paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'full' ? 'Pay in full' : 'Reserve for later'}</strong></div><div><span>Conversation</span><strong><ChannelInline value={channel} /></strong></div></div>

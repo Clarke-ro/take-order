@@ -1014,6 +1014,7 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-catalog-selection-row > button:hover, .take-order-catalog-selection-row > button:focus-visible { background: hsl(var(--muted)); color: hsl(var(--destructive)); }
 .take-order-catalog-selection-empty { border: 1px dashed hsl(var(--border)); border-radius: 9px; padding: .8rem .6rem; color: hsl(var(--muted-foreground)); font-size: .62rem; line-height: 1.4; text-align: center; }
 .take-order-catalog-selection .take-order-feedback { margin: .75rem 0 0; }
+.take-order-review-checkout-card { position: static; max-width: 290px; margin-bottom: 1.2rem; }
 .take-order-catalog-continue { width: 100%; min-height: 3.2rem; justify-content: center; margin-top: .85rem; border-radius: 10px; background: hsl(var(--foreground)); color: hsl(var(--background)); font-size: 1rem; }
 .take-order-catalog-custom-link { width: 100%; margin-top: .7rem; color: hsl(var(--foreground)); font-size: .68rem; text-decoration: underline; text-underline-offset: 2px; }
 .take-order-catalog-custom-link:hover { color: hsl(var(--foreground)); }
