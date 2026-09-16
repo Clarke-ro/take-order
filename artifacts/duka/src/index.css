@@ -1387,6 +1387,13 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-payment-page { display: grid; max-width: 44rem; gap: 1rem; margin-inline: auto; }
 .buyer-payment-page .buyer-final-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .buyer-payment-page .buyer-payment-options, .buyer-payment-page .buyer-mock-payment, .buyer-payment-page .buyer-form-actions { width: 100%; }
+.buyer-payment-page .buyer-payment-options { margin-top: .65rem; }
+.buyer-payment-completion-page { display: grid; max-width: 44rem; gap: 1rem; margin-inline: auto; }
+.buyer-payment-completion-page .buyer-final-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.buyer-payment-reserve-note { display: flex; align-items: flex-start; gap: .75rem; border: 1px solid hsl(var(--border)); border-radius: 13px; background: hsl(var(--muted) / .35); padding: 1rem; }
+.buyer-payment-reserve-note > svg { flex: 0 0 auto; color: hsl(var(--accent-foreground)); }
+.buyer-payment-reserve-note strong { display: block; font-size: .8rem; }
+.buyer-payment-reserve-note p { margin-top: .25rem; color: hsl(var(--muted-foreground)); font-size: .7rem; line-height: 1.5; }
 .buyer-review-card { min-width: 0; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--card)); padding: 1.1rem; }
 .buyer-review-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: .9rem; }
 .buyer-review-card-heading h3 { margin-top: .25rem; color: hsl(var(--foreground)); font-size: .95rem; font-weight: 600; letter-spacing: -.025em; }
