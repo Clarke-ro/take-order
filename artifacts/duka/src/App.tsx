@@ -1963,7 +1963,6 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
   };
   return <div className="buyer-checkout-surface">
     <header className="buyer-checkout-brand-bar">
-      <BrandLockup className="buyer-app-brand" />
       <div className="buyer-seller-identity">
         <BrandMark variant="app" className="buyer-seller-logo buyer-app-seller-mark" />
         <div className="buyer-seller-copy">
