@@ -1260,6 +1260,9 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-product-module.is-active .buyer-product-module-copy { padding: 0 .1rem .05rem; }
 .buyer-product-module.is-active .buyer-product-module-copy strong { font-size: .68rem; }
 .buyer-product-module.is-active .buyer-product-module-copy small { color: hsl(var(--foreground) / .62); }
+.buyer-total-amount { display: flex; align-items: baseline; justify-content: center; gap: .7rem; margin: 1.1rem auto 0; color: hsl(var(--muted-foreground)); }
+.buyer-total-amount span { font-family: var(--app-font-mono); font-size: .6rem; letter-spacing: .13em; text-transform: uppercase; }
+.buyer-total-amount strong { color: hsl(var(--foreground)); font-family: var(--app-font-sans); font-size: 1.4rem; font-variant-numeric: tabular-nums lining-nums; letter-spacing: -.04em; }
 .buyer-order-detail-card { min-width: 0; margin-top: 0; }
 .buyer-variant-field { display: grid; gap: .65rem; }
 .buyer-variant-options { display: grid; gap: .55rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1325,6 +1328,8 @@ button[data-testid="button-buyer-reserve"].text-white {
   .buyer-product-module-copy { justify-items: start; }
   .buyer-product-module-copy strong { font-size: .62rem; }
   .buyer-product-module.is-active .buyer-product-module-copy strong { font-size: .68rem; }
+  .buyer-total-amount { margin-top: .95rem; }
+  .buyer-total-amount strong { font-size: 1.25rem; }
   .take-order-add-panel { grid-template-columns: auto minmax(0, 1fr); }
   .take-order-panel-control { grid-column: 1 / -1; }
   .take-order-add-control, .take-order-custom-control { grid-template-columns: minmax(0, 1fr); }
