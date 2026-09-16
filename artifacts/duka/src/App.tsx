@@ -1928,7 +1928,11 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
     </div>
     <div className="mt-10 text-center" onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={handleTouchEnd}>
       <div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">{isCheckout ? 'Final checkout' : displayItems.length > 1 ? `Item ${activeIndex + 1} of ${displayItems.length}` : 'Your order'}</div>
-      {!isCheckout && <div className="buyer-product-modules" aria-label={displayItems.length > 1 ? 'Order items' : 'Product preview'}>
+      {displayItems.length > 1 && <div className="mt-3 flex items-center justify-center gap-2"><span className="text-[10px] text-[hsl(var(--muted-foreground))]">{isCheckout ? 'All items added' : 'Complete each item'}</span><span className="flex gap-1.5">{displayItems.map((item, index) => <span key={`${item.productId}-${index}`} className={cn('h-1.5 w-6 rounded-full', index <= activeIndex || isCheckout ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(var(--border))')} />)}</span></div>}
+      {description && <p className="mx-auto mt-3 max-w-[360px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}
+    </div>
+    <div className="buyer-order-detail-layout">
+      <aside className="buyer-product-rail" aria-label={displayItems.length > 1 ? 'Order items' : 'Product preview'}>
         {displayItems.map((item, index) => {
           const active = index === activeIndex;
           const moduleLabel = item.source === 'custom' ? 'One-off item' : 'Catalog item';
@@ -1953,22 +1957,16 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
             </span>
           </button>;
         })}
-      </div>}
-      {displayItems.length > 1 && <div className="mt-3 flex items-center justify-center gap-2"><span className="text-[10px] text-[hsl(var(--muted-foreground))]">{isCheckout ? 'All items added' : 'Complete each item'}</span><span className="flex gap-1.5">{displayItems.map((item, index) => <span key={`${item.productId}-${index}`} className={cn('h-1.5 w-6 rounded-full', index <= activeIndex || isCheckout ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(var(--border))')} />)}</span></div>}
-      <div className="mt-5">
-        <h1 className="font-display text-2xl font-bold leading-tight tracking-[-.04em]">{isCheckout ? 'Review your order' : activeItem.productName}</h1>
-        <div className="mt-2 font-mono-ui text-xl">{isCheckout ? moneyExact(total) : moneyExact(activeItem.amount)}</div>
-      </div>
-      {description && <p className="mx-auto mt-3 max-w-[360px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}
+      </aside>
+      <Card className="buyer-order-detail-card p-6 sm:p-8">
+        <div className="mb-6 flex items-center justify-between border-b border-[hsl(var(--border))] pb-5">
+          <div><h2 id="buyer-order-form-heading" className="font-mono-ui text-[10px] uppercase tracking-[.16em]">Complete your order</h2><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">{paymentMode === 'reserve' ? 'Reserve these items and we’ll confirm the details.' : paymentMode === 'deposit' ? `A ${moneyExact(depositAmount)} deposit secures the order.` : 'Pay in full to confirm your order.'}</p></div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/35"><Package size={18} /></div>
+        </div>
+        <div className="mb-5 flex items-center justify-between rounded-[10px] bg-[hsl(var(--muted))] px-3 py-2.5 text-xs"><span className="text-[hsl(var(--muted-foreground))]">{displayItems.length === 1 ? 'Order total' : `${displayItems.length} items`}</span><strong className="font-mono-ui">{moneyExact(total)}</strong></div>
+        {typeof children === 'function' ? children(activeItem) : children}
+      </Card>
     </div>
-    <Card className="mt-9 p-6 sm:p-8">
-      <div className="mb-6 flex items-center justify-between border-b border-[hsl(var(--border))] pb-5">
-        <div><h2 id="buyer-order-form-heading" className="font-mono-ui text-[10px] uppercase tracking-[.16em]">Complete your order</h2><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">{paymentMode === 'reserve' ? 'Reserve these items and we’ll confirm the details.' : paymentMode === 'deposit' ? `A ${moneyExact(depositAmount)} deposit secures the order.` : 'Pay in full to confirm your order.'}</p></div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/35"><Package size={18} /></div>
-      </div>
-      <div className="mb-5 flex items-center justify-between rounded-[10px] bg-[hsl(var(--muted))] px-3 py-2.5 text-xs"><span className="text-[hsl(var(--muted-foreground))]">{displayItems.length === 1 ? 'Order total' : `${displayItems.length} items`}</span><strong className="font-mono-ui">{moneyExact(total)}</strong></div>
-      {typeof children === 'function' ? children(activeItem) : children}
-    </Card>
     <PoweredByTakeOrder className="mt-6" />
   </>;
 }
