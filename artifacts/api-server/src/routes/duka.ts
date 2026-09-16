@@ -569,13 +569,16 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
       return `Item ${detail.itemIndex + 1}: ${parts.join(" · ")}`;
     })
     .join("\n");
+  const combinedOrderDetails = [parsed.data.buyerDetails?.trim(), combinedBuyerDetails]
+    .filter(Boolean)
+    .join("\n");
   const firstReferenceImage = itemDetails.find((detail) => detail.referenceImage?.trim())?.referenceImage?.trim();
   const [order] = await database
     .update(ordersTable)
     .set({
       customerName: parsed.data.customerName,
       customerPhone: parsed.data.customerPhone,
-      buyerDetails: parsed.data.buyerDetails ?? (combinedBuyerDetails || null),
+      buyerDetails: combinedOrderDetails || null,
       referenceImage: parsed.data.referenceImage ?? firstReferenceImage ?? null,
       status: nextStatus,
       ...(saleProductCost === undefined ? {} : { productCost: saleProductCost }),

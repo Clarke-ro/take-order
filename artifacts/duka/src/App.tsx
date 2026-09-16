@@ -2144,7 +2144,7 @@ export function BuyerOrderForm({
   showMockPayment: boolean;
   submitPending: boolean;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-  onChange: (key: 'name' | 'phone' | 'details', value: string) => void;
+  onChange: (key: 'name' | 'phone' | 'address' | 'orderDetails' | 'details', value: string) => void;
   onItemChange?: (key: keyof BuyerItemFormValues, value: string) => void;
   onBack?: () => void;
   onMockPaymentChange: (key: keyof MockPaymentValues, value: string) => void;
