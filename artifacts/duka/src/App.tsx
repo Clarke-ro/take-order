@@ -2079,6 +2079,7 @@ function PublicOrderPage() {
   const [mockPayment, setMockPayment] = useState({ cardNumber: '', expiry: '', cvc: '' });
   const [form, setForm] = useState<BuyerOrderFormValues>({ name: '', phone: '', address: '', orderDetails: '', action: 'pay' });
   const [contactComplete, setContactComplete] = useState(false);
+  const [contactStep, setContactStep] = useState(false);
   const [itemStep, setItemStep] = useState(0);
   const [checkout, setCheckout] = useState(false);
   const [itemForms, setItemForms] = useState<BuyerItemFormValues[]>([]);
@@ -2090,6 +2091,7 @@ function PublicOrderPage() {
     if (!order) return;
     setItemForms((current) => order.items.map((_, index) => current[index] ?? emptyBuyerItemForm()));
     setContactComplete(false);
+    setContactStep(false);
     setItemStep(0);
     setCheckout(false);
   }, [order?.token, order?.items.length]);
@@ -2108,18 +2110,20 @@ function PublicOrderPage() {
     const activeItem = order?.items[itemStep];
     const activeForm = itemForms[itemStep] ?? emptyBuyerItemForm();
     if (!checkout) {
-      if (!form.name.trim() || !form.phone.trim() || form.phone.trim().length < 5) return;
-      if (!form.deliveryMethod) return;
-      if (form.deliveryMethod === 'delivery' && !form.address?.trim()) return;
-      if (!contactComplete) {
+      if (contactStep) {
+        if (!form.name.trim() || !form.phone.trim() || form.phone.trim().length < 5) return;
+        if (!form.deliveryMethod) return;
+        if (form.deliveryMethod === 'delivery' && !form.address?.trim()) return;
         setContactComplete(true);
+        setContactStep(false);
+        setCheckout(true);
         return;
       }
       if (activeItem?.preferences.some((group) => !activeForm.preferences[group.label])) return;
       if (order && itemStep < order.items.length - 1) {
         setItemStep((current) => current + 1);
       } else {
-        setCheckout(true);
+        setContactStep(true);
       }
       return;
     }
