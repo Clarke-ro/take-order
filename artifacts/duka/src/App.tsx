@@ -1615,7 +1615,7 @@ function MultiItemTakeOrderModern() {
   const [items, setItems] = useState<DraftOrderItem[]>([]);
   const [nextKey, setNextKey] = useState(1);
   const [itemSource, setItemSource] = useState<TakeOrderItemSource | null>(null);
-  const [customDraft, setCustomDraft] = useState({ name: '', amount: '' });
+  const [customDraft, setCustomDraft] = useState<{ name: string; amount: string; preferences: ProductPreferenceDraft[] }>({ name: '', amount: '', preferences: [] });
   const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
   const [depositAmount, setDepositAmount] = useState('');
   const [deliveryFee, setDeliveryFee] = useState('0');
@@ -1655,10 +1655,22 @@ function MultiItemTakeOrderModern() {
       setFeedback('Add a name and a price greater than $0.00 before adding this item.');
       return;
     }
-    setItems((current) => [...current, { key: nextKey, source: 'custom', name: customDraft.name.trim(), amount, variants: [], preferences: [], accent: '#2F5BFF' }]);
+    const preferences = customDraft.preferences
+      .map((preference) => ({
+        label: preference.label.trim(),
+        options: preference.options.split(',').map((option) => option.trim()).filter(Boolean),
+      }))
+      .filter((preference) => preference.label && preference.options.length > 0);
+    setItems((current) => [...current, { key: nextKey, source: 'custom', name: customDraft.name.trim(), amount, variants: preferences.flatMap((preference) => preference.options), preferences, accent: '#2F5BFF' }]);
     setNextKey((current) => current + 1);
-    setCustomDraft({ name: '', amount: '' });
+    setCustomDraft({ name: '', amount: '', preferences: [] });
     setFeedback(null);
+  };
+  const updateCustomPreference = (index: number, key: keyof ProductPreferenceDraft, value: string) => {
+    setCustomDraft((current) => ({
+      ...current,
+      preferences: current.preferences.map((preference, preferenceIndex) => preferenceIndex === index ? { ...preference, [key]: value } : preference),
+    }));
   };
   const catalogItems = productsQuery.isLoading
     ? <div className="take-order-catalog-grid" aria-label="Loading catalog items">{[1, 2, 3, 4].map((item) => <div key={item} className="take-order-catalog-skeleton" />)}</div>
@@ -1699,7 +1711,7 @@ function MultiItemTakeOrderModern() {
       resolveItems(index + 1, [...productIds, item.productId]);
       return;
     }
-    const data: ProductInput = { name: item.name, category: 'Custom order', price: item.amount, cost: null, stock: 0, variants: [], preferences: [], accent: item.accent };
+    const data: ProductInput = { name: item.name, category: 'Custom order', price: item.amount, cost: null, stock: 0, variants: item.variants, preferences: item.preferences, accent: item.accent };
     createProduct.mutate({ data }, {
       onSuccess: (product) => {
         queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
@@ -1750,7 +1762,7 @@ function MultiItemTakeOrderModern() {
     setItems([]);
     setNextKey(1);
      setItemSource(null);
-    setCustomDraft({ name: '', amount: '' });
+     setCustomDraft({ name: '', amount: '', preferences: [] });
     setPaymentMode('full');
     setDepositAmount('');
     setDeliveryFee('0');
@@ -1798,16 +1810,26 @@ function MultiItemTakeOrderModern() {
                </div>
                <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />
               </div>}
-              {step === 1 && itemSource === 'custom' && <TakeOrderSection className="take-order-one-off-section" eyebrow="Step 01 · One-off item" title="Add something outside the catalog." description="Create a quick item for this client's checkout.">
+               {step === 1 && itemSource === 'custom' && <TakeOrderSection className="take-order-one-off-section" eyebrow="Step 01 · New item" title="Build this item for the buyer." description="Name the item, set the price, and add any choices the buyer should select.">
                <div className="take-order-choice-form">
-                <div className="take-order-custom-control"><input data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="What are they buying?" className="field-input" /><div className="relative"><span className="take-order-currency">$</span><input data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="Price" className="field-input pl-7" /></div><Button type="button" variant="outline" disabled={!customDraft.name.trim() || !customDraft.amount} onClick={addCustomItem}><Plus size={15} />Add item</Button></div>
+                 <div className="take-order-custom-builder">
+                   <div className="take-order-custom-fields">
+                     <div><label className="field-label" htmlFor="input-custom-order-name">What are they buying?</label><input id="input-custom-order-name" data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. White leather sneakers" className="field-input" /></div>
+                     <div><label className="field-label" htmlFor="input-custom-order-price">Price</label><div className="relative"><span className="take-order-currency">$</span><input id="input-custom-order-price" data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" className="field-input pl-7" /></div></div>
+                   </div>
+                   <div className="take-order-custom-preferences">
+                     <div className="flex items-start justify-between gap-3"><div><div className="field-label">Buyer options <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></div><p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Add choices like Size, Color, or Sneaker type.</p></div><button type="button" className="shrink-0 rounded-full border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold" onClick={() => setCustomDraft((current) => ({ ...current, preferences: [...current.preferences, { label: '', options: '' }] }))}><Plus size={12} />Add group</button></div>
+                     {customDraft.preferences.length > 0 && <div className="mt-3 space-y-2">{customDraft.preferences.map((preference, index) => <div key={index} className="catalog-preference-row"><input aria-label={`Custom option group ${index + 1} name`} value={preference.label} onChange={(event) => updateCustomPreference(index, 'label', event.target.value)} placeholder="Group name, e.g. Size" className="field-input" /><input aria-label={`Choices for custom option group ${index + 1}`} value={preference.options} onChange={(event) => updateCustomPreference(index, 'options', event.target.value)} placeholder="Choices separated by commas" className="field-input" /><button type="button" aria-label={`Remove custom option group ${index + 1}`} className="catalog-preference-remove" onClick={() => setCustomDraft((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))}><X size={14} /></button></div>)}</div>}
+                   </div>
+                   <Button type="button" variant="outline" disabled={!customDraft.name.trim() || !customDraft.amount} onClick={addCustomItem}><Plus size={15} />Add item</Button>
+                 </div>
                </div>
               <div className="take-order-items-heading"><div><div className="take-order-section-eyebrow">This order</div><h3>{items.length ? `${items.length} item${items.length === 1 ? '' : 's'} added` : 'Nothing added yet'}</h3></div>{items.length > 0 && <span className="take-order-total-chip">{moneyExact(total)}</span>}</div>
               <div className="take-order-item-list">
                  {items.length ? items.map((item, index) => <div key={item.key} className="take-order-item-row">
                   <div className="take-order-item-number">{String(index + 1).padStart(2, '0')}</div>
                   <div className="take-order-item-mark" style={{ color: item.accent }}><Package size={17} /></div>
-                  <div className="take-order-item-copy"><strong>{item.name}</strong><span>{item.source === 'custom' ? 'Quick item' : item.variants.length ? `${item.variants.length} variant${item.variants.length === 1 ? '' : 's'} · Catalog` : 'Catalog item'}</span></div>
+                   <div className="take-order-item-copy"><strong>{item.name}</strong><span>{item.source === 'custom' ? `${item.preferences.length} buyer option${item.preferences.length === 1 ? '' : 's'}` : item.variants.length ? `${item.variants.length} variant${item.variants.length === 1 ? '' : 's'} · Catalog` : 'Catalog item'}</span></div>
                   <div className="take-order-item-price"><span className="take-order-currency">$</span><input aria-label={`Price for ${item.name}`} type="number" min="0" step=".01" value={item.amount} onChange={(event) => updateAmount(item.key, event.target.value)} className="field-input" /></div>
                   <button type="button" aria-label={`Remove ${item.name}`} onClick={() => setItems((current) => current.filter((candidate) => candidate.key !== item.key))} className="take-order-remove"><Trash2 size={15} /></button>
                  </div>) : <div className="take-order-empty-items"><PackageSearch size={22} /><strong>Your order starts here</strong><span>Choose how you want to add the first item.</span></div>}
@@ -1833,7 +1855,7 @@ function MultiItemTakeOrderModern() {
         </Card>
         <aside className="take-order-preview-column">
           <div className="take-order-preview-heading"><div><div className="take-order-section-eyebrow">Live preview</div><h2>What your buyer sees</h2></div><Eye size={17} aria-hidden="true" /></div>
-          <div className="take-order-preview-frame"><BuyerOrderSurface businessName={seller?.businessName || 'The Sunday Edit'} description={seller?.description} items={previewItems} paymentMode={paymentMode} depositAmount={paymentMode === 'deposit' ? deposit : null}>{(activeItem) => <div className="space-y-5"><div><label className="field-label">Your name</label><input disabled placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input disabled placeholder="Best number to reach you" className="field-input" /></div>{activeItem.variants.length > 0 && <div><label className="field-label">Available variants</label><div className="flex flex-wrap gap-2">{activeItem.variants.map((variant) => <span key={variant} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{variant}</span>)}</div></div>}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea disabled placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div><div><label className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="flex items-center gap-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] p-3 text-xs text-[hsl(var(--muted-foreground))]"><Clipboard size={15} />Attach an image</div></div>{paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] p-3 text-left text-xs font-bold text-white">{paymentMode === 'deposit' ? `Pay deposit · ${depositAmount ? moneyExact(deposit) : '—'}` : `Pay ${moneyExact(total)}`}</div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 text-left text-xs font-bold">Reserve for later</div></div>}<button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-70">{paymentMode === 'reserve' ? 'Reserve these items' : 'Continue to mock payment'} <ArrowUpRight size={15} /></button></div>}</BuyerOrderSurface></div>
+          <div className="take-order-preview-frame"><BuyerOrderSurface businessName={seller?.businessName || 'The Sunday Edit'} description={seller?.description} items={previewItems} paymentMode={paymentMode} depositAmount={paymentMode === 'deposit' ? deposit : null}>{(activeItem) => <div className="space-y-5"><div><label className="field-label">Your name</label><input disabled placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input disabled placeholder="Best number to reach you" className="field-input" /></div>{activeItem.preferences.length > 0 && <div><label className="field-label">Choose your options</label><div className="space-y-3">{activeItem.preferences.map((preference) => <div key={preference.label}><span className="text-xs font-semibold">{preference.label}</span><div className="mt-2 flex flex-wrap gap-2">{preference.options.map((option) => <span key={option} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{option}</span>)}</div></div>)}</div></div>}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea disabled placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>{activeItem.source === 'custom' && <div><label className="field-label">Upload an item image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="flex items-center gap-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] p-3 text-xs text-[hsl(var(--muted-foreground))]"><Clipboard size={15} />Upload an image</div></div>}{paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] p-3 text-left text-xs font-bold text-white">{paymentMode === 'deposit' ? `Pay deposit · ${depositAmount ? moneyExact(deposit) : '—'}` : `Pay ${moneyExact(total)}`}</div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 text-left text-xs font-bold">Reserve for later</div></div>}<button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-70">{paymentMode === 'reserve' ? 'Reserve these items' : 'Continue to mock payment'} <ArrowUpRight size={15} /></button></div>}</BuyerOrderSurface></div>
           <div className="take-order-preview-note"><Eye size={15} /><span>Preview updates as you build. The buyer link will open the full page.</span></div>
         </aside>
       </div>
@@ -2371,9 +2393,9 @@ export function BuyerOrderForm({
                 <textarea id="buyer-item-details" data-testid="input-buyer-item-details" value={itemForm.details} onChange={(event) => onChange('details', event.target.value)} placeholder="Add a detail about this item..." rows={2} className="field-input resize-none" />
               </div>
               {item.source === 'custom' && <div className="buyer-image-field">
-                <span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span>
-                <label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{itemForm.image ? itemForm.image : 'Attach an image'}</label>
-                <input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />
+                <span className="field-label">Upload an item image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span>
+                <label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{itemForm.image ? itemForm.image : 'Upload an image'}</label>
+                <input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Upload an item image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />
                 {itemForm.imagePreview && <img src={itemForm.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}
               </div>}
             </div>

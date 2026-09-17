@@ -1383,6 +1383,9 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-one-off-section .take-order-section-heading h2 { font-family: var(--app-font-sans); font-size: clamp(1.35rem, 2.1vw, 1.7rem); letter-spacing: -.045em; line-height: 1.05; }
 .take-order-one-off-section .take-order-section-heading p { max-width: 30rem; font-size: .74rem; line-height: 1.45; }
 .take-order-one-off-section .take-order-choice-form { margin-top: 1.1rem; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); padding: .85rem; }
+.take-order-custom-builder { display: grid; gap: 1rem; }
+.take-order-custom-fields { display: grid; gap: .65rem; grid-template-columns: minmax(0, 1fr) 9rem; }
+.take-order-custom-preferences { border-top: 1px solid hsl(var(--border)); padding-top: .9rem; }
 .take-order-one-off-section .take-order-custom-control { grid-template-columns: minmax(0, 1fr) 9rem auto; gap: .6rem; }
 .take-order-one-off-section .field-input { min-height: 2.65rem; font-family: var(--app-font-sans); font-size: .74rem; letter-spacing: -.005em; }
 .take-order-one-off-section .take-order-custom-control .relative .field-input { font-family: var(--app-font-mono); font-variant-numeric: tabular-nums lining-nums; }
@@ -1765,6 +1768,7 @@ button[data-testid="button-buyer-reserve"].text-white {
   .take-order-panel-control { grid-column: 1 / -1; }
   .take-order-add-control, .take-order-custom-control { grid-template-columns: minmax(0, 1fr); }
   .take-order-custom-control .relative { min-width: 0; }
+  .take-order-custom-fields { grid-template-columns: 1fr; }
   .take-order-panel-control .button { width: 100%; justify-content: center; }
   .take-order-item-row { grid-template-columns: 1.3rem 2.1rem minmax(0, 1fr) 2rem; gap: .5rem; }
   .take-order-item-price { grid-column: 3 / 4; }
