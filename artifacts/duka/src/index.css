@@ -728,6 +728,81 @@ button { cursor: pointer; }
 .catalog-icon-button.is-danger:hover { background: hsl(var(--destructive) / .1); color: hsl(var(--destructive)); }
 .catalog-icon-button:disabled { cursor: wait; opacity: .5; }
 .catalog-mobile-label, .catalog-loading { display: none; }
+
+/* Keep every data header on the same compact, bordered surface. */
+.overview-card-table-head,
+.channel-insight-list-head,
+.orders-table-head,
+.clients-table-head,
+.catalog-list-head {
+  border: 1px solid hsl(var(--border));
+  border-radius: 9px 9px 0 0;
+  background: hsl(var(--muted) / .42);
+  color: hsl(var(--foreground));
+  font-size: .64rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+  text-transform: none;
+}
+.overview-card-table-head > span,
+.channel-insight-list-head > span,
+.orders-table-head > span,
+.clients-table-head > span:not(.sr-only),
+.catalog-list-head > span {
+  min-height: 1.45rem;
+  align-items: center;
+  border-right: 1px solid hsl(var(--border));
+  display: flex;
+  padding-inline: .75rem;
+}
+.overview-card-table-head > span:last-child,
+.channel-insight-list-head > span:last-child,
+.orders-table-head > span:last-child,
+.clients-table-head > span:last-child,
+.catalog-list-head > span:last-child {
+  border-right: 0;
+}
+.overview-card-table-head,
+.channel-insight-list-head,
+.orders-table-head,
+.clients-table-head,
+.catalog-list-head {
+  padding-block: .55rem;
+}
+.list-table,
+.reports-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.list-table thead,
+.reports-table thead {
+  border: 1px solid hsl(var(--border));
+  border-radius: 9px 9px 0 0;
+  background: hsl(var(--muted) / .42);
+  color: hsl(var(--foreground));
+  font-size: .64rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+  text-transform: none;
+}
+.list-table thead th,
+.reports-table thead th {
+  border-bottom: 1px solid hsl(var(--border));
+  border-right: 1px solid hsl(var(--border));
+  text-transform: none;
+  white-space: nowrap;
+}
+.list-table thead th:first-child,
+.reports-table thead th:first-child {
+  border-left: 1px solid hsl(var(--border));
+  border-top-left-radius: 9px;
+}
+.list-table thead th:last-child,
+.reports-table thead th:last-child {
+  border-top-right-radius: 9px;
+  border-right: 1px solid hsl(var(--border));
+}
+
 @media (max-width: 1100px) {
   .desktop-sidebar { display: none; }
   .mobile-topbar { display: flex; }
