@@ -2004,9 +2004,8 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
         </div>
       </header>
       <div className="buyer-checkout-form-intro">
-        <div className="font-mono-ui text-[9px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Buyer checkout</div>
         <h1>Complete your order.</h1>
-        <p>Share a few details so the seller can prepare everything correctly.</p>
+        <p>Your seller already has the item and price. Just provide the details they need to fulfill it.</p>
         <div className="buyer-total-amount" aria-label={`Total amount ${moneyExact(total)}`}><span>Total amount</span><strong>{moneyExact(total)}</strong></div>
       </div>
     </div>
@@ -2019,7 +2018,6 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
         <div className="buyer-product-list">
         {displayItems.map((item, index) => {
           const active = index === activeIndex;
-          const moduleLabel = item.source === 'custom' ? 'One-off item' : 'Catalog item';
           return <button
             type="button"
             key={`${item.productId}-${index}`}
@@ -2030,10 +2028,9 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
             }}
             disabled={Boolean(onActiveIndexChange)}
             aria-current={active ? 'true' : undefined}
-            aria-label={`${item.productName}, ${moduleLabel}, ${moneyExact(item.amount)}${active ? ', current item' : ''}`}
+             aria-label={`${item.productName}, ${moneyExact(item.amount)}${active ? ', current item' : ''}`}
           >
             <span className="buyer-product-module-copy">
-               {item.source === 'custom' && <small className="buyer-product-module-kicker">{moduleLabel}</small>}
               <strong>{item.productName}</strong>
                <small className="buyer-product-module-price">{moneyExact(item.amount)}</small>
              </span>
@@ -2155,7 +2152,7 @@ function PublicOrderPage() {
   const buyerDeliveryFee = form.deliveryMethod === 'delivery' ? order.deliveryFee : 0;
   const buyerTotal = orderSubtotal + buyerDeliveryFee;
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-    return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-8 sm:py-14"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm brandName={businessName} paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onBackToReview={() => setShowMockPayment(false)} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
+    return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-4 sm:py-7"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onBackToReview={() => setShowMockPayment(false)} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
 }
 
 export function Connect() {
@@ -2211,7 +2208,6 @@ export function BuyerOrderForm({
   amount,
   depositAmount,
   deliveryFee = 0,
-  brandName,
   item: providedItem,
   itemIndex = 0,
   itemCount = 1,
@@ -2239,7 +2235,6 @@ export function BuyerOrderForm({
   amount: number;
   depositAmount: number | null | undefined;
   deliveryFee?: number;
-  brandName?: string;
   item?: BuyerOrderItem;
   itemIndex?: number;
   itemCount?: number;
@@ -2278,7 +2273,6 @@ export function BuyerOrderForm({
     return ['hero', 'detail', 'close-up', 'back'].map((view) => productImageFor(`${item.productName} ${view}`));
   }, [item.imageUrl, item.productName]);
   const activeGalleryImage = galleryImages[Math.min(activeGalleryIndex, galleryImages.length - 1)] ?? productImageFor(item.productName);
-  const sellerLabel = brandName?.trim() || 'Seller catalog';
   useEffect(() => {
     setEditingContact(false);
     setActiveGalleryIndex(0);
@@ -2340,11 +2334,9 @@ export function BuyerOrderForm({
             </div>
             <div className="buyer-item-preferences-content buyer-product-detail-content">
               <div className="buyer-item-description buyer-product-detail-header">
-                <div className="buyer-product-detail-kicker"><span>{item.source === 'custom' ? 'Custom item' : 'Catalog item'}</span><span>Item {String(itemIndex + 1).padStart(2, '0')} of {String(itemCount).padStart(2, '0')}</span></div>
                 <h2 id="buyer-item-preferences-heading">{item.productName}</h2>
-                <div className="buyer-product-detail-meta"><span>Sold by {sellerLabel}</span><span aria-hidden="true">·</span><span>Order item</span></div>
-                <div className="buyer-product-price-row"><strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong><span>Agreed item price</span></div>
-                <p>{item.preferences.length > 0 ? 'Choose the options that apply to this item.' : 'This item is ready to add to your order.'}</p>
+                 <div className="buyer-product-price-row"><strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong></div>
+                 <p>{item.preferences.length > 0 ? 'Choose your options' : 'This item is ready to add to your order.'}</p>
               </div>
               {item.preferences.map((preference, preferenceIndex) => {
                 const preferenceLabel = preference.label.trim().toLowerCase();
@@ -2404,7 +2396,7 @@ export function BuyerOrderForm({
           <div className="buyer-summary-list">{items.map((orderItem, index) => {
             const selectedPreferences = itemForms[index]?.preferences ?? (itemIndex === index ? itemForm.preferences : {});
             const preferenceSummary = Object.values(selectedPreferences).filter(Boolean).join(' · ');
-            return <div key={`${orderItem.productId}-${index}`} className="buyer-summary-row"><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{orderItem.productName}</strong><small>{orderItem.source === 'custom' ? 'One-off item' : 'Catalog item'}{preferenceSummary ? ` · ${preferenceSummary}` : orderItem.preferences.length ? ' · Preferences available' : ''}</small></div><b>{moneyExact(orderItem.amount)}</b></div>;
+             return <div key={`${orderItem.productId}-${index}`} className="buyer-summary-row"><div><strong>{orderItem.productName}</strong>{preferenceSummary && <small>{preferenceSummary}</small>}</div><b>{moneyExact(orderItem.amount)}</b></div>;
           })}{deliveryCharge > 0 && <div className="buyer-summary-row"><span>+</span><div><strong>Delivery</strong><small>Flat delivery fee</small></div><b>{moneyExact(deliveryCharge)}</b></div>}<div className="buyer-summary-total"><span>Total</span><strong>{moneyExact(amount)}</strong></div></div>
         </section>
         <section className="buyer-review-card buyer-review-contact" aria-labelledby="buyer-review-contact-heading">
