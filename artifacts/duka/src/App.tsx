@@ -387,18 +387,18 @@ export function Sidebar() {
   ];
   return <aside className="desktop-sidebar fixed inset-y-0 left-0 z-30 flex w-[246px] flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))]">
     <div className="px-7 py-7">
-      <BrandLockup className="gap-3" />
+      <BrandLockup inverted className="gap-3" />
       <div className="mt-2 pl-12 font-mono-ui text-[9px] uppercase tracking-[.18em] text-white/45">seller workspace</div>
     </div>
     <div className="mx-5 mb-5 h-px bg-white/10" />
     <div className="px-4 text-[10px] font-semibold uppercase tracking-[.16em] text-white/35">Workspace</div>
     <nav aria-label="Seller workspace navigation" className="sidebar-scroll mt-3 flex-1 overflow-y-auto px-3">
-      {links.map(({ href, label, icon: Icon }) => <Link key={href} href={href} data-testid={`link-${label.toLowerCase().replaceAll(' ', '-')}`} className={cn('group mb-1 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === href ? 'bg-[hsl(var(--sidebar-accent))] text-white' : 'text-white/58 hover:bg-white/5 hover:text-white')}>
-        <Icon aria-hidden="true" size={17} strokeWidth={location === href ? 2.3 : 1.8} /><span>{label}</span>{label === 'Orders' && <span className="ml-auto rounded-full bg-[hsl(var(--sidebar-primary))] px-1.5 py-0.5 font-mono-ui text-[9px] text-[hsl(var(--sidebar-primary-foreground))]">12</span>}
+      {links.map(({ href, label, icon: Icon }) => <Link key={href} href={href} data-testid={`link-${label.toLowerCase().replaceAll(' ', '-')}`} aria-current={location === href ? 'page' : undefined} className={cn('group mb-1 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === href ? 'bg-[hsl(var(--sidebar-accent))] text-white' : 'text-white/58 hover:bg-white/5 hover:text-white')}>
+        <Icon aria-hidden="true" size={17} strokeWidth={location === href ? 2.3 : 1.8} /><span>{label}</span>
       </Link>)}
       <div className="my-5 h-px bg-white/10" />
       <div className="px-1 text-[10px] font-semibold uppercase tracking-[.16em] text-white/35">Settings</div>
-      <Link href="/connect" data-testid="link-connect" className={cn('mt-3 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/connect' ? 'bg-[hsl(var(--sidebar-accent))] text-white' : 'text-white/58 hover:bg-white/5 hover:text-white')}><Settings2 aria-hidden="true" size={17} /><span>Connect tools</span><span className="ml-auto h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /></Link>
+      <Link href="/connect" data-testid="link-connect" aria-current={location === '/connect' ? 'page' : undefined} className={cn('mt-3 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/connect' ? 'bg-[hsl(var(--sidebar-accent))] text-white' : 'text-white/58 hover:bg-white/5 hover:text-white')}><Settings2 aria-hidden="true" size={17} /><span>Connect tools</span><span className="ml-auto h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /></Link>
     </nav>
     <div className="m-4 rounded-[15px] border border-white/10 bg-white/[.045] p-4">
       <div className="flex items-center gap-2 text-[11px] font-semibold text-white/75"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /> All systems ready</div>
@@ -415,7 +415,8 @@ export function MobileMenuButton({ open, onClick }: { open: boolean; onClick: ()
 function MobileTopbar() {
   const [open, setOpen] = useState(false);
   const nav = [{ href: '/', label: 'Dashboard' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/expenses', label: 'Expenses' }, { href: '/take-order', label: 'Take an order' }, { href: '/connect', label: 'Connect tools' }];
-  return <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md"><Link href="/" aria-label="Take Order dashboard"><BrandLockup className="gap-2" /></Link><MobileMenuButton open={open} onClick={() => setOpen(!open)} />{open && <div className="absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3">{nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-sm hover:bg-[hsl(var(--muted))]">{item.label}</Link>)}</div>}</div>;
+  const [location] = useLocation();
+  return <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md"><Link href="/" aria-label="Take Order dashboard"><BrandLockup className="gap-2" /></Link><MobileMenuButton open={open} onClick={() => setOpen(!open)} />{open && <div className="mobile-nav-panel absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">{nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} aria-current={location === item.href ? 'page' : undefined} className={cn('block rounded-[10px] px-3 py-3 text-sm transition-colors', location === item.href ? 'bg-[hsl(var(--muted))] font-semibold text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]')}>{item.label}</Link>)}</div>}</div>;
 }
 
 function Shell({ children }: { children: ReactNode }) {
@@ -427,7 +428,7 @@ function PageHeading({ eyebrow, title, description, action }: { eyebrow?: string
 }
 
 function Button({ children, variant = 'primary', className, ...props }: { children: ReactNode; variant?: 'primary' | 'soft' | 'outline' | 'danger' | 'ghost'; className?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...props} className={cn('inline-flex items-center justify-center gap-2 rounded-[10px] px-3.5 py-2 text-[11px] font-semibold tracking-[-.01em] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-50', variant === 'primary' && 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--primary))]', variant === 'soft' && 'bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))] hover:bg-[hsl(var(--muted))]', variant === 'outline' && 'border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:border-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]', variant === 'danger' && 'border border-[hsl(var(--foreground))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]', variant === 'ghost' && 'border border-transparent bg-transparent text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]', className)} {...props}>{children}</button>;
+  return <button {...props} className={cn('inline-flex min-h-10 items-center justify-center gap-2 rounded-[11px] px-4 py-2.5 text-xs font-semibold tracking-[-.01em] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-50', variant === 'primary' && 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-sm hover:-translate-y-px hover:shadow-md', variant === 'soft' && 'bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))] hover:bg-[hsl(var(--muted))]', variant === 'outline' && 'border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:border-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]', variant === 'danger' && 'border border-[hsl(var(--foreground))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]', variant === 'ghost' && 'border border-transparent bg-transparent text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]', className)} {...props}>{children}</button>;
 }
 
 export function CatalogActions({
@@ -463,8 +464,8 @@ export function ExpenseActions({
   deleteDisabled?: boolean;
 }) {
   return <div className="flex gap-1">
-    <button type="button" onClick={onEdit} aria-label={`Edit ${expenseTitle}`} data-testid={`button-edit-expense-${expenseId ?? expenseTitle}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><Pencil aria-hidden="true" size={15} /></button>
-    <button type="button" onClick={onDelete} disabled={deleteDisabled} aria-label={`Delete ${expenseTitle}`} data-testid={`button-delete-expense-${expenseId ?? expenseTitle}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--destructive))]/10 hover:text-[hsl(var(--destructive))]"><Trash2 aria-hidden="true" size={15} /></button>
+    <button type="button" onClick={onEdit} aria-label={`Edit ${expenseTitle}`} data-testid={`button-edit-expense-${expenseId ?? expenseTitle}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--ring))]"><Pencil aria-hidden="true" size={15} /></button>
+    <button type="button" onClick={onDelete} disabled={deleteDisabled} aria-label={`Delete ${expenseTitle}`} data-testid={`button-delete-expense-${expenseId ?? expenseTitle}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--destructive))]/10 hover:text-[hsl(var(--destructive))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--ring))]"><Trash2 aria-hidden="true" size={15} /></button>
   </div>;
 }
 
