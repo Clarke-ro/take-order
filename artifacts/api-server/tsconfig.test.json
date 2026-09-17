@@ -12,6 +12,6 @@
   "include": [
     "src/lib/dashboard-analytics.ts",
     "src/lib/dashboard-analytics.test.ts",
-    "src/routes/duka.test.ts"
+    "src/routes/take-order.test.ts"
   ]
 }

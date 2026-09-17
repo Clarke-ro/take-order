@@ -107,7 +107,7 @@ export function preferencesForProduct(
   return [{ label: "Choose an option", options: variants }];
 }
 
-export function createDukaRouter(database: typeof db): IRouter {
+export function createTakeOrderRouter(database: typeof db): IRouter {
   const router: IRouter = Router();
 
 const toNumber = (value: string | number | null): number | null =>

@@ -10,7 +10,7 @@ import {
 import { db, pool } from "@workspace/db";
 import { GetDashboardSummaryResponse } from "@workspace/api-zod";
 import { createApp } from "../app.js";
-import { preferencesForProduct } from "./duka.js";
+import { preferencesForProduct } from "./take-order.js";
 
 type Seed = {
   products: Array<typeof productsTable.$inferSelect>;

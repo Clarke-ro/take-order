@@ -1,12 +1,12 @@
-# Duka
+# Take Order
 
-Duka helps small multi-channel sellers manage products, share buyer order links, and understand sales, inventory, and channel performance in one workspace.
+Take Order helps small multi-channel sellers manage products, share buyer order links, and understand sales, inventory, and channel performance in one workspace.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + production build all packages, including the Duka artifact with its release environment
+- `pnpm run build` — typecheck + production build all packages, including the Take Order artifact with its release environment
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
@@ -23,14 +23,14 @@ Duka helps small multi-channel sellers manage products, share buyer order links,
 ## Where things live
 
 - `artifacts/duka/src/App.tsx` — seller workspace and public buyer flow
-- `artifacts/duka/src/index.css` — Duka visual theme and responsive layout
-- `artifacts/api-server/src/routes/duka.ts` — catalog, orders, buyer links, and dashboard API
+- `artifacts/duka/src/index.css` — Take Order visual theme and responsive layout
+- `artifacts/api-server/src/routes/take-order.ts` — catalog, orders, buyer links, and dashboard API
 - `lib/api-spec/openapi.yaml` — API contract source of truth
 - `lib/db/src/schema/products.ts` and `lib/db/src/schema/orders.ts` — PostgreSQL schema
 
 ## Architecture decisions
 
-- Seller actions are deliberately channel-agnostic: Duka records where a conversation started, but never reads personal chats.
+- Seller actions are deliberately channel-agnostic: Take Order records where a conversation started, but never reads personal chats.
 - Public buyer links use a short token and do not require a buyer account.
 - Inventory decrements only when an order becomes fully paid; reservations remain visible without pretending they are sales.
 - The first build keeps payment-provider wiring behind the buyer submission boundary so the product loop can be exercised before provider credentials are connected.
@@ -50,8 +50,8 @@ The visual direction should stay calm, confident, and useful for a solo seller w
 ## Gotchas
 
 - After changing `lib/api-spec/openapi.yaml`, run `pnpm --filter @workspace/api-spec run codegen`.
-- Use the shared API server workflow for `/api`; the Duka web app uses the root preview path.
-- Run `pnpm run build` before release to catch Duka production bundling failures.
+- Use the shared API server workflow for `/api`; the Take Order web app uses the root preview path.
+- Run `pnpm run build` before release to catch Take Order production bundling failures.
 
 ## Pointers
 

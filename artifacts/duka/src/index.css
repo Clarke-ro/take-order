@@ -298,7 +298,7 @@ body { background: hsl(var(--background)); font-family: var(--app-font-family); 
 .app-card { border: 1px solid hsl(var(--card-border)); border-radius: 18px; background: hsl(var(--card)); box-shadow: 0 1px 2px hsl(var(--foreground) / .025), 0 12px 30px hsl(var(--foreground) / .045); }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
-.duka-shell, #root { color: hsl(var(--foreground)); font-style: normal; opacity: 1; }
+.take-order-shell, #root { color: hsl(var(--foreground)); font-style: normal; opacity: 1; }
 .page-content h1, .page-content h2, .page-content h3 { color: hsl(var(--foreground)); }
 .page-heading { border-bottom: 1px solid hsl(var(--border)); padding-bottom: 1.5rem; }
 .metric-value, .catalog-number, .catalog-stock, .orders-result-count, .reports-table, .orders-table-row { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum", "lnum"; }
@@ -333,7 +333,7 @@ button { cursor: pointer; }
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum", "lnum";
 }
-.duka-shell { min-height: 100dvh; background: hsl(var(--background)); }
+.take-order-shell { min-height: 100dvh; background: hsl(var(--background)); }
 .page-content { max-width: 1600px; }
 .page-content .orders-panel-heading p,
 .page-content .orders-workspace-heading p,

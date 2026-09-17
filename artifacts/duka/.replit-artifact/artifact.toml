@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "Duka"
+title = "Take Order"
 description = "A multi-channel business operating app for small sellers to manage catalog, orders, inventory, channel attribution, and buyer-facing order links without reading personal chats."
 version = "1.0.0"
 id = "artifacts/duka"
@@ -12,10 +12,10 @@ paths = [ "/" ]
 localPort = 23398
 
 [services.development]
-run = "pnpm --filter @workspace/duka run dev"
+run = "pnpm --filter @workspace/take-order run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/duka", "run", "build" ]
+build = [ "pnpm", "--filter", "@workspace/take-order", "run", "build" ]
 serve = "static"
 publicDir = "artifacts/duka/dist/public"
 
