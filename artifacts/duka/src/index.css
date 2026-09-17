@@ -116,9 +116,15 @@
   --chart-5: 25 59% 61%;
   --accent-hover: 0 0% 0%;
   --teal-tint: 163 37% 92%;
-  --app-font-sans: 'Inter', sans-serif;
-  --app-font-serif: 'Inter', sans-serif;
-  --app-font-mono: 'Inter', sans-serif;
+  --app-font-family: 'Inter', sans-serif;
+  --app-font-sans: var(--app-font-family);
+  --app-font-serif: var(--app-font-family);
+  --app-font-mono: var(--app-font-family);
+  --app-text-body: 1rem;
+  --app-text-small: .875rem;
+  --app-text-label: .75rem;
+  --app-text-caption: .6875rem;
+  --app-text-micro: .625rem;
   --radius: 0.5rem; /* 8px */
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
@@ -269,8 +275,8 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    font-family: var(--app-font-sans);
-    font-size: 1rem;
+    font-family: var(--app-font-family);
+    font-size: var(--app-text-body);
     font-style: normal;
     font-weight: 400;
     line-height: 1.55;
@@ -279,9 +285,8 @@
 }
 
 @layer utilities {
-  .font-display { font-family: var(--app-font-serif); }
-  .font-mono-ui { font-family: var(--app-font-mono); font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum", "lnum"; }
-  .data-value { font-family: var(--app-font-sans); font-style: normal; font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum", "lnum"; }
+  .font-display, .font-mono-ui, .data-value { font-family: var(--app-font-family); }
+  .font-mono-ui, .data-value { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum", "lnum"; }
   .font-bold { font-weight: 600; }
   .font-semibold { font-weight: 500; }
 }
@@ -289,7 +294,7 @@
 :root { color-scheme: light; }
 .dark { color-scheme: dark; }
 html, body, #root { min-height: 100%; }
-body { background: hsl(var(--background)); font-family: var(--app-font-sans); font-size: 1rem; font-style: normal; font-weight: 400; line-height: 1.55; letter-spacing: 0; opacity: 1; }
+body { background: hsl(var(--background)); font-family: var(--app-font-family); font-size: var(--app-text-body); font-style: normal; font-weight: 400; line-height: 1.55; letter-spacing: 0; opacity: 1; }
 .app-card { border: 1px solid hsl(var(--card-border)); border-radius: 22px; background: hsl(var(--card)); box-shadow: 0 1px 2px rgba(15, 23, 42, .03), 0 10px 28px rgba(15, 23, 42, .045); }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
