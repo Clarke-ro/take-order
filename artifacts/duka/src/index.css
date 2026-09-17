@@ -908,6 +908,149 @@ button { cursor: pointer; }
   .catalog-result-count { margin-left: auto; }
 }
 
+/* Keep list titles and controls on the page surface, with the data body in its own card. */
+.catalog-workspace,
+.app-card:has(.orders-table-wrap),
+.app-card:has(.clients-table-wrap) {
+  overflow: visible !important;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.catalog-workspace .catalog-toolbar {
+  align-items: stretch;
+  flex-direction: column;
+  gap: .75rem;
+  border: 0;
+  background: transparent;
+  margin: 0;
+  padding: 0 0 .8rem;
+}
+.catalog-workspace .catalog-toolbar h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+.catalog-workspace .catalog-toolbar-tools {
+  min-width: 0;
+  justify-content: flex-start;
+}
+.catalog-workspace .catalog-toolbar-tools > .relative {
+  flex: 0 1 240px;
+  max-width: 240px !important;
+}
+.catalog-workspace .catalog-list,
+.app-card:has(.orders-table-wrap) .orders-table-wrap,
+.app-card:has(.clients-table-wrap) .clients-table-wrap {
+  border: 1px solid hsl(var(--border));
+  border-radius: 14px;
+  background: hsl(var(--card));
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .025);
+}
+.app-card:has(.orders-table-wrap) .orders-list-heading {
+  margin: 0 0 .75rem;
+  border: 0;
+  padding: 0;
+  font-family: var(--app-font-sans);
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+.app-card:has(.orders-table-wrap) .orders-controls {
+  margin: 0 0 .75rem;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+.clients-list-section .clients-workspace-heading {
+  align-items: center;
+  border: 0;
+  padding: 0 0 .75rem;
+}
+.clients-list-section .clients-workspace-heading h2 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+.clients-list-section .clients-workspace-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .75rem;
+}
+.clients-list-section .clients-search {
+  width: min(230px, 100%);
+}
+.clients-list-section .clients-filter-bar,
+.app-card:has(.orders-table-wrap) .orders-filter-scroll {
+  width: fit-content;
+  max-width: 100%;
+  gap: .15rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 9px;
+  background: hsl(var(--muted) / .42);
+  padding: .2rem;
+}
+.clients-list-section .clients-filter-tab,
+.app-card:has(.orders-table-wrap) .orders-filter-button {
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: none;
+  padding: .42rem .62rem;
+}
+.clients-list-section .clients-filter-tab.is-active,
+.app-card:has(.orders-table-wrap) .orders-filter-button.is-active {
+  background: hsl(var(--card));
+  box-shadow: 0 1px 3px hsl(220 18% 35% / .11);
+}
+
+@media (min-width: 1101px) {
+  .app-card:has(.orders-table-wrap) .orders-controls {
+    grid-template-columns: minmax(0, 1fr) 230px;
+  }
+  .app-card:has(.orders-table-wrap) .orders-controls .list-search-shell {
+    min-width: 0;
+    width: 230px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .catalog-workspace .catalog-toolbar,
+  .app-card:has(.orders-table-wrap) .orders-list-heading,
+  .clients-list-section .clients-workspace-heading {
+    padding-inline: 0;
+  }
+  .catalog-workspace .catalog-list,
+  .app-card:has(.orders-table-wrap) .orders-table-wrap,
+  .app-card:has(.clients-table-wrap) .clients-table-wrap {
+    overflow: visible;
+  }
+  .app-card:has(.orders-table-wrap) .orders-controls {
+    grid-template-columns: 1fr;
+  }
+  .app-card:has(.orders-table-wrap) .orders-controls .list-search-shell {
+    min-width: 0;
+    width: 100%;
+  }
+  .clients-list-section .clients-workspace-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .clients-list-section .clients-filter-bar,
+  .clients-list-section .clients-search {
+    width: 100%;
+  }
+}
+
+@media (max-width: 639px) {
+  .clients-list-section .clients-workspace-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding-bottom: .75rem;
+  }
+}
+
 /**
  * Using the elevate system.
  * Automatic contrast adjustment.
