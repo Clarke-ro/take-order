@@ -7,6 +7,7 @@
 - [Metric indicator rules](metric-indicator-rules.md) — Use percentage badges only for real ratios; omit indicators when a card has no meaningful percentage.
 - [Live accessibility checks](live-accessibility-checks.md) — Chromium CDP is available for browser-level accessibility-tree assertions without adding a browser automation package.
 - [Dashboard picker browser checks](dashboard-picker-browser-checks.md) — Native date inputs expose segmented tab stops in Chromium; responsive keyboard tests must allow repeated field stops.
+- [Chromium app-session tests](chromium-app-session-tests.md) — Launch real-page Vite checks through the absolute Node/Vite entrypoint and derive the package cwd.
 - [Social engagement totals](social-engagement.md) — Keep recorded zero distinct from missing share or like activity.
 - [Duka build environment](duka-build-env.md) — Direct Vite builds need the workflow-provided PORT and BASE_PATH values.
 - [Delivery order snapshots](delivery-order-snapshots.md) — Snapshot the flat fee on the buyer link and finalize it only after the buyer selects delivery.

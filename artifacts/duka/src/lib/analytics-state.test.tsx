@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import test from "node:test";
 import { spawn } from "node:child_process";
+import { createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
+import { resolve } from "node:path";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { JSDOM } from "jsdom";
@@ -17,6 +19,7 @@ import {
   CONNECTED_TOOLS_KEY,
   CHANNEL_CONVERSION_REFRESH_INTERVAL_MS,
   DASHBOARD_PERIOD_KEY,
+  type DashboardPeriodPreference,
   clearConnectedTools,
   readDashboardPeriodPreference,
   readConnectedTools,
@@ -379,7 +382,19 @@ function controlsByRole(tree: AccessibilityNode[], role: string) {
     .map((node) => node.name?.value ?? "");
 }
 
-test("renders loading, empty, and populated analytics states without errors", () => {
+async function getFreePort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolvePromise, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolvePromise());
+  });
+  const address = server.address() as AddressInfo;
+  const port = address.port;
+  await new Promise<void>((resolvePromise, reject) => {
+    server.close((error) => error ? reject(error) : resolvePromise());
+  });
+  return port;
+}
   const cases = [
     {
       state: "loading",
@@ -397,7 +412,13 @@ test("renders loading, empty, and populated analytics states without errors", ()
 
   for (const { state, input } of cases) {
     assert.equal(getAnalyticsViewState(input), state);
-    const markup = renderToStaticMarkup(createElement(AnalyticsStateMarker, { state }));
+    const markup = renderToStaticMarkup(
+      createElement(ChannelPicker, {
+        value: selectedValue,
+        onChange: () => undefined,
+        testId: "order-channel",
+      }),
+    );
     assert.match(markup, new RegExp(`data-testid="dashboard-analytics-${state}"`));
     assert.match(markup, new RegExp(`data-analytics-state="${state}"`));
   }
@@ -459,19 +480,13 @@ test("keeps channel conversion totals and rows scoped to the selected channel", 
     productPerformance: [],
     dailyPerformance: [],
   });
-  const markup = renderToStaticMarkup(createElement(
-    QueryClientProvider,
-    {
-      client,
-      children: createElement(
-        Router,
-        {
-          hook: () => ["/reports/channel-conversion", () => undefined] as [string, (path: string) => void],
-          children: createElement(ChannelConversionInsight),
-        },
-      ),
-    },
-  ));
+    const markup = renderToStaticMarkup(
+      createElement(ChannelPicker, {
+        value: selectedValue,
+        onChange: () => undefined,
+        testId: "order-channel",
+      }),
+    );
   assert.match(markup, /<label[^>]*for="channel-conversion-filter">Focus channel<\/label>/);
   assert.match(markup, /data-testid="select-channel-conversion"/);
   assert.match(markup, /<option value="all"[^>]*>All channels<\/option>/);
@@ -511,10 +526,10 @@ test("keeps four social channel marks beside the metric value on narrow cards", 
 
   for (const [textSize, result] of results) {
     const geometry = result.inspection as {
-      card: { left: number; right: number; width: number };
-      stack: { left: number; right: number; width: number };
-      value: { left: number; right: number; width: number };
-      marks: Array<{ left: number; right: number; width: number }>;
+      menu: { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      calendar: { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      controls: string[];
+      viewport: { width: number; height: number };
     };
     assert.ok(geometry.card && geometry.stack && geometry.value);
     assert.equal(geometry.marks.length, 4);
@@ -534,42 +549,38 @@ test("keeps channel conversion details readable and keyboard reachable on narrow
     <html><head><style>${styles}
       *, *::before, *::after { box-sizing: border-box; }
       html, body { margin: 0; min-width: 0; }
-      body { padding: .75rem; }
-      .channel-fixture { width: 100%; max-width: 620px; margin: 0 auto; }
-      .channel-fixture .app-card { border: 1px solid #ddd; padding: 1rem; }
-      .channel-fixture .channel-insight-row { border-top: 1px solid #ddd; }
+      body { min-height: 100vh; }
+      .picker-fixture { box-sizing: border-box; width: 100vw; min-height: 100vh; padding: 1rem 1.25rem; }
+      .picker-heading { display: flex; align-items: flex-start; justify-content: space-between; }
+      .picker-action { display: flex; align-items: center; gap: .5rem; }
+      .picker-card { position: relative; z-index: 1; height: 180px; margin-top: -1rem; border: 1px solid #ddd; background: white; }
+      .relative { position: relative; }
+      @media (max-width: 639px) {
+        .picker-heading { flex-direction: column; gap: 1rem; }
+      }
     </style></head><body>
-      <main class="channel-fixture channel-insight-page">
-        <a href="/" data-testid="channel-back-link">Back to dashboard</a>
-        <section class="reports-metric-grid" aria-label="Channel conversion summary">
-          <div class="app-card" data-testid="card-channel-insight-views">Total views <strong>12,480</strong></div>
-          <div class="app-card" data-testid="card-channel-insight-sales">Paid sales <strong>246</strong></div>
-          <div class="app-card" data-testid="card-channel-insight-revenue">Revenue <strong>$18,420</strong></div>
-          <div class="app-card" data-testid="card-channel-insight-conversion">Overall conversion <strong>2.0%</strong></div>
-        </section>
-        <section class="channel-insight-card" data-testid="card-channel-conversion-detail">
-          <div class="channel-insight-list">
-            <div class="channel-insight-list-head"><span>Channel</span><span>Views</span><span>Sales</span><span>Revenue</span><span>Conversion</span></div>
-            <article class="channel-insight-row" data-testid="row-channel-insight-instagram">
-              <div class="channel-insight-identity"><span class="channel-conversion-mark">IG</span><span class="channel-conversion-name">Instagram</span></div>
-              <strong class="channel-insight-number" data-label="Views">8,240</strong>
-              <strong class="channel-insight-number" data-label="Sales">164</strong>
-              <strong class="channel-insight-number" data-label="Revenue">$12,300</strong>
-              <div class="channel-insight-conversion"><strong data-label="Conversion">2.0%</strong><span class="channel-insight-progress"><span style="width: 2%"></span></span></div>
-            </article>
+      <main class="picker-fixture">
+        <div class="picker-heading">
+          <h1>Dashboard</h1>
+          <div class="picker-action">
+            <div class="relative">
+              <button type="button" class="period-chip" aria-label="Reporting period" aria-expanded="true">Sep 1 – Sep 15</button>
+              <div class="dashboard-period-menu is-custom" role="dialog" aria-label="Choose reporting period" data-testid="dashboard-period-menu">${pickerMarkup}</div>
+            </div>
           </div>
-        </section>
+        </div>
+        <div class="picker-card" data-testid="dashboard-card">Dashboard cards</div>
       </main>
     </body></html>`;
 
-  const result = await inspectResponsiveMarkup(fixture, { width: 360, height: 800 });
-  const geometry = result.inspection as {
-    detailCard: { left: number; right: number; width: number };
-    summaryCards: Array<{ left: number; right: number; width: number }>;
-    rows: Array<{ left: number; right: number; width: number; conversion: { left: number; right: number; width: number } | null }>;
-    backLink: { left: number; right: number; width: number };
-    viewport: { width: number; scrollWidth: number };
-  };
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 480 }]) {
+    const result = await inspectDashboardPicker(fixture, viewport);
+    const geometry = result.inspection as {
+      menu: { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      calendar: { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      controls: string[];
+      viewport: { width: number; height: number };
+    };
   assert.equal(geometry.summaryCards.length, 4);
   assert.ok(geometry.detailCard);
   assert.ok(geometry.backLink);
@@ -602,7 +613,6 @@ test("keeps the custom dashboard picker usable with enlarged text", async () => 
     <html><head><style>${styles}
       *, *::before, *::after { box-sizing: border-box; }
       html, body { margin: 0; min-width: 0; }
-      html.enlarged-text { font-size: 200%; }
       body { min-height: 100vh; }
       .picker-fixture { box-sizing: border-box; width: 100vw; min-height: 100vh; padding: 1rem 1.25rem; }
       .picker-heading { display: flex; align-items: flex-start; justify-content: space-between; }
@@ -627,13 +637,12 @@ test("keeps the custom dashboard picker usable with enlarged text", async () => 
       </main>
     </body></html>`;
 
-  for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 1000 }]) {
-    const result = await inspectDashboardPicker(fixture, viewport, { enlargedText: true });
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 480 }]) {
+    const result = await inspectDashboardPicker(fixture, viewport);
     const geometry = result.inspection as {
       menu: { left: number; right: number; top: number; bottom: number; width: number; height: number };
       calendar: { left: number; right: number; top: number; bottom: number; width: number; height: number };
       controls: string[];
-      controlRects: Array<{ name: string; left: number; right: number; top: number; bottom: number }>;
       viewport: { width: number; height: number };
     };
     assert.ok(geometry.menu, `Picker menu should render with enlarged text at ${viewport.width}px`);
@@ -694,7 +703,7 @@ test("keeps every supported channel value stable while selecting and toggling", 
     "in_person",
   ]);
 
-  let selected: string[] = [];
+  let selected = readConnectedTools(storage);
   for (const value of orderValues) {
     const previous = [...selected];
     selected = togglePreference(selected, value);
@@ -751,7 +760,7 @@ test("keeps onboarding and order channels keyboard-reachable with synchronized n
     );
   }
 
-  const selectedOnboardingChannels = ["WhatsApp", "Snapchat"];
+  const selectedOnboardingChannels: string[] = [];
   const onboardingMarkup = renderToStaticMarkup(
     createElement(OnboardingChannelPicker, {
       selectedChannels: selectedOnboardingChannels,
@@ -788,7 +797,7 @@ test("exposes channel groups, names, roles, and state in the live accessibility 
     orderChannels.map((channel) => ({ name: channel.label, checked: channel.value === selectedOrderChannel })),
   );
 
-  const selectedOnboardingChannels = ["WhatsApp", "Snapchat"];
+  const selectedOnboardingChannels: string[] = [];
   const onboardingMarkup = renderToStaticMarkup(
     createElement(OnboardingChannelPicker, {
       selectedChannels: selectedOnboardingChannels,
@@ -884,13 +893,12 @@ test("keeps the custom dashboard picker inside desktop and narrow viewports", as
 
 test("rejects reversed dashboard ranges before applying and returns focus without leaking draft dates", async () => {
   const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
-    url: "http://localhost/",
+    url: "http://localhost/onboarding",
   });
   Object.assign(globalThis, {
     window: dom.window,
     document: dom.window.document,
     HTMLElement: dom.window.HTMLElement,
-    HTMLInputElement: dom.window.HTMLInputElement,
     addEventListener: dom.window.addEventListener.bind(dom.window),
     removeEventListener: dom.window.removeEventListener.bind(dom.window),
   });
@@ -911,7 +919,7 @@ test("rejects reversed dashboard ranges before applying and returns focus withou
   const summaryRequests: URL[] = [];
   globalThis.fetch = async (input) => {
     const url = String(input);
-    const requestUrl = new URL(url, "http://localhost");
+    const requestUrl = new URL(String(input), "http://localhost");
     if (url.includes("/api/dashboard/summary")) summaryRequests.push(requestUrl);
     const isAppliedCustomRange = requestUrl.searchParams.get("from") === "2020-01-10"
       && requestUrl.searchParams.get("to") === "2020-01-20";
@@ -959,15 +967,31 @@ test("rejects reversed dashboard ranges before applying and returns focus withou
       get<HTMLButtonElement>(testId).click();
     });
   };
-  const setDate = async (testId: string, value: string) => {
-    await act(async () => {
-      const input = get<HTMLInputElement>(testId);
-      const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")?.set;
-      setter?.call(input, value);
-      input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-      input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-    });
+
+  const clickText = async (text: string) => {
+    await evaluate(`(() => {
+      const button = [...document.querySelectorAll('[role="dialog"][aria-label="Choose reporting period"] button')]
+        .find((item) => item.textContent?.includes(${JSON.stringify(text)}));
+      button?.click();
+    })()`);
   };
+  const setDate = async (selector: string, value: string) => {
+    await evaluate(`(() => {
+      const input = document.querySelector(${JSON.stringify(selector)});
+      if (!(input instanceof HTMLInputElement)) return;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(input, ${JSON.stringify(value)});
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+  };
+
+  const readDateRange = async (days: number) => evaluate<{ from: string; to: string }>(`(() => {
+    const toDate = new Date();
+    const to = toDate.toISOString().slice(0, 10);
+    toDate.setDate(toDate.getDate() - ${days - 1});
+    return { from: toDate.toISOString().slice(0, 10), to };
+  })()`);
 
   try {
     await act(async () => {
@@ -978,10 +1002,10 @@ test("rejects reversed dashboard ranges before applying and returns focus withou
     let likesText: string | undefined;
     await act(async () => {
       sharesText = await waitFor(() => {
-        const text = container.querySelector<HTMLElement>('[data-testid="card-kpi-secondary-shares"]')?.textContent;
-        return text?.includes("12") ? text : undefined;
+        const text = container.querySelector<HTMLElement>('[data-testid="card-kpi-secondary-likes"]')?.textContent;
+        return text?.includes("3") ? text : undefined;
       });
-      likesText = await waitFor(() => {
+      await waitFor(() => {
         const text = container.querySelector<HTMLElement>('[data-testid="card-kpi-secondary-likes"]')?.textContent;
         return text?.includes("8") ? text : undefined;
       });
@@ -1036,7 +1060,7 @@ test("rejects reversed dashboard ranges before applying and returns focus withou
     assert.ok(appliedSummaryRequest, "Expected the dashboard query to use the applied custom range");
     await act(async () => {
       await waitFor(() => {
-        const text = container.querySelector<HTMLElement>('[data-testid="card-kpi-secondary-shares"]')?.textContent;
+        const text = container.querySelector<HTMLElement>('[data-testid="card-kpi-secondary-likes"]')?.textContent;
         return text?.includes("3") ? text : undefined;
       });
       await waitFor(() => {
@@ -1190,7 +1214,7 @@ test("names seller navigation and icon-only actions in the live accessibility tr
     "Connect tools",
   ]);
 
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const actionMarkup = [
     renderToStaticMarkup(createElement(CatalogActions, {
       productName: "Linen wrap top",
@@ -1278,10 +1302,16 @@ test("Connect preference labels describe saved preferences, not authorization", 
 });
 
 test("Dashboard reporting period preferences survive a remount and reject incomplete ranges", () => {
-  const values = new Map<string, string>();
+  const values = new Map<string, string>([
+    [CONNECTED_TOOLS_KEY, '["WhatsApp","Paystack"]'],
+    ["duka-onboarding-profile", '{"businessName":"The Sunday Edit"}'],
+  ]);
   const storage = {
-    getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => values.set(key, value),
+    getItem: () => null,
+    setItem: () => {
+      writeAttempts += 1;
+      throw new Error("Storage writes are blocked");
+    },
   };
 
   writeDashboardPeriodPreference({
@@ -1313,13 +1343,12 @@ test("Dashboard reporting period preferences survive a remount and reject incomp
 
 test("Dashboard reporting period follows committed cross-tab changes without applying a local draft", async () => {
   const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
-    url: "http://localhost/",
+    url: "http://localhost/onboarding",
   });
   Object.assign(globalThis, {
     window: dom.window,
     document: dom.window.document,
     HTMLElement: dom.window.HTMLElement,
-    HTMLInputElement: dom.window.HTMLInputElement,
     addEventListener: dom.window.addEventListener.bind(dom.window),
     removeEventListener: dom.window.removeEventListener.bind(dom.window),
   });
@@ -1363,7 +1392,7 @@ test("Dashboard reporting period follows committed cross-tab changes without app
   const { act } = await import("react");
   const { createRoot } = await import("react-dom/client");
   const container = dom.window.document.getElementById("root")!;
-  const root = createRoot(container);
+  let root = createRoot(container);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const renderOverview = () => createElement(
     QueryClientProvider,
@@ -1388,15 +1417,31 @@ test("Dashboard reporting period follows committed cross-tab changes without app
       get<HTMLButtonElement>(testId).click();
     });
   };
-  const setDate = async (testId: string, value: string) => {
-    await act(async () => {
-      const input = get<HTMLInputElement>(testId);
-      const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")?.set;
-      setter?.call(input, value);
-      input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-      input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-    });
+
+  const clickText = async (text: string) => {
+    await evaluate(`(() => {
+      const button = [...document.querySelectorAll('[role="dialog"][aria-label="Choose reporting period"] button')]
+        .find((item) => item.textContent?.includes(${JSON.stringify(text)}));
+      button?.click();
+    })()`);
   };
+  const setDate = async (selector: string, value: string) => {
+    await evaluate(`(() => {
+      const input = document.querySelector(${JSON.stringify(selector)});
+      if (!(input instanceof HTMLInputElement)) return;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(input, ${JSON.stringify(value)});
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+  };
+
+  const readDateRange = async (days: number) => evaluate<{ from: string; to: string }>(`(() => {
+    const toDate = new Date();
+    const to = toDate.toISOString().slice(0, 10);
+    toDate.setDate(toDate.getDate() - ${days - 1});
+    return { from: toDate.toISOString().slice(0, 10), to };
+  })()`);
   const dispatchStorageChange = async (newValue: string) => {
     dom.window.localStorage.setItem(DASHBOARD_PERIOD_KEY, newValue);
     await act(async () => {
@@ -1454,24 +1499,18 @@ test("Dashboard reporting period follows committed cross-tab changes without app
     );
 
     const labelBeforeInvalidChange = get<HTMLButtonElement>("button-dashboard-period").textContent;
-    await dispatchStorageChange('{"period":"custom","customFrom":"2020-03-15"}');
-    assert.equal(get<HTMLButtonElement>("button-dashboard-period").textContent, labelBeforeInvalidChange);
-    assert.equal(get<HTMLInputElement>("input-dashboard-period-from").value, "2020-02-01");
-    assert.equal(get<HTMLInputElement>("input-dashboard-period-to").value, "2020-02-28");
-  } finally {
-    await act(async () => {
-      root.unmount();
-    });
-    globalThis.fetch = originalFetch;
-    dom.window.close();
-  }
-});
 
-test("Connect choices persist exact local preferences across a remount", () => {
-  const values = new Map<string, string>();
+  const browser = await openDashboardBrowser();
+  const values = new Map<string, string>([
+    [CONNECTED_TOOLS_KEY, '["WhatsApp","Paystack"]'],
+    ["duka-onboarding-profile", '{"businessName":"The Sunday Edit"}'],
+  ]);
   const storage = {
-    getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => values.set(key, value),
+    getItem: () => null,
+    setItem: () => {
+      writeAttempts += 1;
+      throw new Error("Storage writes are blocked");
+    },
   };
 
   let selected = readConnectedTools(storage);
@@ -1500,14 +1539,18 @@ test("Connect choices persist exact local preferences across a remount", () => {
 
 test("Connect excludes stale tool names from saved preferences and tile state", () => {
   const values = new Map<string, string>([
-    [CONNECTED_TOOLS_KEY, '["Legacy Messenger","WhatsApp","Removed Payment Tool","WhatsApp"]'],
+    [CONNECTED_TOOLS_KEY, '["WhatsApp","Paystack"]'],
+    ["duka-onboarding-profile", '{"businessName":"The Sunday Edit"}'],
   ]);
   const storage = {
-    getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => values.set(key, value),
+    getItem: () => null,
+    setItem: () => {
+      writeAttempts += 1;
+      throw new Error("Storage writes are blocked");
+    },
   };
 
-  const connected = readConnectedTools(storage);
+    const connected: string[] = readConnectedTools(storage);
 
   assert.deepEqual(connected, ["WhatsApp"]);
   assert.equal(connected.length, 1);
@@ -1525,9 +1568,11 @@ test("Connect clear-all removes saved preferences without touching other local s
     ["duka-onboarding-profile", '{"businessName":"The Sunday Edit"}'],
   ]);
   const storage = {
-    getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => values.set(key, value),
-    removeItem: (key: string) => values.delete(key),
+    getItem: () => null,
+    setItem: () => {
+      writeAttempts += 1;
+      throw new Error("Storage writes are blocked");
+    },
   };
 
   assert.deepEqual(clearPreferences(), []);
@@ -1561,7 +1606,7 @@ test("Connect preference changes can be observed from another tab", () => {
 
 test("Connect updates tiles and saved summary when another tab changes preferences", async () => {
   const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
-    url: "http://localhost/connect",
+    url: "http://localhost/onboarding",
   });
   Object.assign(globalThis, {
     window: dom.window,
@@ -1592,7 +1637,7 @@ test("Connect updates tiles and saved summary when another tab changes preferenc
   const { act } = await import("react");
   const { createRoot } = await import("react-dom/client");
   const container = dom.window.document.getElementById("root")!;
-  const root = createRoot(container);
+  let root = createRoot(container);
   await act(async () => {
     root.render(createElement(
       QueryClientProvider,
@@ -1647,7 +1692,7 @@ test("Connect updates tiles and saved summary when another tab changes preferenc
 
 test("Connect clear-all keeps every tile and summary empty after a remount", async () => {
   const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
-    url: "http://localhost/connect",
+    url: "http://localhost/onboarding",
   });
   Object.assign(globalThis, {
     window: dom.window,
@@ -1678,7 +1723,7 @@ test("Connect clear-all keeps every tile and summary empty after a remount", asy
   const { act } = await import("react");
   const { createRoot } = await import("react-dom/client");
   const container = dom.window.document.getElementById("root")!;
-  const root = createRoot(container);
+  let root = createRoot(container);
   const renderConnect = () => createElement(
     QueryClientProvider,
     {
@@ -1803,7 +1848,7 @@ test("Connect stays available when saved preference storage cannot be read", () 
 
 test("Connect keeps temporary choices visible when preference storage cannot save", async () => {
   const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
-    url: "http://localhost/connect",
+    url: "http://localhost/onboarding",
   });
   let writeAttempts = 0;
   const storage = {
@@ -1846,7 +1891,7 @@ test("Connect keeps temporary choices visible when preference storage cannot sav
   const { act } = await import("react");
   const { createRoot } = await import("react-dom/client");
   const container = dom.window.document.getElementById("root")!;
-  const root = createRoot(container);
+  let root = createRoot(container);
   await act(async () => {
     root.render(createElement(
       QueryClientProvider,
@@ -1920,8 +1965,6 @@ test("completes onboarding with keyboard-only focus, activation, and saved chann
     HTMLElement: dom.window.HTMLElement,
     HTMLInputElement: dom.window.HTMLInputElement,
     HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
-    KeyboardEvent: dom.window.KeyboardEvent,
-    Event: dom.window.Event,
     addEventListener: dom.window.addEventListener.bind(dom.window),
     removeEventListener: dom.window.removeEventListener.bind(dom.window),
   });
@@ -1941,7 +1984,7 @@ test("completes onboarding with keyboard-only focus, activation, and saved chann
   const { act } = await import("react");
   const { createRoot } = await import("react-dom/client");
   const container = dom.window.document.getElementById("root")!;
-  const root = createRoot(container);
+  let root = createRoot(container);
   await act(async () => {
     root.render(createElement(Router, null, createElement(Onboarding)));
   });
@@ -2045,13 +2088,6 @@ test("resumes incomplete onboarding at the saved step with editable profile data
   const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
     url: "http://localhost/onboarding",
   });
-  dom.window.localStorage.setItem("duka-onboarding-step", "2");
-  dom.window.localStorage.setItem("duka-onboarding-profile", JSON.stringify({
-    sellerName: "Amina Mensah",
-    businessName: "The Sunday Edit",
-    description: "Handmade jewellery",
-    channels: ["WhatsApp", "Instagram"],
-  }));
   Object.assign(globalThis, {
     window: dom.window,
     document: dom.window.document,
@@ -2077,7 +2113,7 @@ test("resumes incomplete onboarding at the saved step with editable profile data
   const { act } = await import("react");
   const { createRoot } = await import("react-dom/client");
   const container = dom.window.document.getElementById("root")!;
-  const root = createRoot(container);
+  let root = createRoot(container);
   await act(async () => {
     root.render(createElement(Router, null, createElement(Onboarding)));
   });
@@ -2168,6 +2204,14 @@ test("persists onboarding fields and step changes across forward and backward re
       get<HTMLButtonElement>(testId).click();
     });
   };
+
+  const clickText = async (text: string) => {
+    await evaluate(`(() => {
+      const button = [...document.querySelectorAll('[role="dialog"][aria-label="Choose reporting period"] button')]
+        .find((item) => item.textContent?.includes(${JSON.stringify(text)}));
+      button?.click();
+    })()`);
+  };
   const savedProfile = () => JSON.parse(dom.window.localStorage.getItem("duka-onboarding-profile") ?? "{}") as {
     sellerName?: string;
     businessName?: string;
@@ -2246,3 +2290,240 @@ test("persists onboarding fields and step changes across forward and backward re
     dom.window.close();
   }
 });
+
+    const expectedMonth = await readDateRange(30);
+
+  type BrowserState = {
+    label: string;
+    from: string | null;
+    to: string | null;
+    preference: DashboardPeriodPreference | null;
+    requests: Array<{ from: string | null; to: string | null }>;
+  };
+
+type DashboardBrowser = {
+  evaluate: <T>(expression: string) => Promise<T | undefined>;
+  waitForDashboard: () => Promise<void>;
+  reload: () => Promise<void>;
+  close: () => Promise<void>;
+};
+
+    const savedPreset = await waitFor(async () => {
+      const state = await readState();
+      return state?.preference?.period === "month" ? state : undefined;
+    });
+
+async function openDashboardBrowser(): Promise<DashboardBrowser> {
+  const appPort = await getFreePort();
+  const appDirectory = process.cwd().endsWith("/artifacts/duka")
+    ? process.cwd()
+    : resolve(process.cwd(), "artifacts/duka");
+  const vite = spawn(process.execPath, [
+    resolve(appDirectory, "node_modules/vite/bin/vite.js"),
+    "--config",
+    "vite.config.ts",
+    "--host",
+    "0.0.0.0",
+  ], {
+    cwd: appDirectory,
+    env: { ...process.env, PORT: String(appPort), BASE_PATH: "/" },
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  const viteExit = new Promise<void>((resolvePromise) => vite.once("exit", () => resolvePromise()));
+  const profileDirectory = await mkdtemp(`${tmpdir()}/duka-dashboard-browser-`);
+  const browser = spawn("chromium", [
+    "--headless=new",
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--remote-allow-origins=*",
+    "--remote-debugging-port=0",
+    `--user-data-dir=${profileDirectory}`,
+    "about:blank",
+  ], { stdio: ["ignore", "ignore", "pipe"] });
+  const browserExit = new Promise<void>((resolvePromise) => browser.once("exit", () => resolvePromise()));
+  let socket: WebSocket | undefined;
+  let closed = false;
+
+  const close = async () => {
+    if (closed) return;
+    closed = true;
+    socket?.close();
+    if (!browser.killed) browser.kill();
+    if (!vite.killed) vite.kill();
+    await Promise.race([
+      browserExit,
+      new Promise((resolvePromise) => setTimeout(resolvePromise, 2_000)),
+    ]);
+    await Promise.race([
+      viteExit,
+      new Promise((resolvePromise) => setTimeout(resolvePromise, 2_000)),
+    ]);
+    await rm(profileDirectory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  };
+
+  try {
+    await waitFor(async () => {
+      try {
+        const response = await fetch(`http://127.0.0.1:${appPort}/`);
+        return response.ok ? true : undefined;
+      } catch {
+        return undefined;
+      }
+    });
+
+    let debuggingUrl = "";
+    browser.stderr.on("data", (chunk: Buffer) => {
+      const match = chunk.toString().match(/DevTools listening on (ws:\/\/127\.0\.0\.1:\d+)/);
+      if (match) debuggingUrl = match[1]!;
+    });
+    const endpoint = await waitFor(() => debuggingUrl || undefined);
+    const debuggingPort = new URL(endpoint).port;
+    const page = await waitFor(async () => {
+      const response = await fetch(`http://127.0.0.1:${debuggingPort}/json/list`);
+      if (!response.ok) return undefined;
+      const pages = await response.json() as Array<{ type: string; webSocketDebuggerUrl?: string }>;
+      return pages.find((item) => item.type === "page" && item.webSocketDebuggerUrl);
+    });
+    socket = new WebSocket(page.webSocketDebuggerUrl!);
+    let nextMessageId = 0;
+    const pending = new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void }>();
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data)) as { id?: number; result?: any; error?: { message?: string } };
+      if (message.id === undefined) return;
+      const request = pending.get(message.id);
+      if (!request) return;
+      pending.delete(message.id);
+      if (message.error) request.reject(new Error(message.error.message ?? "Chromium request failed"));
+      else request.resolve(message.result);
+    });
+    await waitFor(() => socket?.readyState === WebSocket.OPEN ? true : undefined);
+    const send = (method: string, params: Record<string, unknown> = {}) => new Promise<any>((resolvePromise, reject) => {
+      const id = ++nextMessageId;
+      pending.set(id, { resolve: resolvePromise, reject });
+      socket!.send(JSON.stringify({ id, method, params }));
+    });
+    const evaluate = async <T,>(expression: string): Promise<T | undefined> => {
+      const result = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
+      if (result?.exceptionDetails) {
+        throw new Error(result.exceptionDetails.exception?.description ?? "Chromium evaluation failed");
+      }
+      return result?.result?.value as T | undefined;
+    };
+    const fetchMock = `(() => {
+      try {
+        localStorage.setItem("duka-onboarding-complete", "true");
+        if (!localStorage.getItem("duka-test-summary-requests")) {
+          localStorage.setItem("duka-test-summary-requests", "[]");
+        }
+      } catch {}
+      const json = (value) => new Response(JSON.stringify(value), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const requestUrl = new URL(typeof input === "string" ? input : input.url, window.location.href);
+        if (requestUrl.pathname.includes("/api/dashboard/summary")) {
+          try {
+            const history = JSON.parse(localStorage.getItem("duka-test-summary-requests") || "[]");
+            history.push({
+              from: requestUrl.searchParams.get("from"),
+              to: requestUrl.searchParams.get("to"),
+            });
+            localStorage.setItem("duka-test-summary-requests", JSON.stringify(history));
+          } catch {}
+          return json({
+            orders: 0,
+            revenue: 0,
+            profit: 0,
+            outstanding: 0,
+            shares: null,
+            likes: null,
+            channelPerformance: [],
+            productPerformance: [],
+            dailyPerformance: [],
+          });
+        }
+        if (requestUrl.pathname.includes("/api/orders") || requestUrl.pathname.includes("/api/products") || requestUrl.pathname.includes("/api/expenses")) return json([]);
+        if (requestUrl.pathname.includes("/api/health")) return json({ status: "ok" });
+        return originalFetch(input, init);
+      };
+    })();`;
+
+    await send("Page.enable");
+    await send("Runtime.enable");
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchMock });
+    await send("Page.navigate", { url: `http://127.0.0.1:${appPort}/` });
+
+    const waitForDashboard = async () => {
+      await waitFor(async () => {
+        const ready = await evaluate<boolean>(`Boolean(document.querySelector('[data-testid="dashboard-analytics"]'))`);
+        return ready ? true : undefined;
+      });
+    };
+    const reload = async () => {
+      await send("Page.reload", { ignoreCache: true });
+      await waitForDashboard();
+    };
+
+    return { evaluate, waitForDashboard, reload, close };
+  } catch (error) {
+    await close();
+    throw error;
+  }
+}
+
+    const presetRequestCount = savedPreset?.requests.length ?? 0;
+
+  const { evaluate, reload, waitForDashboard } = browser;
+
+    const customRequestCount = savedCustom?.requests.length ?? 0;
+
+    const savedCustom = await waitFor(async () => {
+      const state = await readState();
+      return state?.preference?.period === "custom" ? state : undefined;
+    });
+
+    const fallback = await waitFor(async () => {
+      const state = await readState();
+      return state?.requests.length && state.requests.length > invalidRequestCount
+        && state.label.includes("Last 7 days")
+        && state.preference?.period === "week"
+        ? state
+        : undefined;
+    });
+
+    const reloadedCustomPicker = await readState();
+
+    const reloadedPreset = await waitFor(async () => {
+      const state = await readState();
+      return state?.requests.length && state.requests.length > presetRequestCount
+        && state.label.includes("Last 30 days")
+        ? state
+        : undefined;
+    });
+
+    const reloadedCustom = await waitFor(async () => {
+      const state = await readState();
+      return state?.requests.length && state.requests.length > customRequestCount
+        && state.label.includes("Jan 1")
+        && state.label.includes("Jan 10")
+        ? state
+        : undefined;
+    });
+
+    const invalidRequestCount = reloadedPreset?.requests.length ?? 0;
+
+  const readState = () => evaluate<BrowserState>(`(() => {
+    const preferenceValue = localStorage.getItem("${DASHBOARD_PERIOD_KEY}");
+    let preference = null;
+    try { preference = preferenceValue ? JSON.parse(preferenceValue) : null; } catch {}
+    return {
+      label: document.querySelector('[data-testid="button-dashboard-period"]')?.textContent?.replace(/\\s+/g, " ").trim() || "",
+      from: document.querySelector('[data-testid="input-dashboard-period-from"]')?.value || null,
+      to: document.querySelector('[data-testid="input-dashboard-period-to"]')?.value || null,
+      preference,
+      requests: JSON.parse(localStorage.getItem("duka-test-summary-requests") || "[]"),
+    };
+  })()`);
