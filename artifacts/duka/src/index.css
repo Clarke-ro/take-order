@@ -1004,6 +1004,48 @@ button { cursor: pointer; }
   background: hsl(var(--card));
   box-shadow: 0 1px 3px hsl(220 18% 35% / .11);
 }
+.recent-transactions-card {
+  overflow: visible !important;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.recent-transactions-card > div:first-child {
+  border: 0;
+  background: transparent;
+  padding: 0 0 .75rem;
+}
+.recent-transactions-card > .list-toolbar {
+  margin: 0 0 .75rem;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+.recent-transactions-card .list-filter-tabs {
+  width: fit-content;
+  max-width: 100%;
+  gap: .15rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 9px;
+  background: hsl(var(--muted) / .42);
+  padding: .2rem;
+}
+.recent-transactions-card .list-filter-tab {
+  border: 0;
+  border-radius: 7px;
+  padding: .42rem .62rem;
+}
+.recent-transactions-card .list-filter-tab.is-active {
+  background: hsl(var(--card));
+  box-shadow: 0 1px 3px hsl(220 18% 35% / .11);
+}
+.recent-transactions-card > .overflow-x-auto {
+  border: 1px solid hsl(var(--border));
+  border-radius: 14px;
+  background: hsl(var(--card));
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .025);
+}
 
 @media (min-width: 1101px) {
   .app-card:has(.orders-table-wrap) .orders-controls {
@@ -1012,6 +1054,10 @@ button { cursor: pointer; }
   .app-card:has(.orders-table-wrap) .orders-controls .list-search-shell {
     min-width: 0;
     width: 230px;
+  }
+  .recent-transactions-card > .list-toolbar > .list-search-shell {
+    min-width: 0;
+    width: 220px;
   }
 }
 
@@ -1030,6 +1076,10 @@ button { cursor: pointer; }
     grid-template-columns: 1fr;
   }
   .app-card:has(.orders-table-wrap) .orders-controls .list-search-shell {
+    min-width: 0;
+    width: 100%;
+  }
+  .recent-transactions-card > .list-toolbar > .list-search-shell {
     min-width: 0;
     width: 100%;
   }
