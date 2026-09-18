@@ -459,6 +459,8 @@ button { cursor: pointer; }
 .channel-conversion-rate span { font-size: .62rem; }
 .channel-conversion-rate strong { color: hsl(var(--foreground)); font-size: .84rem; font-weight: 600; }
 .channel-conversion-empty { margin-top: .65rem; border-radius: 11px; background: hsl(var(--card)); padding: .75rem; }
+.channel-insight-refresh-row { display: flex; min-height: 1.25rem; justify-content: flex-end; align-items: center; }
+.channel-insight-refresh-status { display: inline-flex; align-items: center; gap: .4rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; }
 .channel-insight-page .metric-value { font-size: 1.95rem; }
 .channel-insight-card { overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--card)); }
 .channel-insight-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid hsl(var(--border)); padding: 1.25rem 1.35rem; }

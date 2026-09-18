@@ -14,6 +14,7 @@ import {
   DASHBOARD_PERIOD_KEY,
   CatalogActions,
   ChannelPicker,
+  ChannelConversionRefreshStatus,
   DashboardCustomRangePicker,
   ExpenseActions,
   MobileMenuButton,
@@ -97,6 +98,19 @@ test("aggregates channel conversion data and keeps channel filtering scoped", ()
   assert.equal(whatsapp.totalViews, 4240);
   assert.equal(whatsapp.totalSales, 82);
   assert.equal(whatsapp.totalRevenue, 6120);
+});
+
+test("announces background channel conversion refreshes without replacing the report", () => {
+  const refreshing = renderToStaticMarkup(createElement(ChannelConversionRefreshStatus, { refreshing: true }));
+  assert.match(refreshing, /data-testid="status-channel-conversion-refresh"/);
+  assert.match(refreshing, /role="status"/);
+  assert.match(refreshing, /aria-live="polite"/);
+  assert.match(refreshing, /Updating channel conversion data/);
+  assert.match(refreshing, /animate-spin/);
+
+  const idle = renderToStaticMarkup(createElement(ChannelConversionRefreshStatus, { refreshing: false }));
+  assert.doesNotMatch(idle, /status-channel-conversion-refresh/);
+  assert.match(idle, /aria-hidden="true"/);
 });
 
 test("keeps supported order and onboarding channel values stable", () => {

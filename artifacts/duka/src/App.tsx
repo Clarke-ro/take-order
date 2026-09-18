@@ -990,10 +990,12 @@ export function ChannelConversionInsight() {
   const [selectedChannel, setSelectedChannel] = useState('all');
   const { rankedChannels, visibleChannels, totalViews, totalSales, totalRevenue, totalConversion } = getChannelConversionView(channels, selectedChannel);
   const selectedChannelLabel = selectedChannel === 'all' ? 'all channels' : channelName(selectedChannel);
+  const summaryRefreshing = summaryQuery.isFetching && !summaryQuery.isLoading && Boolean(summaryQuery.data);
 
   return <Shell>
     <PageHeading title="Channel conversion" action={<Link href="/"><Button variant="outline"><ArrowLeft size={15} />Back to dashboard</Button></Link>} />
     {summaryQuery.isLoading ? <div className="space-y-5" aria-label="Loading channel conversion"><div className="reports-metric-grid">{[1, 2, 3, 4].map((item) => <Card key={item} className="h-[132px] p-5"><Skeleton className="h-3 w-24" /><Skeleton className="mt-6 h-8 w-28" /><Skeleton className="mt-3 h-3 w-36" /></Card>)}</div><Card className="space-y-4 p-6"><Skeleton className="h-5 w-44" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></Card></div> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <div className="channel-insight-page space-y-5">
+       <ChannelConversionRefreshStatus refreshing={summaryRefreshing} />
       <section className="reports-metric-grid" aria-label="Channel conversion summary">
         <MetricCard dataTestId="card-channel-insight-views" label="Total views" value={number(totalViews)} note="Recorded link views" />
         <MetricCard dataTestId="card-channel-insight-sales" label="Paid sales" value={number(totalSales)} indicator={{ direction: totalSales > 0 ? 'up' : 'down', percentage: totalViews ? (totalSales / totalViews) * 100 : 0 }} note="Completed sales from channels" />
@@ -1028,6 +1030,13 @@ export function ChannelConversionInsight() {
       <div className="flex items-start gap-3 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/55 px-4 py-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]"><CircleDollarSign size={15} className="mt-0.5 shrink-0 text-[hsl(var(--accent-foreground))]" aria-hidden="true" /><span><strong className="text-[hsl(var(--foreground))]">How to read this:</strong> Conversion is paid sales divided by recorded views. Channels are ranked by views so you can see where attention is concentrated before comparing sales and revenue.</span></div>
     </div>}
   </Shell>;
+}
+
+export function ChannelConversionRefreshStatus({ refreshing }: { refreshing: boolean }) {
+  if (!refreshing) return <div className="channel-insight-refresh-row" aria-hidden="true" />;
+  return <div className="channel-insight-refresh-row" role="status" aria-live="polite" aria-atomic="true" data-testid="status-channel-conversion-refresh">
+    <span className="channel-insight-refresh-status"><Loader2 size={13} aria-hidden="true" className="animate-spin" />Updating channel conversion data</span>
+  </div>;
 }
 
 function RecentTransactions() {
