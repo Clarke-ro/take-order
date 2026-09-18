@@ -426,10 +426,6 @@ export function Sidebar() {
       <Link href="/settings" data-testid="link-settings" aria-current={location === '/settings' ? 'page' : undefined} className={cn('mt-3 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/settings' ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}><UserRound aria-hidden="true" size={17} /><span>Profile & settings</span></Link>
       <Link href="/connect" data-testid="link-connect" aria-current={location === '/connect' ? 'page' : undefined} className={cn('mt-1 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/connect' ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}><Settings2 aria-hidden="true" size={17} /><span>Connect tools</span><span className="ml-auto h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /></Link>
     </nav>
-    <div className="m-4 rounded-[15px] border border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-accent))]/55 p-4">
-      <div className="flex items-center gap-2 text-[11px] font-semibold text-[hsl(var(--sidebar-foreground))]"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /> All systems ready</div>
-      <p className="mt-2 text-[11px] leading-relaxed text-[hsl(var(--sidebar-foreground))]/55">Your links are live and ready to share.</p>
-    </div>
       <Link href="/settings" aria-label="Open profile and settings" className="flex items-center gap-3 border-t border-[hsl(var(--sidebar-border))] px-6 py-5 transition-colors hover:bg-[hsl(var(--sidebar-accent))]"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-[11px] font-bold text-white">{initials(seller?.sellerName || 'Amina Mensah')}</div><div className="min-w-0"><div className="truncate text-[12px] font-semibold">{seller?.sellerName || 'Amina Mensah'}</div><div className="truncate text-[10px] text-[hsl(var(--sidebar-foreground))]/55">{seller?.businessName || 'The Sunday Edit'}</div></div><MoreHorizontal aria-hidden="true" className="ml-auto text-[hsl(var(--sidebar-foreground))]/45" size={16} /></Link>
   </aside>;
 }
@@ -1894,7 +1890,6 @@ function MultiItemTakeOrderModern() {
      <div className="take-order-page">
        <PageHeading
          title="Create an order"
-         action={<div className="take-order-trust"><CheckCircle2 size={15} />Private by default</div>}
        />
        <TakeOrderStepRail step={step} onStepChange={setStep} />
        <div className={cn('take-order-layout', !showPreview && 'is-builder-only')}>
