@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -116,10 +116,10 @@
   --chart-5: 25 59% 61%;
   --accent-hover: 0 0% 0%;
   --teal-tint: 163 37% 92%;
-  --app-font-family: 'DM Sans', sans-serif;
+  --app-font-family: 'Inter', sans-serif;
   --app-font-sans: var(--app-font-family);
-  --app-font-serif: 'Instrument Serif', Georgia, serif;
-  --app-font-mono: 'DM Sans', sans-serif;
+  --app-font-serif: var(--app-font-family);
+  --app-font-mono: var(--app-font-family);
   --app-text-body: 1rem;
   --app-text-small: .875rem;
   --app-text-label: .75rem;
