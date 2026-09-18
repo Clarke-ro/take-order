@@ -3,9 +3,9 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import {
   AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
-  CheckCircle2, CircleDollarSign, Clipboard, Copy, ExternalLink, Eye, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
-  ImagePlus, Package, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, UserRound,
-  Trash2, TrendingUp, Truck, Users, WalletCards, X
+  CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, ExternalLink, Eye, FileText, Globe2, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
+  ImagePlus, Package, PackageSearch, Pencil, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
+  Trash2, TrendingUp, Truck, UserRound, Users, UsersRound, WalletCards, Workflow, Wrench, X
 } from 'lucide-react';
 import { SiFacebook, SiInstagram, SiSnapchat, SiTiktok, SiWhatsapp, SiX } from 'react-icons/si';
 import {
@@ -2340,9 +2340,143 @@ export function Connect() {
   };
    return <Shell><div className="mx-auto max-w-[1060px]"><div className="mx-auto max-w-[640px] text-center"><div className="font-mono-ui text-[10px] font-bold uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">Optional setup</div><h1 className="mt-3 font-display text-[clamp(36px,5vw,58px)] font-bold leading-[.95] tracking-[-.065em]">Let’s get your tools in one view.</h1><p className="mx-auto mt-4 max-w-[560px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">Choose the places you already sell or get paid. This saves a local preference for now — it does not authorize an integration.</p><div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[hsl(var(--accent))]/35 bg-[hsl(var(--accent))]/10 px-3 py-2 text-[11px] font-semibold text-[hsl(var(--accent-foreground))]"><ShieldIcon />Take Order never reads personal chats.</div></div><div className="mt-10 flex flex-col gap-3 border-b border-[hsl(var(--border))] pb-3 sm:flex-row sm:items-center sm:justify-between"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Your channels and tools</div><div className="flex flex-wrap items-center gap-3"><span className="flex items-center gap-1.5 text-[10px] font-semibold text-[hsl(var(--muted-foreground))]"><span className={cn('h-2 w-2 rounded-full', health.isError ? 'bg-[hsl(var(--destructive))]' : 'bg-[hsl(var(--accent))]')} />{health.isError ? 'Workspace check unavailable' : 'Workspace ready'}</span><Button type="button" variant="outline" onClick={clearAll} disabled={!connected.length} data-testid="button-clear-connected-tools">Clear all saved choices</Button></div></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{tools.map((tool) => { const isConnected = connected.includes(tool.name); const mark = markCatalog[tool.markKey]; return <button key={tool.name} onClick={() => toggle(tool.name)} aria-pressed={isConnected} aria-label={connectPreferenceAriaLabel(tool.name, isConnected)} data-testid={`button-connect-${tool.name.toLowerCase().replaceAll(' ', '-')}`} className={cn('tool-tile soft-focus group rounded-[17px] border p-4 text-left', isConnected ? 'border-[hsl(var(--accent))]/55 bg-[hsl(var(--accent))]/10' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:border-[hsl(var(--muted-foreground))]/45')}><div className="flex items-start justify-between"><div className="tool-mark flex h-11 w-11 items-center justify-center rounded-[13px] bg-[hsl(var(--muted))]" style={{ color: mark.color }}><ChannelMark value={tool.markKey} size={22} /></div><span className={cn('rounded-full px-2 py-1 text-[9px] font-bold', isConnected ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{connectPreferenceLabel(isConnected)}</span></div><div className="mt-5 flex items-end justify-between gap-2"><div><div className="text-sm font-bold">{tool.name}</div><div className="mt-1 text-[11px] leading-4 text-[hsl(var(--muted-foreground))]">{tool.detail}</div></div><span className="font-mono-ui text-[9px] uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]">{tool.group}</span></div></button>; })}</div><div className="mt-8 grid gap-4 lg:grid-cols-[1.15fr_.85fr]"><Card className="flex gap-4 p-5"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Link2 size={17} /></div><div><h2 className="text-sm font-bold">A connection is never required to sell.</h2><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Create buyer links, collect details, and track inventory without connecting a social or payment account. These tiles are simply your setup checklist until real integrations are attached.</p></div></Card><Card className="p-5"><div className="flex items-center gap-2 text-xs font-bold"><Check size={15} className="text-[hsl(var(--accent-foreground))]" />{connected.length ? `${connected.length} tool preference${connected.length === 1 ? '' : 's'} saved` : 'No tool preferences yet'}</div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">You can change these choices any time. They stay on this device.</p></Card></div></div></Shell>;
 }
-function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3 5 6v5c0 4.5 3 8.2 7 10 4-1.8 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>; }
+type SettingsSectionId = 'general' | 'payments' | 'checkout' | 'delivery' | 'workflow' | 'domains' | 'membership' | 'seo' | 'advanced' | 'details' | 'billing' | 'staff' | 'integrations';
 
-function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog/new" component={CatalogEditorRoute} /><Route path="/catalog/edit/:id" component={CatalogEditorRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports/channel-conversion" component={ChannelConversionInsight} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrderModern} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
+const settingsGroups: Array<{ label: string; items: Array<{ id: SettingsSectionId; label: string; description: string; icon: typeof Settings2 }> }> = [
+  {
+    label: 'Store',
+    items: [
+      { id: 'general', label: 'General', description: 'Your shop identity and public profile.', icon: Store },
+      { id: 'payments', label: 'Payments', description: 'How buyers pay and reserve orders.', icon: CreditCard },
+      { id: 'checkout', label: 'Checkout', description: 'The details buyers provide at checkout.', icon: ShoppingBag },
+      { id: 'delivery', label: 'Delivery', description: 'Pickup, delivery, and fulfilment defaults.', icon: Truck },
+      { id: 'workflow', label: 'Workflow', description: 'Notifications and workspace behaviour.', icon: Workflow },
+      { id: 'domains', label: 'Domains', description: 'Your buyer link and custom domains.', icon: Globe2 },
+      { id: 'membership', label: 'Membership', description: 'Plan and workspace access.', icon: WalletCards },
+      { id: 'seo', label: 'SEO and trackings', description: 'Search previews and campaign tracking.', icon: SearchCheck },
+      { id: 'advanced', label: 'Advanced', description: 'Data, privacy, and developer options.', icon: Wrench },
+    ],
+  },
+  {
+    label: 'Organization',
+    items: [
+      { id: 'details', label: 'Details', description: 'Business information and contact details.', icon: FileText },
+      { id: 'billing', label: 'Billing', description: 'Invoices and payment history.', icon: ReceiptText },
+      { id: 'staff', label: 'Staff', description: 'People who can manage this workspace.', icon: UsersRound },
+      { id: 'integrations', label: 'Integrations', description: 'Connected sales and payment tools.', icon: Link2 },
+    ],
+  },
+];
+
+const settingsItem = (id: SettingsSectionId) => settingsGroups.flatMap((group) => group.items).find((item) => item.id === id)!;
+
+function SettingsToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return <label className="settings-row settings-toggle-row">
+    <span><span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</span></span>
+    <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="sr-only" />
+    <span className={cn('settings-switch', checked && 'is-on')} aria-hidden="true"><span /></span>
+  </label>;
+}
+
+function SettingsPage() {
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>('general');
+  const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [] });
+  const [preferences, setPreferences] = useState<SellerSettingsPreferences>(() => readSellerSettings());
+  const [saved, setSaved] = useState(false);
+  const [logoError, setLogoError] = useState('');
+  const active = settingsItem(activeSection);
+
+  useEffect(() => {
+    writeSellerSettings(preferences);
+  }, [preferences]);
+
+  const updateProfile = (key: keyof SellerProfile, value: string) => {
+    setProfile((current) => ({ ...current, [key]: value }));
+    setSaved(false);
+  };
+  const saveProfile = () => {
+    writeSellerProfile(profile);
+    setSaved(true);
+  };
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setLogoError('Choose an image file.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError('Choose an image smaller than 2 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') return;
+      setLogoError('');
+      setProfile((current) => ({ ...current, logoDataUrl: reader.result as string }));
+      setSaved(false);
+    };
+    reader.onerror = () => setLogoError('That image could not be read. Try another file.');
+    reader.readAsDataURL(file);
+  };
+  const removeLogo = () => {
+    setProfile((current) => {
+      const next = { ...current };
+      delete next.logoDataUrl;
+      return next;
+    });
+    setSaved(false);
+  };
+  const setPreference = (key: keyof SellerSettingsPreferences, value: boolean) => setPreferences((current) => ({ ...current, [key]: value }));
+
+  const renderSettingsContent = () => {
+    if (activeSection === 'general') return <div className="space-y-5">
+      <div className="settings-card flex flex-col gap-5 sm:flex-row sm:items-center">
+        <SellerLogo businessName={profile.businessName || 'Your shop'} logoDataUrl={profile.logoDataUrl} className="settings-profile-logo" />
+        <div className="min-w-0 flex-1"><div className="text-sm font-semibold">{profile.logoDataUrl ? 'Your logo is ready' : 'Add a business logo'}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Use a square PNG, JPG, WebP, or SVG up to 2 MB. It appears on buyer order pages.</p><div className="mt-3 flex flex-wrap gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] px-3 py-2 text-[11px] font-semibold text-[hsl(var(--primary-foreground))]"><ImagePlus size={14} />{profile.logoDataUrl ? 'Replace logo' : 'Upload logo'}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" tabIndex={-1} className="sr-only" onChange={handleLogoChange} data-testid="input-settings-logo" /></label>{profile.logoDataUrl && <button type="button" onClick={removeLogo} className="inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--border))] px-3 py-2 text-[11px] font-semibold hover:bg-[hsl(var(--muted))]" data-testid="button-remove-settings-logo"><X size={14} />Remove</button>}</div>{logoError && <p role="alert" className="mt-2 text-xs text-[hsl(var(--destructive))]">{logoError}</p>}</div>
+      </div>
+      <div className="settings-card grid gap-5 sm:grid-cols-2">
+        <div><label className="field-label" htmlFor="settings-seller-name">Your name</label><input id="settings-seller-name" data-testid="input-settings-seller-name" className="field-input" value={profile.sellerName} onChange={(event) => updateProfile('sellerName', event.target.value)} placeholder="e.g. Amina Mensah" /></div>
+        <div><label className="field-label" htmlFor="settings-business-name">Business or shop name</label><input id="settings-business-name" data-testid="input-settings-business-name" className="field-input" value={profile.businessName} onChange={(event) => updateProfile('businessName', event.target.value)} placeholder="e.g. The Sunday Edit" /></div>
+        <div className="sm:col-span-2"><label className="field-label" htmlFor="settings-description">Short shop description</label><textarea id="settings-description" data-testid="input-settings-description" className="field-input resize-none leading-6" rows={4} value={profile.description} onChange={(event) => updateProfile('description', event.target.value)} placeholder="Tell buyers what you sell and where they can find you." /></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2"><p className="text-xs text-[hsl(var(--muted-foreground))]">{saved ? 'Saved to this device.' : 'Changes stay on this device until you save them.'}</p><Button type="button" onClick={saveProfile} data-testid="button-save-settings-profile">{saved ? <><Check size={15} />Saved</> : 'Save profile'}</Button></div>
+      </div>
+      <div className="settings-card"><div className="flex items-center gap-2 text-sm font-semibold"><Store size={16} />Public storefront</div><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your profile details are used on shared buyer order pages. Product catalogue and order data remain separate from this public introduction.</p><div className="mt-4 flex flex-wrap gap-2">{profile.channels.length ? profile.channels.map((channel) => <span key={channel} className="rounded-full bg-[hsl(var(--muted))] px-3 py-1.5 text-[11px] font-semibold">{channel}</span>) : <span className="text-xs text-[hsl(var(--muted-foreground))]">No sales channels selected yet.</span>}</div></div>
+    </div>;
+    if (activeSection === 'workflow') return <div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Order updates" description="Keep order status changes visible in the workspace." checked={preferences.orderUpdates} onChange={(value) => setPreference('orderUpdates', value)} /><SettingsToggle label="Stock alerts" description="Highlight products that are running low or out of stock." checked={preferences.stockAlerts} onChange={(value) => setPreference('stockAlerts', value)} /><SettingsToggle label="Compact tables" description="Use tighter rows when scanning orders, clients, and expenses." checked={preferences.compactTables} onChange={(value) => setPreference('compactTables', value)} /></div>;
+    if (activeSection === 'payments') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Payment behaviour</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Choose what buyers can do from your shared order links.</p></div><WalletCards size={19} className="text-[hsl(var(--muted-foreground))]" /></div><label className="field-label mt-5" htmlFor="settings-payment-mode">Default payment mode</label><select id="settings-payment-mode" className="field-input" defaultValue="reserve"><option value="reserve">Reserve order and confirm payment later</option><option value="pay">Pay now with demo payment</option></select></div><div className="settings-note"><CreditCard size={16} /><p><strong>Payments are demo-only for now.</strong> No real card or mobile-money transaction is processed until a payment provider is connected.</p></div></div>;
+    if (activeSection === 'checkout') return <div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Ask for useful order details" description="Let buyers add delivery timing, access notes, or other context." checked={true} onChange={() => undefined} /><SettingsToggle label="Allow reference images" description="Let buyers attach an image when a product needs visual guidance." checked={true} onChange={() => undefined} /><div className="settings-row"><div><div className="text-sm font-semibold">Checkout reassurance</div><div className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Buyers see a clear summary before sending an order.</div></div><span className="settings-status"><Check size={13} />Enabled</span></div></div>;
+    if (activeSection === 'delivery') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Fulfilment defaults</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">These choices appear when you create a new buyer order link.</p></div><Truck size={19} className="text-[hsl(var(--muted-foreground))]" /></div><label className="field-label mt-5" htmlFor="settings-delivery-default">Default option</label><select id="settings-delivery-default" className="field-input" defaultValue="pickup"><option value="pickup">Pickup</option><option value="delivery">Delivery</option><option value="both">Let buyers choose</option></select><label className="field-label mt-5" htmlFor="settings-delivery-fee">Flat delivery fee</label><div className="relative"><span className="pointer-events-none absolute left-3 top-2.5 text-xs text-[hsl(var(--muted-foreground))]">$</span><input id="settings-delivery-fee" className="field-input pl-7" type="number" min="0" step="0.01" defaultValue="0" /></div></div></div>;
+    if (activeSection === 'domains') return <div className="space-y-5"><div className="settings-card"><h3 className="text-sm font-semibold">Buyer link</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Shared order links use your Take Order workspace domain.</p><div className="mt-4 flex items-center gap-3 rounded-[10px] bg-[hsl(var(--muted))] px-3 py-3 text-xs"><Globe2 size={15} /><span className="truncate">take-order.app/your-shop</span><span className="settings-status ml-auto">Live</span></div></div><div className="settings-card"><h3 className="text-sm font-semibold">Custom domain</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Connect a domain later to give buyers a branded link.</p><div className="mt-4 flex gap-2"><input className="field-input" placeholder="orders.yourshop.com" disabled /><Button type="button" variant="outline" disabled>Connect</Button></div></div></div>;
+    if (activeSection === 'membership') return <div className="settings-card"><div className="flex items-start justify-between gap-4"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Current workspace</div><h3 className="mt-2 font-display text-2xl font-bold">Starter</h3><p className="mt-2 max-w-[450px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">Everything you need to create buyer links, manage products, and understand your day-to-day sales.</p></div><div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[hsl(var(--muted))]"><WalletCards size={18} /></div></div><div className="mt-6 grid gap-3 sm:grid-cols-3"><div className="settings-stat"><strong>1</strong><span>workspace</span></div><div className="settings-stat"><strong>Unlimited</strong><span>buyer links</span></div><div className="settings-stat"><strong>Local</strong><span>preferences</span></div></div></div>;
+    if (activeSection === 'seo') return <div className="settings-card space-y-5"><div><label className="field-label" htmlFor="settings-seo-title">Store title</label><input id="settings-seo-title" className="field-input" defaultValue={profile.businessName || 'Your shop'} /></div><div><label className="field-label" htmlFor="settings-seo-description">Search description</label><textarea id="settings-seo-description" className="field-input resize-none" rows={3} defaultValue={profile.description} placeholder="A short description for search previews." /></div><div><label className="field-label" htmlFor="settings-tracking-id">Tracking ID <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><input id="settings-tracking-id" className="field-input" placeholder="e.g. G-XXXXXXXXXX" /></div><Button type="button" variant="outline">Save SEO settings</Button></div>;
+    if (activeSection === 'advanced') return <div className="space-y-5"><div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Compact tables" description="Use tighter rows throughout the seller workspace." checked={preferences.compactTables} onChange={(value) => setPreference('compactTables', value)} /><div className="settings-row"><div><div className="text-sm font-semibold">Browser-only data</div><div className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Profile, channel choices, and display preferences stay in this browser.</div></div><span className="settings-status"><Check size={13} />Private</span></div></div><div className="settings-card"><h3 className="text-sm font-semibold">Reset local preferences</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">This does not delete products or orders. It only clears seller profile and workspace preferences.</p><button type="button" className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--destructive))]/35 px-3 py-2 text-xs font-semibold text-[hsl(var(--destructive))]" onClick={() => { if (!window.confirm('Reset local seller preferences?')) return; window.localStorage.removeItem(ONBOARDING_KEY); window.localStorage.removeItem(SELLER_SETTINGS_KEY); setProfile({ sellerName: '', businessName: '', description: '', channels: [] }); setPreferences(defaultSellerSettings); setSaved(false); }}>Reset preferences</button></div></div>;
+    if (activeSection === 'details') return <div className="settings-card grid gap-5 sm:grid-cols-2"><div><label className="field-label" htmlFor="settings-org-name">Legal or trading name</label><input id="settings-org-name" className="field-input" defaultValue={profile.businessName} /></div><div><label className="field-label" htmlFor="settings-org-email">Business email</label><input id="settings-org-email" className="field-input" type="email" placeholder="you@example.com" /></div><div><label className="field-label" htmlFor="settings-org-phone">Business phone</label><input id="settings-org-phone" className="field-input" type="tel" placeholder="+233 00 000 0000" /></div><div><label className="field-label" htmlFor="settings-org-country">Country or region</label><select id="settings-org-country" className="field-input" defaultValue="gh"><option value="gh">Ghana</option><option value="ng">Nigeria</option><option value="za">South Africa</option><option value="other">Other</option></select></div><div className="sm:col-span-2"><label className="field-label" htmlFor="settings-org-address">Business address</label><textarea id="settings-org-address" className="field-input resize-none" rows={3} placeholder="Add an address for invoices and fulfilment." /></div><Button type="button" variant="outline">Save organization details</Button></div>;
+    if (activeSection === 'billing') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Billing is not connected</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your Starter workspace has no subscription invoices or payment method yet.</p></div><ReceiptText size={19} className="text-[hsl(var(--muted-foreground))]" /></div><Button type="button" variant="outline" className="mt-5" disabled>Manage billing</Button></div><div className="settings-note"><ShieldIcon /><p>Billing details will appear here when a paid workspace plan is available.</p></div></div>;
+    if (activeSection === 'staff') return <div className="space-y-5"><div className="settings-card"><h3 className="text-sm font-semibold">Workspace staff</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Invite people to help manage products and orders. Staff access is not connected yet.</p><div className="mt-5 flex items-center gap-3 rounded-[12px] border border-[hsl(var(--border))] p-3"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-[11px] font-bold text-white">{initials(profile.sellerName || 'Owner')}</div><div><div className="text-sm font-semibold">{profile.sellerName || 'Workspace owner'}</div><div className="text-xs text-[hsl(var(--muted-foreground))]">Owner · full access</div></div><span className="settings-status ml-auto">Active</span></div><Button type="button" variant="outline" className="mt-4" disabled>Invite staff</Button></div></div>;
+    if (activeSection === 'integrations') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Connected tools</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Choose the channels and payment tools you use. Connections are optional.</p></div><Link2 size={19} className="text-[hsl(var(--muted-foreground))]" /></div><Link href="/connect" className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--border))] px-3 py-2 text-xs font-semibold hover:bg-[hsl(var(--muted))]">Manage integrations <ArrowRight size={14} /></Link></div><div className="settings-note"><ShieldIcon /><p>Take Order never reads personal chats. Connecting a tool only saves your workspace preference until an integration is explicitly authorized.</p></div></div>;
+    return <div className="settings-card"><h3 className="text-sm font-semibold">This setting is ready for configuration</h3><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Review the options here and keep your store details up to date as your business grows.</p></div>;
+  };
+
+  return <Shell><div className="settings-page">
+    <PageHeading eyebrow="Seller workspace" title="Profile & settings" description="Keep your shop identity, storefront behaviour, and organization details in one place." />
+    <div className="settings-layout">
+      <aside className="settings-nav" aria-label="Settings navigation">
+        {settingsGroups.map((group) => <div key={group.label} className="settings-nav-group"><div className="settings-nav-heading">{group.label}</div><nav>{group.items.map((item) => { const Icon = item.icon; return <button type="button" key={item.id} className={cn('settings-nav-item', activeSection === item.id && 'is-active')} onClick={() => setActiveSection(item.id)} aria-current={activeSection === item.id ? 'page' : undefined} data-testid={`button-settings-${item.id}`}><Icon size={15} /><span>{item.label}</span></button>; })}</nav></div>)}
+      </aside>
+      <section className="settings-content" aria-live="polite">
+        <div className="settings-content-heading"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Settings / {active.label}</div><h2 className="mt-2 font-display text-2xl font-bold tracking-[-.04em]">{active.label}</h2><p className="mt-2 max-w-[620px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{active.description}</p></div><div className="settings-content-icon"><active.icon size={19} /></div></div>
+        <div className="mt-6">{renderSettingsContent()}</div>
+      </section>
+    </div>
+    <footer className="settings-footer"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Take Order</div><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Clear tools for independent sellers. Review the rules that guide how the workspace works.</p></div><nav className="settings-footer-links" aria-label="Legal and policy links"><a href="#terms">Terms and conditions</a><a href="#regulations">Regulations</a><a href="#privacy">Privacy policy</a><a href="#cookies">Cookie policy</a><a href="#acceptable-use">Acceptable use</a></nav></footer>
+  </div></Shell>;
+}
+
+function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3 5 6v5c0 4.5 3.8 8.2 7 10 3.2-1.8 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>; }
+
+ function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog/new" component={CatalogEditorRoute} /><Route path="/catalog/edit/:id" component={CatalogEditorRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports/channel-conversion" component={ChannelConversionInsight} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrderModern} /><Route path="/settings" component={SettingsPage} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
 function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
 export default App;
 
