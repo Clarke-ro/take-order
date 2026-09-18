@@ -19,6 +19,12 @@ export interface ProductPreferenceGroup {
   options: string[];
 }
 
+export interface ProductCustomField {
+  /** @minLength 1 */
+  label: string;
+  value: string;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -29,6 +35,9 @@ export interface Product {
   stock: number;
   variants: string[];
   preferences: ProductPreferenceGroup[];
+  customFields: ProductCustomField[];
+  /** @nullable */
+  imageUrl: string | null;
   accent: string;
 }
 
@@ -47,6 +56,9 @@ export interface ProductInput {
   stock: number;
   variants?: string[];
   preferences?: ProductPreferenceGroup[];
+  customFields?: ProductCustomField[];
+  /** @nullable */
+  imageUrl?: string | null;
   accent?: string;
 }
 
@@ -65,6 +77,9 @@ export interface ProductUpdate {
   stock?: number;
   variants?: string[];
   preferences?: ProductPreferenceGroup[];
+  customFields?: ProductCustomField[];
+  /** @nullable */
+  imageUrl?: string | null;
   accent?: string;
 }
 

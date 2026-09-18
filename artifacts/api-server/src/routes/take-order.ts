@@ -7,7 +7,7 @@ import {
   ordersTable,
   productsTable,
 } from "@workspace/db/schema";
-import type { ProductPreferenceGroup } from "@workspace/db/schema";
+import type { ProductCustomField, ProductPreferenceGroup } from "@workspace/db/schema";
 import type { db } from "@workspace/db";
 import {
   CreateProductBody,
@@ -126,6 +126,8 @@ function productResponse(product: typeof productsTable.$inferSelect) {
     cost: toNumber(product.cost),
     variants: product.variants ?? [],
     preferences: preferencesForProduct(product.preferences, product.variants ?? []),
+    customFields: product.customFields ?? [],
+    imageUrl: product.imageUrl ?? null,
   };
 }
 
@@ -332,6 +334,8 @@ router.post("/products", async (req, res): Promise<void> => {
       cost: parsed.data.cost == null ? null : parsed.data.cost.toFixed(2),
       variants: parsed.data.variants ?? [],
       preferences: parsed.data.preferences ?? [],
+      customFields: parsed.data.customFields ?? [],
+      imageUrl: parsed.data.imageUrl ?? null,
       accent: parsed.data.accent ?? "#0F6E6B",
     })
     .returning();
@@ -357,6 +361,8 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
     stock?: number;
     variants?: string[];
     preferences?: ProductPreferenceGroup[];
+    customFields?: ProductCustomField[];
+    imageUrl?: string | null;
     accent?: string;
   } = {};
   if (parsed.data.name !== undefined) update.name = parsed.data.name;
@@ -372,6 +378,8 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
     update.preferences = parsed.data.preferences;
     update.variants = parsed.data.preferences.flatMap((group) => group.options);
   }
+  if (parsed.data.customFields !== undefined) update.customFields = parsed.data.customFields;
+  if (parsed.data.imageUrl !== undefined) update.imageUrl = parsed.data.imageUrl;
   if (parsed.data.accent !== undefined) update.accent = parsed.data.accent;
   const [product] = await database
     .update(productsTable)

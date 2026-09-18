@@ -25,6 +25,7 @@ export const HealthCheckResponse = zod.object({
 
 
 
+
 export const ListProductsResponseItem = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -37,6 +38,11 @@ export const ListProductsResponseItem = zod.object({
   "label": zod.string().min(1),
   "options": zod.array(zod.string().min(1)).min(1)
 })),
+  "customFields": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "value": zod.string()
+})),
+  "imageUrl": zod.string().url().nullable(),
   "accent": zod.string()
 })
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
@@ -57,6 +63,7 @@ export const createProductBodyStockMin = 0;
 
 
 
+
 export const CreateProductBody = zod.object({
   "name": zod.string().min(1),
   "category": zod.string(),
@@ -68,8 +75,14 @@ export const CreateProductBody = zod.object({
   "label": zod.string().min(1),
   "options": zod.array(zod.string().min(1)).min(1)
 })).optional(),
+  "customFields": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "value": zod.string()
+})).optional(),
+  "imageUrl": zod.string().url().nullish(),
   "accent": zod.string().optional()
 })
+
 
 
 
@@ -88,6 +101,11 @@ export const CreateProductResponse = zod.object({
   "label": zod.string().min(1),
   "options": zod.array(zod.string().min(1)).min(1)
 })),
+  "customFields": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "value": zod.string()
+})),
+  "imageUrl": zod.string().url().nullable(),
   "accent": zod.string()
 })
 
@@ -111,6 +129,7 @@ export const updateProductBodyStockMin = 0;
 
 
 
+
 export const UpdateProductBody = zod.object({
   "name": zod.string().min(1).optional(),
   "category": zod.string().optional(),
@@ -122,8 +141,14 @@ export const UpdateProductBody = zod.object({
   "label": zod.string().min(1),
   "options": zod.array(zod.string().min(1)).min(1)
 })).optional(),
+  "customFields": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "value": zod.string()
+})).optional(),
+  "imageUrl": zod.string().url().nullish(),
   "accent": zod.string().optional()
 })
+
 
 
 
@@ -142,6 +167,11 @@ export const UpdateProductResponse = zod.object({
   "label": zod.string().min(1),
   "options": zod.array(zod.string().min(1)).min(1)
 })),
+  "customFields": zod.array(zod.object({
+  "label": zod.string().min(1),
+  "value": zod.string()
+})),
+  "imageUrl": zod.string().url().nullable(),
   "accent": zod.string()
 })
 

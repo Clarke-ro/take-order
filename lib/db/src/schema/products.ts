@@ -7,6 +7,11 @@ export type ProductPreferenceGroup = {
   options: string[];
 };
 
+export type ProductCustomField = {
+  label: string;
+  value: string;
+};
+
 export const productsTable = pgTable("products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -16,6 +21,8 @@ export const productsTable = pgTable("products", {
   stock: integer("stock").notNull().default(0),
   variants: text("variants").array().notNull().default([]),
   preferences: jsonb("preferences").$type<ProductPreferenceGroup[]>().notNull().default([]),
+  customFields: jsonb("custom_fields").$type<ProductCustomField[]>().notNull().default([]),
+  imageUrl: text("image_url"),
   accent: text("accent").notNull().default("#0F6E6B"),
 });
 

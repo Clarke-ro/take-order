@@ -300,7 +300,7 @@ components:
         - status
     Product:
       type: object
-      required: [id, name, category, price, cost, stock, variants, preferences, accent]
+      required: [id, name, category, price, cost, stock, variants, preferences, customFields, imageUrl, accent]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -315,6 +315,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductPreferenceGroup"
+        customFields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductCustomField"
+        imageUrl: { type: ["string", "null"], format: uri }
         accent: { type: string }
     ProductPreferenceGroup:
       type: object
@@ -341,7 +346,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductPreferenceGroup"
+        customFields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductCustomField"
+        imageUrl: { type: ["string", "null"], format: uri }
         accent: { type: string }
+    ProductCustomField:
+      type: object
+      required: [label, value]
+      properties:
+        label: { type: string, minLength: 1 }
+        value: { type: string }
     ProductUpdate:
       type: object
       properties:
@@ -357,6 +373,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductPreferenceGroup"
+        customFields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductCustomField"
+        imageUrl: { type: ["string", "null"], format: uri }
         accent: { type: string }
     Order:
       type: object

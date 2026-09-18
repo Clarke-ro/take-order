@@ -32,6 +32,7 @@ export * from './orderUpdate';
 export * from './orderUpdateFulfillment';
 export * from './orderUpdateStatus';
 export * from './product';
+export * from './productCustomField';
 export * from './productInput';
 export * from './productPerformance';
 export * from './productPerformanceMarginStatus';

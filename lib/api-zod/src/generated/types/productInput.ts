@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductCustomField } from './productCustomField';
 import type { ProductPreferenceGroup } from './productPreferenceGroup';
 
 export interface ProductInput {
@@ -22,5 +23,8 @@ export interface ProductInput {
   stock: number;
   variants?: string[];
   preferences?: ProductPreferenceGroup[];
+  customFields?: ProductCustomField[];
+  /** @nullable */
+  imageUrl?: string | null;
   accent?: string;
 }
