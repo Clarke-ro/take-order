@@ -56,6 +56,21 @@ function createSeededDatabase(seed: Seed): typeof db {
   } as unknown as typeof db;
 }
 
+function createProductListDatabase(products: Seed["products"]): typeof db {
+  return {
+    select() {
+      return {
+        from(table: unknown) {
+          if (table !== productsTable) throw new Error("Unexpected table requested by product route");
+          return {
+            orderBy: () => Promise.resolve(products),
+          };
+        },
+      };
+    },
+  } as unknown as typeof db;
+}
+
 const transactionRollback = Symbol("transaction rollback");
 
 async function withDatabaseTransaction(
@@ -118,6 +133,28 @@ async function requestSummary(seed: Seed, query = ""): Promise<{
     const response = await fetch(
       `http://127.0.0.1:${address.port}/api/dashboard/summary${query}`,
     );
+    return {
+      status: response.status,
+      body: await response.json(),
+    };
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+}
+
+async function requestProducts(products: Seed["products"]): Promise<{
+  status: number;
+  body: unknown;
+}> {
+  const server = createServer(createApp(createProductListDatabase(products)));
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+
+  try {
+    const address = server.address();
+    assert(address && typeof address !== "string");
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/products`);
     return {
       status: response.status,
       body: await response.json(),
@@ -230,6 +267,150 @@ test("GET /dashboard/summary adapts seeded database records into the response co
   assert.deepEqual(summary.productPerformance, [
     {
       name: "Linen set",
+      category: "Apparel",
+      revenue: 100,
+      orders: 1,
+      stock: 2,
+      margin: 80,
+      costTracked: true,
+      marginStatus: "tracked",
+      snapshotOrders: 1,
+      legacyOrders: 0,
+    },
+  ]);
+});
+
+test("GET /products keeps reusable catalog items separate from one-off items", async () => {
+  const response = await requestProducts([
+    {
+      id: 1,
+      name: "Reusable linen set",
+      category: "Apparel",
+      price: "100.00",
+      cost: "20.00",
+      stock: 2,
+      variants: [],
+      preferences: [],
+      customFields: [],
+      imageUrl: null,
+      accent: "#0F6E6B",
+    },
+    {
+      id: 2,
+      name: "Custom sleeve alteration",
+      category: "Custom order",
+      price: "35.00",
+      cost: null,
+      stock: 0,
+      variants: ["One-off"],
+      preferences: [{ label: "Finish", options: ["Short sleeve"] }],
+      customFields: [],
+      imageUrl: null,
+      accent: "#2F5BFF",
+    },
+  ]);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    (response.body as Array<{ id: number; name: string }>).map(({ id, name }) => ({ id, name })),
+    [{ id: 1, name: "Reusable linen set" }],
+  );
+});
+
+test("dashboard keeps one-off sales in totals without treating them as catalog inventory", async () => {
+  const response = await requestSummary({
+    products: [
+      {
+        id: 1,
+        name: "Reusable linen set",
+        category: "Apparel",
+        price: "100.00",
+        cost: "20.00",
+        stock: 2,
+        variants: [],
+        preferences: [],
+        customFields: [],
+        imageUrl: null,
+        accent: "#0F6E6B",
+      },
+      {
+        id: 2,
+        name: "Custom sleeve alteration",
+        category: "Custom order",
+        price: "35.00",
+        cost: null,
+        stock: 0,
+        variants: [],
+        preferences: [],
+        customFields: [],
+        imageUrl: null,
+        accent: "#2F5BFF",
+      },
+    ],
+    orders: [
+      {
+        id: 1,
+        token: "catalog-sale",
+        productId: 1,
+        productName: "Reusable linen set",
+        customerName: "Ama",
+        customerPhone: null,
+        channel: "whatsapp",
+        amount: "100.00",
+        deliveryFee: "0.00",
+        deliveryMethod: null,
+        deliveryAddress: null,
+        productCost: "20.00",
+        depositAmount: null,
+        paymentMode: "full",
+        status: "paid",
+        fulfillment: "pending",
+        createdAt: new Date("2026-09-13T12:00:00.000Z"),
+        linkOpens: 1,
+        shares: null,
+        likes: null,
+        engagementSource: null,
+        referenceImage: null,
+        buyerDetails: null,
+      },
+      {
+        id: 2,
+        token: "custom-sale",
+        productId: 2,
+        productName: "Custom sleeve alteration",
+        customerName: "Kojo",
+        customerPhone: null,
+        channel: "instagram",
+        amount: "35.00",
+        deliveryFee: "0.00",
+        deliveryMethod: null,
+        deliveryAddress: null,
+        productCost: null,
+        depositAmount: null,
+        paymentMode: "full",
+        status: "paid",
+        fulfillment: "pending",
+        createdAt: new Date("2026-09-13T12:00:00.000Z"),
+        linkOpens: 1,
+        shares: null,
+        likes: null,
+        engagementSource: null,
+        referenceImage: null,
+        buyerDetails: null,
+      },
+    ],
+    expenses: [],
+  });
+
+  assert.equal(response.status, 200);
+  const summary = GetDashboardSummaryResponse.parse(response.body);
+  assert.equal(summary.revenue, 135);
+  assert.equal(summary.orders, 2);
+  assert.equal(summary.productCosts, 20);
+  assert.equal(summary.expenses, 20);
+  assert.deepEqual(summary.productPerformance, [
+    {
+      name: "Reusable linen set",
       category: "Apparel",
       revenue: 100,
       orders: 1,
