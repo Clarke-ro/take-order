@@ -107,6 +107,10 @@ export function preferencesForProduct(
   return [{ label: "Choose an option", options: variants }];
 }
 
+export function isReusableCatalogProduct(product: Pick<typeof productsTable.$inferSelect, "category">) {
+  return product.category.trim().toLowerCase() !== "custom order";
+}
+
 export function createTakeOrderRouter(database: typeof db): IRouter {
   const router: IRouter = Router();
 
@@ -317,7 +321,7 @@ async function productCostForSale(
 
 router.get("/products", async (_req, res): Promise<void> => {
   const products = await database.select().from(productsTable).orderBy(productsTable.id);
-  res.json(ListProductsResponse.parse(products.map(productResponse)));
+  res.json(ListProductsResponse.parse(products.filter(isReusableCatalogProduct).map(productResponse)));
 });
 
 router.post("/products", async (req, res): Promise<void> => {
@@ -729,7 +733,7 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
     database.select().from(expensesTable),
   ]);
   res.json(GetDashboardSummaryResponse.parse(
-    calculateDashboardSummary(products, orders, operatingExpenseRows, new Date(), range),
+    calculateDashboardSummary(products.filter(isReusableCatalogProduct), orders, operatingExpenseRows, new Date(), range),
   ));
 });
 

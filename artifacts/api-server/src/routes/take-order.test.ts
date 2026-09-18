@@ -10,7 +10,7 @@ import {
 import { db, pool } from "@workspace/db";
 import { GetDashboardSummaryResponse } from "@workspace/api-zod";
 import { createApp } from "../app.js";
-import { preferencesForProduct } from "./take-order.js";
+import { isReusableCatalogProduct, preferencesForProduct } from "./take-order.js";
 
 type Seed = {
   products: Array<typeof productsTable.$inferSelect>;
@@ -33,6 +33,12 @@ test("normalizes mixed legacy color and size variants into stacked buyer groups"
       { label: "Size", options: ["Medium"] },
     ],
   );
+});
+
+test("keeps one-off custom order products out of reusable catalog results", () => {
+  assert.equal(isReusableCatalogProduct({ category: "Apparel" }), true);
+  assert.equal(isReusableCatalogProduct({ category: "Custom order" }), false);
+  assert.equal(isReusableCatalogProduct({ category: " custom ORDER " }), false);
 });
 
 function createSeededDatabase(seed: Seed): typeof db {
