@@ -315,6 +315,7 @@ type SellerSettingsPreferences = { orderUpdates: boolean; stockAlerts: boolean; 
 const ONBOARDING_KEY = 'duka-onboarding-profile';
 const ONBOARDING_STEP_KEY = 'duka-onboarding-step';
 const ONBOARDING_DONE_KEY = 'duka-onboarding-complete';
+const MOCK_AUTH_KEY = 'duka-mock-authenticated';
 export const CONNECTED_TOOLS_KEY = 'duka-connected-tools';
 const SELLER_SETTINGS_KEY = 'duka-seller-settings';
 
@@ -397,6 +398,12 @@ const writeOnboardingStep = (step: number) => {
   try { window.localStorage.setItem(ONBOARDING_STEP_KEY, String(step)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
 };
 const finishOnboarding = () => window.localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
+const readMockAuth = (): boolean => {
+  try { return window.localStorage.getItem(MOCK_AUTH_KEY) === 'true'; } catch { return false; }
+};
+const writeMockAuth = () => {
+  try { window.localStorage.setItem(MOCK_AUTH_KEY, 'true'); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+};
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -646,10 +653,78 @@ export function Onboarding() {
   </div>;
 }
 
+function Auth() {
+  const [, setLocation] = useLocation();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const demoEmail = 'demo@takeorder.app';
+  const demoPassword = 'demo123';
+  const useDemoLogin = () => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setError('');
+  };
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (email.trim().toLowerCase() !== demoEmail || password !== demoPassword) {
+      setError('Use the demo login below to enter the seller workspace.');
+      return;
+    }
+    writeMockAuth();
+    setLocation('/');
+  };
+  return <div className="onboarding-shell auth-shell">
+    <div className="onboarding-layout">
+      <section className="onboarding-main" aria-label="Take Order sign in">
+        <header className="onboarding-header auth-header">
+          <Link href="/" data-testid="link-auth-logo" aria-label="Take Order home"><BrandLockup className="gap-2" /></Link>
+        </header>
+        <div className="onboarding-form-wrap auth-form-wrap">
+          <div className="onboarding-form-panel auth-form-panel">
+            <div className="onboarding-kicker">Seller workspace</div>
+            <h1>Welcome back</h1>
+            <p className="onboarding-lede">Sign in below to manage your shop, products, and orders.</p>
+            <form className="auth-form" onSubmit={submit}>
+              <div>
+                <label className="field-label" htmlFor="auth-email">Email</label>
+                <input autoFocus id="auth-email" data-testid="input-auth-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(''); }} placeholder="Enter your email" className="field-input" required />
+              </div>
+              <div>
+                <div className="auth-password-label"><label className="field-label" htmlFor="auth-password">Password</label><button type="button" className="auth-text-link" onClick={() => setError('Password recovery is not connected in mock mode.')}>Forgot password</button></div>
+                <input id="auth-password" data-testid="input-auth-password" type="password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} placeholder="Enter your password" className="field-input" required />
+              </div>
+              {error && <p className="auth-error" role="alert">{error}</p>}
+              <button type="submit" className="auth-submit" data-testid="button-auth-sign-in">Sign in <ArrowRight size={15} aria-hidden="true" /></button>
+              <p className="auth-legal">By using the Take Order workspace, you accept our terms and privacy policy.</p>
+            </form>
+            <div className="auth-divider" />
+            <div className="auth-footer-links">
+              <p>New to Take Order? <Link href="/onboarding" data-testid="link-auth-start-setup" className="auth-text-link">Start setup</Link></p>
+              <button type="button" className="auth-demo-link" onClick={useDemoLogin} data-testid="button-auth-demo-login">Use demo login <span>{demoEmail} / {demoPassword}</span></button>
+              <p className="auth-demo-note">Mock authentication is enabled while the real sign-in provider is being connected.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <aside className="onboarding-brand-panel auth-brand-panel">
+        <div className="onboarding-brand-top"><BrandLockup className="onboarding-brand-lockup" /><span className="onboarding-panel-tag">Seller workspace</span></div>
+        <div className="onboarding-panel-copy"><div className="onboarding-panel-eyebrow">A calmer way to sell</div><h2>Your shop should grow, not just run you.</h2><p>Take Order gives you one clear place to manage products, share buyer links, and keep every order moving.</p><div className="onboarding-panel-note"><span className="onboarding-note-dot" />Start with a demo login. No real account is created.</div></div>
+        <div className="onboarding-product-scene" aria-hidden="true"><div className="product-orbit product-orbit-one" /><div className="product-orbit product-orbit-two" /><div className="product-device"><div className="product-device-top"><span>take order</span><span className="product-status"><i />live</span></div><div className="product-device-content"><span className="product-device-label">Your workspace</span><strong>Take Order</strong><div className="product-device-line" /><div className="product-device-row"><span /><span /><span /></div></div><div className="product-device-base" /></div><div className="product-floating-card"><Link2 size={14} /><span>One simple link</span></div></div>
+        <div className="onboarding-panel-footer auth-panel-footer"><span>MOCK MODE</span><div className="onboarding-panel-dashes"><i className="is-active" /></div><span>TAKE ORDER</span></div>
+      </aside>
+    </div>
+  </div>;
+}
+
 function HomeRoute() {
   const [, setLocation] = useLocation();
   const [ready, setReady] = useState(false);
   useEffect(() => {
+    if (!readMockAuth()) {
+      setLocation('/auth');
+      return;
+    }
     const completed = readOnboardingComplete();
     if (completed === false) setLocation('/onboarding');
     else setReady(true);
@@ -2477,7 +2552,7 @@ function SettingsPage() {
 
 function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3 5 6v5c0 4.5 3.8 8.2 7 10 3.2-1.8 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>; }
 
- function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog/new" component={CatalogEditorRoute} /><Route path="/catalog/edit/:id" component={CatalogEditorRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports/channel-conversion" component={ChannelConversionInsight} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrderModern} /><Route path="/settings" component={SettingsPage} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
+function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/auth" component={Auth} /><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog/new" component={CatalogEditorRoute} /><Route path="/catalog/edit/:id" component={CatalogEditorRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports/channel-conversion" component={ChannelConversionInsight} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrderModern} /><Route path="/settings" component={SettingsPage} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
 function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
 export default App;
 
