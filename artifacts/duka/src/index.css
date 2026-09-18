@@ -752,6 +752,15 @@ button { cursor: pointer; }
 .catalog-editor-page { min-height: calc(100dvh - 4rem); }
 .catalog-editor-card { max-width: 900px; margin-inline: auto; box-shadow: 0 1px 2px hsl(var(--foreground) / .025), 0 16px 36px hsl(var(--foreground) / .05); }
 .catalog-custom-fields-editor { border-top: 1px solid hsl(var(--border)); padding-top: 1.15rem; }
+.expenses-workspace-controls { display: flex; align-items: center; justify-content: flex-end; gap: .75rem; margin-bottom: .8rem; }
+.expenses-search { position: relative; min-width: 0; width: min(100%, 320px); }
+.expenses-search svg { position: absolute; top: 50%; left: .75rem; color: hsl(var(--muted-foreground)); pointer-events: none; transform: translateY(-50%); }
+.expenses-search input,
+.expenses-category-filter { min-height: 2.5rem; border: 1px solid hsl(var(--border)); border-radius: 9px; background: hsl(var(--card)); color: hsl(var(--foreground)); font-size: .75rem; outline: none; }
+.expenses-search input { display: block; width: 100%; padding: .6rem .75rem .6rem 2.35rem; }
+.expenses-category-filter { width: min(100%, 190px); padding: .6rem 2rem .6rem .75rem; }
+.expenses-search input:focus,
+.expenses-category-filter:focus { border-color: hsl(var(--ring)); outline: 2px solid hsl(var(--ring) / .18); outline-offset: 1px; }
 .expenses-table-card { border-radius: 14px; box-shadow: 0 1px 2px hsl(var(--foreground) / .025); }
 .expenses-table { overflow-x: auto; }
 .expenses-table-head, .expenses-table-row { display: grid; grid-template-columns: minmax(240px, 1.6fr) minmax(120px, .8fr) minmax(110px, .7fr) minmax(100px, .65fr) 72px; min-width: 760px; align-items: center; gap: 1rem; padding-inline: 1.5rem; }
@@ -1837,6 +1846,8 @@ button[data-testid="button-buyer-reserve"].text-white {
   .catalog-toolbar-tools > .relative { grid-column: 1 / -1; max-width: none !important; }
   .catalog-filter-select { width: 100%; min-width: 0; }
   .catalog-view-toggle { justify-self: end; }
+  .expenses-workspace-controls { align-items: stretch; flex-direction: column; }
+  .expenses-search, .expenses-category-filter { width: 100%; max-width: none; }
   .expenses-table-head { display: none; }
   .expenses-table-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .45rem .8rem; min-height: auto; padding: 1rem; }
   .expenses-table-row > :first-child { grid-column: 1 / -1; }
