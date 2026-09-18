@@ -29,7 +29,13 @@ export interface Product {
   id: number;
   name: string;
   category: string;
+  /** @nullable */
+  sku: string | null;
+  /** @nullable */
+  description: string | null;
   price: number;
+  /** @nullable */
+  compareAtPrice: number | null;
   /** @nullable */
   cost: number | null;
   stock: number;
@@ -38,6 +44,7 @@ export interface Product {
   customFields: ProductCustomField[];
   /** @nullable */
   imageUrl: string | null;
+  imageUrls: string[];
   accent: string;
 }
 
@@ -45,8 +52,17 @@ export interface ProductInput {
   /** @minLength 1 */
   name: string;
   category: string;
+  /** @nullable */
+  sku?: string | null;
+  /** @nullable */
+  description?: string | null;
   /** @minimum 0 */
   price: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  compareAtPrice?: number | null;
   /**
      * @minimum 0
      * @nullable
@@ -59,6 +75,7 @@ export interface ProductInput {
   customFields?: ProductCustomField[];
   /** @nullable */
   imageUrl?: string | null;
+  imageUrls?: string[];
   accent?: string;
 }
 
@@ -66,8 +83,17 @@ export interface ProductUpdate {
   /** @minLength 1 */
   name?: string;
   category?: string;
+  /** @nullable */
+  sku?: string | null;
+  /** @nullable */
+  description?: string | null;
   /** @minimum 0 */
   price?: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  compareAtPrice?: number | null;
   /**
      * @minimum 0
      * @nullable
@@ -80,6 +106,7 @@ export interface ProductUpdate {
   customFields?: ProductCustomField[];
   /** @nullable */
   imageUrl?: string | null;
+  imageUrls?: string[];
   accent?: string;
 }
 
@@ -136,6 +163,8 @@ export interface OrderLineItem {
   productId: number;
   productName: string;
   amount: number;
+  /** @minimum 1 */
+  quantity: number;
 }
 
 export interface Order {
@@ -188,6 +217,8 @@ export interface OrderItemInput {
   productId: number;
   /** @minimum 0 */
   amount: number;
+  /** @minimum 1 */
+  quantity?: number;
 }
 
 export type OrderInputPaymentMode = typeof OrderInputPaymentMode[keyof typeof OrderInputPaymentMode];
@@ -291,9 +322,21 @@ export interface PublicOrderItem {
   productId: number;
   productName: string;
   amount: number;
+  /** @minimum 1 */
+  quantity: number;
   variants: string[];
   preferences: ProductPreferenceGroup[];
   source: PublicOrderItemSource;
+  /** @nullable */
+  sku: string | null;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  compareAtPrice: number | null;
+  imageUrls: string[];
+  /** @minimum 0 */
+  stock: number;
+  available: boolean;
 }
 
 export interface PublicOrder {
@@ -315,6 +358,8 @@ export interface PublicOrder {
 export interface PublicOrderItemDetails {
   /** @minimum 0 */
   itemIndex: number;
+  /** @minimum 1 */
+  quantity?: number;
   variant?: string;
   details?: string;
   referenceImage?: string;

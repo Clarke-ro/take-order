@@ -300,12 +300,15 @@ components:
         - status
     Product:
       type: object
-      required: [id, name, category, price, cost, stock, variants, preferences, customFields, imageUrl, accent]
+      required: [id, name, category, sku, description, price, compareAtPrice, cost, stock, variants, preferences, customFields, imageUrl, imageUrls, accent]
       properties:
         id: { type: integer }
         name: { type: string }
         category: { type: string }
+        sku: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
         price: { type: number }
+        compareAtPrice: { type: ["number", "null"] }
         cost: { type: ["number", "null"] }
         stock: { type: integer }
         variants:
@@ -320,6 +323,9 @@ components:
           items:
             $ref: "#/components/schemas/ProductCustomField"
         imageUrl: { type: ["string", "null"], format: uri }
+        imageUrls:
+          type: array
+          items: { type: string, format: uri }
         accent: { type: string }
     ProductPreferenceGroup:
       type: object
@@ -336,7 +342,10 @@ components:
       properties:
         name: { type: string, minLength: 1 }
         category: { type: string }
+        sku: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
         price: { type: number, minimum: 0 }
+        compareAtPrice: { type: ["number", "null"], minimum: 0 }
         cost: { type: ["number", "null"], minimum: 0 }
         stock: { type: integer, minimum: 0 }
         variants:
@@ -351,6 +360,9 @@ components:
           items:
             $ref: "#/components/schemas/ProductCustomField"
         imageUrl: { type: ["string", "null"], format: uri }
+        imageUrls:
+          type: array
+          items: { type: string, format: uri }
         accent: { type: string }
     ProductCustomField:
       type: object
@@ -363,7 +375,10 @@ components:
       properties:
         name: { type: string, minLength: 1 }
         category: { type: string }
+        sku: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
         price: { type: number, minimum: 0 }
+        compareAtPrice: { type: ["number", "null"], minimum: 0 }
         cost: { type: ["number", "null"], minimum: 0 }
         stock: { type: integer, minimum: 0 }
         variants:
@@ -378,6 +393,9 @@ components:
           items:
             $ref: "#/components/schemas/ProductCustomField"
         imageUrl: { type: ["string", "null"], format: uri }
+        imageUrls:
+          type: array
+          items: { type: string, format: uri }
         accent: { type: string }
     Order:
       type: object
@@ -416,13 +434,15 @@ components:
       properties:
         productId: { type: integer }
         amount: { type: number, minimum: 0 }
+        quantity: { type: integer, minimum: 1 }
     OrderLineItem:
       type: object
-      required: [productId, productName, amount]
+      required: [productId, productName, amount, quantity]
       properties:
         productId: { type: integer }
         productName: { type: string }
         amount: { type: number }
+        quantity: { type: integer, minimum: 1 }
     OrderInput:
       type: object
       required: [paymentMode, channel]
@@ -465,11 +485,12 @@ components:
             $ref: "#/components/schemas/PublicOrderItem"
     PublicOrderItem:
       type: object
-      required: [productId, productName, amount, variants, preferences, source]
+      required: [productId, productName, amount, quantity, variants, preferences, source, sku, description, compareAtPrice, imageUrls, stock, available]
       properties:
         productId: { type: integer }
         productName: { type: string }
         amount: { type: number }
+        quantity: { type: integer, minimum: 1 }
         variants:
           type: array
           items: { type: string }
@@ -478,11 +499,20 @@ components:
           items:
             $ref: "#/components/schemas/ProductPreferenceGroup"
         source: { type: string, enum: [catalog, custom] }
+        sku: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+        compareAtPrice: { type: ["number", "null"] }
+        imageUrls:
+          type: array
+          items: { type: string, format: uri }
+        stock: { type: integer, minimum: 0 }
+        available: { type: boolean }
     PublicOrderItemDetails:
       type: object
       required: [itemIndex]
       properties:
         itemIndex: { type: integer, minimum: 0 }
+        quantity: { type: integer, minimum: 1 }
         variant: { type: string }
         details: { type: string }
         referenceImage: { type: string }

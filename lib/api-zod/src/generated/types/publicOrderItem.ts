@@ -12,7 +12,19 @@ export interface PublicOrderItem {
   productId: number;
   productName: string;
   amount: number;
+  /** @minimum 1 */
+  quantity: number;
   variants: string[];
   preferences: ProductPreferenceGroup[];
   source: PublicOrderItemSource;
+  /** @nullable */
+  sku: string | null;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  compareAtPrice: number | null;
+  imageUrls: string[];
+  /** @minimum 0 */
+  stock: number;
+  available: boolean;
 }

@@ -12,8 +12,17 @@ export interface ProductInput {
   /** @minLength 1 */
   name: string;
   category: string;
+  /** @nullable */
+  sku?: string | null;
+  /** @nullable */
+  description?: string | null;
   /** @minimum 0 */
   price: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  compareAtPrice?: number | null;
   /**
      * @minimum 0
      * @nullable
@@ -26,5 +35,6 @@ export interface ProductInput {
   customFields?: ProductCustomField[];
   /** @nullable */
   imageUrl?: string | null;
+  imageUrls?: string[];
   accent?: string;
 }

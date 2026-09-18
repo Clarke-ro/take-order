@@ -9,6 +9,8 @@
 export interface PublicOrderItemDetails {
   /** @minimum 0 */
   itemIndex: number;
+  /** @minimum 1 */
+  quantity?: number;
   variant?: string;
   details?: string;
   referenceImage?: string;

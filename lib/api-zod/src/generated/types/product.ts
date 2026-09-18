@@ -12,7 +12,13 @@ export interface Product {
   id: number;
   name: string;
   category: string;
+  /** @nullable */
+  sku: string | null;
+  /** @nullable */
+  description: string | null;
   price: number;
+  /** @nullable */
+  compareAtPrice: number | null;
   /** @nullable */
   cost: number | null;
   stock: number;
@@ -21,5 +27,6 @@ export interface Product {
   customFields: ProductCustomField[];
   /** @nullable */
   imageUrl: string | null;
+  imageUrls: string[];
   accent: string;
 }

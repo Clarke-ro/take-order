@@ -1062,8 +1062,15 @@ function OrderRow({ order, compact = false }: { order: Order; compact?: boolean 
 
 type ProductPreferenceDraft = { label: string; options: string };
 type ProductCustomFieldDraft = { label: string; value: string };
-type ProductFormState = { name: string; category: string; price: string; cost: string; stock: string; preferences: ProductPreferenceDraft[]; customFields: ProductCustomFieldDraft[]; imageUrl: string; accent: string };
-const blankProduct: ProductFormState = { name: '', category: 'Apparel', price: '', cost: '', stock: '0', preferences: [], customFields: [], imageUrl: '', accent: '#E6B85C' };
+type ProductFormState = { name: string; category: string; sku: string; description: string; price: string; compareAtPrice: string; cost: string; stock: string; preferences: ProductPreferenceDraft[]; customFields: ProductCustomFieldDraft[]; imageUrl: string; imageUrls: string; accent: string };
+const productMetadataFieldLabels = ['SKU', 'Description', 'Compare-at price', 'Gallery URLs'] as const;
+const productMetadataFields = (product?: Product): ProductCustomFieldDraft[] => [
+  { label: 'SKU', value: product?.sku ?? '' },
+  { label: 'Description', value: product?.description ?? '' },
+  { label: 'Compare-at price', value: product?.compareAtPrice == null ? '' : String(product.compareAtPrice) },
+  { label: 'Gallery URLs', value: product?.imageUrls?.join(', ') || product?.imageUrl || '' },
+];
+const blankProduct: ProductFormState = { name: '', category: 'Apparel', sku: '', description: '', price: '', compareAtPrice: '', cost: '', stock: '0', preferences: [], customFields: productMetadataFields(), imageUrl: '', imageUrls: '', accent: '#E6B85C' };
 const accentOptions = [
   { value: '#E6B85C', label: 'gold' },
   { value: '#8BBDA9', label: 'green' },
@@ -1079,7 +1086,10 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
   const [form, setForm] = useState<ProductFormState>(product ? {
     name: product.name,
     category: product.category,
+     sku: product.sku ?? '',
+     description: product.description ?? '',
     price: String(product.price),
+     compareAtPrice: product.compareAtPrice == null ? '' : String(product.compareAtPrice),
     cost: product.cost == null ? '' : String(product.cost),
     stock: String(product.stock),
     preferences: product.preferences.length
@@ -1087,8 +1097,9 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
       : product.variants.length
         ? [{ label: 'Choose an option', options: product.variants.join(', ') }]
         : [],
-    customFields: product.customFields.map((field) => ({ label: field.label, value: field.value })),
+    customFields: [...productMetadataFields(product), ...product.customFields.filter((field) => !productMetadataFieldLabels.some((label) => label.toLowerCase() === field.label.trim().toLowerCase())).map((field) => ({ label: field.label, value: field.value }))],
     imageUrl: product.imageUrl ?? '',
+     imageUrls: product.imageUrls?.join('\n') || product.imageUrl || '',
     accent: product.accent,
   } : blankProduct);
   const pending = create.isPending || update.isPending;
@@ -1104,10 +1115,13 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
         options: preference.options.split(',').map((option) => option.trim()).filter(Boolean),
       }))
       .filter((preference) => preference.label && preference.options.length > 0);
+    const metadataValues = new Map(form.customFields.map((field) => [field.label.trim().toLowerCase(), field.value.trim()]));
     const customFields: ProductCustomField[] = form.customFields
       .map((field) => ({ label: field.label.trim(), value: field.value.trim() }))
-      .filter((field) => field.label && field.value);
-    const data: ProductInput = { name: form.name.trim(), category: form.category, price: Number(form.price), cost: form.cost === '' ? null : Number(form.cost), stock: Number(form.stock), variants: preferences.flatMap((preference) => preference.options), preferences, customFields, imageUrl: form.imageUrl.trim() || null, accent: form.accent };
+      .filter((field) => field.label && field.value && !productMetadataFieldLabels.some((label) => label.toLowerCase() === field.label.toLowerCase()));
+    const imageUrls = (metadataValues.get('gallery urls') || form.imageUrls).split(/[\n,]+/).map((url) => url.trim()).filter(Boolean);
+    const compareAtPrice = metadataValues.get('compare-at price') || form.compareAtPrice;
+    const data: ProductInput = { name: form.name.trim(), category: form.category, sku: metadataValues.get('sku') || form.sku.trim() || null, description: metadataValues.get('description') || form.description.trim() || null, price: Number(form.price), compareAtPrice: compareAtPrice === '' ? null : Number(compareAtPrice), cost: form.cost === '' ? null : Number(form.cost), stock: Number(form.stock), variants: preferences.flatMap((preference) => preference.options), preferences, customFields, imageUrl: imageUrls[0] || form.imageUrl.trim() || null, imageUrls, accent: form.accent };
     if (!data.name || Number.isNaN(data.price)) {
       setError('Add an item name and a valid selling price.');
       return;
@@ -2053,9 +2067,16 @@ type BuyerOrderItem = {
   productId: number;
   productName: string;
   amount: number;
+  quantity?: number;
   variants: string[];
   preferences: ProductPreferenceGroup[];
   imageUrl?: string;
+  imageUrls?: string[];
+  sku?: string | null;
+  description?: string | null;
+  compareAtPrice?: number | null;
+  stock?: number;
+  available?: boolean;
   source: 'catalog' | 'custom';
 };
 
@@ -2065,7 +2086,7 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
   const touchStartX = useRef<number | null>(null);
   const activeIndex = Math.min(controlledIndex ?? internalIndex, displayItems.length - 1);
   const activeItem = displayItems[activeIndex]!;
-  const total = totalAmount ?? displayItems.reduce((sum, item) => sum + item.amount, 0);
+  const total = totalAmount ?? displayItems.reduce((sum, item) => sum + item.amount * (item.quantity ?? 1), 0);
   const sellerDescription = description?.trim() || `Shop directly from ${businessName}.`;
   useEffect(() => setInternalIndex(0), [displayItems.length]);
   const move = (direction: -1 | 1) => {
@@ -2106,9 +2127,9 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
         <div className="buyer-product-list">
         {displayItems.map((item, index) => {
           const active = index === activeIndex;
-           const previewImage = item.source === 'custom'
-             ? previewImages?.[index] || item.imageUrl
-             : item.imageUrl || productImageFor(item.productName);
+            const previewImage = item.source === 'custom'
+              ? previewImages?.[index] || item.imageUrls?.[0] || item.imageUrl
+              : item.imageUrls?.[0] || item.imageUrl || productImageFor(item.productName);
           return <button
             type="button"
             key={`${item.productId}-${index}`}
@@ -2123,7 +2144,7 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
           >
             <span className="buyer-product-module-copy">
               <strong>{item.productName}</strong>
-               <small className="buyer-product-module-price">{moneyExact(item.amount)}</small>
+               <small className="buyer-product-module-price">{moneyExact(item.amount)} · qty {item.quantity ?? 1}</small>
              </span>
               <span className="buyer-product-module-art">
                 {previewImage && <img src={previewImage} alt="" />}
@@ -2154,9 +2175,10 @@ type BuyerItemFormValues = {
   details: string;
   image: string;
   imagePreview: string;
+  quantity: number;
 };
 
-const emptyBuyerItemForm = (): BuyerItemFormValues => ({ preferences: {}, details: '', image: '', imagePreview: '' });
+const emptyBuyerItemForm = (): BuyerItemFormValues => ({ preferences: {}, details: '', image: '', imagePreview: '', quantity: 1 });
 
 function PublicOrderPage() {
   const { token = '' } = useParams<{ token: string }>();
@@ -2194,8 +2216,11 @@ function PublicOrderPage() {
     }
     setForm((current) => ({ ...current, [key]: key === 'deliveryMethod' ? value as 'pickup' | 'delivery' : value }));
   };
-  const changeItem = (key: keyof BuyerItemFormValues, value: string) => {
+  const changeItem = (key: Exclude<keyof BuyerItemFormValues, 'quantity'>, value: string) => {
     setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, [key]: value } : item));
+  };
+  const changeQuantity = (value: number) => {
+    setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, quantity: value } : item));
   };
   const submitForm = (event: React.FormEvent) => {
     event.preventDefault();
@@ -2232,6 +2257,7 @@ function PublicOrderPage() {
       deliveryAddress: form.deliveryMethod === 'delivery' ? form.address?.trim() || undefined : undefined,
         itemDetails: itemForms.map((item, itemIndex) => ({
         itemIndex,
+          quantity: item.quantity,
           variant: Object.values(item.preferences).filter(Boolean).join(' · ') || undefined,
         details: item.details || undefined,
         referenceImage: item.image || undefined,
@@ -2246,11 +2272,13 @@ function PublicOrderPage() {
   if (query.isLoading) return <div className="min-h-[100dvh] bg-[hsl(var(--background))] p-6"><div className="mx-auto max-w-[480px]"><BrandLockup className="mx-auto mt-14 justify-center" /><Skeleton className="mx-auto mt-8 h-8 w-52" /><Skeleton className="mt-4 h-4 w-full" /><Skeleton className="mt-10 h-64 w-full" /></div></div>;
   if (query.isError || !order) return <div className="flex min-h-[100dvh] items-center justify-center p-6"><div className="text-center"><BrandLockup className="justify-center" /><div className="mt-10 font-display text-2xl font-bold">This link is no longer available.</div><p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">Ask the seller for a fresh order link.</p></div></div>;
   if (submitted) return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] p-6"><div className="w-full max-w-[480px] text-center page-in"><BrandLockup className="justify-center" /><div className="mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white"><Check size={30} /></div><h1 className="mt-7 font-display text-4xl font-bold tracking-[-.05em]">You’re all set.</h1><p className="mx-auto mt-4 max-w-[350px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{form.action === 'pay' && order.paymentMode !== 'reserve' ? 'Your mock payment and order details were sent to the seller. No real payment was processed.' : 'Your details have been sent to the seller. They’ll be in touch with the next step.'}</p><div className="mt-8 font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Order reference · {token.slice(0, 8)}</div></div></div>;
-  const orderSubtotal = order.subtotal ?? order.items.reduce((sum, item) => sum + item.amount, 0);
+  const orderSubtotal = itemForms.length === order.items.length
+    ? order.items.reduce((sum, item, index) => sum + item.amount * (itemForms[index]?.quantity ?? item.quantity ?? 1), 0)
+    : order.subtotal ?? order.items.reduce((sum, item) => sum + item.amount * (item.quantity ?? 1), 0);
   const buyerDeliveryFee = form.deliveryMethod === 'delivery' ? order.deliveryFee : 0;
   const buyerTotal = orderSubtotal + buyerDeliveryFee;
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-    return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-4 sm:py-8"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onBackToReview={() => setShowMockPayment(false)} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
+  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-4 sm:py-8"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onBackToReview={() => setShowMockPayment(false)} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
 }
 
 export function Connect() {
@@ -2322,6 +2350,7 @@ export function BuyerOrderForm({
   onSubmit,
   onChange,
   onItemChange = () => undefined,
+  onQuantityChange = () => undefined,
   onPreferenceChange = () => undefined,
   onBack = () => undefined,
   onMockPaymentChange,
@@ -2350,7 +2379,8 @@ export function BuyerOrderForm({
   submitError?: string;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onChange: (key: 'name' | 'phone' | 'deliveryMethod' | 'address' | 'orderDetails' | 'details', value: string) => void;
-  onItemChange?: (key: keyof BuyerItemFormValues, value: string) => void;
+  onItemChange?: (key: Exclude<keyof BuyerItemFormValues, 'quantity'>, value: string) => void;
+  onQuantityChange?: (value: number) => void;
   onPreferenceChange?: (label: string, value: string) => void;
   onBack?: () => void;
   onMockPaymentChange: (key: keyof MockPaymentValues, value: string) => void;
@@ -2369,12 +2399,14 @@ export function BuyerOrderForm({
   const [paymentMethodConfirmed, setPaymentMethodConfirmed] = useState(false);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const galleryImages = useMemo(() => {
+    if (item.imageUrls?.length) return item.imageUrls;
     if (item.imageUrl) return [item.imageUrl];
     return ['hero', 'detail', 'close-up', 'back'].map((view) => productImageFor(`${item.productName} ${view}`));
-  }, [item.imageUrl, item.productName]);
+  }, [item.imageUrl, item.imageUrls, item.productName]);
   const activeGalleryImage = galleryImages[Math.min(activeGalleryIndex, galleryImages.length - 1)] ?? productImageFor(item.productName);
   const itemRequirementsMet = item.preferences.every((preference) => Boolean(itemForm.preferences[preference.label]))
-    && (item.source !== 'custom' || Boolean(itemForm.imagePreview));
+    && (item.source !== 'custom' || Boolean(itemForm.imagePreview))
+    && (item.source === 'custom' || (item.available !== false && itemForm.quantity <= (item.stock ?? 0)));
   useEffect(() => {
     setEditingContact(false);
     setActiveGalleryIndex(0);
@@ -2446,9 +2478,12 @@ export function BuyerOrderForm({
              </div>
             <div className="buyer-item-preferences-content buyer-product-detail-content">
               <div className="buyer-item-description buyer-product-detail-header">
-                <h2 id="buyer-item-preferences-heading">{item.productName}</h2>
-                 <div className="buyer-product-price-row"><strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong></div>
-                 <p>{item.preferences.length > 0 ? 'Choose your options' : 'This item is ready to add to your order.'}</p>
+                 <h2 id="buyer-item-preferences-heading">{item.productName}</h2>
+                  <div className="buyer-product-price-row"><strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong>{item.compareAtPrice && item.compareAtPrice > item.amount && <del className="text-xs text-[hsl(var(--muted-foreground))]">{moneyExact(item.compareAtPrice)}</del>}</div>
+                  {item.description && <p>{item.description}</p>}
+                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">{item.sku && <span>SKU · {item.sku}</span>}{item.source === 'catalog' && <span className={item.available === false ? 'text-[hsl(var(--destructive))]' : ''}>{item.available === false ? 'Unavailable' : `${item.stock ?? 0} available`}</span>}</div>
+                  <p>{item.preferences.length > 0 ? 'Choose your options' : 'This item is ready to add to your order.'}</p>
+                  <div className="mt-4 flex items-center justify-between rounded-[10px] border border-[hsl(var(--border))] p-3"><div><div className="field-label">Quantity</div><div className="text-[11px] text-[hsl(var(--muted-foreground))]">{item.source === 'catalog' ? `Up to ${item.stock ?? 0} available` : 'Choose how many you need'}</div></div><div className="flex items-center gap-2"><button type="button" aria-label={`Decrease quantity for ${item.productName}`} disabled={itemForm.quantity <= 1} onClick={() => onQuantityChange(Math.max(1, itemForm.quantity - 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--border))] text-lg disabled:opacity-40">−</button><output aria-label={`Quantity for ${item.productName}`} className="min-w-6 text-center text-sm font-bold">{itemForm.quantity}</output><button type="button" aria-label={`Increase quantity for ${item.productName}`} disabled={item.source === 'catalog' && itemForm.quantity >= (item.stock ?? 0)} onClick={() => onQuantityChange(itemForm.quantity + 1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--border))] text-lg disabled:opacity-40">+</button></div></div>
               </div>
               {item.preferences.map((preference, preferenceIndex) => {
                 const preferenceLabel = preference.label.trim().toLowerCase();

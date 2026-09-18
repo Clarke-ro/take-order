@@ -12,8 +12,9 @@ import { GetDashboardSummaryResponse } from "@workspace/api-zod";
 import { createApp } from "../app.js";
 import { isReusableCatalogProduct, preferencesForProduct } from "./take-order.js";
 
+type SeedProduct = Omit<typeof productsTable.$inferSelect, "sku" | "description" | "compareAtPrice" | "imageUrls"> & Partial<Pick<typeof productsTable.$inferSelect, "sku" | "description" | "compareAtPrice" | "imageUrls">>;
 type Seed = {
-  products: Array<typeof productsTable.$inferSelect>;
+  products: SeedProduct[];
   orders: Array<typeof ordersTable.$inferSelect>;
   expenses: Array<typeof expensesTable.$inferSelect>;
 };
@@ -805,6 +806,106 @@ test("multi-item order links preserve item prices and compound the checkout tota
       .where(eq(productsTable.id, secondProduct.id));
     assert.equal(firstAfterCheckout.stock, 9);
     assert.equal(secondAfterCheckout.stock, 9);
+  });
+});
+
+test("buyer links expose product metadata and persist buyer quantity through checkout", async () => {
+  await withDatabaseTransaction(async (database, baseUrl) => {
+    const [product] = await database
+      .insert(productsTable)
+      .values({
+        name: "Gallery product fixture",
+        category: "Apparel",
+        sku: "GALLERY-001",
+        description: "A buyer-facing product description.",
+        price: "40.00",
+        compareAtPrice: "60.00",
+        cost: "15.00",
+        stock: 5,
+        variants: ["Small", "Large"],
+        preferences: [{ label: "Size", options: ["Small", "Large"] }],
+        customFields: [],
+        imageUrl: "https://example.com/gallery-primary.jpg",
+        imageUrls: [
+          "https://example.com/gallery-primary.jpg",
+          "https://example.com/gallery-detail.jpg",
+        ],
+        accent: "#0F6E6B",
+      })
+      .returning();
+
+    const created = await requestJson(baseUrl, "/api/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        productId: product.id,
+        amount: 40,
+        paymentMode: "full",
+        channel: "whatsapp",
+      }),
+    });
+    assert.equal(created.status, 201);
+
+    const publicOrder = await requestJson(baseUrl, `/api/public/orders/${created.body.token}`);
+    assert.equal(publicOrder.status, 200);
+    assert.deepEqual(publicOrder.body.items[0], {
+      productId: product.id,
+      productName: "Gallery product fixture",
+      amount: 40,
+      quantity: 1,
+      variants: ["Small", "Large"],
+      preferences: [{ label: "Size", options: ["Small", "Large"] }],
+      source: "catalog",
+      sku: "GALLERY-001",
+      description: "A buyer-facing product description.",
+      compareAtPrice: 60,
+      imageUrls: [
+        "https://example.com/gallery-primary.jpg",
+        "https://example.com/gallery-detail.jpg",
+      ],
+      stock: 5,
+      available: true,
+    });
+    assert.equal(publicOrder.body.subtotal, 40);
+
+    const tooMany = await requestJson(baseUrl, `/api/public/orders/${created.body.token}`, {
+      method: "POST",
+      body: JSON.stringify({
+        customerName: "Ama",
+        customerPhone: "0241234567",
+        itemDetails: [{ itemIndex: 0, quantity: 6 }],
+        paymentAction: "pay",
+      }),
+    });
+    assert.equal(tooMany.status, 400);
+
+    const checkedOut = await requestJson(baseUrl, `/api/public/orders/${created.body.token}`, {
+      method: "POST",
+      body: JSON.stringify({
+        customerName: "Ama",
+        customerPhone: "0241234567",
+        itemDetails: [{ itemIndex: 0, quantity: 3, variant: "Large" }],
+        paymentAction: "pay",
+      }),
+    });
+    assert.equal(checkedOut.status, 200);
+    assert.equal(checkedOut.body.amount, 120);
+    assert.equal(checkedOut.body.items[0].quantity, 3);
+
+    const sellerOrder = await requestJson(baseUrl, `/api/orders/${created.body.id}`);
+    assert.equal(sellerOrder.status, 200);
+    assert.equal(sellerOrder.body.amount, 120);
+    assert.deepEqual(sellerOrder.body.items, [{
+      productId: product.id,
+      productName: "Gallery product fixture",
+      amount: 40,
+      quantity: 3,
+    }]);
+
+    const [updatedProduct] = await database
+      .select({ stock: productsTable.stock })
+      .from(productsTable)
+      .where(eq(productsTable.id, product.id));
+    assert.equal(updatedProduct.stock, 2);
   });
 });
 

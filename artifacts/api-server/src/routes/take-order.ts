@@ -121,17 +121,27 @@ type SellerOrderItem = {
   productId: number;
   productName: string;
   amount: number;
+  quantity: number;
 };
 
 function productResponse(product: typeof productsTable.$inferSelect) {
+  const imageUrls = product.imageUrls?.length
+    ? product.imageUrls
+    : product.imageUrl
+      ? [product.imageUrl]
+      : [];
   return {
     ...product,
+    sku: product.sku ?? null,
+    description: product.description ?? null,
     price: Number(product.price),
+    compareAtPrice: toNumber(product.compareAtPrice),
     cost: toNumber(product.cost),
     variants: product.variants ?? [],
     preferences: preferencesForProduct(product.preferences, product.variants ?? []),
     customFields: product.customFields ?? [],
     imageUrl: product.imageUrl ?? null,
+    imageUrls,
   };
 }
 
@@ -149,6 +159,7 @@ function orderResponse(order: typeof ordersTable.$inferSelect, items: SellerOrde
       productId: order.productId,
       productName: order.productName,
       amount: Number(order.amount),
+      quantity: 1,
     }],
   };
 }
@@ -173,6 +184,7 @@ async function sellerItemsForOrder(order: typeof ordersTable.$inferSelect): Prom
     productId: item.productId,
     productName: item.productName,
     amount: Number(item.amount),
+    quantity: item.quantity,
   }));
 }
 
@@ -190,6 +202,7 @@ async function sellerItemsForOrders(orders: Array<typeof ordersTable.$inferSelec
       productId: item.productId,
       productName: item.productName,
       amount: Number(item.amount),
+      quantity: item.quantity ?? 1,
     });
     byOrder.set(item.orderId, current);
   }
@@ -202,16 +215,23 @@ function publicOrderResponse(
     productId: number;
     productName: string;
     amount: number;
+    quantity: number;
+    source: "catalog" | "custom";
     variants: string[];
     preferences: ProductPreferenceGroup[];
-    source: "catalog" | "custom";
+    sku: string | null;
+    description: string | null;
+    compareAtPrice: number | null;
+    imageUrls: string[];
+    stock: number;
+    available: boolean;
   }>,
 ) {
   return {
     token: order.token,
     productName: order.productName,
     amount: Number(order.amount),
-    subtotal: items.reduce((sum, item) => sum + item.amount, 0),
+    subtotal: items.reduce((sum, item) => sum + item.amount * item.quantity, 0),
     deliveryFee: toNumber(order.deliveryFee) ?? 0,
     deliveryMethod: order.deliveryMethod ?? null,
     depositAmount: toNumber(order.depositAmount),
@@ -238,9 +258,16 @@ async function publicItemsForOrder(order: typeof ordersTable.$inferSelect) {
       productId: order.productId,
       productName: order.productName,
       amount: Number(order.amount),
+      quantity: 1,
+      source: (product?.category === "Custom order" ? "custom" : "catalog") as "custom" | "catalog",
       variants: product?.variants ?? [],
       preferences: preferencesForProduct(product?.preferences, product?.variants ?? []),
-      source: (product?.category === "Custom order" ? "custom" : "catalog") as "custom" | "catalog",
+      sku: product?.sku ?? null,
+      description: product?.description ?? null,
+      compareAtPrice: toNumber(product?.compareAtPrice ?? null),
+      imageUrls: product?.imageUrls?.length ? product.imageUrls : product?.imageUrl ? [product.imageUrl] : [],
+      stock: product?.stock ?? 0,
+      available: product?.category !== "Custom order" && (product?.stock ?? 0) > 0,
     }];
   }
 
@@ -251,14 +278,26 @@ async function publicItemsForOrder(order: typeof ordersTable.$inferSelect) {
     .where(inArray(productsTable.id, productIds));
   const productsById = new Map(products.map((product) => [product.id, product]));
 
-  return storedItems.map((item) => ({
-    productId: item.productId,
-    productName: item.productName,
-    amount: Number(item.amount),
-    variants: productsById.get(item.productId)?.variants ?? [],
-    preferences: preferencesForProduct(productsById.get(item.productId)?.preferences, productsById.get(item.productId)?.variants ?? []),
-    source: (productsById.get(item.productId)?.category === "Custom order" ? "custom" : "catalog") as "custom" | "catalog",
-  }));
+  return storedItems.map((item) => {
+    const product = productsById.get(item.productId);
+    const source: "catalog" | "custom" = item.source === "custom" || product?.category === "Custom order" ? "custom" : "catalog";
+    const stock = product?.stock ?? 0;
+    return {
+      productId: item.productId,
+      productName: item.productName,
+      amount: Number(item.amount),
+      quantity: item.quantity ?? 1,
+      variants: product?.variants ?? [],
+      preferences: preferencesForProduct(product?.preferences, product?.variants ?? []),
+      source,
+      sku: item.sku ?? product?.sku ?? null,
+      description: item.description ?? product?.description ?? null,
+      compareAtPrice: toNumber(item.compareAtPrice ?? product?.compareAtPrice ?? null),
+      imageUrls: item.imageUrls?.length ? item.imageUrls : product?.imageUrls?.length ? product.imageUrls : product?.imageUrl ? [product.imageUrl] : [],
+      stock,
+      available: source === "catalog" && stock >= item.quantity,
+    };
+  });
 }
 
 async function adjustStock(productId: number, direction: number) {
@@ -275,7 +314,7 @@ async function adjustStock(productId: number, direction: number) {
 
 async function adjustOrderStock(order: typeof ordersTable.$inferSelect, direction: number) {
   const items = await database
-    .select({ productId: orderItemsTable.productId })
+    .select({ productId: orderItemsTable.productId, quantity: orderItemsTable.quantity })
     .from(orderItemsTable)
     .where(eq(orderItemsTable.orderId, order.id))
     .orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
@@ -286,7 +325,7 @@ async function adjustOrderStock(order: typeof ordersTable.$inferSelect, directio
   }
 
   for (const item of items) {
-    await adjustStock(item.productId, direction);
+    await adjustStock(item.productId, direction * item.quantity);
   }
 }
 
@@ -304,19 +343,26 @@ async function productCostForSale(
   ) {
     return undefined;
   }
-  const items = await database
-    .select({ productId: orderItemsTable.productId })
+  const itemRows = await database
+    .select({ productId: orderItemsTable.productId, quantity: orderItemsTable.quantity })
     .from(orderItemsTable)
     .where(eq(orderItemsTable.orderId, existing.id))
     .orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
-  const productIds = items.length > 0 ? items.map((item) => item.productId) : [existing.productId];
+  const productIds = itemRows.length > 0 ? itemRows.map((item) => item.productId) : [existing.productId];
   const products = await database
     .select({ id: productsTable.id, cost: productsTable.cost })
     .from(productsTable)
     .where(inArray(productsTable.id, [...new Set(productIds)]));
-  const costs = productIds.map((productId) => products.find((product) => product.id === productId)?.cost ?? null);
+  const costs = itemRows.length > 0
+    ? itemRows.map((item) => {
+      const cost = products.find((product) => product.id === item.productId)?.cost;
+      return cost == null ? null : Number(cost) * (item.quantity ?? 1);
+    })
+    : [products.find((product) => product.id === existing.productId)?.cost == null
+      ? null
+      : Number(products.find((product) => product.id === existing.productId)!.cost)];
   if (costs.some((cost) => cost === null)) return null;
-  return costs.reduce((total, cost) => total + Number(cost), 0).toFixed(2);
+  return costs.reduce<number>((total, cost) => total + (cost == null ? 0 : Number(cost)), 0).toFixed(2);
 }
 
 router.get("/products", async (_req, res): Promise<void> => {
@@ -334,12 +380,16 @@ router.post("/products", async (req, res): Promise<void> => {
     .insert(productsTable)
     .values({
       ...parsed.data,
+      sku: parsed.data.sku?.trim() || null,
+      description: parsed.data.description?.trim() || null,
       price: parsed.data.price.toFixed(2),
+      compareAtPrice: parsed.data.compareAtPrice == null ? null : parsed.data.compareAtPrice.toFixed(2),
       cost: parsed.data.cost == null ? null : parsed.data.cost.toFixed(2),
       variants: parsed.data.variants ?? [],
       preferences: parsed.data.preferences ?? [],
       customFields: parsed.data.customFields ?? [],
       imageUrl: parsed.data.imageUrl ?? null,
+      imageUrls: parsed.data.imageUrls ?? [],
       accent: parsed.data.accent ?? "#0F6E6B",
     })
     .returning();
@@ -360,18 +410,25 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   const update: {
     name?: string;
     category?: string;
+    sku?: string | null;
+    description?: string | null;
     price?: string;
+    compareAtPrice?: string | null;
     cost?: string | null;
     stock?: number;
     variants?: string[];
     preferences?: ProductPreferenceGroup[];
     customFields?: ProductCustomField[];
     imageUrl?: string | null;
+    imageUrls?: string[];
     accent?: string;
   } = {};
   if (parsed.data.name !== undefined) update.name = parsed.data.name;
   if (parsed.data.category !== undefined) update.category = parsed.data.category;
+  if (parsed.data.sku !== undefined) update.sku = parsed.data.sku?.trim() || null;
+  if (parsed.data.description !== undefined) update.description = parsed.data.description?.trim() || null;
   if (parsed.data.price !== undefined) update.price = parsed.data.price.toFixed(2);
+  if (parsed.data.compareAtPrice !== undefined) update.compareAtPrice = parsed.data.compareAtPrice == null ? null : parsed.data.compareAtPrice.toFixed(2);
   if (parsed.data.cost !== undefined) update.cost = parsed.data.cost == null ? null : parsed.data.cost.toFixed(2);
   if (parsed.data.stock !== undefined) update.stock = parsed.data.stock;
   if (parsed.data.variants !== undefined) {
@@ -384,6 +441,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   }
   if (parsed.data.customFields !== undefined) update.customFields = parsed.data.customFields;
   if (parsed.data.imageUrl !== undefined) update.imageUrl = parsed.data.imageUrl;
+  if (parsed.data.imageUrls !== undefined) update.imageUrls = parsed.data.imageUrls;
   if (parsed.data.accent !== undefined) update.accent = parsed.data.accent;
   const [product] = await database
     .update(productsTable)
@@ -502,11 +560,11 @@ router.post("/orders", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const requestedItems = parsed.data.items?.length
+  const requestedItems = (parsed.data.items?.length
     ? parsed.data.items
     : parsed.data.productId != null && parsed.data.amount != null
-      ? [{ productId: parsed.data.productId, amount: parsed.data.amount }]
-      : null;
+      ? [{ productId: parsed.data.productId, amount: parsed.data.amount, quantity: 1 }]
+      : null)?.map((item) => ({ ...item, quantity: item.quantity ?? 1 }));
   if (!requestedItems?.length) {
     res.status(400).json({ error: "At least one order item is required" });
     return;
@@ -522,7 +580,12 @@ router.post("/orders", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Product not found" });
     return;
   }
-  const totalAmount = requestedItems.reduce((total, item) => total + item.amount, 0);
+  const invalidQuantity = requestedItems.find((item) => !Number.isInteger(item.quantity) || item.quantity < 1);
+  if (invalidQuantity) {
+    res.status(400).json({ error: "Each order item quantity must be a whole number greater than zero" });
+    return;
+  }
+  const totalAmount = requestedItems.reduce((total, item) => total + item.amount * item.quantity, 0);
   if (parsed.data.depositAmount != null && parsed.data.depositAmount > totalAmount) {
     res.status(400).json({ error: "Deposit cannot exceed the order total" });
     return;
@@ -551,7 +614,17 @@ router.post("/orders", async (req, res): Promise<void> => {
       orderId: order.id,
       productId: item.productId,
       productName: productsById.get(item.productId)!.name,
+      source: productsById.get(item.productId)!.category.trim().toLowerCase() === "custom order" ? "custom" : "catalog",
+      sku: productsById.get(item.productId)!.sku ?? null,
+      description: productsById.get(item.productId)!.description ?? null,
+      compareAtPrice: productsById.get(item.productId)!.compareAtPrice,
+      imageUrls: productsById.get(item.productId)!.imageUrls?.length
+        ? productsById.get(item.productId)!.imageUrls
+        : productsById.get(item.productId)!.imageUrl
+          ? [productsById.get(item.productId)!.imageUrl!]
+          : [],
       amount: item.amount.toFixed(2),
+      quantity: item.quantity,
       position,
     })),
   );
@@ -650,9 +723,6 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
     res.status(400).json({ error: "A delivery address is required when delivery is selected" });
     return;
   }
-  const deliveryFee = Number(existing.deliveryFee ?? 0);
-  const baseAmount = Number(existing.amount) - (existing.deliveryMethod === "delivery" ? deliveryFee : 0);
-  const finalAmount = baseAmount + (deliveryMethod === "delivery" ? deliveryFee : 0);
   const nextStatus = shouldReserve
     ? "reserved"
     : existing.paymentMode === "deposit"
@@ -666,6 +736,30 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
     .from(orderItemsTable)
     .where(eq(orderItemsTable.orderId, existing.id))
     .orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+  const productIds = [...new Set(storedItems.map((item) => item.productId))];
+  const products = productIds.length
+    ? await database.select().from(productsTable).where(inArray(productsTable.id, productIds))
+    : [];
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  const requestedQuantities = storedItems.map((item, index) => itemDetailsByIndex.get(index)?.quantity ?? item.quantity ?? 1);
+  if (requestedQuantities.some((quantity) => !Number.isInteger(quantity) || quantity < 1)) {
+    res.status(400).json({ error: "Each item quantity must be a whole number greater than zero" });
+    return;
+  }
+  for (const [index, item] of storedItems.entries()) {
+    const product = productsById.get(item.productId);
+    if (!product || product.category.trim().toLowerCase() === "custom order") continue;
+    const availableStock = product.stock + (isSaleStatus(existing.status) ? item.quantity : 0);
+    if (requestedQuantities[index]! > availableStock) {
+      res.status(400).json({ error: `${item.productName} does not have enough stock for that quantity` });
+      return;
+    }
+  }
+  const deliveryFee = Number(existing.deliveryFee ?? 0);
+  const baseAmount = storedItems.length
+    ? storedItems.reduce((total, item, index) => total + Number(item.amount) * requestedQuantities[index]!, 0)
+    : Number(existing.amount) - (existing.deliveryMethod === "delivery" ? deliveryFee : 0);
+  const finalAmount = baseAmount + (deliveryMethod === "delivery" ? deliveryFee : 0);
   const combinedBuyerDetails = itemDetails
     .filter((detail) => detail.details?.trim() || detail.variant?.trim())
     .map((detail) => {
@@ -694,18 +788,29 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
     .returning();
   await Promise.all(storedItems.map((item, index) => {
     const detail = itemDetailsByIndex.get(index);
-    if (!detail) return Promise.resolve();
+    if (!detail && requestedQuantities[index] === item.quantity) return Promise.resolve();
     return database
       .update(orderItemsTable)
       .set({
-        buyerVariant: detail.variant?.trim() || null,
-        buyerDetails: detail.details?.trim() || null,
-        referenceImage: detail.referenceImage?.trim() || null,
+        quantity: requestedQuantities[index]!,
+        ...(detail ? {
+          buyerVariant: detail.variant?.trim() || null,
+          buyerDetails: detail.details?.trim() || null,
+          referenceImage: detail.referenceImage?.trim() || null,
+        } : {}),
       })
       .where(eq(orderItemsTable.id, item.id));
   }));
-  if (nextStatus === "paid" && existing.status !== "paid") await adjustOrderStock(existing, -1);
-  res.json(SubmitPublicOrderResponse.parse(orderResponse(order)));
+  if (nextStatus === "paid" && !isSaleStatus(existing.status)) {
+    await adjustOrderStock(order, -1);
+  } else if (nextStatus === "paid" && isSaleStatus(existing.status)) {
+    await Promise.all(storedItems.map((item, index) => {
+      const delta = item.quantity - requestedQuantities[index]!;
+      return delta ? adjustStock(item.productId, delta) : Promise.resolve();
+    }));
+  }
+  const items = await sellerItemsForOrder(order);
+  res.json(SubmitPublicOrderResponse.parse(orderResponse(order, items)));
 });
 
   router.get("/dashboard/summary", async (req, res): Promise<void> => {

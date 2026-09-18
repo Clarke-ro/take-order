@@ -10,4 +10,6 @@ export interface OrderLineItem {
   productId: number;
   productName: string;
   amount: number;
+  /** @minimum 1 */
+  quantity: number;
 }

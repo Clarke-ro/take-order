@@ -30,7 +30,10 @@ export const ListProductsResponseItem = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "category": zod.string(),
+  "sku": zod.string().nullable(),
+  "description": zod.string().nullable(),
   "price": zod.number(),
+  "compareAtPrice": zod.number().nullable(),
   "cost": zod.number().nullable(),
   "stock": zod.number().int(),
   "variants": zod.array(zod.string()),
@@ -43,6 +46,7 @@ export const ListProductsResponseItem = zod.object({
   "value": zod.string()
 })),
   "imageUrl": zod.string().url().nullable(),
+  "imageUrls": zod.array(zod.string().url()),
   "accent": zod.string()
 })
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
@@ -53,6 +57,8 @@ export const ListProductsResponse = zod.array(ListProductsResponseItem)
  */
 
 export const createProductBodyPriceMin = 0;
+
+export const createProductBodyCompareAtPriceMin = 0;
 
 export const createProductBodyCostMin = 0;
 
@@ -67,7 +73,10 @@ export const createProductBodyStockMin = 0;
 export const CreateProductBody = zod.object({
   "name": zod.string().min(1),
   "category": zod.string(),
+  "sku": zod.string().nullish(),
+  "description": zod.string().nullish(),
   "price": zod.number().min(createProductBodyPriceMin),
+  "compareAtPrice": zod.number().min(createProductBodyCompareAtPriceMin).nullish(),
   "cost": zod.number().min(createProductBodyCostMin).nullish(),
   "stock": zod.number().int().min(createProductBodyStockMin),
   "variants": zod.array(zod.string()).optional(),
@@ -80,6 +89,7 @@ export const CreateProductBody = zod.object({
   "value": zod.string()
 })).optional(),
   "imageUrl": zod.string().url().nullish(),
+  "imageUrls": zod.array(zod.string().url()).optional(),
   "accent": zod.string().optional()
 })
 
@@ -93,7 +103,10 @@ export const CreateProductResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "category": zod.string(),
+  "sku": zod.string().nullable(),
+  "description": zod.string().nullable(),
   "price": zod.number(),
+  "compareAtPrice": zod.number().nullable(),
   "cost": zod.number().nullable(),
   "stock": zod.number().int(),
   "variants": zod.array(zod.string()),
@@ -106,6 +119,7 @@ export const CreateProductResponse = zod.object({
   "value": zod.string()
 })),
   "imageUrl": zod.string().url().nullable(),
+  "imageUrls": zod.array(zod.string().url()),
   "accent": zod.string()
 })
 
@@ -120,6 +134,8 @@ export const UpdateProductParams = zod.object({
 
 export const updateProductBodyPriceMin = 0;
 
+export const updateProductBodyCompareAtPriceMin = 0;
+
 export const updateProductBodyCostMin = 0;
 
 export const updateProductBodyStockMin = 0;
@@ -133,7 +149,10 @@ export const updateProductBodyStockMin = 0;
 export const UpdateProductBody = zod.object({
   "name": zod.string().min(1).optional(),
   "category": zod.string().optional(),
+  "sku": zod.string().nullish(),
+  "description": zod.string().nullish(),
   "price": zod.number().min(updateProductBodyPriceMin).optional(),
+  "compareAtPrice": zod.number().min(updateProductBodyCompareAtPriceMin).nullish(),
   "cost": zod.number().min(updateProductBodyCostMin).nullish(),
   "stock": zod.number().int().min(updateProductBodyStockMin).optional(),
   "variants": zod.array(zod.string()).optional(),
@@ -146,6 +165,7 @@ export const UpdateProductBody = zod.object({
   "value": zod.string()
 })).optional(),
   "imageUrl": zod.string().url().nullish(),
+  "imageUrls": zod.array(zod.string().url()).optional(),
   "accent": zod.string().optional()
 })
 
@@ -159,7 +179,10 @@ export const UpdateProductResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "category": zod.string(),
+  "sku": zod.string().nullable(),
+  "description": zod.string().nullable(),
   "price": zod.number(),
+  "compareAtPrice": zod.number().nullable(),
   "cost": zod.number().nullable(),
   "stock": zod.number().int(),
   "variants": zod.array(zod.string()),
@@ -172,6 +195,7 @@ export const UpdateProductResponse = zod.object({
   "value": zod.string()
 })),
   "imageUrl": zod.string().url().nullable(),
+  "imageUrls": zod.array(zod.string().url()),
   "accent": zod.string()
 })
 
@@ -189,6 +213,9 @@ export const DeleteProductResponse = zod.void()
 /**
  * @summary List seller orders
  */
+
+
+
 export const ListOrdersResponseItem = zod.object({
   "id": zod.number().int(),
   "token": zod.string(),
@@ -216,7 +243,8 @@ export const ListOrdersResponseItem = zod.object({
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
-  "amount": zod.number()
+  "amount": zod.number(),
+  "quantity": zod.number().int().min(1)
 }))
 })
 export const ListOrdersResponse = zod.array(ListOrdersResponseItem)
@@ -230,6 +258,7 @@ export const createOrderBodyAmountMin = 0;
 export const createOrderBodyItemsItemAmountMin = 0;
 
 
+
 export const createOrderBodyDeliveryFeeMin = 0;
 
 export const createOrderBodyDepositAmountMin = 0;
@@ -241,13 +270,17 @@ export const CreateOrderBody = zod.object({
   "amount": zod.number().min(createOrderBodyAmountMin).optional(),
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
-  "amount": zod.number().min(createOrderBodyItemsItemAmountMin)
+  "amount": zod.number().min(createOrderBodyItemsItemAmountMin),
+  "quantity": zod.number().int().min(1).optional()
 })).min(1).optional(),
   "deliveryFee": zod.number().min(createOrderBodyDeliveryFeeMin).optional(),
   "depositAmount": zod.number().min(createOrderBodyDepositAmountMin).nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
   "channel": zod.enum(['whatsapp', 'instagram', 'tiktok', 'snapchat', 'in_person'])
 })
+
+
+
 
 export const CreateOrderResponse = zod.object({
   "id": zod.number().int(),
@@ -276,7 +309,8 @@ export const CreateOrderResponse = zod.object({
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
-  "amount": zod.number()
+  "amount": zod.number(),
+  "quantity": zod.number().int().min(1)
 }))
 })
 
@@ -287,6 +321,9 @@ export const CreateOrderResponse = zod.object({
 export const GetOrderParams = zod.object({
   "id": zod.coerce.number().int()
 })
+
+
+
 
 export const GetOrderResponse = zod.object({
   "id": zod.number().int(),
@@ -315,7 +352,8 @@ export const GetOrderResponse = zod.object({
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
-  "amount": zod.number()
+  "amount": zod.number(),
+  "quantity": zod.number().int().min(1)
 }))
 })
 
@@ -331,6 +369,9 @@ export const UpdateOrderBody = zod.object({
   "status": zod.enum(['reserved', 'deposit_paid', 'paid']).optional(),
   "fulfillment": zod.enum(['pending', 'shipped', 'delivered']).optional()
 })
+
+
+
 
 export const UpdateOrderResponse = zod.object({
   "id": zod.number().int(),
@@ -359,7 +400,8 @@ export const UpdateOrderResponse = zod.object({
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
-  "amount": zod.number()
+  "amount": zod.number(),
+  "quantity": zod.number().int().min(1)
 }))
 })
 
@@ -373,6 +415,9 @@ export const GetPublicOrderParams = zod.object({
 
 
 
+
+
+export const getPublicOrderResponseItemsItemStockMin = 0;
 
 
 
@@ -391,12 +436,19 @@ export const GetPublicOrderResponse = zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
   "amount": zod.number(),
+  "quantity": zod.number().int().min(1),
   "variants": zod.array(zod.string()),
   "preferences": zod.array(zod.object({
   "label": zod.string().min(1),
   "options": zod.array(zod.string().min(1)).min(1)
 })),
-  "source": zod.enum(['catalog', 'custom'])
+  "source": zod.enum(['catalog', 'custom']),
+  "sku": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "compareAtPrice": zod.number().nullable(),
+  "imageUrls": zod.array(zod.string().url()),
+  "stock": zod.number().int().min(getPublicOrderResponseItemsItemStockMin),
+  "available": zod.boolean()
 }))
 })
 
@@ -415,6 +467,7 @@ export const submitPublicOrderBodyItemDetailsItemItemIndexMin = 0;
 
 
 
+
 export const SubmitPublicOrderBody = zod.object({
   "customerName": zod.string().min(1),
   "customerPhone": zod.string().min(submitPublicOrderBodyCustomerPhoneMin),
@@ -424,12 +477,16 @@ export const SubmitPublicOrderBody = zod.object({
   "referenceImage": zod.string().optional(),
   "itemDetails": zod.array(zod.object({
   "itemIndex": zod.number().int().min(submitPublicOrderBodyItemDetailsItemItemIndexMin),
+  "quantity": zod.number().int().min(1).optional(),
   "variant": zod.string().optional(),
   "details": zod.string().optional(),
   "referenceImage": zod.string().optional()
 })).optional(),
   "paymentAction": zod.enum(['pay', 'reserve']).optional()
 })
+
+
+
 
 export const SubmitPublicOrderResponse = zod.object({
   "id": zod.number().int(),
@@ -458,7 +515,8 @@ export const SubmitPublicOrderResponse = zod.object({
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
-  "amount": zod.number()
+  "amount": zod.number(),
+  "quantity": zod.number().int().min(1)
 }))
 })
 
