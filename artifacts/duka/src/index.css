@@ -1437,11 +1437,11 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-builder-card { overflow: hidden; padding: 0; }
 .take-order-flow-panel { overflow: visible; border: 0; background: transparent; box-shadow: none; }
 .take-order-catalog-stage-card { border-color: transparent; background: transparent; box-shadow: none; overflow: visible; }
-.take-order-choice-stage-card { border-color: hsl(var(--border)); background: hsl(var(--card)); box-shadow: 0 8px 22px hsl(var(--foreground) / .045); }
-.take-order-choice-stage { padding: 1.45rem; }
+.take-order-choice-stage-card { border: 0; background: transparent; box-shadow: none; }
+.take-order-choice-stage { padding: 0; }
 .take-order-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
-.take-order-choice-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .8rem; min-height: 8.5rem; border: 1px solid hsl(var(--border)); border-radius: 15px; background: hsl(var(--background)); padding: 1rem; color: hsl(var(--foreground)); text-align: left; transition: border-color .18s, background-color .18s, box-shadow .18s, transform .18s; }
-.take-order-choice-card:hover, .take-order-choice-card:focus-visible, .take-order-choice-card.is-active { border-color: hsl(var(--foreground) / .55); background: hsl(var(--muted) / .45); box-shadow: 0 6px 18px rgb(0 0 0 / .06); transform: translateY(-1px); }
+.take-order-choice-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .8rem; min-height: 8.5rem; border: 1px solid hsl(var(--border)); border-radius: 15px; background: #fff; padding: 1rem; color: hsl(var(--foreground)); text-align: left; transition: border-color .18s, background-color .18s, box-shadow .18s, transform .18s; }
+.take-order-choice-card:hover, .take-order-choice-card:focus-visible, .take-order-choice-card.is-active { border-color: hsl(var(--foreground) / .55); background: #fff; box-shadow: 0 6px 18px rgb(0 0 0 / .06); transform: translateY(-1px); }
 .take-order-choice-card:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
 .take-order-choice-mark { display: inline-flex; height: 2.45rem; width: 2.45rem; align-items: center; justify-content: center; border-radius: 11px; background: hsl(var(--muted)); color: hsl(var(--foreground)); }
 .take-order-choice-mark.is-custom { background: hsl(var(--accent) / .2); color: hsl(var(--accent-foreground)); }
@@ -1852,7 +1852,7 @@ button[data-testid="button-buyer-reserve"].text-white {
   .take-order-progress-card { padding: .9rem; }
   .take-order-step { min-width: 0; }
   .take-order-step-detail { display: block; }
-  .take-order-section, .take-order-choice-stage { padding: 1.25rem; }
+  .take-order-section { padding: 1.25rem; }
   .take-order-choice-grid { grid-template-columns: 1fr; }
   .take-order-choice-card { min-height: 6.5rem; }
   .take-order-catalog-stage { grid-template-areas: "selection" "browser"; grid-template-columns: 1fr; }
