@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createElement } from "react";
+import { act, createElement, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { JSDOM } from "jsdom";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   AnalyticsStateMarker,
@@ -31,6 +33,8 @@ import {
   orderChannels,
   togglePreference,
 } from "./channel-preferences";
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const emptySummary = {
   orders: 0,
@@ -240,4 +244,170 @@ test("renders a usable custom dashboard range picker", () => {
   assert.match(markup, /aria-label="Previous month"/);
   assert.match(markup, /data-testid="button-dashboard-period-close"/);
   assert.match(markup, /data-testid="button-dashboard-period-apply"/);
+});
+
+type DateRange = { from: string; to: string };
+
+function DashboardPeriodPickerHarness() {
+  const [committed, setCommitted] = useState<DateRange>({ from: "2026-09-01", to: "2026-09-05" });
+  const [draft, setDraft] = useState<DateRange>(committed);
+  const [open, setOpen] = useState(false);
+  const [requests, setRequests] = useState<DateRange[]>([committed]);
+  const openCustomRange = () => {
+    setDraft(committed);
+    setOpen(true);
+  };
+  const close = () => {
+    setDraft(committed);
+    setOpen(false);
+  };
+  const apply = () => {
+    if (!draft.from || !draft.to || draft.from > draft.to) return;
+    setCommitted(draft);
+    setRequests((current) => [...current, draft]);
+    setOpen(false);
+  };
+
+  return createElement("div", null,
+    createElement("button", { type: "button", "data-testid": "button-open-custom", onClick: openCustomRange }, "Custom range"),
+    createElement("output", { "data-testid": "committed-period" }, `${committed.from} – ${committed.to}`),
+    createElement("output", { "data-testid": "request-count" }, String(requests.length)),
+    createElement("output", { "data-testid": "latest-request" }, JSON.stringify(requests[requests.length - 1])),
+    open && createElement(DashboardCustomRangePicker, {
+      from: draft.from,
+      to: draft.to,
+      onFromChange: (from) => setDraft((current) => ({ ...current, from })),
+      onToChange: (to) => setDraft((current) => ({ ...current, to })),
+      onClose: close,
+      onApply: apply,
+      canApply: Boolean(draft.from && draft.to && draft.from <= draft.to),
+    }),
+  );
+}
+
+function mountDashboardPeriodPicker() {
+  const dom = new JSDOM("<!doctype html><html><body><div id=\"root\"></div></body></html>", {
+    url: "http://localhost/",
+  });
+  const previousGlobals = {
+    window: globalThis.window,
+    document: globalThis.document,
+    navigator: globalThis.navigator,
+    HTMLElement: globalThis.HTMLElement,
+    Node: globalThis.Node,
+  };
+  Object.defineProperty(globalThis, "window", { configurable: true, value: dom.window });
+  Object.defineProperty(globalThis, "document", { configurable: true, value: dom.window.document });
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: dom.window.navigator });
+  Object.defineProperty(globalThis, "HTMLElement", { configurable: true, value: dom.window.HTMLElement });
+  Object.defineProperty(globalThis, "Node", { configurable: true, value: dom.window.Node });
+  const container = dom.window.document.getElementById("root")!;
+  const root = createRoot(container);
+  act(() => root.render(createElement(DashboardPeriodPickerHarness)));
+  return {
+    dom,
+    container,
+    click: (element: Element) => act(() => (element as HTMLElement).click()),
+    cleanup: () => {
+      act(() => root.unmount());
+      Object.defineProperty(globalThis, "window", { configurable: true, value: previousGlobals.window });
+      Object.defineProperty(globalThis, "document", { configurable: true, value: previousGlobals.document });
+      Object.defineProperty(globalThis, "navigator", { configurable: true, value: previousGlobals.navigator });
+      Object.defineProperty(globalThis, "HTMLElement", { configurable: true, value: previousGlobals.HTMLElement });
+      Object.defineProperty(globalThis, "Node", { configurable: true, value: previousGlobals.Node });
+      dom.window.close();
+    },
+  };
+}
+
+function requiredElement(container: Element, selector: string): HTMLElement {
+  const element = container.querySelector(selector);
+  assert.ok(element, `Expected ${selector} to be present`);
+  return element as HTMLElement;
+}
+
+function calendarDay(container: Element, label: string): HTMLElement {
+  const day = [...container.querySelectorAll("button.dashboard-calendar-day")]
+    .find((element) => element.getAttribute("aria-label") === label);
+  assert.ok(day, `Expected calendar day ${label} to be present`);
+  return day as HTMLElement;
+}
+
+test("opens the custom picker and navigates months without changing draft dates", () => {
+  const picker = mountDashboardPeriodPicker();
+  try {
+    picker.click(requiredElement(picker.container, '[data-testid="button-open-custom"]'));
+    assert.ok(requiredElement(picker.container, '[data-testid="input-dashboard-period-from"]'));
+    assert.ok(requiredElement(picker.container, '[data-testid="input-dashboard-period-to"]'));
+    assert.ok(requiredElement(picker.container, '[data-testid="dashboard-period-calendar"]'));
+    assert.equal(requiredElement(picker.container, ".dashboard-calendar-header strong").textContent, "September 2026");
+    assert.ok(requiredElement(picker.container, '[aria-label="Previous month"]'));
+    assert.ok(requiredElement(picker.container, '[aria-label="Next month"]'));
+    assert.ok(requiredElement(picker.container, '[data-testid="button-dashboard-period-close"]'));
+    assert.ok(requiredElement(picker.container, '[data-testid="button-dashboard-period-apply"]'));
+
+    const from = requiredElement(picker.container, '[data-testid="input-dashboard-period-from"]') as HTMLInputElement;
+    const to = requiredElement(picker.container, '[data-testid="input-dashboard-period-to"]') as HTMLInputElement;
+    picker.click(requiredElement(picker.container, '[aria-label="Next month"]'));
+    assert.equal(requiredElement(picker.container, ".dashboard-calendar-header strong").textContent, "October 2026");
+    assert.equal(from.value, "2026-09-01");
+    assert.equal(to.value, "2026-09-05");
+    picker.click(requiredElement(picker.container, '[aria-label="Previous month"]'));
+    assert.equal(requiredElement(picker.container, ".dashboard-calendar-header strong").textContent, "September 2026");
+    assert.equal(from.value, "2026-09-01");
+    assert.equal(to.value, "2026-09-05");
+  } finally {
+    picker.cleanup();
+  }
+});
+
+test("selects a calendar range, highlights it, and applies it to the dashboard request", () => {
+  const picker = mountDashboardPeriodPicker();
+  try {
+    picker.click(requiredElement(picker.container, '[data-testid="button-open-custom"]'));
+    picker.click(calendarDay(picker.container, "Sep 10"));
+    const from = requiredElement(picker.container, '[data-testid="input-dashboard-period-from"]') as HTMLInputElement;
+    const to = requiredElement(picker.container, '[data-testid="input-dashboard-period-to"]') as HTMLInputElement;
+    assert.equal(from.value, "2026-09-10");
+    assert.equal(to.value, "");
+    assert.equal(requiredElement(picker.container, '[data-testid="button-dashboard-period-apply"]').hasAttribute("disabled"), true);
+
+    picker.click(calendarDay(picker.container, "Sep 15"));
+    assert.equal(from.value, "2026-09-10");
+    assert.equal(to.value, "2026-09-15");
+    assert.match(calendarDay(picker.container, "Sep 10").className, /is-range-start/);
+    assert.match(calendarDay(picker.container, "Sep 15").className, /is-range-end/);
+    assert.equal(picker.container.querySelectorAll(".dashboard-calendar-day.is-in-range").length, 6);
+    assert.equal(requiredElement(picker.container, '[data-testid="button-dashboard-period-apply"]').hasAttribute("disabled"), false);
+
+    picker.click(requiredElement(picker.container, '[data-testid="button-dashboard-period-apply"]'));
+    assert.equal(picker.container.querySelector('[data-testid="dashboard-period-calendar"]'), null);
+    assert.equal(requiredElement(picker.container, '[data-testid="committed-period"]').textContent, "2026-09-10 – 2026-09-15");
+    assert.equal(requiredElement(picker.container, '[data-testid="request-count"]').textContent, "2");
+    assert.equal(requiredElement(picker.container, '[data-testid="latest-request"]').textContent, JSON.stringify({ from: "2026-09-10", to: "2026-09-15" }));
+  } finally {
+    picker.cleanup();
+  }
+});
+
+test("Close discards an uncommitted calendar selection", () => {
+  const picker = mountDashboardPeriodPicker();
+  try {
+    picker.click(requiredElement(picker.container, '[data-testid="button-open-custom"]'));
+    picker.click(calendarDay(picker.container, "Sep 20"));
+    const draftFrom = requiredElement(picker.container, '[data-testid="input-dashboard-period-from"]') as HTMLInputElement;
+    assert.equal(draftFrom.value, "2026-09-20");
+    picker.click(requiredElement(picker.container, '[data-testid="button-dashboard-period-close"]'));
+    assert.equal(picker.container.querySelector('[data-testid="dashboard-period-calendar"]'), null);
+    assert.equal(requiredElement(picker.container, '[data-testid="committed-period"]').textContent, "2026-09-01 – 2026-09-05");
+    assert.equal(requiredElement(picker.container, '[data-testid="request-count"]').textContent, "1");
+
+    picker.click(requiredElement(picker.container, '[data-testid="button-open-custom"]'));
+    const from = requiredElement(picker.container, '[data-testid="input-dashboard-period-from"]') as HTMLInputElement;
+    const to = requiredElement(picker.container, '[data-testid="input-dashboard-period-to"]') as HTMLInputElement;
+    assert.equal(from.value, "2026-09-01");
+    assert.equal(to.value, "2026-09-05");
+  } finally {
+    picker.cleanup();
+  }
 });
