@@ -33,8 +33,10 @@ const publicOrder = (status: "reserved" | "paid") => ({
     productId: 1,
     productName: "Linen set",
     amount: 100,
+    stock: 8,
+    available: true,
     variants: [],
-    preferences: [],
+    preferences: [{ label: "Size", options: ["Small", "Medium"] }],
     source: "catalog",
   }],
 });
@@ -312,12 +314,63 @@ async function main() {
     buyer = await connectCdp(await waitForPage(debugPort, buyerTargetId));
     await buyer.command("Page.enable");
     await buyer.command("Runtime.enable");
+    await buyer.command("Emulation.setDeviceMetricsOverride", {
+      width: 390,
+      height: 844,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
     await buyer.command("Page.addScriptToEvaluateOnNewDocument", { source: stubSource });
     await buyer.command("Page.navigate", { url: `http://127.0.0.1:${vitePort}/o/channel-test-order` });
     await waitFor(buyer, `document.querySelector('[data-testid="input-buyer-item-details"]') !== null`);
+    const buyerSurface = await evaluate<{
+      sellerName: string;
+      helperCopy: string;
+      heroCopy: string;
+      productTitle: string;
+      productPrice: string;
+      finalPrice: string;
+      optionPrompt: string;
+      pageText: string;
+      sellerTop: number;
+      heroTop: number;
+      orderCardTop: number;
+      orderCardBottom: number;
+    }>(buyer, `(() => {
+      const rectTop = (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? -1;
+      const orderCard = document.querySelector('.buyer-order-detail-card');
+      const orderCardRect = orderCard?.getBoundingClientRect();
+      return {
+        sellerName: document.querySelector('.buyer-seller-copy strong')?.textContent?.trim() ?? '',
+        helperCopy: document.querySelector('.buyer-checkout-form-intro p')?.textContent?.trim() ?? '',
+        heroCopy: document.querySelector('.buyer-checkout-form-intro h1')?.textContent?.trim() ?? '',
+        productTitle: document.querySelector('#buyer-item-preferences-heading')?.textContent?.trim() ?? '',
+        productPrice: document.querySelector('.buyer-item-description-price')?.textContent?.trim() ?? '',
+        finalPrice: document.querySelector('.buyer-total-amount strong')?.textContent?.trim() ?? '',
+        optionPrompt: document.querySelector('.buyer-product-detail-header > p:last-of-type')?.textContent?.trim() ?? '',
+        pageText: document.body.textContent ?? '',
+        sellerTop: rectTop('.buyer-seller-identity'),
+        heroTop: rectTop('.buyer-checkout-form-intro'),
+        orderCardTop: orderCardRect?.top ?? -1,
+        orderCardBottom: orderCardRect?.bottom ?? -1,
+      };
+    })()`);
+    assert.equal(buyerSurface.sellerName, "Dashboard Test Shop");
+    assert.equal(buyerSurface.heroCopy, "Complete your order.");
+    assert.equal(buyerSurface.helperCopy, "Your seller already has the item and price. Just provide the details they need to fulfill it.");
+    assert.equal(buyerSurface.productTitle, "Linen set");
+    assert.equal(buyerSurface.productPrice, "$100.00");
+    assert.equal(buyerSurface.finalPrice, "$100.00");
+    assert.equal(buyerSurface.optionPrompt, "Choose your options");
+    assert.doesNotMatch(buyerSurface.pageText, /Catalog item|Custom item|SKU\s*·/);
+    assert.ok(buyerSurface.sellerTop >= 0 && buyerSurface.sellerTop < buyerSurface.heroTop);
+    assert.ok(buyerSurface.heroTop < buyerSurface.orderCardTop);
+    assert.ok(buyerSurface.orderCardBottom > 0 && buyerSurface.orderCardTop < 844);
     await waitFor(seller, `document.querySelector('[data-testid="card-channel-insight-views"] .metric-value-content')?.textContent?.trim() === "1"`);
     assert.equal(await metricValue(seller, "card-channel-insight-sales"), "0");
 
+    await click(buyer, 'input[name="buyer-preference-1-0"][value="Small"]');
+    await waitFor(buyer, 'document.querySelector(\'input[name="buyer-preference-1-0"][value="Small"]\')?.checked === true');
     await click(buyer, '[data-testid="button-submit-public-order"]');
     await waitFor(buyer, `document.querySelector('[data-testid="input-buyer-name"]') !== null`);
     await fill(buyer, '[data-testid="input-buyer-name"]', "Browser Buyer");
