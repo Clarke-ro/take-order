@@ -1647,6 +1647,128 @@ button { cursor: pointer; }
   width: 100%;
   margin-top: 24px;
 }
+.auth-form-panel {
+  width: min(100%, 336px);
+  margin-inline: auto;
+}
+.auth-form-panel h1 {
+  font-size: clamp(2rem, 3.2vw, 2.45rem);
+  letter-spacing: -.06em;
+}
+.auth-form-panel .onboarding-lede {
+  max-width: 330px;
+  margin-top: 10px;
+  font-size: .72rem;
+  line-height: 1.5;
+}
+.auth-form {
+  display: grid;
+  gap: 17px;
+  margin-top: 29px;
+}
+.auth-form .field-label {
+  display: block;
+  margin-bottom: 7px;
+}
+.auth-form .field-input {
+  min-height: 40px;
+  border-radius: 7px;
+  padding: .62rem .72rem;
+  font-size: .72rem;
+}
+.auth-password-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.auth-text-link,
+.auth-demo-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #363733;
+  font-size: .65rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.auth-text-link:hover,
+.auth-text-link:focus-visible,
+.auth-demo-link:hover,
+.auth-demo-link:focus-visible {
+  color: #77735f;
+}
+.auth-error {
+  margin: -4px 0 -1px;
+  color: #9e4f4f;
+  font-size: .67rem;
+  line-height: 1.45;
+}
+.auth-submit {
+  display: inline-flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: #292a26;
+  color: #fbfaf8;
+  font-size: .72rem;
+  font-weight: 700;
+  transition: background-color .18s ease, transform .18s ease;
+}
+.auth-submit:hover {
+  background: #484942;
+  transform: translateY(-1px);
+}
+.auth-submit:focus-visible {
+  outline: 2px solid #292a26;
+  outline-offset: 3px;
+}
+.auth-legal {
+  margin: -3px 0 0;
+  color: #85867f;
+  font-size: .61rem;
+  line-height: 1.5;
+}
+.auth-divider {
+  height: 1px;
+  margin-top: 31px;
+  background: #e4e2dd;
+}
+.auth-footer-links {
+  display: grid;
+  gap: 8px;
+  margin-top: 19px;
+  color: #85867f;
+  font-size: .65rem;
+  line-height: 1.45;
+}
+.auth-footer-links p {
+  margin: 0;
+}
+.auth-demo-link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: baseline;
+  gap: 5px;
+  text-align: left;
+}
+.auth-demo-link span {
+  color: #85867f;
+  font-size: .59rem;
+  text-decoration: none;
+}
+.auth-demo-note {
+  max-width: 300px;
+  color: #a09f97;
+  font-size: .59rem;
+}
+.auth-panel-footer {
+  text-transform: uppercase;
+}
 .onboarding-brand-panel {
   position: relative;
   display: flex;
@@ -1894,6 +2016,10 @@ button { cursor: pointer; }
   .onboarding-form-wrap {
     width: 100%;
     padding: 32px 24px 56px;
+  }
+  .auth-form-wrap {
+    padding-top: 49px;
+    padding-bottom: 62px;
   }
   .onboarding-progress {
     margin-bottom: 36px;

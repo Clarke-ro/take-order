@@ -688,11 +688,11 @@ function Auth() {
             <form className="auth-form" onSubmit={submit}>
               <div>
                 <label className="field-label" htmlFor="auth-email">Email</label>
-                <input autoFocus id="auth-email" data-testid="input-auth-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(''); }} placeholder="Enter your email" className="field-input" required />
+                <input autoFocus id="auth-email" data-testid="input-auth-email" type="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(''); }} placeholder="Enter your email" className="field-input" required />
               </div>
               <div>
                 <div className="auth-password-label"><label className="field-label" htmlFor="auth-password">Password</label><button type="button" className="auth-text-link" onClick={() => setError('Password recovery is not connected in mock mode.')}>Forgot password</button></div>
-                <input id="auth-password" data-testid="input-auth-password" type="password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} placeholder="Enter your password" className="field-input" required />
+                <input id="auth-password" data-testid="input-auth-password" type="password" autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} placeholder="Enter your password" className="field-input" required />
               </div>
               {error && <p className="auth-error" role="alert">{error}</p>}
               <button type="submit" className="auth-submit" data-testid="button-auth-sign-in">Sign in <ArrowRight size={15} aria-hidden="true" /></button>
