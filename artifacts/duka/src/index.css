@@ -1447,8 +1447,8 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-choice-mark.is-custom { background: hsl(var(--accent) / .2); color: hsl(var(--accent-foreground)); }
 .take-order-choice-copy { min-width: 0; }
 .take-order-choice-copy strong, .take-order-choice-copy small { display: block; }
-.take-order-choice-copy strong { font-size: .8rem; font-weight: 700; }
-.take-order-choice-copy small { margin-top: .3rem; color: hsl(var(--muted-foreground)); font-size: .66rem; line-height: 1.45; }
+.take-order-choice-copy strong { font-size: .98rem; font-weight: 700; }
+.take-order-choice-copy small { margin-top: .35rem; color: hsl(var(--muted-foreground)); font-size: .76rem; line-height: 1.45; }
 .take-order-choice-card > svg { color: hsl(var(--muted-foreground)); }
 .take-order-catalog-stage { display: grid; grid-template-areas: "browser selection"; grid-template-columns: minmax(0, 1fr) 250px; align-items: start; gap: .9rem; }
 .take-order-catalog-browser { grid-area: browser; }
