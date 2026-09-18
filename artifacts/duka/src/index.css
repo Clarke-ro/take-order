@@ -591,22 +591,21 @@ button { cursor: pointer; }
 .orders-filter-button:hover, .orders-filter-button.is-active { color: hsl(var(--foreground)); }
 .orders-filter-button.is-active { border-bottom-color: hsl(var(--foreground)); }
 .orders-table-wrap { overflow-x: auto; }
-.orders-table-head, .orders-table-row { display: grid; grid-template-columns: 2rem 5rem minmax(150px, 1.25fr) 6rem minmax(88px, .8fr) minmax(100px, .9fr) minmax(112px, 1fr) 3.5rem minmax(130px, 1.2fr) 7rem; min-width: 1060px; gap: .85rem; align-items: center; }
-.orders-table-head { background: hsl(var(--card)); padding: .72rem 1.25rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-.orders-table-row { border-bottom: 1px solid hsl(var(--border)); padding: .72rem 1.25rem; transition: background-color .18s; }
+.orders-table-head, .orders-table-row { display: grid; grid-template-columns: minmax(96px, .55fr) minmax(220px, 1.35fr) 4.5rem minmax(118px, .8fr) minmax(82px, .55fr) minmax(126px, .86fr) minmax(112px, .78fr); min-width: 1000px; gap: 1.5rem; align-items: center; }
+.orders-table-head { background: hsl(var(--card)); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
+.orders-table-head > span:nth-child(3) { text-align: center; transform: translateX(-.35rem); }
+.orders-table-row { border-bottom: 1px solid hsl(var(--border)); padding: 1.05rem 1.5rem; transition: background-color .18s; }
 .orders-table-row:last-child { border-bottom: 0; }
 .orders-table-row:hover { background: hsl(var(--muted) / .42); }
 .orders-order-id-cell { min-width: 0; }
-.orders-customer-cell, .orders-note-cell, .orders-delivery-cell, .orders-status-cell, .orders-items-cell { min-width: 0; }
-.orders-select-cell { display: flex; align-items: center; justify-content: center; }
-.orders-checkbox { height: 14px; width: 14px; accent-color: hsl(var(--primary)); }
-.orders-order-link { color: hsl(210 69% 46%); font-size: .78rem; font-weight: 700; text-decoration: none; }
-.orders-order-link:hover { text-decoration: underline; }
-.orders-total { font-family: var(--app-font-mono); font-size: .72rem; font-weight: 600; }
-.orders-items-cell { font-size: .72rem; text-align: center; }
-.orders-note-cell, .orders-delivery-cell { color: hsl(var(--muted-foreground)); font-size: .68rem; }
-.orders-table-head .orders-select-cell { justify-content: center; }
+.orders-buyer-cell { display: flex; min-width: 0; align-items: center; gap: .75rem; }
 .orders-table-row .font-semibold, .orders-table-row .font-bold { font-weight: 500; }
+.orders-buyer-cell > div:last-child > div:last-child { font-size: .75rem; font-weight: 400; }
+.orders-order-id { color: hsl(var(--muted-foreground)); font-family: var(--app-font-sans); font-size: .62rem; font-style: normal; font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum", "lnum"; letter-spacing: .04em; }
+.orders-value-cell > div:last-child, .orders-date-cell > span:last-child { font-size: .7rem; }
+.orders-traffic-cell { display: flex; min-width: 0; align-items: center; justify-content: center; transform: translateX(-.35rem); }
+.orders-traffic-icon { display: inline-flex; height: 2rem; width: 2rem; align-items: center; justify-content: center; margin-inline: auto; border-radius: 9px; background: hsl(var(--muted) / .7); color: hsl(var(--muted-foreground)); }
+.orders-avatar { display: flex; height: 36px; width: 36px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 11px; background: hsl(var(--muted)); color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .59rem; font-weight: 700; }
 .orders-cell-labeled { min-width: 0; }
 .orders-cell-labeled > button { display: inline-flex; max-width: 100%; border-radius: 999px; outline: none; }
 .orders-table-row [data-testid^="button-payment-"] { border: 0; background: transparent; padding: 0; color: inherit; text-align: left; }
@@ -616,9 +615,9 @@ button { cursor: pointer; }
 .orders-table-row [data-testid^="button-payment-"] > [data-tone="gold"] { color: hsl(31 64% 38%); }
 .orders-table-row [data-testid^="button-payment-"] > [data-tone="reserved"] { color: hsl(220 12% 48%); }
 .orders-table-row [data-testid^="button-payment-"] > [data-tone="neutral"] { color: hsl(var(--muted-foreground)); }
-.orders-cell-labeled > button:focus-visible, .orders-icon-button:focus-visible, .orders-order-link:focus-visible, .orders-checkbox:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.orders-cell-labeled > button:focus-visible, .orders-icon-button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 .orders-mobile-label { display: none; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .55rem; text-transform: uppercase; letter-spacing: .1em; }
-.orders-value-cell { min-width: 0; }
+.orders-value-cell, .orders-date-cell { min-width: 0; }
 .orders-table-row button:disabled { cursor: wait; opacity: .55; }
 .clients-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
 .clients-intro-card { background: hsl(220 25% 18%); border-color: hsl(220 23% 26%); color: hsl(45 33% 96%); box-shadow: none; }
@@ -948,10 +947,10 @@ button { cursor: pointer; }
   .orders-filter-scroll { width: calc(100vw - 2rem); }
   .orders-table-head { display: none; }
   .orders-table-wrap { overflow: visible; }
-  .orders-table-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-width: 0; gap: .75rem; padding: 1rem; }
-  .orders-select-cell { display: none; }
-  .orders-order-id-cell, .orders-customer-cell { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: .6rem; }
-  .orders-status-cell, .orders-cell-labeled, .orders-value-cell, .orders-items-cell, .orders-note-cell, .orders-delivery-cell { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+  .orders-table-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-width: 0; gap: .95rem .75rem; padding: 1rem; }
+  .orders-order-id-cell { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: .6rem; }
+  .orders-buyer-cell { grid-column: 1 / -1; }
+  .orders-traffic-cell, .orders-cell-labeled, .orders-value-cell, .orders-date-cell { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
   .orders-mobile-label { display: inline; }
   .clients-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
   .clients-intro-card { grid-column: 1 / -1; }
