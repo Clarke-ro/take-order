@@ -682,7 +682,6 @@ function Auth() {
         </header>
         <div className="onboarding-form-wrap auth-form-wrap">
           <div className="onboarding-form-panel auth-form-panel">
-            <div className="onboarding-kicker">Seller workspace</div>
             <h1>Welcome back</h1>
             <p className="onboarding-lede">Sign in below to manage your shop, products, and orders.</p>
             <form className="auth-form" onSubmit={submit}>

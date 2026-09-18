@@ -1651,14 +1651,26 @@ button { cursor: pointer; }
   width: min(100%, 336px);
   margin-inline: auto;
 }
+.auth-shell {
+  background: #fff;
+  color: #1f1f1f;
+}
+.auth-shell .onboarding-main,
+.auth-shell .onboarding-header {
+  background: #fff;
+}
 .auth-form-panel h1 {
-  font-size: clamp(2rem, 3.2vw, 2.45rem);
-  letter-spacing: -.06em;
+  color: #171717;
+  font-size: clamp(1.55rem, 2.2vw, 1.8rem);
+  font-weight: 600;
+  letter-spacing: -.035em;
+  line-height: 1.15;
 }
 .auth-form-panel .onboarding-lede {
   max-width: 330px;
   margin-top: 10px;
-  font-size: .72rem;
+  color: #666;
+  font-size: .7rem;
   line-height: 1.5;
 }
 .auth-form {
@@ -1669,12 +1681,19 @@ button { cursor: pointer; }
 .auth-form .field-label {
   display: block;
   margin-bottom: 7px;
+  color: #252525;
+  font-size: .65rem;
+  font-weight: 600;
 }
 .auth-form .field-input {
   min-height: 40px;
+  border-color: #dedede;
   border-radius: 7px;
+  background: #fff;
+  color: #222;
   padding: .62rem .72rem;
   font-size: .72rem;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 6%);
 }
 .auth-password-label {
   display: flex;
@@ -1687,7 +1706,7 @@ button { cursor: pointer; }
   border: 0;
   background: transparent;
   padding: 0;
-  color: #363733;
+  color: #333;
   font-size: .65rem;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -1729,7 +1748,7 @@ button { cursor: pointer; }
 }
 .auth-legal {
   margin: -3px 0 0;
-  color: #85867f;
+  color: #777;
   font-size: .61rem;
   line-height: 1.5;
 }
@@ -1742,7 +1761,7 @@ button { cursor: pointer; }
   display: grid;
   gap: 8px;
   margin-top: 19px;
-  color: #85867f;
+  color: #777;
   font-size: .65rem;
   line-height: 1.45;
 }
@@ -1757,17 +1776,20 @@ button { cursor: pointer; }
   text-align: left;
 }
 .auth-demo-link span {
-  color: #85867f;
+  color: #777;
   font-size: .59rem;
   text-decoration: none;
 }
 .auth-demo-note {
   max-width: 300px;
-  color: #a09f97;
+  color: #999;
   font-size: .59rem;
 }
 .auth-panel-footer {
   text-transform: uppercase;
+}
+.auth-brand-panel {
+  background: #f5ede4;
 }
 .onboarding-brand-panel {
   position: relative;
