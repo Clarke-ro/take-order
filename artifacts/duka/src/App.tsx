@@ -4,7 +4,7 @@ import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } f
 import {
   AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
   CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, ExternalLink, Eye, FileText, Globe2, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
-  ImagePlus, Package, PackageSearch, Pencil, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
+  ImagePlus, MessageSquare, Package, PackageSearch, Pencil, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
   Trash2, TrendingUp, Truck, UserRound, Users, UsersRound, WalletCards, Workflow, Wrench, X
 } from 'lucide-react';
 import { SiFacebook, SiInstagram, SiSnapchat, SiTiktok, SiWhatsapp, SiX } from 'react-icons/si';
@@ -513,6 +513,7 @@ function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?
 const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 'reserved' =>
   status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';
 const paymentLabel = (order: Order) => order.status === 'deposit_paid' ? 'Deposit paid' : order.status === 'paid' ? 'Paid in full' : 'Awaiting payment';
+const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value[0].toUpperCase() + value.slice(1);
 type MetricTrend = { direction: 'up' | 'down'; percentage: number };
 type MetricIndicator = { direction: 'up' | 'down' | 'neutral'; percentage: number };
 type DashboardStatCard = {
@@ -1690,7 +1691,7 @@ function Orders() {
        {mutationError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}<Card className="overflow-hidden">
         <h2 className="orders-list-heading">Orders</h2>
         <div className="orders-controls filter-surface"><div className="orders-filter-scroll" role="group" aria-label="Order filters">{filterOptions.map((option) => <button type="button" key={option.value} onClick={() => setFilter(option.value)} aria-pressed={filter === option.value} data-testid={`button-filter-${option.value}`} className={cn('orders-filter-button', filter === option.value && 'is-active')}>{option.label}</button>)}</div><div className="list-search-shell"><Search className="pointer-events-none absolute left-2.5 top-2.5 text-[hsl(var(--muted-foreground))]" size={14} /><input aria-label="Search orders" data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" className="list-search-input" /></div></div>
-          {query.isLoading ? <div className="space-y-4 p-5 sm:p-6" aria-label="Loading orders"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div> : query.isError ? <div className="p-5 sm:p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="orders-table-wrap"><div className="orders-table-head"><span>Order ID</span><span>Buyer / item</span><span>Traffic</span><span>Order value</span><span>Placed</span><span>Payment</span><span>Fulfillment</span></div>{orders.map((order) => <div key={order.id} className="orders-table-row" data-testid={`row-orders-order-${order.id}`}><div className="orders-order-id-cell"><span className="orders-mobile-label">Order ID</span><span className="orders-order-id">#{String(order.id).padStart(7, '0')}</span></div><div className="orders-buyer-cell"><div className="orders-avatar">{initials(order.customerName || order.productName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 truncate text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName}</div>{order.deliveryMethod && <div className="mt-1 truncate text-[10px] text-[hsl(var(--muted-foreground))]" title={order.deliveryAddress ?? undefined}>{order.deliveryMethod === 'delivery' ? `Delivery · ${moneyExact(order.deliveryFee)}` : 'Pickup'}{order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}</div>}</div></div><div className="orders-traffic-cell"><span className="orders-mobile-label">Traffic</span><span className="orders-traffic-icon" data-testid={`text-order-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div><div className="orders-value-cell"><span className="orders-mobile-label">Order value</span><div className="font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{moneyExact(collectedFor(order))} collected</div></div><div className="orders-date-cell"><span className="orders-mobile-label">Placed</span><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</span></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Payment</span><button type="button" disabled={update.isPending} aria-label={`Advance payment status for ${order.customerName || order.productName}`} title="Advance payment status" data-testid={`button-payment-${order.id}`} onClick={() => { const status: 'reserved' | 'deposit_paid' | 'paid' = order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved'; updateOrder(order, { status }); }}><StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>{paymentLabel(order)}</StatusPill></button></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Fulfillment</span><button type="button" disabled={update.isPending} aria-label={`Advance fulfillment status for ${order.customerName || order.productName}`} title="Advance fulfillment status" data-testid={`button-fulfillment-${order.id}`} onClick={() => { const fulfillment: 'pending' | 'shipped' | 'delivered' = order.fulfillment === 'pending' ? 'shipped' : order.fulfillment === 'shipped' ? 'delivered' : 'pending'; updateOrder(order, { fulfillment }); }}><StatusPill tone={order.fulfillment === 'delivered' ? 'mint' : order.fulfillment === 'shipped' ? 'blue' : 'neutral'}>{fulfillmentLabel(order.fulfillment)}</StatusPill></button></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} action={!search && filter === 'all' ? <Link href="/take-order" data-testid="link-create-first-order"><Button><Plus size={15} />Create a link</Button></Link> : undefined} /></div>}
+          {query.isLoading ? <div className="space-y-4 p-5 sm:p-6" aria-label="Loading orders"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div> : query.isError ? <div className="p-5 sm:p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="orders-table-wrap"><div className="orders-table-head"><span>Order ID</span><span>Buyer / item</span><span>Traffic</span><span>Order value</span><span>Placed</span><span>Payment</span><span>Fulfillment</span></div>{orders.map((order) => <div key={order.id} className="orders-table-row" data-testid={`row-orders-order-${order.id}`}><div className="orders-order-id-cell"><span className="orders-mobile-label">Order ID</span><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></div><div className="orders-buyer-cell"><div className="orders-avatar">{initials(order.customerName || order.productName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 truncate text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName}</div>{order.deliveryMethod && <div className="mt-1 truncate text-[10px] text-[hsl(var(--muted-foreground))]" title={order.deliveryAddress ?? undefined}>{order.deliveryMethod === 'delivery' ? `Delivery · ${moneyExact(order.deliveryFee)}` : 'Pickup'}{order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}</div>}</div></div><div className="orders-traffic-cell"><span className="orders-mobile-label">Traffic</span><span className="orders-traffic-icon" data-testid={`text-order-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div><div className="orders-value-cell"><span className="orders-mobile-label">Order value</span><div className="font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{moneyExact(collectedFor(order))} collected</div></div><div className="orders-date-cell"><span className="orders-mobile-label">Placed</span><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</span></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Payment</span><button type="button" disabled={update.isPending} aria-label={`Advance payment status for ${order.customerName || order.productName}`} title="Advance payment status" data-testid={`button-payment-${order.id}`} onClick={() => { const status: 'reserved' | 'deposit_paid' | 'paid' = order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved'; updateOrder(order, { status }); }}><StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>{paymentLabel(order)}</StatusPill></button></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Fulfillment</span><button type="button" disabled={update.isPending} aria-label={`Advance fulfillment status for ${order.customerName || order.productName}`} title="Advance fulfillment status" data-testid={`button-fulfillment-${order.id}`} onClick={() => { const fulfillment: 'pending' | 'shipped' | 'delivered' = order.fulfillment === 'pending' ? 'shipped' : order.fulfillment === 'shipped' ? 'delivered' : 'pending'; updateOrder(order, { fulfillment }); }}><StatusPill tone={order.fulfillment === 'delivered' ? 'mint' : order.fulfillment === 'shipped' ? 'blue' : 'neutral'}>{fulfillmentLabel(order.fulfillment)}</StatusPill></button></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} action={!search && filter === 'all' ? <Link href="/take-order" data-testid="link-create-first-order"><Button><Plus size={15} />Create a link</Button></Link> : undefined} /></div>}
       </Card>
     </section>
     {orders.some((order) => order.items.length > 1) && <Card className="mt-5 overflow-hidden" data-testid="card-order-item-breakdown"><div className="orders-panel-heading"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Line-item view</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.04em]">What each order contains</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Review every agreed item and price before handing the order off.</p></div><Package size={18} className="text-[hsl(var(--muted-foreground))]" /></div><div className="divide-y divide-[hsl(var(--border))]">{orders.filter((order) => order.items.length > 1).map((order) => <div key={order.id} className="px-5 py-5 sm:px-6" data-testid={`row-order-item-breakdown-${order.id}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{order.items.length} items · {channelName(order.channel)} · {dateShort(order.createdAt)}</div></div><div className="text-right"><div className="font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">Combined total</div></div></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{order.items.map((item, index) => <div key={`${order.id}-${item.productId}-${index}`} className="flex items-center justify-between gap-3 rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2.5"><span className="min-w-0 truncate text-xs font-semibold">{item.productName}</span><span className="shrink-0 font-mono-ui text-xs">{moneyExact(item.amount)}</span></div>)}</div></div>)}</div></Card>}
@@ -2779,7 +2780,161 @@ function SettingsPage() {
 
 function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3 5 6v5c0 4.5 3.8 8.2 7 10 3.2-1.8 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>; }
 
-function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/auth" component={Auth} /><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog/new" component={CatalogEditorRoute} /><Route path="/catalog/edit/:id" component={CatalogEditorRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders" component={Orders} /><Route path="/reports/channel-conversion" component={ChannelConversionInsight} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrderModern} /><Route path="/settings" component={SettingsPage} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
+function OrderDetail() {
+  const { id = '' } = useParams<{ id: string }>();
+  const orderId = Number(id);
+  const query = useListOrders();
+  const update = useUpdateOrder();
+  const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const [copied, setCopied] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const order = useMemo(() => (query.data ?? []).find((candidate) => candidate.id === orderId), [query.data, orderId]);
+
+  const collected = order ? (order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0) : 0;
+  const outstanding = order ? Math.max(0, order.amount - collected) : 0;
+  const itemSubtotal = order?.items.reduce((sum, item) => sum + item.amount * item.quantity, 0) ?? 0;
+  const buyerLink = order ? `${window.location.origin}/o/${order.token}` : '';
+  const updateOrder = (data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => {
+    if (!order) return;
+    setActionError('');
+    update.mutate({ id: order.id, data }, {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+        invalidateDashboardSummary(queryClient);
+      },
+      onError: (error) => setActionError(error instanceof Error && error.message ? error.message : 'That update could not be saved. Try again.'),
+    });
+  };
+  const copyBuyerLink = async () => {
+    if (!buyerLink) return;
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(buyerLink);
+      else {
+        const input = document.createElement('input');
+        input.value = buyerLink;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        input.remove();
+      }
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setActionError('The buyer link could not be copied. Select it from the order metadata instead.');
+    }
+  };
+  const messageBuyer = () => {
+    if (!order?.customerPhone) return;
+    const phone = order.customerPhone.replace(/[^\d+]/g, '');
+    const message = `Hi${order.customerName ? ` ${order.customerName}` : ''}, here is your Take Order link: ${buyerLink}`;
+    window.open(`https://wa.me/${phone.replace(/\+/g, '')}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+  };
+
+  if (query.isLoading) {
+    return <Shell><div className="order-detail-loading" aria-label="Loading order"><Skeleton className="h-4 w-24" /><Skeleton className="mt-7 h-12 w-64" /><div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]"><Skeleton className="h-[520px] w-full" /><Skeleton className="h-[420px] w-full" /></div></div></Shell>;
+  }
+  if (query.isError) {
+    return <Shell><Link href="/orders" className="order-detail-back" data-testid="link-back-orders"><ArrowLeft size={15} />Back to orders</Link><div className="mt-7"><ErrorState retry={() => query.refetch()} /></div></Shell>;
+  }
+  if (!order) {
+    return <Shell><Link href="/orders" className="order-detail-back" data-testid="link-back-orders"><ArrowLeft size={15} />Back to orders</Link><EmptyState card icon={PackageSearch} title="Order not found" description="This order may have been removed, or the link is no longer valid." action={<Button variant="outline" onClick={() => setLocation('/orders')} data-testid="button-return-orders">View all orders</Button>} /></Shell>;
+  }
+
+  return <Shell>
+    <div className="order-detail-page" data-testid={`page-order-detail-${order.id}`}>
+      <div className="order-detail-toolbar no-print">
+        <Link href="/orders" className="order-detail-back" data-testid="link-back-orders"><ArrowLeft size={15} />Back to orders</Link>
+        <div className="order-detail-actions">
+          <button type="button" className="order-action-button" onClick={messageBuyer} disabled={!order.customerPhone} data-testid="button-message-buyer" title={order.customerPhone ? 'Open WhatsApp conversation' : 'Buyer phone not available'}><MessageSquare size={15} />Message buyer</button>
+          <button type="button" className="order-action-button" onClick={copyBuyerLink} data-testid="button-copy-buyer-link"><Copy size={15} />{copied ? 'Copied' : 'Copy buyer link'}</button>
+          <button type="button" className="order-action-button order-action-primary" onClick={() => window.print()} data-testid="button-print-invoice"><ReceiptText size={15} />Print invoice</button>
+        </div>
+      </div>
+
+      <header className="order-detail-header">
+        <div>
+          <div className="order-detail-kicker">Order #{String(order.id).padStart(7, '0')} <span>·</span> {dateShort(order.createdAt)}</div>
+          <h1 data-testid="text-order-detail-title">{order.customerName || 'Buyer pending'}</h1>
+          <p>{order.items.length} {order.items.length === 1 ? 'item' : 'items'} · {channelName(order.channel)} · {order.deliveryMethod === 'delivery' ? 'Delivery' : order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery method pending'}</p>
+        </div>
+        <div className="order-detail-header-status" data-testid="status-order-overview">
+          <StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill>
+          <StatusPill tone={fulfillmentTone(order.fulfillment)}>{fulfillmentLabel(order.fulfillment)}</StatusPill>
+        </div>
+      </header>
+
+      {actionError && <div className="order-detail-error" role="alert" data-testid="status-order-action-error"><AlertTriangle size={15} />{actionError}</div>}
+
+      <div className="order-detail-layout">
+        <main className="order-detail-main">
+          <Card className="order-detail-card order-items-card">
+            <div className="order-card-heading"><div><div className="order-card-kicker">Order summary</div><h2>Items and total</h2></div><Package size={18} /></div>
+            <div className="order-items-list">
+              {order.items.map((item, index) => <div className="order-item-row" key={`${item.productId}-${index}`} data-testid={`row-order-item-${item.productId}-${index}`}>
+                <img src={productImageFor(item.productName)} alt="" className="order-item-image" />
+                <div className="order-item-copy"><strong>{item.productName}</strong><span>{item.quantity} × {moneyExact(item.amount)}</span></div>
+                <div className="order-item-total">{moneyExact(item.amount * item.quantity)}</div>
+              </div>)}
+            </div>
+            <div className="order-total-block">
+              <div><span>Items subtotal</span><strong>{moneyExact(itemSubtotal)}</strong></div>
+              <div><span>Delivery fee</span><strong>{order.deliveryFee ? moneyExact(order.deliveryFee) : 'No fee'}</strong></div>
+              <div className="order-total-line"><span>Total order value</span><strong data-testid="text-order-total">{moneyExact(order.amount)}</strong></div>
+              <div><span>Collected</span><strong className="order-collected" data-testid="text-order-collected">{moneyExact(collected)}</strong></div>
+              <div className="order-outstanding-line"><span>Outstanding</span><strong data-testid="text-order-outstanding">{moneyExact(outstanding)}</strong></div>
+            </div>
+          </Card>
+
+          <Card className="order-detail-card order-status-card no-print">
+            <div className="order-card-heading"><div><div className="order-card-kicker">Order controls</div><h2>Keep the handoff current</h2></div><RefreshCw size={17} /></div>
+            <div className="order-control-grid">
+              <div><span className="order-control-label">Payment status</span><div className="order-status-options">{(['reserved', 'deposit_paid', 'paid'] as const).map((status) => <button type="button" key={status} className={cn('order-status-option', order.status === status && 'is-active')} disabled={update.isPending || order.status === status} onClick={() => updateOrder({ status })} data-testid={`button-order-payment-${status}`}><span>{status === 'reserved' ? 'Reserved' : status === 'deposit_paid' ? 'Deposit paid' : 'Paid in full'}</span>{order.status === status && <Check size={14} />}</button>)}</div></div>
+              <div><span className="order-control-label">Fulfillment</span><div className="order-status-options">{(['pending', 'shipped', 'delivered'] as const).map((fulfillment) => <button type="button" key={fulfillment} className={cn('order-status-option', order.fulfillment === fulfillment && 'is-active')} disabled={update.isPending || order.fulfillment === fulfillment} onClick={() => updateOrder({ fulfillment })} data-testid={`button-order-fulfillment-${fulfillment}`}><span>{fulfillment === 'pending' ? 'To ship' : fulfillment[0].toUpperCase() + fulfillment.slice(1)}</span>{order.fulfillment === fulfillment && <Check size={14} />}</button>)}</div></div>
+            </div>
+          </Card>
+
+          {(order.referenceImage || order.buyerDetails) && <Card className="order-detail-card order-context-card">
+            <div className="order-card-heading"><div><div className="order-card-kicker">Buyer context</div><h2>Notes from checkout</h2></div><Clipboard size={17} /></div>
+            {order.referenceImage && <a href={order.referenceImage} target="_blank" rel="noreferrer" className="order-reference-image-link" data-testid="link-order-reference-image"><img src={order.referenceImage} alt="Buyer reference" className="order-reference-image" /><span>Open reference image <ExternalLink size={13} /></span></a>}
+            {order.buyerDetails && <p className="order-buyer-details" data-testid="text-order-buyer-details">{order.buyerDetails}</p>}
+          </Card>}
+        </main>
+
+        <aside className="order-detail-sidebar">
+          <Card className="order-detail-card customer-card">
+            <div className="order-card-heading"><div><div className="order-card-kicker">Customer</div><h2>{order.customerName || 'Buyer pending'}</h2></div><div className="customer-avatar">{initials(order.customerName || 'Buyer')}</div></div>
+            <div className="customer-contact-list">
+              <div><span>Phone</span><strong data-testid="text-order-customer-phone">{order.customerPhone || 'Not provided'}</strong></div>
+              <div><span>Channel</span><strong className="customer-channel"><ChannelMark value={order.channel} size={14} />{channelName(order.channel)}</strong></div>
+              <div><span>Payment plan</span><strong>{order.paymentMode === 'deposit' ? `Deposit · ${moneyExact(order.depositAmount ?? 0)}` : order.paymentMode === 'reserve' ? 'Reserve' : 'Full payment'}</strong></div>
+            </div>
+            {order.customerPhone && <button type="button" className="customer-message-button" onClick={messageBuyer} data-testid="button-message-buyer-sidebar"><MessageSquare size={15} />Message on WhatsApp</button>}
+          </Card>
+          <Card className="order-detail-card delivery-card">
+            <div className="order-card-heading"><div><div className="order-card-kicker">Handoff</div><h2>Delivery details</h2></div><Truck size={17} /></div>
+            <dl className="order-metadata-list">
+              <div><dt>Method</dt><dd>{order.deliveryMethod === 'delivery' ? 'Delivery' : order.deliveryMethod === 'pickup' ? 'Pickup' : 'Not selected'}</dd></div>
+              <div><dt>Fee</dt><dd>{order.deliveryFee ? moneyExact(order.deliveryFee) : 'No fee'}</dd></div>
+              <div><dt>Address</dt><dd data-testid="text-order-delivery-address">{order.deliveryAddress || 'Address not provided'}</dd></div>
+            </dl>
+          </Card>
+          <Card className="order-detail-card activity-card">
+            <div className="order-card-heading"><div><div className="order-card-kicker">Activity</div><h2>Order metadata</h2></div><Clock3 size={17} /></div>
+            <dl className="order-metadata-list">
+              <div><dt>Created</dt><dd>{new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(order.createdAt))}</dd></div>
+              <div><dt>Buyer link opens</dt><dd>{number(order.linkOpens)}</dd></div>
+              <div><dt>Shares / likes</dt><dd>{order.shares ?? '—'} / {order.likes ?? '—'}</dd></div>
+              <div><dt>Order token</dt><dd className="order-token">{order.token}</dd></div>
+            </dl>
+          </Card>
+        </aside>
+      </div>
+    </div>
+  </Shell>;
+}
+
+function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/auth" component={Auth} /><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog/new" component={CatalogEditorRoute} /><Route path="/catalog/edit/:id" component={CatalogEditorRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders/:id" component={OrderDetail} /><Route path="/orders" component={Orders} /><Route path="/reports/channel-conversion" component={ChannelConversionInsight} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrderModern} /><Route path="/settings" component={SettingsPage} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
 function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
 export default App;
 
