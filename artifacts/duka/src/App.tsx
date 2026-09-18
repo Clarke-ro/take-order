@@ -1893,9 +1893,7 @@ function MultiItemTakeOrderModern() {
    return <Shell>
      <div className="take-order-page">
        <PageHeading
-         eyebrow="Seller workspace"
          title="Create an order"
-         description="Turn the agreement you already made into a clear checkout link. No payment connection or chat access needed."
          action={<div className="take-order-trust"><CheckCircle2 size={15} />Private by default</div>}
        />
        <TakeOrderStepRail step={step} onStepChange={setStep} />
