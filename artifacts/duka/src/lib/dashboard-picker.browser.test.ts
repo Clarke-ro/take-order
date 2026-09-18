@@ -261,8 +261,79 @@ async function main() {
   }
 }
 
+async function blockedStorageMain() {
+  const app = await launchViteAndChromium();
+  try {
+    await app.cdp.command("Page.enable");
+    await app.cdp.command("Runtime.enable");
+    await app.cdp.command("Page.addScriptToEvaluateOnNewDocument", {
+      source: `
+        localStorage.setItem("duka-onboarding-complete", "true");
+        localStorage.setItem("duka-onboarding-profile", JSON.stringify({
+          sellerName: "Privacy Test Seller",
+          businessName: "Privacy Test Shop",
+          description: "",
+          channels: ["WhatsApp"]
+        }));
+        localStorage.setItem("duka-dashboard-period", JSON.stringify({
+          period: "custom",
+          customFrom: "2026-09-01",
+          customTo: "2026-09-05"
+        }));
+        const nativeGetItem = Storage.prototype.getItem;
+        const nativeSetItem = Storage.prototype.setItem;
+        Storage.prototype.getItem = function(key) {
+          if (key === "duka-dashboard-period") throw new DOMException("Storage access blocked", "SecurityError");
+          return nativeGetItem.call(this, key);
+        };
+        Storage.prototype.setItem = function(key, value) {
+          if (key === "duka-dashboard-period") throw new DOMException("Storage access blocked", "SecurityError");
+          return nativeSetItem.call(this, key, value);
+        };
+        window.__dashboardRequests = [];
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = async (input, init) => {
+          const requestUrl = new URL(typeof input === "string" ? input : input.url, window.location.href);
+          if (requestUrl.pathname === "/api/dashboard/summary") {
+            window.__dashboardRequests.push(requestUrl.href);
+            return new Response(${JSON.stringify(JSON.stringify(dashboardSummary))}, {
+              status: 200,
+              headers: { "Content-Type": "application/json" }
+            });
+          }
+          if (requestUrl.pathname === "/api/products" || requestUrl.pathname === "/api/orders") {
+            return new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } });
+          }
+          return nativeFetch(input, init);
+        };
+      `,
+    });
+    await app.cdp.command("Page.navigate", { url: app.url });
+    await waitFor(app.cdp, `document.querySelector('[data-testid="button-dashboard-period"]') !== null`);
+    assert.equal(await text(app.cdp, '[data-testid="button-dashboard-period"]'), "Last 7 days");
+    await waitFor(app.cdp, `window.__dashboardRequests.some((url) => url.includes("from=") && url.includes("to="))`);
+
+    await click(app.cdp, '[data-testid="button-dashboard-period"]');
+    await click(app.cdp, '[data-testid="button-dashboard-period-custom"]');
+    await waitFor(app.cdp, `document.querySelector('[data-testid="dashboard-period-calendar"]') !== null`);
+    await click(app.cdp, '[aria-label="Next month"]');
+    await click(app.cdp, '[aria-label="Sep 10"]');
+    await click(app.cdp, '[aria-label="Sep 15"]');
+    await click(app.cdp, '[data-testid="button-dashboard-period-apply"]');
+    await waitFor(app.cdp, `document.querySelector('[data-testid="dashboard-period-calendar"]') === null`);
+    assert.equal(await text(app.cdp, '[data-testid="button-dashboard-period"]'), "Sep 10 – Sep 15");
+    await waitFor(app.cdp, `window.__dashboardRequests.some((url) => url.includes("from=2026-09-10") && url.includes("to=2026-09-15"))`);
+    assert.equal(await evaluate<boolean>(app.cdp, `document.querySelector('[data-testid="dashboard-analytics"]') !== null`), true);
+  } finally {
+    await app.cleanup();
+  }
+}
+
 main().then(
-  () => console.log("Dashboard calendar browser check passed"),
+  async () => {
+    await blockedStorageMain();
+    console.log("Dashboard calendar browser checks passed");
+  },
   (error) => {
     console.error(error);
     process.exitCode = 1;

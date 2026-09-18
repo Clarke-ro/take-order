@@ -369,6 +369,13 @@ const readOnboardingStep = (): number => {
     return Number.isInteger(step) && step >= 0 && step <= 3 ? step : 0;
   } catch { return 0; }
 };
+const readOnboardingComplete = (): boolean | null => {
+  try {
+    return window.localStorage.getItem(ONBOARDING_DONE_KEY) === 'true';
+  } catch {
+    return null;
+  }
+};
 const writeOnboardingStep = (step: number) => {
   try { window.localStorage.setItem(ONBOARDING_STEP_KEY, String(step)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
 };
@@ -620,7 +627,8 @@ function HomeRoute() {
   const [, setLocation] = useLocation();
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    if (window.localStorage.getItem(ONBOARDING_DONE_KEY) !== 'true') setLocation('/onboarding');
+    const completed = readOnboardingComplete();
+    if (completed === false) setLocation('/onboarding');
     else setReady(true);
   }, [setLocation]);
   if (!ready) return <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6"><div className="w-full max-w-[320px]"><Skeleton className="mx-auto h-10 w-10 rounded-[14px]" /><Skeleton className="mx-auto mt-6 h-8 w-48" /><Skeleton className="mx-auto mt-3 h-3 w-60" /></div></div>;
