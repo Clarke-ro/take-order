@@ -2349,6 +2349,7 @@ export function BuyerOrderForm({
                  <label htmlFor="buyer-reference-image" className="buyer-custom-upload-area">
                    {itemForm.imagePreview ? <img src={itemForm.imagePreview} alt="Selected item reference" /> : <><ImagePlus size={24} aria-hidden="true" /><strong>Upload an item image</strong><span>Add a reference photo for the seller.</span></>}
                  </label>
+                  <input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Upload an item image" type="file" accept="image/*" className="sr-only" onChange={onReferenceImageChange} />
                  <div className="buyer-gallery-caption"><ImagePlus size={13} aria-hidden="true" /> Buyer upload</div>
                </> : <>
                  <div className="buyer-item-hero-image buyer-product-gallery-main">
