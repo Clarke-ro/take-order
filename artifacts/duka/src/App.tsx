@@ -2,7 +2,7 @@ import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'rea
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import {
-  AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
+  AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
   CheckCircle2, CircleDollarSign, Clipboard, Copy, ExternalLink, Eye, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
   ImagePlus, Package, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, UserRound,
   Trash2, TrendingUp, Truck, Users, WalletCards, X
@@ -311,10 +311,12 @@ export function OnboardingChannelPicker({
 }
 
 type SellerProfile = { sellerName: string; businessName: string; description: string; channels: string[]; logoDataUrl?: string };
+type SellerSettingsPreferences = { orderUpdates: boolean; stockAlerts: boolean; compactTables: boolean };
 const ONBOARDING_KEY = 'duka-onboarding-profile';
 const ONBOARDING_STEP_KEY = 'duka-onboarding-step';
 const ONBOARDING_DONE_KEY = 'duka-onboarding-complete';
 export const CONNECTED_TOOLS_KEY = 'duka-connected-tools';
+const SELLER_SETTINGS_KEY = 'duka-seller-settings';
 
 export const DASHBOARD_PERIOD_KEY = 'duka-dashboard-period';
 export const CONNECTED_TOOL_NAMES = [
@@ -362,6 +364,21 @@ const readSellerProfile = (): SellerProfile | null => {
 const writeSellerProfile = (profile: SellerProfile) => {
   try { window.localStorage.setItem(ONBOARDING_KEY, JSON.stringify(profile)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
 };
+const defaultSellerSettings: SellerSettingsPreferences = { orderUpdates: true, stockAlerts: true, compactTables: false };
+const readSellerSettings = (): SellerSettingsPreferences => {
+  try {
+    const value = window.localStorage.getItem(SELLER_SETTINGS_KEY);
+    const parsed = value ? JSON.parse(value) as Partial<SellerSettingsPreferences> : {};
+    return {
+      orderUpdates: parsed.orderUpdates !== false,
+      stockAlerts: parsed.stockAlerts !== false,
+      compactTables: parsed.compactTables === true,
+    };
+  } catch { return defaultSellerSettings; }
+};
+const writeSellerSettings = (settings: SellerSettingsPreferences) => {
+  try { window.localStorage.setItem(SELLER_SETTINGS_KEY, JSON.stringify(settings)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+};
 const readOnboardingStep = (): number => {
   try {
     const value = window.localStorage.getItem(ONBOARDING_STEP_KEY);
@@ -395,24 +412,25 @@ export function Sidebar() {
   ];
   return <aside className="desktop-sidebar fixed inset-y-0 left-0 z-30 flex w-[246px] flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))]">
     <div className="px-7 py-7">
-      <BrandLockup inverted className="gap-3" />
-      <div className="mt-2 pl-12 font-mono-ui text-[9px] uppercase tracking-[.18em] text-white/45">seller workspace</div>
+      <BrandLockup className="gap-3" />
+      <div className="mt-2 pl-12 font-mono-ui text-[9px] uppercase tracking-[.18em] text-[hsl(var(--sidebar-foreground))]/45">seller workspace</div>
     </div>
-    <div className="mx-5 mb-5 h-px bg-white/10" />
-    <div className="px-4 text-[10px] font-semibold uppercase tracking-[.16em] text-white/35">Workspace</div>
+    <div className="mx-5 mb-5 h-px bg-[hsl(var(--sidebar-border))]" />
+    <div className="px-4 text-[10px] font-semibold uppercase tracking-[.16em] text-[hsl(var(--sidebar-foreground))]/45">Workspace</div>
     <nav aria-label="Seller workspace navigation" className="sidebar-scroll mt-3 flex-1 overflow-y-auto px-3">
-      {links.map(({ href, label, icon: Icon }) => <Link key={href} href={href} data-testid={`link-${label.toLowerCase().replaceAll(' ', '-')}`} aria-current={location === href ? 'page' : undefined} className={cn('group mb-1 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === href ? 'bg-[hsl(var(--sidebar-accent))] text-white' : 'text-white/58 hover:bg-white/5 hover:text-white')}>
+      {links.map(({ href, label, icon: Icon }) => <Link key={href} href={href} data-testid={`link-${label.toLowerCase().replaceAll(' ', '-')}`} aria-current={location === href ? 'page' : undefined} className={cn('group mb-1 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === href ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}>
         <Icon aria-hidden="true" size={17} strokeWidth={location === href ? 2.3 : 1.8} /><span>{label}</span>
       </Link>)}
-      <div className="my-5 h-px bg-white/10" />
-      <div className="px-1 text-[10px] font-semibold uppercase tracking-[.16em] text-white/35">Settings</div>
-      <Link href="/connect" data-testid="link-connect" aria-current={location === '/connect' ? 'page' : undefined} className={cn('mt-3 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/connect' ? 'bg-[hsl(var(--sidebar-accent))] text-white' : 'text-white/58 hover:bg-white/5 hover:text-white')}><Settings2 aria-hidden="true" size={17} /><span>Connect tools</span><span className="ml-auto h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /></Link>
+      <div className="my-5 h-px bg-[hsl(var(--sidebar-border))]" />
+      <div className="px-1 text-[10px] font-semibold uppercase tracking-[.16em] text-[hsl(var(--sidebar-foreground))]/45">Settings</div>
+      <Link href="/settings" data-testid="link-settings" aria-current={location === '/settings' ? 'page' : undefined} className={cn('mt-3 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/settings' ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}><UserRound aria-hidden="true" size={17} /><span>Profile & settings</span></Link>
+      <Link href="/connect" data-testid="link-connect" aria-current={location === '/connect' ? 'page' : undefined} className={cn('mt-1 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/connect' ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}><Settings2 aria-hidden="true" size={17} /><span>Connect tools</span><span className="ml-auto h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /></Link>
     </nav>
-    <div className="m-4 rounded-[15px] border border-white/10 bg-white/[.045] p-4">
-      <div className="flex items-center gap-2 text-[11px] font-semibold text-white/75"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /> All systems ready</div>
-      <p className="mt-2 text-[11px] leading-relaxed text-white/40">Your links are live and ready to share.</p>
+    <div className="m-4 rounded-[15px] border border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-accent))]/55 p-4">
+      <div className="flex items-center gap-2 text-[11px] font-semibold text-[hsl(var(--sidebar-foreground))]"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /> All systems ready</div>
+      <p className="mt-2 text-[11px] leading-relaxed text-[hsl(var(--sidebar-foreground))]/55">Your links are live and ready to share.</p>
     </div>
-      <div className="flex items-center gap-3 border-t border-white/10 px-6 py-5"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-[11px] font-bold text-white">{initials(seller?.sellerName || 'Amina Mensah')}</div><div className="min-w-0"><div className="truncate text-[12px] font-semibold">{seller?.sellerName || 'Amina Mensah'}</div><div className="truncate text-[10px] text-white/40">{seller?.businessName || 'The Sunday Edit'}</div></div><MoreHorizontal aria-hidden="true" className="ml-auto text-white/35" size={16} /></div>
+      <Link href="/settings" aria-label="Open profile and settings" className="flex items-center gap-3 border-t border-[hsl(var(--sidebar-border))] px-6 py-5 transition-colors hover:bg-[hsl(var(--sidebar-accent))]"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-[11px] font-bold text-white">{initials(seller?.sellerName || 'Amina Mensah')}</div><div className="min-w-0"><div className="truncate text-[12px] font-semibold">{seller?.sellerName || 'Amina Mensah'}</div><div className="truncate text-[10px] text-[hsl(var(--sidebar-foreground))]/55">{seller?.businessName || 'The Sunday Edit'}</div></div><MoreHorizontal aria-hidden="true" className="ml-auto text-[hsl(var(--sidebar-foreground))]/45" size={16} /></Link>
   </aside>;
 }
 
@@ -422,7 +440,7 @@ export function MobileMenuButton({ open, onClick }: { open: boolean; onClick: ()
 
 function MobileTopbar() {
   const [open, setOpen] = useState(false);
-  const nav = [{ href: '/', label: 'Dashboard' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/expenses', label: 'Expenses' }, { href: '/take-order', label: 'Take an order' }, { href: '/connect', label: 'Connect tools' }];
+  const nav = [{ href: '/', label: 'Dashboard' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/expenses', label: 'Expenses' }, { href: '/take-order', label: 'Take an order' }, { href: '/settings', label: 'Profile & settings' }, { href: '/connect', label: 'Connect tools' }];
   const [location] = useLocation();
   return <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md"><Link href="/" aria-label="Take Order dashboard"><BrandLockup className="gap-2" /></Link><MobileMenuButton open={open} onClick={() => setOpen(!open)} />{open && <div className="mobile-nav-panel absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">{nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} aria-current={location === item.href ? 'page' : undefined} className={cn('block rounded-[10px] px-3 py-3 text-sm transition-colors', location === item.href ? 'bg-[hsl(var(--muted))] font-semibold text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]')}>{item.label}</Link>)}</div>}</div>;
 }
