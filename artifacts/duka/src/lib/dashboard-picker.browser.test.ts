@@ -108,16 +108,19 @@ async function waitForCdpPage(debugPort: number, timeoutMs = 20_000) {
   throw new Error("Timed out waiting for Chromium CDP");
 }
 
-async function launchViteAndChromium() {
+async function launchViteAndChromium({ production = false } = {}) {
   const artifactDir = basename(process.cwd()) === "duka"
     ? process.cwd()
     : join(process.cwd(), "artifacts", "duka");
   const vitePort = await freePort();
   const debugPort = await freePort();
-  const profileDir = await mkdtemp(join(tmpdir(), "duka-dashboard-picker-"));
-  const vite = spawn(process.execPath, [join(artifactDir, "node_modules", "vite", "bin", "vite.js"), "--host", "127.0.0.1"], {
+  const profileDir = await mkdtemp(join(tmpdir(), `duka-dashboard-picker-${production ? "production" : "dev"}-`));
+  const viteArgs = production
+    ? [join(artifactDir, "node_modules", "vite", "bin", "vite.js"), "preview", "--host", "127.0.0.1"]
+    : [join(artifactDir, "node_modules", "vite", "bin", "vite.js"), "--host", "127.0.0.1"];
+  const vite = spawn(process.execPath, viteArgs, {
     cwd: artifactDir,
-    env: { ...process.env, NODE_ENV: "test", PORT: String(vitePort), BASE_PATH: "/" },
+    env: { ...process.env, NODE_ENV: production ? "production" : "test", PORT: String(vitePort), BASE_PATH: "/" },
     stdio: "ignore",
   });
   const chromium = spawn("/repl/tools/bin/chromium", [
@@ -329,10 +332,94 @@ async function blockedStorageMain() {
   }
 }
 
-main().then(
-  async () => {
+async function productionMain() {
+  const app = await launchViteAndChromium({ production: true });
+  try {
+    await app.cdp.command("Page.enable");
+    await app.cdp.command("Runtime.enable");
+    await app.cdp.command("Page.addScriptToEvaluateOnNewDocument", {
+      source: `
+        localStorage.setItem("duka-onboarding-complete", "true");
+        localStorage.setItem("duka-onboarding-profile", JSON.stringify({
+          sellerName: "Production Test Seller",
+          businessName: "Production Test Shop",
+          description: "",
+          channels: ["WhatsApp"]
+        }));
+        window.__dashboardRequests = [];
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = async (input, init) => {
+          const requestUrl = new URL(typeof input === "string" ? input : input.url, window.location.href);
+          if (requestUrl.pathname === "/api/dashboard/summary") {
+            window.__dashboardRequests.push(requestUrl.href);
+            return new Response(${JSON.stringify(JSON.stringify(dashboardSummary))}, {
+              status: 200,
+              headers: { "Content-Type": "application/json" }
+            });
+          }
+          if (requestUrl.pathname === "/api/products" || requestUrl.pathname === "/api/orders") {
+            return new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } });
+          }
+          return nativeFetch(input, init);
+        };
+      `,
+    });
+
+    await app.cdp.command("Page.navigate", { url: app.url });
+    await waitFor(app.cdp, `document.querySelector('[data-testid="button-dashboard-period"]') !== null`);
+    assert.equal(await evaluate<boolean>(app.cdp, `Boolean(document.querySelector('script[src*="/assets/"]'))`), true);
+
+    await click(app.cdp, '[data-testid="button-dashboard-period"]');
+    await evaluate(app.cdp, `(() => {
+      const option = [...document.querySelectorAll("button.dashboard-period-option")].find((element) => element.textContent?.includes("Last 30 days"));
+      if (!option) throw new Error("Missing Last 30 days reporting preset");
+      option.click();
+    })()`);
+    await waitFor(app.cdp, `document.querySelector('[data-testid="button-dashboard-period"]')?.textContent?.includes("Last 30 days") === true`);
+    await app.cdp.command("Page.reload", { ignoreCache: true });
+    await waitFor(app.cdp, `document.querySelector('[data-testid="button-dashboard-period"]') !== null`);
+    assert.equal(await text(app.cdp, '[data-testid="button-dashboard-period"]'), "Last 30 days");
+
+    await click(app.cdp, '[data-testid="button-dashboard-period"]');
+    await click(app.cdp, '[data-testid="button-dashboard-period-custom"]');
+    await waitFor(app.cdp, `document.querySelector('[data-testid="dashboard-period-calendar"]') !== null`);
+    await click(app.cdp, '[aria-label="Next month"]');
+    await click(app.cdp, '[aria-label="Sep 10"]');
+    await click(app.cdp, '[aria-label="Sep 15"]');
+    await click(app.cdp, '[data-testid="button-dashboard-period-apply"]');
+    await waitFor(app.cdp, `document.querySelector('[data-testid="dashboard-period-calendar"]') === null`);
+    assert.equal(await text(app.cdp, '[data-testid="button-dashboard-period"]'), "Sep 10 – Sep 15");
+
+    await app.cdp.command("Page.reload", { ignoreCache: true });
+    await waitFor(app.cdp, `document.querySelector('[data-testid="button-dashboard-period"]') !== null`);
+    assert.equal(await text(app.cdp, '[data-testid="button-dashboard-period"]'), "Sep 10 – Sep 15");
+
+    await evaluate(app.cdp, `localStorage.setItem("duka-dashboard-period", JSON.stringify({
+      period: "custom",
+      customFrom: "2026-09-20",
+      customTo: "2026-09-01"
+    }))`);
+    await app.cdp.command("Page.reload", { ignoreCache: true });
+    await waitFor(app.cdp, `document.querySelector('[data-testid="button-dashboard-period"]') !== null`);
+    assert.equal(await text(app.cdp, '[data-testid="button-dashboard-period"]'), "Last 7 days");
+    await waitFor(app.cdp, `window.__dashboardRequests.length > 0`);
+  } finally {
+    await app.cleanup();
+  }
+}
+
+const run = process.env.DASHBOARD_PRODUCTION_TEST === "1"
+  ? productionMain
+  : async () => {
+    await main();
     await blockedStorageMain();
-    console.log("Dashboard calendar browser checks passed");
+  };
+
+run().then(
+  async () => {
+    console.log(process.env.DASHBOARD_PRODUCTION_TEST === "1"
+      ? "Dashboard production bundle browser check passed"
+      : "Dashboard calendar browser checks passed");
   },
   (error) => {
     console.error(error);
