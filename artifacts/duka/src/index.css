@@ -1479,6 +1479,16 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-payment-config-heading h3 { margin-top: .35rem; color: hsl(var(--foreground)); font-family: var(--app-font-sans); font-size: 1.05rem; font-weight: 700; letter-spacing: -.035em; }
 .take-order-payment-config-heading p { margin-top: .4rem; color: hsl(var(--muted-foreground)); font-size: .7rem; line-height: 1.45; }
 .take-order-payment-config-card .take-order-field-group:first-of-type { margin-top: 1rem; }
+.take-order-payment-checkout-card .take-order-catalog-selection-heading h2 { font-size: 1rem; }
+.take-order-payment-checkout-card .take-order-catalog-selection-row > span,
+.take-order-payment-checkout-card .take-order-catalog-selection-row > b { font-size: .78rem; }
+.take-order-payment-config-card .field-label,
+.take-order-payment-config-card .take-order-payment-option strong,
+.take-order-payment-config-card .take-order-deposit-preset strong { font-size: .78rem; }
+.take-order-payment-config-card .take-order-payment-option small,
+.take-order-payment-config-card .take-order-deposit-preset span,
+.take-order-payment-config-card .take-order-field-help,
+.take-order-payment-config-card .take-order-deposit-field .field-label span { font-size: .7rem; }
 .take-order-catalog-continue { width: 100%; min-height: 3.2rem; justify-content: center; margin-top: .85rem; border-radius: 10px; background: hsl(var(--foreground)); color: hsl(var(--background)); font-size: 1rem; }
 .take-order-catalog-custom-link { width: 100%; margin-top: .7rem; color: hsl(var(--foreground)); font-size: .68rem; text-decoration: underline; text-underline-offset: 2px; }
 .take-order-catalog-custom-link:hover { color: hsl(var(--foreground)); }
