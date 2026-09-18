@@ -2145,7 +2145,9 @@ function PublicOrderPage() {
         setCheckout(true);
         return;
       }
-      if (activeItem?.preferences.some((group) => !activeForm.preferences[group.label])) return;
+      const missingPreference = activeItem?.preferences.some((group) => !activeForm.preferences[group.label]);
+      const missingImage = activeItem?.source === 'custom' && !activeForm.imagePreview;
+      if (missingPreference || missingImage) return;
       if (order && itemStep < order.items.length - 1) {
         setItemStep((current) => current + 1);
       } else {
@@ -2299,6 +2301,8 @@ export function BuyerOrderForm({
     return ['hero', 'detail', 'close-up', 'back'].map((view) => productImageFor(`${item.productName} ${view}`));
   }, [item.imageUrl, item.productName]);
   const activeGalleryImage = galleryImages[Math.min(activeGalleryIndex, galleryImages.length - 1)] ?? productImageFor(item.productName);
+  const itemRequirementsMet = item.preferences.every((preference) => Boolean(itemForm.preferences[preference.label]))
+    && (item.source !== 'custom' || Boolean(itemForm.imagePreview));
   useEffect(() => {
     setEditingContact(false);
     setActiveGalleryIndex(0);
@@ -2349,7 +2353,7 @@ export function BuyerOrderForm({
                  <label htmlFor="buyer-reference-image" className="buyer-custom-upload-area">
                    {itemForm.imagePreview ? <img src={itemForm.imagePreview} alt="Selected item reference" /> : <><ImagePlus size={24} aria-hidden="true" /><strong>Upload an item image</strong><span>Add a reference photo for the seller.</span></>}
                  </label>
-                  <input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Upload an item image" type="file" accept="image/*" className="sr-only" onChange={onReferenceImageChange} />
+                  <input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Upload an item image" aria-required="true" type="file" accept="image/*" className="sr-only" onChange={onReferenceImageChange} />
                  <div className="buyer-gallery-caption"><ImagePlus size={13} aria-hidden="true" /> Buyer upload</div>
                </> : <>
                  <div className="buyer-item-hero-image buyer-product-gallery-main">
@@ -2377,23 +2381,23 @@ export function BuyerOrderForm({
                 const isSizePreference = preferenceLabel === 'size';
                 const isSwatchPreference = /colou?r|finish/.test(preferenceLabel);
                 return <fieldset className={cn('buyer-color-field', isSizePreference && 'buyer-size-field', !isSizePreference && !isSwatchPreference && 'buyer-choice-field')} key={`${item.productId}-${preference.label}`}>
-                  <legend className="buyer-preference-legend"><span>{preference.label}</span><small>{isSizePreference ? 'Select one' : 'Required'}</small></legend>
+                  <legend className="buyer-preference-legend"><span>{preference.label}</span>{isSizePreference && <small>Select one</small>}</legend>
                   <div className={isSizePreference ? 'buyer-size-options' : isSwatchPreference ? 'buyer-color-options' : 'buyer-choice-options'}>
                     {preference.options.map((option) => isSizePreference
                       ? <label key={option} className={cn('buyer-size-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
-                          <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
+                          <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} aria-required="true" />
                           <span className="buyer-size-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
                           <span>{option}</span>
                         </label>
                       : isSwatchPreference
                         ? <label key={option} className={cn('buyer-color-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
-                            <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
+                            <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} aria-required="true" />
                             <span className="buyer-color-option-image"><img src={productImageFor(`${item.productName} ${preference.label} ${option}`)} alt="" /></span>
                             <span className="buyer-color-option-label">{option}</span>
                             <span className="buyer-color-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
                           </label>
-                        : <label key={option} className={cn('buyer-choice-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
-                            <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} required={!itemForm.preferences[preference.label]} />
+                         : <label key={option} className={cn('buyer-choice-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
+                             <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} aria-required="true" />
                             <span>{option}</span>
                             {itemForm.preferences[preference.label] === option && <Check size={13} aria-hidden="true" />}
                           </label>)}
@@ -2407,7 +2411,7 @@ export function BuyerOrderForm({
             </div>
           </div>
         </section>
-        <div className="buyer-form-actions">{itemIndex > 0 ? <Button type="button" variant="ghost" onClick={onBack}><ArrowLeft size={15} />Back</Button> : <span /> }<Button type="submit" disabled={submitPending} data-testid="button-submit-public-order">{itemIndex + 1 < itemCount ? 'Next item' : 'Continue to contact information'} <ArrowRight size={15} /></Button></div>
+        <div className="buyer-form-actions">{itemIndex > 0 ? <Button type="button" variant="ghost" onClick={onBack}><ArrowLeft size={15} />Back</Button> : <span /> }<Button type="submit" disabled={submitPending || !itemRequirementsMet} data-testid="button-submit-public-order">{itemIndex + 1 < itemCount ? 'Next item' : 'Continue to contact information'} <ArrowRight size={15} /></Button></div>
        </div> : (reviewConfirmed && !paymentMethodConfirmed) ? <div className="buyer-payment-page">
        <div className="buyer-final-heading"><div><div className="take-order-section-eyebrow">Payment</div><h2 id="buyer-order-form-heading">Choose how to pay.</h2></div><WalletCards size={20} /></div>
         {paymentMode !== 'reserve' && <fieldset className="buyer-payment-options" aria-label="Payment options"><legend className="field-label">How would you like to complete this</legend><button type="button" role="radio" aria-checked={form.action === 'pay'} onClick={() => onPaymentAction('pay')} data-testid="button-buyer-pay" className={cn('buyer-payment-option', form.action === 'pay' && 'is-selected')}>{paymentMode === 'deposit' ? `Pay deposit · ${moneyExact(payableDeposit)}` : `Pay ${moneyExact(amount)}`}</button><button type="button" role="radio" aria-checked={form.action === 'reserve'} onClick={() => onPaymentAction('reserve')} data-testid="button-buyer-reserve" className={cn('buyer-payment-option', form.action === 'reserve' && 'is-selected')}>Reserve for later</button></fieldset>}
