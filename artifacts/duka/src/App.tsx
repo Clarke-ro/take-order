@@ -1894,7 +1894,7 @@ function MultiItemTakeOrderModern() {
      <div className="take-order-page">
        <PageHeading
          eyebrow="Seller workspace"
-         title="Take an order"
+         title="Create and order"
          description="Turn the agreement you already made into a clear checkout link. No payment connection or chat access needed."
          action={<div className="take-order-trust"><CheckCircle2 size={15} />Private by default</div>}
        />
@@ -1903,11 +1903,6 @@ function MultiItemTakeOrderModern() {
          <div className={cn('take-order-builder-card take-order-flow-panel', catalogStage && 'take-order-catalog-stage-card', choiceOnly && 'take-order-choice-stage-card')}>
           <form onSubmit={submit}>
                 {choiceOnly && <div className="take-order-choice-stage">
-                  <div className="take-order-section-heading">
-                    <div className="take-order-section-eyebrow">Step 01 · Items</div>
-                    <h2>Start with the item.</h2>
-                    <p>Choose a saved product or add the one-off item you already agreed in conversation.</p>
-                  </div>
                   <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
                </div>}
               {step === 1 && catalogStage && <div className="take-order-catalog-stage">
