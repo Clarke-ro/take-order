@@ -1555,6 +1555,13 @@ button[data-testid="button-buyer-reserve"].text-white {
 .buyer-item-preferences-layout { display: grid; gap: 1.35rem; }
 .buyer-item-visual { min-width: 0; }
 .buyer-product-gallery { display: grid; align-content: start; gap: .7rem; }
+.buyer-custom-item-visual { display: grid; align-content: start; gap: .7rem; }
+.buyer-custom-upload-area { display: flex; aspect-ratio: 4 / 5.1; width: 100%; flex-direction: column; align-items: center; justify-content: center; gap: .45rem; overflow: hidden; border: 1px dashed hsl(var(--border)); border-radius: 14px; background: repeating-linear-gradient(135deg, hsl(var(--muted) / .72), hsl(var(--muted) / .72) 12px, hsl(var(--background)) 12px, hsl(var(--background)) 24px); color: hsl(var(--muted-foreground)); cursor: pointer; text-align: center; transition: border-color .18s, background-color .18s, transform .18s; }
+.buyer-custom-upload-area:hover, .buyer-custom-upload-area:focus-within { border-color: hsl(var(--foreground) / .45); background-color: hsl(var(--muted)); transform: translateY(-1px); }
+.buyer-custom-upload-area:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+.buyer-custom-upload-area strong { color: hsl(var(--foreground)); font-size: .78rem; }
+.buyer-custom-upload-area span { max-width: 12rem; font-size: .62rem; line-height: 1.4; }
+.buyer-custom-upload-area img { display: block; height: 100%; width: 100%; object-fit: cover; }
 .buyer-item-hero-image { aspect-ratio: 4 / 5.1; width: 100%; overflow: hidden; border-radius: 14px; background: hsl(var(--muted)); }
 .buyer-product-gallery-main { position: relative; }
 .buyer-item-hero-image img { display: block; height: 100%; width: 100%; object-fit: cover; }

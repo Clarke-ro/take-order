@@ -2056,9 +2056,9 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
               <strong>{item.productName}</strong>
                <small className="buyer-product-module-price">{moneyExact(item.amount)}</small>
              </span>
-             <span className="buyer-product-module-art">
-               <img src={item.imageUrl || productImageFor(item.productName)} alt="" />
-            </span>
+              <span className="buyer-product-module-art">
+                {item.source === 'custom' ? <ImagePlus size={19} aria-hidden="true" /> : <img src={item.imageUrl || productImageFor(item.productName)} alt="" />}
+              </span>
           </button>;
         })}
         </div>
@@ -2340,20 +2340,27 @@ export function BuyerOrderForm({
          </div>}
          <section className={cn('buyer-item-preferences-section buyer-product-detail', item.preferences.length > 0 && 'has-variants')} aria-labelledby="buyer-item-preferences-heading">
           <div className="buyer-item-preferences-layout">
-             <div className="buyer-item-visual buyer-product-gallery">
-              <div className="buyer-item-hero-image buyer-product-gallery-main">
-                <img src={activeGalleryImage} alt={`${item.productName} product view ${activeGalleryIndex + 1}`} />
-                {galleryImages.length > 1 && <div className="buyer-gallery-controls">
-                  <button type="button" aria-label="Previous product image" onClick={() => setActiveGalleryIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length)}><ChevronLeft size={16} /></button>
-                  <span>{String(activeGalleryIndex + 1).padStart(2, '0')} / {String(galleryImages.length).padStart(2, '0')}</span>
-                  <button type="button" aria-label="Next product image" onClick={() => setActiveGalleryIndex((current) => (current + 1) % galleryImages.length)}><ChevronRight size={16} /></button>
-                </div>}
-              </div>
-              <div className="buyer-product-gallery-thumbs" aria-label="Product images">
-                {galleryImages.map((image, imageIndex) => <button type="button" key={`${image}-${imageIndex}`} className={cn('buyer-product-gallery-thumb', activeGalleryIndex === imageIndex && 'is-selected')} onClick={() => setActiveGalleryIndex(imageIndex)} aria-label={`Show product image ${imageIndex + 1}`} aria-pressed={activeGalleryIndex === imageIndex}><img src={image} alt="" /></button>)}
-              </div>
-              <div className="buyer-gallery-caption"><Package size={13} aria-hidden="true" /> Product preview</div>
-            </div>
+              <div className={cn('buyer-item-visual', item.source === 'custom' ? 'buyer-custom-item-visual' : 'buyer-product-gallery')}>
+               {item.source === 'custom' ? <>
+                 <label htmlFor="buyer-reference-image" className="buyer-custom-upload-area">
+                   {itemForm.imagePreview ? <img src={itemForm.imagePreview} alt="Selected item reference" /> : <><ImagePlus size={24} aria-hidden="true" /><strong>Upload an item image</strong><span>Add a reference photo for the seller.</span></>}
+                 </label>
+                 <div className="buyer-gallery-caption"><ImagePlus size={13} aria-hidden="true" /> Buyer upload</div>
+               </> : <>
+                 <div className="buyer-item-hero-image buyer-product-gallery-main">
+                   <img src={activeGalleryImage} alt={`${item.productName} product view ${activeGalleryIndex + 1}`} />
+                   {galleryImages.length > 1 && <div className="buyer-gallery-controls">
+                     <button type="button" aria-label="Previous product image" onClick={() => setActiveGalleryIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length)}><ChevronLeft size={16} /></button>
+                     <span>{String(activeGalleryIndex + 1).padStart(2, '0')} / {String(galleryImages.length).padStart(2, '0')}</span>
+                     <button type="button" aria-label="Next product image" onClick={() => setActiveGalleryIndex((current) => (current + 1) % galleryImages.length)}><ChevronRight size={16} /></button>
+                   </div>}
+                 </div>
+                 <div className="buyer-product-gallery-thumbs" aria-label="Product images">
+                   {galleryImages.map((image, imageIndex) => <button type="button" key={`${image}-${imageIndex}`} className={cn('buyer-product-gallery-thumb', activeGalleryIndex === imageIndex && 'is-selected')} onClick={() => setActiveGalleryIndex(imageIndex)} aria-label={`Show product image ${imageIndex + 1}`} aria-pressed={activeGalleryIndex === imageIndex}><img src={image} alt="" /></button>)}
+                 </div>
+                 <div className="buyer-gallery-caption"><Package size={13} aria-hidden="true" /> Product preview</div>
+               </>}
+             </div>
             <div className="buyer-item-preferences-content buyer-product-detail-content">
               <div className="buyer-item-description buyer-product-detail-header">
                 <h2 id="buyer-item-preferences-heading">{item.productName}</h2>
