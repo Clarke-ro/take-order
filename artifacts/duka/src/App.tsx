@@ -1184,6 +1184,229 @@ const accentOptions = [
   { value: '#D99566', label: 'orange' },
 ] as const;
 
+type ReferenceProductEditorProps = {
+  product?: Product;
+  fullPage: boolean;
+  form: ProductFormState;
+  pending: boolean;
+  error: string;
+  hasMutationError: boolean;
+  onClose: () => void;
+  onSubmit: (event: React.FormEvent) => void;
+  change: (key: keyof ProductFormState, value: string) => void;
+  setForm: React.Dispatch<React.SetStateAction<ProductFormState>>;
+  updatePreference: (index: number, key: keyof ProductPreferenceDraft, value: string) => void;
+};
+
+function ReferenceProductEditor({
+  product,
+  fullPage,
+  form,
+  pending,
+  error,
+  hasMutationError,
+  onClose,
+  onSubmit,
+  change,
+  setForm,
+  updatePreference,
+}: ReferenceProductEditorProps) {
+  const [visible, setVisible] = useState(true);
+  const [soldOut, setSoldOut] = useState(false);
+  const [trackQuantity, setTrackQuantity] = useState(true);
+  const [delivery, setDelivery] = useState('All');
+  const [expandedProduct, setExpandedProduct] = useState(false);
+  const [expandedPricing, setExpandedPricing] = useState(false);
+  const [expandedInventory, setExpandedInventory] = useState(false);
+  const [expandedTags, setExpandedTags] = useState(false);
+  const [mediaError, setMediaError] = useState('');
+
+  const setManagedField = (key: keyof ProductFormState, label: string, value: string) => {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+      customFields: current.customFields.map((field) => field.label.trim().toLowerCase() === label.toLowerCase() ? { ...field, value } : field),
+    }));
+  };
+
+  const handleImageFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setMediaError('Choose an image smaller than 10MB.');
+      return;
+    }
+    setMediaError('');
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = typeof reader.result === 'string' ? reader.result : '';
+      if (value) change('imageUrl', value);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const addVariant = () => setForm((current) => ({
+    ...current,
+    preferences: [...current.preferences, { label: 'Variant', options: '' }],
+  }));
+  const addOption = () => setForm((current) => ({
+    ...current,
+    preferences: [...current.preferences, { label: '', options: '' }],
+  }));
+
+  const content = <div className="product-reference-editor">
+    <header className="product-reference-header">
+      <button type="button" className="product-back-button" onClick={onClose} aria-label="Back to catalog" data-testid="button-back-product">
+        <ArrowLeft size={20} aria-hidden="true" />
+      </button>
+      <h1>{product ? 'Product' : 'Product'}</h1>
+    </header>
+
+    <form className="product-reference-layout" onSubmit={onSubmit}>
+      <div className="product-reference-main">
+        <section className="product-reference-card product-details-card">
+          <h2>Product</h2>
+          <div className="product-reference-field">
+            <label htmlFor="product-name-reference">Name <span aria-hidden="true">*</span></label>
+            <input id="product-name-reference" data-testid="input-product-name" autoFocus required value={form.name} onChange={(event) => change('name', event.target.value)} placeholder="Name" />
+          </div>
+          <div className="product-reference-two-up">
+            <div className="product-reference-field">
+              <label htmlFor="product-type-reference">Type</label>
+              <select id="product-type-reference" value="Physical" onChange={() => undefined}>
+                <option>Physical</option>
+                <option>Digital</option>
+                <option>Service</option>
+              </select>
+            </div>
+            <div className="product-reference-field">
+              <label htmlFor="product-category-reference">Category <span aria-hidden="true">*</span></label>
+              <input id="product-category-reference" data-testid="select-product-category" list="product-category-options" value={form.category} onChange={(event) => change('category', event.target.value)} placeholder="Search or create category" required />
+              <datalist id="product-category-options">
+                <option value="Apparel" />
+                <option value="Accessories" />
+                <option value="Home" />
+                <option value="Beauty" />
+                <option value="Food & drink" />
+                <option value="Other" />
+              </datalist>
+            </div>
+          </div>
+          <div className="product-reference-field product-reference-description">
+            <div className="product-reference-label-row">
+              <label htmlFor="product-description-reference">Description <span className="product-info-mark" title="Shown to buyers">i</span></label>
+              <span className="product-magic-mark" aria-hidden="true"><Sparkles size={13} /></span>
+            </div>
+            <textarea id="product-description-reference" value={form.description} onChange={(event) => setManagedField('description', 'Description', event.target.value)} placeholder="" rows={5} />
+          </div>
+          <div className="product-reference-field">
+            <div className="product-reference-label-row">
+              <label>Images</label>
+              <span className="product-magic-mark" aria-hidden="true"><Sparkles size={13} /></span>
+            </div>
+            <label className="product-upload-dropzone">
+              <input type="file" accept="image/*" onChange={handleImageFile} />
+              <ImagePlus size={17} aria-hidden="true" />
+              <span>Upload or drop images (Max 10MB)</span>
+            </label>
+            {mediaError && <p className="product-reference-error">{mediaError}</p>}
+            {form.imageUrl && <div className="product-image-preview"><img src={form.imageUrl} alt="Product preview" /><span>{form.imageUrl.startsWith('data:') ? 'Selected image' : 'Current image'}</span></div>}
+          </div>
+          <button type="button" className="product-more-button" onClick={() => setExpandedProduct(!expandedProduct)} aria-expanded={expandedProduct}>
+            <ChevronRight size={15} className={cn(expandedProduct && 'rotate-90')} aria-hidden="true" />More options
+          </button>
+          {expandedProduct && <div className="product-reference-more-fields">
+            <div className="product-reference-field">
+              <label htmlFor="product-image-url-reference">Image URL</label>
+              <input id="product-image-url-reference" data-testid="input-product-image-url" type="url" value={form.imageUrl} onChange={(event) => change('imageUrl', event.target.value)} placeholder="https://images.example.com/item.jpg" />
+            </div>
+            <div className="product-reference-field">
+              <label htmlFor="product-gallery-urls-reference">Additional image URLs</label>
+              <textarea id="product-gallery-urls-reference" value={form.imageUrls} onChange={(event) => setManagedField('imageUrls', 'Gallery URLs', event.target.value)} placeholder="One public image URL per line" rows={3} />
+            </div>
+            <div className="product-reference-field">
+              <label>Accent color</label>
+              <div className="product-accent-options">{accentOptions.map(({ value, label }) => <button type="button" key={value} onClick={() => change('accent', value)} aria-label={`Use ${label} accent color`} aria-pressed={form.accent === value} className={cn('product-accent-swatch', form.accent === value && 'is-selected')} style={{ backgroundColor: value }} />)}</div>
+            </div>
+          </div>}
+        </section>
+
+        <section className="product-reference-card product-pricing-card">
+          <h2>Pricing</h2>
+          <div className="product-reference-two-up">
+            <div className="product-reference-field">
+              <label htmlFor="product-price-reference">Price</label>
+              <div className="product-currency-input"><span>GH₵</span><input id="product-price-reference" data-testid="input-product-price" type="number" min="0" step=".01" required value={form.price} onChange={(event) => change('price', event.target.value)} placeholder="0" /></div>
+            </div>
+            <div className="product-reference-field">
+              <label htmlFor="product-compare-price-reference">Original price <span className="product-info-mark" title="Optional original price">i</span></label>
+              <div className="product-currency-input"><span>GH₵</span><input id="product-compare-price-reference" data-testid="input-product-compare-price" type="number" min="0" step=".01" value={form.compareAtPrice} onChange={(event) => setManagedField('compareAtPrice', 'Compare-at price', event.target.value)} placeholder="0" /></div>
+            </div>
+          </div>
+          <button type="button" className="product-more-button" onClick={() => setExpandedPricing(!expandedPricing)} aria-expanded={expandedPricing}>
+            <ChevronRight size={15} className={cn(expandedPricing && 'rotate-90')} aria-hidden="true" />More options
+          </button>
+          {expandedPricing && <div className="product-reference-pricing-more">
+            <label className="product-reference-field">
+              <span>Cost</span>
+              <div className="product-currency-input"><span>GH₵</span><input data-testid="input-product-cost" type="number" min="0" step=".01" value={form.cost} onChange={(event) => change('cost', event.target.value)} placeholder="Not tracked" /></div>
+            </label>
+          </div>}
+        </section>
+
+        <section className="product-reference-section">
+          <h2>Variants</h2>
+          <div className="product-inline-action">
+            <button type="button" onClick={addVariant}><Plus size={17} aria-hidden="true" /><strong>Add variant</strong></button>
+          </div>
+        </section>
+        <section className="product-reference-section">
+          <h2>Options</h2>
+          <div className="product-inline-action">
+            <button type="button" onClick={addOption}><Plus size={17} aria-hidden="true" /><strong>Add option</strong></button>
+          </div>
+          {form.preferences.length > 0 && <div className="product-reference-options-list">{form.preferences.map((preference, index) => <div className="product-reference-option-row" key={`${index}-${preference.label}`}><input aria-label={`Option ${index + 1} name`} value={preference.label} onChange={(event) => updatePreference(index, 'label', event.target.value)} placeholder="Option name" /><input aria-label={`Option ${index + 1} values`} value={preference.options} onChange={(event) => updatePreference(index, 'options', event.target.value)} placeholder="Values separated by commas" /><button type="button" onClick={() => setForm((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))} aria-label={`Remove option ${index + 1}`}><X size={15} /></button></div>)}</div>}
+        </section>
+        {(error || hasMutationError) && <div className="product-reference-error" role="alert" data-testid="status-product-form-error">{error || 'This item could not be saved. Try again.'}</div>}
+        <div className="product-reference-actions">
+          <button type="button" className="product-cancel-button" onClick={onClose}>Cancel</button>
+          <button type="submit" className="product-save-button" disabled={pending} data-testid="button-save-product">{pending && <Loader2 size={15} className="animate-spin" />}Save</button>
+        </div>
+      </div>
+
+      <aside className="product-reference-sidebar">
+        <section className="product-reference-card product-side-card">
+          <div className="product-side-heading"><h2>Availability <span className="product-info-mark" title="Control how buyers see this product">?</span></h2></div>
+          <label className="product-toggle-row"><button type="button" className={cn('product-toggle', visible && 'is-on')} aria-pressed={visible} onClick={() => setVisible(!visible)}><span /></button><span>Visibility</span></label>
+          <label className="product-toggle-row"><button type="button" className={cn('product-toggle', soldOut && 'is-on')} aria-pressed={soldOut} onClick={() => setSoldOut(!soldOut)}><span /></button><span>Mark as soldout</span></label>
+          <button type="button" className="product-scheduled-link">Set scheduled launch</button>
+        </section>
+        <section className="product-reference-card product-side-card">
+          <div className="product-side-heading"><h2>Inventory <span className="product-info-mark" title="Track available stock">?</span></h2><button type="button" className="product-history-link">View history</button></div>
+          <label className="product-toggle-row"><button type="button" className={cn('product-toggle', trackQuantity && 'is-on')} aria-pressed={trackQuantity} onClick={() => setTrackQuantity(!trackQuantity)}><span /></button><span>Track quantity</span></label>
+          {trackQuantity && <div className="product-reference-field product-sku-field"><label htmlFor="product-sku-reference">SKU</label><input id="product-sku-reference" data-testid="input-product-sku" value={form.sku} onChange={(event) => setManagedField('sku', 'SKU', event.target.value)} placeholder="SKU" /></div>}
+          <button type="button" className="product-more-button" onClick={() => setExpandedInventory(!expandedInventory)} aria-expanded={expandedInventory}><ChevronRight size={15} className={cn(expandedInventory && 'rotate-90')} aria-hidden="true" />More options</button>
+          {expandedInventory && <div className="product-reference-more-fields">
+            <div className="product-reference-field"><label htmlFor="product-stock-reference">Stock on hand</label><input id="product-stock-reference" data-testid="input-product-stock" type="number" min="0" required={trackQuantity} value={form.stock} onChange={(event) => change('stock', event.target.value)} placeholder="0" /></div>
+          </div>}
+        </section>
+        <section className="product-reference-card product-collapsed-card">
+          <div><h2>Delivery</h2></div>
+          <label className="product-select-wrap"><select value={delivery} onChange={(event) => setDelivery(event.target.value)} aria-label="Delivery"><option>All</option><option>Pickup only</option><option>Delivery only</option></select><ChevronDown size={17} aria-hidden="true" /></label>
+        </section>
+        <section className="product-reference-card product-collapsed-card">
+          <button type="button" className="product-collapse-button" onClick={() => setExpandedTags(!expandedTags)} aria-expanded={expandedTags}><span><h2>Tags <span className="product-info-mark" title="Add tags to organize products">?</span></h2></span><ChevronDown size={17} className={cn(expandedTags && 'rotate-180')} aria-hidden="true" /></button>
+          {expandedTags && <div className="product-reference-field product-tags-field"><input placeholder="Add a tag" aria-label="Product tag" /></div>}
+        </section>
+      </aside>
+    </form>
+  </div>;
+
+  return fullPage
+    ? <div className="catalog-editor-page">{content}</div>
+    : <div className="fixed inset-0 z-50 flex items-end justify-center bg-[hsl(220_30%_17%/.45)] p-0 backdrop-blur-sm sm:items-center sm:p-5"><div className="product-reference-modal">{content}</div></div>;
+}
+
 export function ProductModal({ product, onClose, fullPage = false }: { product?: Product; onClose: () => void; fullPage?: boolean }) {
   const queryClient = useQueryClient();
   const create = useCreateProduct(); const update = useUpdateProduct();
@@ -1221,6 +1444,10 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
       }))
       .filter((preference) => preference.label && preference.options.length > 0);
     const metadataValues = new Map(form.customFields.map((field) => [field.label.trim().toLowerCase(), field.value.trim()]));
+    metadataValues.set('sku', form.sku.trim());
+    metadataValues.set('description', form.description.trim());
+    metadataValues.set('compare-at price', form.compareAtPrice.trim());
+    metadataValues.set('gallery urls', form.imageUrls.trim());
     const customFields: ProductCustomField[] = form.customFields
       .map((field) => ({ label: field.label.trim(), value: field.value.trim() }))
       .filter((field) => field.label && field.value && !productMetadataFieldLabels.some((label) => label.toLowerCase() === field.label.toLowerCase()));
@@ -1235,6 +1462,7 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
     const onError = (mutationError: unknown) => setError(mutationError instanceof Error && mutationError.message ? mutationError.message : 'This item could not be saved. Try again.');
     product ? update.mutate({ id: product.id, data }, { onSuccess, onError }) : create.mutate({ data }, { onSuccess, onError });
   };
+  return <ReferenceProductEditor product={product} fullPage={fullPage} form={form} pending={pending} error={error} hasMutationError={create.isError || update.isError} onClose={onClose} onSubmit={save} change={change} setForm={setForm} updatePreference={updatePreference} />;
   return <div className={fullPage ? 'catalog-editor-page' : 'fixed inset-0 z-50 flex items-end justify-center bg-[hsl(220_30%_17%/.45)] p-0 backdrop-blur-sm sm:items-center sm:p-5'}><div className={cn('max-h-[92dvh] w-full max-w-[560px] overflow-y-auto rounded-t-[20px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-6 sm:rounded-[20px] sm:p-8', fullPage && 'catalog-editor-card')}><div className="flex items-start justify-between"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">{product ? 'Edit item' : 'New item'}</div><h2 className="mt-2 font-display text-2xl font-bold tracking-[-.04em]">{product ? 'Update your item.' : 'Add to your catalog.'}</h2><p className="mt-2 max-w-[520px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">Give buyers the details they need and keep your inventory accurate.</p></div>{!fullPage && <button type="button" onClick={onClose} aria-label="Close item editor" data-testid="button-close-product-modal" className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><X aria-hidden="true" size={18} /></button>}</div><form onSubmit={save} className="mt-7 space-y-5"><div><label className="field-label">Item name</label><input data-testid="input-product-name" autoFocus required value={form.name} onChange={(e) => change('name', e.target.value)} placeholder="e.g. Linen wrap top" className="field-input" /></div><div><label className="field-label">Product image URL <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><input data-testid="input-product-image-url" type="url" value={form.imageUrl} onChange={(e) => change('imageUrl', e.target.value)} placeholder="https://images.example.com/item.jpg" className="field-input" /><p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Use a public image URL so the item looks consistent across catalog and buyer previews.</p>{form.imageUrl && <div className="mt-3 overflow-hidden rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]"><img src={form.imageUrl} alt="Product preview" className="h-40 w-full object-cover" /></div>}</div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Category</label><select data-testid="select-product-category" value={form.category} onChange={(e) => change('category', e.target.value)} className="field-input"><option>Apparel</option><option>Accessories</option><option>Home</option><option>Beauty</option><option>Food & drink</option><option>Other</option></select></div><div><label className="field-label">Stock on hand</label><input data-testid="input-product-stock" type="number" min="0" required value={form.stock} onChange={(e) => change('stock', e.target.value)} className="field-input" /></div></div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Selling price</label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-price" type="number" min="0" step=".01" required value={form.price} onChange={(e) => change('price', e.target.value)} className="field-input pl-7" /></div></div><div><label className="field-label">Cost <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-cost" type="number" min="0" step=".01" value={form.cost} onChange={(e) => change('cost', e.target.value)} placeholder="Not tracked" className="field-input pl-7" /></div></div></div><div className="catalog-preferences-editor"><div className="flex items-start justify-between gap-3"><div><label className="field-label">Buyer preferences <span className="font-normal text-[hsl(var(--muted-foreground))]"> (optional)</span></label><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Set the groups and choices buyers should see, such as Color or Size.</p></div><button type="button" className="shrink-0 rounded-full border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold" onClick={() => setForm((current) => ({ ...current, preferences: [...current.preferences, { label: '', options: '' }] }))}><Plus size={12} />Add group</button></div>{form.preferences.length > 0 && <div className="mt-3 space-y-2">{form.preferences.map((preference, index) => <div key={index} className="catalog-preference-row"><input aria-label={`Preference group ${index + 1} name`} value={preference.label} onChange={(event) => updatePreference(index, 'label', event.target.value)} placeholder="Group name, e.g. Color" className="field-input" /><input aria-label={`Choices for preference group ${index + 1}`} value={preference.options} onChange={(event) => updatePreference(index, 'options', event.target.value)} placeholder="Choices separated by commas" className="field-input" /><button type="button" aria-label={`Remove preference group ${index + 1}`} className="catalog-preference-remove" onClick={() => setForm((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))}><X size={14} /></button></div>)}</div>}</div><div className="catalog-custom-fields-editor"><div className="flex items-start justify-between gap-3"><div><label className="field-label">Custom fields <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Add details like material, fit, care, or collection.</p></div><button type="button" className="shrink-0 rounded-full border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold" onClick={() => setForm((current) => ({ ...current, customFields: [...current.customFields, { label: '', value: '' }] }))}><Plus size={12} />Add field</button></div>{form.customFields.length > 0 && <div className="mt-3 space-y-2">{form.customFields.map((field, index) => <div key={index} className="catalog-preference-row"><input aria-label={`Custom field ${index + 1} name`} value={field.label} onChange={(event) => updateCustomField(index, 'label', event.target.value)} placeholder="Field name, e.g. Material" className="field-input" /><input aria-label={`Value for custom field ${index + 1}`} value={field.value} onChange={(event) => updateCustomField(index, 'value', event.target.value)} placeholder="Field value" className="field-input" /><button type="button" aria-label={`Remove custom field ${index + 1}`} className="catalog-preference-remove" onClick={() => setForm((current) => ({ ...current, customFields: current.customFields.filter((_, fieldIndex) => fieldIndex !== index) }))}><X size={14} /></button></div>)}</div>}</div><div><label className="field-label">Accent color</label><div className="flex gap-2">{accentOptions.map(({ value, label }) => <button type="button" key={value} onClick={() => change('accent', value)} aria-label={`Use ${label} accent color`} aria-pressed={form.accent === value} data-testid={`button-accent-${value.slice(1)}`} className={cn('h-8 w-8 rounded-full border-2 transition-transform', form.accent === value ? 'scale-110 border-[hsl(var(--foreground))]' : 'border-transparent')} style={{ backgroundColor: value }} />)}</div></div>{(error || create.isError || update.isError) && <div className="rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-product-form-error">{error || 'This item could not be saved. Try again.'}</div>}<div className="flex justify-end gap-3 border-t border-[hsl(var(--border))] pt-5"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending}>{pending && <Loader2 size={15} className="animate-spin" />}{product ? 'Save changes' : 'Add item'}</Button></div></form></div></div>;
 }
 
