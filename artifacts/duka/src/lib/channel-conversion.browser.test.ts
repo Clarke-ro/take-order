@@ -5,14 +5,15 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 
-type CdpMessage = {
+export type CdpMessage = {
   id: number;
   result?: Record<string, any>;
   error?: { message: string };
 };
 
-type CdpClient = {
+export type CdpClient = {
   command: (method: string, params?: Record<string, unknown>) => Promise<CdpMessage>;
   close: () => void;
 };
@@ -67,7 +68,7 @@ const submittedOrder = {
   }],
 };
 
-async function freePort() {
+export async function freePort() {
   const server = createServer();
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const port = (server.address() as { port: number }).port;
@@ -75,7 +76,7 @@ async function freePort() {
   return port;
 }
 
-async function waitForUrl(url: string, timeoutMs = 20_000) {
+export async function waitForUrl(url: string, timeoutMs = 20_000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     try {
@@ -88,7 +89,7 @@ async function waitForUrl(url: string, timeoutMs = 20_000) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
-async function connectCdp(webSocketUrl: string): Promise<CdpClient> {
+export async function connectCdp(webSocketUrl: string): Promise<CdpClient> {
   const socket = new WebSocket(webSocketUrl);
   await new Promise<void>((resolve, reject) => {
     socket.addEventListener("open", () => resolve());
@@ -114,7 +115,7 @@ async function connectCdp(webSocketUrl: string): Promise<CdpClient> {
   };
 }
 
-async function waitForPage(debugPort: number, targetId?: string, timeoutMs = 20_000) {
+export async function waitForPage(debugPort: number, targetId?: string, timeoutMs = 20_000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     try {
@@ -136,7 +137,7 @@ async function waitForPage(debugPort: number, targetId?: string, timeoutMs = 20_
   throw new Error(`Timed out waiting for Chromium page${targetId ? ` ${targetId}` : ""}`);
 }
 
-async function stopProcess(processHandle: ChildProcess) {
+export async function stopProcess(processHandle: ChildProcess) {
   if (processHandle.exitCode !== null) return;
   processHandle.kill("SIGTERM");
   await Promise.race([
@@ -147,7 +148,7 @@ async function stopProcess(processHandle: ChildProcess) {
   ]);
 }
 
-async function evaluate<T>(cdp: CdpClient, expression: string): Promise<T> {
+export async function evaluate<T>(cdp: CdpClient, expression: string): Promise<T> {
   const response = await cdp.command("Runtime.evaluate", {
     expression,
     returnByValue: true,
@@ -158,7 +159,7 @@ async function evaluate<T>(cdp: CdpClient, expression: string): Promise<T> {
   return response.result?.result?.value as T;
 }
 
-async function waitFor(cdp: CdpClient, expression: string, timeoutMs = 15_000) {
+export async function waitFor(cdp: CdpClient, expression: string, timeoutMs = 15_000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     if (await evaluate<boolean>(cdp, expression)) return;
@@ -167,7 +168,7 @@ async function waitFor(cdp: CdpClient, expression: string, timeoutMs = 15_000) {
   throw new Error(`Timed out waiting for browser condition: ${expression}`);
 }
 
-async function click(cdp: CdpClient, selector: string) {
+export async function click(cdp: CdpClient, selector: string) {
   await evaluate(cdp, `(() => {
     const element = document.querySelector(${JSON.stringify(selector)});
     if (!element) throw new Error(${JSON.stringify(`Missing ${selector}`)});
@@ -176,7 +177,7 @@ async function click(cdp: CdpClient, selector: string) {
   })()`);
 }
 
-async function fill(cdp: CdpClient, selector: string, value: string) {
+export async function fill(cdp: CdpClient, selector: string, value: string) {
   await evaluate(cdp, `(() => {
     const element = document.querySelector(${JSON.stringify(selector)});
     if (!element) throw new Error(${JSON.stringify(`Missing ${selector}`)});
@@ -349,10 +350,12 @@ async function main() {
   }
 }
 
-main().then(
-  () => console.log("Channel conversion browser check passed"),
-  (error) => {
-    console.error(error);
-    process.exitCode = 1;
-  },
-);
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().then(
+    () => console.log("Channel conversion browser check passed"),
+    (error) => {
+      console.error(error);
+      process.exitCode = 1;
+    },
+  );
+}

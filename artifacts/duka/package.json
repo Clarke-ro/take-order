@@ -10,6 +10,7 @@
     "test": "tsx --test src/lib/analytics-state.test.tsx",
     "test:browser": "tsx src/lib/dashboard-picker.browser.test.ts",
     "test:browser:channel": "tsx src/lib/channel-conversion.browser.test.ts",
+    "test:browser:multi-product": "tsx src/lib/multi-product-checkout.browser.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
