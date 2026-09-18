@@ -1679,13 +1679,13 @@ function TakeOrderSection({ eyebrow, title, description, children, className }: 
 type TakeOrderItemSource = 'catalog' | 'custom';
 
 function TakeOrderChoiceCards({ selected, onSelect }: { selected: TakeOrderItemSource | null; onSelect: (source: TakeOrderItemSource) => void }) {
-  return <div className="take-order-choice-grid" aria-label="Choose how to add an item">
-    <button type="button" className={cn('take-order-choice-card', selected === 'catalog' && 'is-active')} onClick={() => onSelect('catalog')}>
+  return <div className="take-order-choice-grid" role="group" aria-label="Choose how to add an item">
+    <button type="button" aria-pressed={selected === 'catalog'} className={cn('take-order-choice-card', selected === 'catalog' && 'is-active')} onClick={() => onSelect('catalog')}>
       <span className="take-order-choice-mark"><Boxes size={17} /></span>
       <span className="take-order-choice-copy"><strong>From catalog</strong><small>Use a saved product and price.</small></span>
       <ChevronRight size={16} aria-hidden="true" />
     </button>
-    <button type="button" className={cn('take-order-choice-card', selected === 'custom' && 'is-active')} onClick={() => onSelect('custom')}>
+    <button type="button" aria-pressed={selected === 'custom'} className={cn('take-order-choice-card', selected === 'custom' && 'is-active')} onClick={() => onSelect('custom')}>
       <span className="take-order-choice-mark is-custom"><Sparkles size={17} /></span>
       <span className="take-order-choice-copy"><strong>Not from catalog</strong><small>Add a one-off item from your conversation.</small></span>
       <ChevronRight size={16} aria-hidden="true" />
@@ -1889,22 +1889,33 @@ function MultiItemTakeOrderModern() {
     </div></Shell>;
   }
 
-  return <Shell>
-    <div className="take-order-page">
-      <div className="take-order-heading">
-        <div>
-          <div className="take-order-kicker">A buyer link in a minute</div>
-          <h1>Take an order.</h1>
-          <p>Turn the agreement you already made into a clear checkout link. No payment connection or chat access needed.</p>
-        </div>
-        <div className="take-order-trust"><CheckCircle2 size={15} />Private by default</div>
-      </div>
-      <TakeOrderStepRail step={step} onStepChange={setStep} />
-      <div className="take-order-layout">
+   return <Shell>
+     <div className="take-order-page">
+       <PageHeading
+         eyebrow="Seller workspace"
+         title="Take an order"
+         description="Turn the agreement you already made into a clear checkout link. No payment connection or chat access needed."
+         action={<div className="take-order-trust"><CheckCircle2 size={15} />Private by default</div>}
+       />
+       <div className="take-order-layout">
+         <aside className="take-order-progress-card" aria-label="Order link progress">
+           <div className="take-order-progress-heading">
+             <div className="take-order-section-eyebrow">Order link</div>
+             <h2>Build in 3 steps.</h2>
+             <p>Everything stays editable until you share the buyer link.</p>
+           </div>
+           <TakeOrderStepRail step={step} onStepChange={setStep} />
+           <div className="take-order-progress-footnote"><CheckCircle2 size={14} /><span>Private by default</span></div>
+         </aside>
          <Card className={cn('take-order-builder-card', catalogStage && 'take-order-catalog-stage-card', choiceOnly && 'take-order-choice-stage-card')}>
           <form onSubmit={submit}>
-               {choiceOnly && <div className="take-order-choice-stage">
-                 <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
+                {choiceOnly && <div className="take-order-choice-stage">
+                  <div className="take-order-section-heading">
+                    <div className="take-order-section-eyebrow">Step 01 · Items</div>
+                    <h2>Start with the item.</h2>
+                    <p>Choose a saved product or add the one-off item you already agreed in conversation.</p>
+                  </div>
+                  <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
                </div>}
               {step === 1 && catalogStage && <div className="take-order-catalog-stage">
                <div className="take-order-catalog-browser">
@@ -1958,8 +1969,8 @@ function MultiItemTakeOrderModern() {
               {!catalogStage && !choiceOnly && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step === 2 ? 'Confirm checkout' : step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
           </form>
         </Card>
-        <aside className="take-order-preview-column">
-          <div className="take-order-preview-heading"><div><div className="take-order-section-eyebrow">Live preview</div><h2>What your buyer sees</h2></div><Eye size={17} aria-hidden="true" /></div>
+         <aside className="take-order-preview-column">
+           <div className="take-order-preview-heading"><div><div className="take-order-section-eyebrow">Buyer preview</div><h2>What your buyer sees</h2><span className="take-order-preview-status"><span />Updates as you build</span></div><Eye size={17} aria-hidden="true" /></div>
          <div className="take-order-preview-frame"><BuyerOrderSurface businessName={seller?.businessName || 'The Sunday Edit'} description={seller?.description} items={previewItems} paymentMode={paymentMode} depositAmount={paymentMode === 'deposit' ? deposit : null}>{(activeItem) => <div className="space-y-5"><div><label className="field-label">Your name</label><input disabled placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input disabled placeholder="Best number to reach you" className="field-input" /></div>{activeItem.preferences.length > 0 && <div><label className="field-label">Choose your options</label><div className="space-y-3">{activeItem.preferences.map((preference) => <div key={preference.label}><span className="text-xs font-semibold">{preference.label}</span><div className="mt-2 flex flex-wrap gap-2">{preference.options.map((option) => <span key={option} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{option}</span>)}</div></div>)}</div></div>}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea disabled placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>{paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] p-3 text-left text-xs font-bold text-white">{paymentMode === 'deposit' ? `Pay deposit · ${depositAmount ? moneyExact(deposit) : '—'}` : `Pay ${moneyExact(total)}`}</div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 text-left text-xs font-bold">Reserve for later</div></div>}<button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-70">{paymentMode === 'reserve' ? 'Reserve these items' : 'Continue to mock payment'} <ArrowUpRight size={15} /></button></div>}</BuyerOrderSurface></div>
           <div className="take-order-preview-note"><Eye size={15} /><span>Preview updates as you build. The buyer link will open the full page.</span></div>
         </aside>
