@@ -3044,7 +3044,7 @@ button[data-testid^="button-filter-"]:focus-visible {
 .take-order-catalog-stage.has-selection .take-order-catalog-selection-row > button:hover,
 .take-order-catalog-stage.has-selection .take-order-catalog-selection-row > button:focus-visible { background: hsl(var(--background) / .12); color: hsl(var(--background)); }
 .take-order-catalog-stage.has-selection .take-order-catalog-selection .take-order-item-mark { background: hsl(var(--background) / .12); }
-.take-order-catalog-stage.has-selection .take-order-catalog-selection .take-order-catalog-continue { margin-top: 1.1rem; border: 0; background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+.take-order-catalog-stage.has-selection .take-order-catalog-selection .take-order-catalog-continue { margin-top: 1.1rem; border: 0; background: hsl(var(--background)); color: hsl(var(--foreground)); }
 .take-order-catalog-stage.has-selection .take-order-catalog-selection .take-order-catalog-custom-link { color: hsl(var(--background) / .72); }
 .take-order-catalog-stage.has-selection .take-order-catalog-selection .take-order-feedback { margin-inline: 0; }
 .take-order-catalog-stage.has-selection .take-order-selection { min-width: 0; }
