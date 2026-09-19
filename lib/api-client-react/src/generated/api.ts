@@ -138,8 +138,6 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-
-
 export const getListProductsUrl = () => {
 
 
@@ -210,13 +208,6 @@ export function useListProducts<TData = Awaited<ReturnType<typeof listProducts>>
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getCreateProductUrl = () => {
 
 
@@ -538,13 +529,6 @@ export function useListOrders<TData = Awaited<ReturnType<typeof listOrders>>, TE
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getCreateOrderUrl = () => {
 
 

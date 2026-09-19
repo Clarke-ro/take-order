@@ -1229,6 +1229,9 @@ type ProductPreferenceDraft = { label: string; options: string };
 type ProductCustomFieldDraft = { label: string; value: string };
 type ProductFormState = { name: string; category: string; sku: string; description: string; price: string; compareAtPrice: string; cost: string; stock: string; preferences: ProductPreferenceDraft[]; customFields: ProductCustomFieldDraft[]; imageUrl: string; imageUrls: string; accent: string };
 const blankProduct: ProductFormState = { name: '', category: 'Apparel', sku: '', description: '', price: '', compareAtPrice: '', cost: '', stock: '0', preferences: [], customFields: [], imageUrl: '', imageUrls: '', accent: '#E6B85C' };
+const PRODUCT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+const PRODUCT_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+const isProductImageValue = (value: string) => /^https?:\/\//i.test(value) || /^data:image\/(png|jpeg|webp|gif);base64,/i.test(value);
 const accentOptions = [
   { value: '#E6B85C', label: 'gold' },
   { value: '#8BBDA9', label: 'green' },
@@ -1249,6 +1252,9 @@ type ReferenceProductEditorProps = {
   change: (key: keyof ProductFormState, value: string) => void;
   setForm: React.Dispatch<React.SetStateAction<ProductFormState>>;
   updatePreference: (index: number, key: keyof ProductPreferenceDraft, value: string) => void;
+  imageError: string;
+  onImageChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemoveImage: () => void;
 };
 
 function ReferenceProductEditor({
@@ -1263,6 +1269,9 @@ function ReferenceProductEditor({
   change,
   setForm,
   updatePreference,
+  imageError,
+  onImageChange,
+  onRemoveImage,
 }: ReferenceProductEditorProps) {
   const [expandedProduct, setExpandedProduct] = useState(false);
   const addOption = () => setForm((current) => ({
@@ -1312,18 +1321,18 @@ function ReferenceProductEditor({
               <label>Images</label>
               <span className="product-magic-mark" aria-hidden="true"><Sparkles size={13} /></span>
             </div>
-             <input id="product-image-url-reference" data-testid="input-product-image-url" type="url" value={form.imageUrl} onChange={(event) => change('imageUrl', event.target.value)} placeholder="https://images.example.com/item.jpg" />
-             <p className="product-reference-help">Use a public image URL so the item appears consistently in the catalog and buyer page.</p>
-             {form.imageUrl && <div className="product-image-preview"><img src={form.imageUrl} alt="Product preview" /><span>Current image</span></div>}
+             <div className="product-image-upload">
+               <label htmlFor="product-image-upload" className="product-upload-button"><ImagePlus size={14} />{form.imageUrl ? 'Replace image' : 'Upload image'}</label>
+               <input id="product-image-upload" data-testid="input-product-image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="sr-only" onChange={onImageChange} />
+               <span className="product-image-upload-note">PNG, JPG, WebP, or GIF up to 2 MB.</span>
+             </div>
+             {form.imageUrl && <div className="product-image-preview"><img src={form.imageUrl} alt="Product preview" /><span>Image ready</span><button type="button" onClick={onRemoveImage} data-testid="button-remove-product-image">Remove</button></div>}
+             {imageError && <p className="product-reference-error" role="alert" data-testid="status-product-image-error">{imageError}</p>}
           </div>
           <button type="button" className="product-more-button" onClick={() => setExpandedProduct(!expandedProduct)} aria-expanded={expandedProduct}>
             <ChevronRight size={15} className={cn(expandedProduct && 'rotate-90')} aria-hidden="true" />More options
           </button>
           {expandedProduct && <div className="product-reference-more-fields">
-            <div className="product-reference-field">
-               <label htmlFor="product-gallery-urls-reference">Additional image URLs</label>
-               <textarea id="product-gallery-urls-reference" value={form.imageUrls} onChange={(event) => change('imageUrls', event.target.value)} placeholder="One public image URL per line" rows={3} />
-            </div>
             <div className="product-reference-field">
               <label>Accent color</label>
               <div className="product-accent-options">{accentOptions.map(({ value, label }) => <button type="button" key={value} onClick={() => change('accent', value)} aria-label={`Use ${label} accent color`} aria-pressed={form.accent === value} className={cn('product-accent-swatch', form.accent === value && 'is-selected')} style={{ backgroundColor: value }} />)}</div>
@@ -1380,6 +1389,7 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
   const queryClient = useQueryClient();
   const create = useCreateProduct(); const update = useUpdateProduct();
   const [error, setError] = useState('');
+  const [imageError, setImageError] = useState('');
   const [form, setForm] = useState<ProductFormState>(product ? {
     name: product.name,
     category: product.category,
@@ -1403,9 +1413,38 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
   const change = (key: keyof ProductFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const updatePreference = (index: number, key: keyof ProductPreferenceDraft, value: string) => setForm((current) => ({ ...current, preferences: current.preferences.map((preference, preferenceIndex) => preferenceIndex === index ? { ...preference, [key]: value } : preference) }));
   const updateCustomField = (index: number, key: keyof ProductCustomFieldDraft, value: string) => setForm((current) => ({ ...current, customFields: current.customFields.map((field, fieldIndex) => fieldIndex === index ? { ...field, [key]: value } : field) }));
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!PRODUCT_IMAGE_TYPES.has(file.type)) {
+      setImageError('Choose a PNG, JPG, WebP, or GIF image.');
+      return;
+    }
+    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+      setImageError('Choose an image smaller than 2 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        setImageError('That image could not be read. Try another file.');
+        return;
+      }
+      setImageError('');
+      setForm((current) => ({ ...current, imageUrl: reader.result as string, imageUrls: '' }));
+    };
+    reader.onerror = () => setImageError('That image could not be read. Try another file.');
+    reader.readAsDataURL(file);
+  };
+  const removeImage = () => {
+    setForm((current) => ({ ...current, imageUrl: '', imageUrls: '' }));
+    setImageError('');
+  };
   const save = (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
+    setImageError('');
     const preferences: ProductPreferenceGroup[] = form.preferences
       .map((preference) => ({
         label: preference.label.trim(),
@@ -1417,20 +1456,13 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
     const cost = form.cost.trim() === '' ? null : Number(form.cost);
     const stock = Number(form.stock);
     const imageUrls = Array.from(new Set([form.imageUrl.trim(), ...form.imageUrls.split(/[\n,]+/).map((url) => url.trim()).filter(Boolean)].filter(Boolean)));
-    const invalidImageUrl = imageUrls.find((url) => {
-      try {
-        new URL(url);
-        return false;
-      } catch {
-        return true;
-      }
-    });
+    const invalidImageUrl = imageUrls.find((url) => !isProductImageValue(url));
     if (!form.name.trim() || !form.category.trim() || !Number.isFinite(price) || price < 0 || (compareAtPrice !== null && (!Number.isFinite(compareAtPrice) || compareAtPrice < 0)) || (cost !== null && (!Number.isFinite(cost) || cost < 0)) || !Number.isInteger(stock) || stock < 0) {
       setError('Add a name, category, valid price, and non-negative whole-number stock.');
       return;
     }
     if (invalidImageUrl) {
-      setError('Use valid public image URLs, one per line.');
+      setError('Choose a valid product image.');
       return;
     }
     const data: ProductInput = { name: form.name.trim(), category: form.category.trim(), sku: form.sku.trim() || null, description: form.description.trim() || null, price, compareAtPrice, cost, stock, variants: preferences.flatMap((preference) => preference.options), preferences, customFields: product?.customFields ?? [], imageUrl: imageUrls[0] || null, imageUrls, accent: form.accent };
@@ -1442,7 +1474,7 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
     const onError = (mutationError: unknown) => setError(mutationError instanceof Error && mutationError.message ? mutationError.message : 'This item could not be saved. Try again.');
     product ? update.mutate({ id: product.id, data }, { onSuccess, onError }) : create.mutate({ data }, { onSuccess, onError });
   };
-  return <ReferenceProductEditor product={product} fullPage={fullPage} form={form} pending={pending} error={error} hasMutationError={create.isError || update.isError} onClose={onClose} onSubmit={save} change={change} setForm={setForm} updatePreference={updatePreference} />;
+   return <ReferenceProductEditor product={product} fullPage={fullPage} form={form} pending={pending} error={error} hasMutationError={create.isError || update.isError} onClose={onClose} onSubmit={save} change={change} setForm={setForm} updatePreference={updatePreference} imageError={imageError} onImageChange={handleImageChange} onRemoveImage={removeImage} />;
   return <div className={fullPage ? 'catalog-editor-page' : 'fixed inset-0 z-50 flex items-end justify-center bg-[hsl(220_30%_17%/.45)] p-0 backdrop-blur-sm sm:items-center sm:p-5'}><div className={cn('max-h-[92dvh] w-full max-w-[560px] overflow-y-auto rounded-t-[20px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-6 sm:rounded-[20px] sm:p-8', fullPage && 'catalog-editor-card')}><div className="flex items-start justify-between"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">{product ? 'Edit item' : 'New item'}</div><h2 className="mt-2 font-display text-2xl font-bold tracking-[-.04em]">{product ? 'Update your item.' : 'Add to your catalog.'}</h2><p className="mt-2 max-w-[520px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">Give buyers the details they need and keep your inventory accurate.</p></div>{!fullPage && <button type="button" onClick={onClose} aria-label="Close item editor" data-testid="button-close-product-modal" className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><X aria-hidden="true" size={18} /></button>}</div><form onSubmit={save} className="mt-7 space-y-5"><div><label className="field-label">Item name</label><input data-testid="input-product-name" autoFocus required value={form.name} onChange={(e) => change('name', e.target.value)} placeholder="e.g. Linen wrap top" className="field-input" /></div><div><label className="field-label">Product image URL <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><input data-testid="input-product-image-url" type="url" value={form.imageUrl} onChange={(e) => change('imageUrl', e.target.value)} placeholder="https://images.example.com/item.jpg" className="field-input" /><p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Use a public image URL so the item looks consistent across catalog and buyer previews.</p>{form.imageUrl && <div className="mt-3 overflow-hidden rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]"><img src={form.imageUrl} alt="Product preview" className="h-40 w-full object-cover" /></div>}</div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Category</label><select data-testid="select-product-category" value={form.category} onChange={(e) => change('category', e.target.value)} className="field-input"><option>Apparel</option><option>Accessories</option><option>Home</option><option>Beauty</option><option>Food & drink</option><option>Other</option></select></div><div><label className="field-label">Stock on hand</label><input data-testid="input-product-stock" type="number" min="0" required value={form.stock} onChange={(e) => change('stock', e.target.value)} className="field-input" /></div></div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Selling price</label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-price" type="number" min="0" step=".01" required value={form.price} onChange={(e) => change('price', e.target.value)} className="field-input pl-7" /></div></div><div><label className="field-label">Cost <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-cost" type="number" min="0" step=".01" value={form.cost} onChange={(e) => change('cost', e.target.value)} placeholder="Not tracked" className="field-input pl-7" /></div></div></div><div className="catalog-preferences-editor"><div className="flex items-start justify-between gap-3"><div><label className="field-label">Buyer preferences <span className="font-normal text-[hsl(var(--muted-foreground))]"> (optional)</span></label><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Set the groups and choices buyers should see, such as Color or Size.</p></div><button type="button" className="shrink-0 rounded-full border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold" onClick={() => setForm((current) => ({ ...current, preferences: [...current.preferences, { label: '', options: '' }] }))}><Plus size={12} />Add group</button></div>{form.preferences.length > 0 && <div className="mt-3 space-y-2">{form.preferences.map((preference, index) => <div key={index} className="catalog-preference-row"><input aria-label={`Preference group ${index + 1} name`} value={preference.label} onChange={(event) => updatePreference(index, 'label', event.target.value)} placeholder="Group name, e.g. Color" className="field-input" /><input aria-label={`Choices for preference group ${index + 1}`} value={preference.options} onChange={(event) => updatePreference(index, 'options', event.target.value)} placeholder="Choices separated by commas" className="field-input" /><button type="button" aria-label={`Remove preference group ${index + 1}`} className="catalog-preference-remove" onClick={() => setForm((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))}><X size={14} /></button></div>)}</div>}</div><div className="catalog-custom-fields-editor"><div className="flex items-start justify-between gap-3"><div><label className="field-label">Custom fields <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Add details like material, fit, care, or collection.</p></div><button type="button" className="shrink-0 rounded-full border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold" onClick={() => setForm((current) => ({ ...current, customFields: [...current.customFields, { label: '', value: '' }] }))}><Plus size={12} />Add field</button></div>{form.customFields.length > 0 && <div className="mt-3 space-y-2">{form.customFields.map((field, index) => <div key={index} className="catalog-preference-row"><input aria-label={`Custom field ${index + 1} name`} value={field.label} onChange={(event) => updateCustomField(index, 'label', event.target.value)} placeholder="Field name, e.g. Material" className="field-input" /><input aria-label={`Value for custom field ${index + 1}`} value={field.value} onChange={(event) => updateCustomField(index, 'value', event.target.value)} placeholder="Field value" className="field-input" /><button type="button" aria-label={`Remove custom field ${index + 1}`} className="catalog-preference-remove" onClick={() => setForm((current) => ({ ...current, customFields: current.customFields.filter((_, fieldIndex) => fieldIndex !== index) }))}><X size={14} /></button></div>)}</div>}</div><div><label className="field-label">Accent color</label><div className="flex gap-2">{accentOptions.map(({ value, label }) => <button type="button" key={value} onClick={() => change('accent', value)} aria-label={`Use ${label} accent color`} aria-pressed={form.accent === value} data-testid={`button-accent-${value.slice(1)}`} className={cn('h-8 w-8 rounded-full border-2 transition-transform', form.accent === value ? 'scale-110 border-[hsl(var(--foreground))]' : 'border-transparent')} style={{ backgroundColor: value }} />)}</div></div>{(error || create.isError || update.isError) && <div className="rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-product-form-error">{error || 'This item could not be saved. Try again.'}</div>}<div className="flex justify-end gap-3 border-t border-[hsl(var(--border))] pt-5"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending}>{pending && <Loader2 size={15} className="animate-spin" />}{product ? 'Save changes' : 'Add item'}</Button></div></form></div></div>;
 }
 

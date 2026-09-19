@@ -25,8 +25,16 @@ export interface Product {
   variants: string[];
   preferences: ProductPreferenceGroup[];
   customFields: ProductCustomField[];
-  /** @nullable */
+  /**
+     * @maxLength 4000000
+     * @nullable
+     * @pattern ^(https?:\/\/|data:image\/(png|jpeg|webp|gif);base64,)
+     */
   imageUrl: string | null;
+  /**
+     * @items.maxLength 4000000
+     * @items.pattern ^(https?:\/\/|data:image\/(png|jpeg|webp|gif);base64,)
+     */
   imageUrls: string[];
   accent: string;
 }

@@ -15410,6 +15410,10 @@ var coerce = {
 var HealthCheckResponse = objectType({
   "status": stringType()
 });
+var listProductsResponseImageUrlMax = 4e6;
+var listProductsResponseImageUrlRegExp = new RegExp("^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)");
+var listProductsResponseImageUrlsItemMax = 4e6;
+var listProductsResponseImageUrlsItemRegExp = new RegExp("^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)");
 var ListProductsResponseItem = objectType({
   "id": numberType().int(),
   "name": stringType(),
@@ -15429,8 +15433,8 @@ var ListProductsResponseItem = objectType({
     "label": stringType().min(1),
     "value": stringType()
   })),
-  "imageUrl": stringType().url().nullable(),
-  "imageUrls": arrayType(stringType().url()),
+  "imageUrl": stringType().max(listProductsResponseImageUrlMax).regex(listProductsResponseImageUrlRegExp).nullable(),
+  "imageUrls": arrayType(stringType().max(listProductsResponseImageUrlsItemMax).regex(listProductsResponseImageUrlsItemRegExp)),
   "accent": stringType()
 });
 var ListProductsResponse = arrayType(ListProductsResponseItem);
@@ -15438,6 +15442,10 @@ var createProductBodyPriceMin = 0;
 var createProductBodyCompareAtPriceMin = 0;
 var createProductBodyCostMin = 0;
 var createProductBodyStockMin = 0;
+var createProductBodyImageUrlMax = 4e6;
+var createProductBodyImageUrlRegExp = new RegExp("^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)");
+var createProductBodyImageUrlsItemMax = 4e6;
+var createProductBodyImageUrlsItemRegExp = new RegExp("^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)");
 var CreateProductBody = objectType({
   "name": stringType().min(1),
   "category": stringType(),
@@ -15456,10 +15464,14 @@ var CreateProductBody = objectType({
     "label": stringType().min(1),
     "value": stringType()
   })).optional(),
-  "imageUrl": stringType().url().nullish(),
-  "imageUrls": arrayType(stringType().url()).optional(),
+  "imageUrl": stringType().max(createProductBodyImageUrlMax).regex(createProductBodyImageUrlRegExp).nullish(),
+  "imageUrls": arrayType(stringType().max(createProductBodyImageUrlsItemMax).regex(createProductBodyImageUrlsItemRegExp)).optional(),
   "accent": stringType().optional()
 });
+var createProductResponseImageUrlMax = 4e6;
+var createProductResponseImageUrlRegExp = new RegExp("^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)");
+var createProductResponseImageUrlsItemMax = 4e6;
+var createProductResponseImageUrlsItemRegExp = new RegExp("^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)");
 var CreateProductResponse = objectType({
   "id": numberType().int(),
   "name": stringType(),
@@ -15479,8 +15491,8 @@ var CreateProductResponse = objectType({
     "label": stringType().min(1),
     "value": stringType()
   })),
-  "imageUrl": stringType().url().nullable(),
-  "imageUrls": arrayType(stringType().url()),
+  "imageUrl": stringType().max(createProductResponseImageUrlMax).regex(createProductResponseImageUrlRegExp).nullable(),
+  "imageUrls": arrayType(stringType().max(createProductResponseImageUrlsItemMax).regex(createProductResponseImageUrlsItemRegExp)),
   "accent": stringType()
 });
 var UpdateProductParams = objectType({
@@ -15490,6 +15502,10 @@ var updateProductBodyPriceMin = 0;
 var updateProductBodyCompareAtPriceMin = 0;
 var updateProductBodyCostMin = 0;
 var updateProductBodyStockMin = 0;
+var updateProductBodyImageUrlMax = 4e6;
+var updateProductBodyImageUrlRegExp = new RegExp("^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)");
+var updateProductBodyImageUrlsItemMax = 4e6;
+var updateProductBodyImageUrlsItemRegExp = new RegExp("^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)");
 var UpdateProductBody = objectType({
   "name": stringType().min(1).optional(),
   "category": stringType().optional(),
@@ -15508,10 +15524,14 @@ var UpdateProductBody = objectType({
     "label": stringType().min(1),
     "value": stringType()
   })).optional(),
-  "imageUrl": stringType().url().nullish(),
-  "imageUrls": arrayType(stringType().url()).optional(),
+  "imageUrl": stringType().max(updateProductBodyImageUrlMax).regex(updateProductBodyImageUrlRegExp).nullish(),
+  "imageUrls": arrayType(stringType().max(updateProductBodyImageUrlsItemMax).regex(updateProductBodyImageUrlsItemRegExp)).optional(),
   "accent": stringType().optional()
 });
+var updateProductResponseImageUrlMax = 4e6;
+var updateProductResponseImageUrlRegExp = new RegExp("^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)");
+var updateProductResponseImageUrlsItemMax = 4e6;
+var updateProductResponseImageUrlsItemRegExp = new RegExp("^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)");
 var UpdateProductResponse = objectType({
   "id": numberType().int(),
   "name": stringType(),
@@ -15531,8 +15551,8 @@ var UpdateProductResponse = objectType({
     "label": stringType().min(1),
     "value": stringType()
   })),
-  "imageUrl": stringType().url().nullable(),
-  "imageUrls": arrayType(stringType().url()),
+  "imageUrl": stringType().max(updateProductResponseImageUrlMax).regex(updateProductResponseImageUrlRegExp).nullable(),
+  "imageUrls": arrayType(stringType().max(updateProductResponseImageUrlsItemMax).regex(updateProductResponseImageUrlsItemRegExp)),
   "accent": stringType()
 });
 var DeleteProductParams = objectType({
@@ -17346,7 +17366,7 @@ function createApp(database, options = {}) {
   );
   app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
   app.use(cors({ credentials: true, origin: true }));
-  app.use(express.json());
+  app.use(express.json({ limit: "6mb" }));
   app.use(express.urlencoded({ extended: true }));
   app.use(
     clerkMiddleware((req) => ({
@@ -17504,6 +17524,28 @@ async function requestProducts(products) {
     );
   }
 }
+test("catalog products accept uploaded image data URLs", async () => {
+  const image = "data:image/png;base64,aGVsbG8=";
+  await withDatabaseTransaction(async (_database, baseUrl) => {
+    const created = await requestJson(baseUrl, "/api/products", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Uploaded product",
+        category: "Test",
+        price: 25,
+        cost: 10,
+        stock: 3,
+        imageUrl: image
+      })
+    });
+    assert2.equal(created.status, 201);
+    assert2.equal(created.body.imageUrl, image);
+    assert2.deepEqual(created.body.imageUrls, [image]);
+    const listed = await requestJson(baseUrl, "/api/products");
+    assert2.equal(listed.status, 200);
+    assert2.equal(listed.body[0].imageUrl, image);
+  });
+});
 test("seller data requires auth and stays isolated by Clerk user id", async () => {
   const product = (id, ownerUserId) => ({
     id,

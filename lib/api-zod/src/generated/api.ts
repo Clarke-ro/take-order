@@ -24,6 +24,14 @@ export const HealthCheckResponse = zod.object({
 
 
 
+export const listProductsResponseImageUrlMax = 4000000;
+
+
+export const listProductsResponseImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
+export const listProductsResponseImageUrlsItemMax = 4000000;
+
+
+export const listProductsResponseImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
 
 
 export const ListProductsResponseItem = zod.object({
@@ -45,8 +53,8 @@ export const ListProductsResponseItem = zod.object({
   "label": zod.string().min(1),
   "value": zod.string()
 })),
-  "imageUrl": zod.string().url().nullable(),
-  "imageUrls": zod.array(zod.string().url()),
+  "imageUrl": zod.string().max(listProductsResponseImageUrlMax).regex(listProductsResponseImageUrlRegExp).nullable(),
+  "imageUrls": zod.array(zod.string().max(listProductsResponseImageUrlsItemMax).regex(listProductsResponseImageUrlsItemRegExp)),
   "accent": zod.string()
 })
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
@@ -68,6 +76,14 @@ export const createProductBodyStockMin = 0;
 
 
 
+export const createProductBodyImageUrlMax = 4000000;
+
+
+export const createProductBodyImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
+export const createProductBodyImageUrlsItemMax = 4000000;
+
+
+export const createProductBodyImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
 
 
 export const CreateProductBody = zod.object({
@@ -88,8 +104,8 @@ export const CreateProductBody = zod.object({
   "label": zod.string().min(1),
   "value": zod.string()
 })).optional(),
-  "imageUrl": zod.string().url().nullish(),
-  "imageUrls": zod.array(zod.string().url()).optional(),
+  "imageUrl": zod.string().max(createProductBodyImageUrlMax).regex(createProductBodyImageUrlRegExp).nullish(),
+  "imageUrls": zod.array(zod.string().max(createProductBodyImageUrlsItemMax).regex(createProductBodyImageUrlsItemRegExp)).optional(),
   "accent": zod.string().optional()
 })
 
@@ -97,6 +113,14 @@ export const CreateProductBody = zod.object({
 
 
 
+export const createProductResponseImageUrlMax = 4000000;
+
+
+export const createProductResponseImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
+export const createProductResponseImageUrlsItemMax = 4000000;
+
+
+export const createProductResponseImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
 
 
 export const CreateProductResponse = zod.object({
@@ -118,8 +142,8 @@ export const CreateProductResponse = zod.object({
   "label": zod.string().min(1),
   "value": zod.string()
 })),
-  "imageUrl": zod.string().url().nullable(),
-  "imageUrls": zod.array(zod.string().url()),
+  "imageUrl": zod.string().max(createProductResponseImageUrlMax).regex(createProductResponseImageUrlRegExp).nullable(),
+  "imageUrls": zod.array(zod.string().max(createProductResponseImageUrlsItemMax).regex(createProductResponseImageUrlsItemRegExp)),
   "accent": zod.string()
 })
 
@@ -144,6 +168,14 @@ export const updateProductBodyStockMin = 0;
 
 
 
+export const updateProductBodyImageUrlMax = 4000000;
+
+
+export const updateProductBodyImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
+export const updateProductBodyImageUrlsItemMax = 4000000;
+
+
+export const updateProductBodyImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
 
 
 export const UpdateProductBody = zod.object({
@@ -164,8 +196,8 @@ export const UpdateProductBody = zod.object({
   "label": zod.string().min(1),
   "value": zod.string()
 })).optional(),
-  "imageUrl": zod.string().url().nullish(),
-  "imageUrls": zod.array(zod.string().url()).optional(),
+  "imageUrl": zod.string().max(updateProductBodyImageUrlMax).regex(updateProductBodyImageUrlRegExp).nullish(),
+  "imageUrls": zod.array(zod.string().max(updateProductBodyImageUrlsItemMax).regex(updateProductBodyImageUrlsItemRegExp)).optional(),
   "accent": zod.string().optional()
 })
 
@@ -173,6 +205,14 @@ export const UpdateProductBody = zod.object({
 
 
 
+export const updateProductResponseImageUrlMax = 4000000;
+
+
+export const updateProductResponseImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
+export const updateProductResponseImageUrlsItemMax = 4000000;
+
+
+export const updateProductResponseImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
 
 
 export const UpdateProductResponse = zod.object({
@@ -194,8 +234,8 @@ export const UpdateProductResponse = zod.object({
   "label": zod.string().min(1),
   "value": zod.string()
 })),
-  "imageUrl": zod.string().url().nullable(),
-  "imageUrls": zod.array(zod.string().url()),
+  "imageUrl": zod.string().max(updateProductResponseImageUrlMax).regex(updateProductResponseImageUrlRegExp).nullable(),
+  "imageUrls": zod.array(zod.string().max(updateProductResponseImageUrlsItemMax).regex(updateProductResponseImageUrlsItemRegExp)),
   "accent": zod.string()
 })
 

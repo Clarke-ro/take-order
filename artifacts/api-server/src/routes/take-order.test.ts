@@ -196,6 +196,30 @@ async function requestProducts(products: Seed["products"]): Promise<{
   }
 }
 
+test("catalog products accept uploaded image data URLs", async () => {
+  const image = "data:image/png;base64,aGVsbG8=";
+  await withDatabaseTransaction(async (_database, baseUrl) => {
+    const created = await requestJson(baseUrl, "/api/products", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Uploaded product",
+        category: "Test",
+        price: 25,
+        cost: 10,
+        stock: 3,
+        imageUrl: image,
+      }),
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.imageUrl, image);
+    assert.deepEqual(created.body.imageUrls, [image]);
+
+    const listed = await requestJson(baseUrl, "/api/products");
+    assert.equal(listed.status, 200);
+    assert.equal(listed.body[0].imageUrl, image);
+  });
+});
+
 test("seller data requires auth and stays isolated by Clerk user id", async () => {
   const product = (id: number, ownerUserId: string): SeedProduct => ({
     id,

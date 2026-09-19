@@ -873,8 +873,14 @@ button { cursor: pointer; }
 .product-upload-dropzone { display: flex; min-height: 4.85rem; align-items: center; justify-content: center; gap: .55rem; border: 1px dashed #c5cad1; border-radius: 11px; color: #8c949f; cursor: pointer; font-size: .72rem; transition: border-color .16s, background-color .16s; }
 .product-upload-dropzone:hover { border-color: #8290a0; background: #fafbfc; }
 .product-upload-dropzone input { position: absolute; height: 1px; width: 1px; opacity: 0; pointer-events: none; }
+.product-image-upload { display: flex; align-items: center; gap: .7rem; }
+.product-upload-button { display: inline-flex; min-height: 2.35rem; align-items: center; gap: .4rem; border: 1px solid #d8dce1; border-radius: 8px; background: #fff; padding: .55rem .72rem; color: #313841; cursor: pointer; font-size: .7rem; font-weight: 600; transition: border-color .16s, background-color .16s; }
+.product-upload-button:hover { border-color: #9ea9b7; background: #fafbfc; }
+.product-image-upload-note { color: #9299a2; font-size: .64rem; line-height: 1.4; }
 .product-image-preview { display: flex; align-items: center; gap: .55rem; margin-top: .65rem; color: #747d88; font-size: .66rem; }
 .product-image-preview img { height: 2.5rem; width: 2.5rem; border: 1px solid #e1e4e8; border-radius: 7px; object-fit: cover; }
+.product-image-preview button { margin-left: auto; color: #929aa4; font-size: .64rem; font-weight: 600; }
+.product-image-preview button:hover { color: #d35451; }
 .product-more-button { display: inline-flex; align-items: center; gap: .16rem; margin-top: .85rem; padding: .1rem 0; color: #9aa1aa; font-size: .72rem; font-weight: 600; }
 .product-more-button:hover { color: #4f5863; }
 .product-more-button svg { transition: transform .16s; }

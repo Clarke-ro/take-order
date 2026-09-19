@@ -365,10 +365,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductCustomField"
-        imageUrl: { type: ["string", "null"], format: uri }
+        imageUrl: { type: ["string", "null"], maxLength: 4000000, pattern: "^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)" }
         imageUrls:
           type: array
-          items: { type: string, format: uri }
+          items: { type: string, maxLength: 4000000, pattern: "^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)" }
         accent: { type: string }
     ProductPreferenceGroup:
       type: object
@@ -402,10 +402,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductCustomField"
-        imageUrl: { type: ["string", "null"], format: uri }
+        imageUrl: { type: ["string", "null"], maxLength: 4000000, pattern: "^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)" }
         imageUrls:
           type: array
-          items: { type: string, format: uri }
+          items: { type: string, maxLength: 4000000, pattern: "^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)" }
         accent: { type: string }
     ProductCustomField:
       type: object
@@ -435,10 +435,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductCustomField"
-        imageUrl: { type: ["string", "null"], format: uri }
+        imageUrl: { type: ["string", "null"], maxLength: 4000000, pattern: "^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)" }
         imageUrls:
           type: array
-          items: { type: string, format: uri }
+          items: { type: string, maxLength: 4000000, pattern: "^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)" }
         accent: { type: string }
     Order:
       type: object
