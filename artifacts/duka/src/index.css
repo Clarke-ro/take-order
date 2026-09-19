@@ -672,6 +672,7 @@ button { cursor: pointer; }
 .orders-result-count strong { color: hsl(var(--foreground)); }
 .orders-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, 280px); align-items: center; gap: 1rem; border-bottom: 1px solid hsl(var(--border)); background: hsl(var(--card)); padding: .85rem 1.5rem; }
 .orders-controls.filter-surface { margin: .7rem 1rem; border-bottom: 0; background: hsl(var(--muted) / .32); padding: .55rem .7rem; }
+.orders-controls.orders-page-controls { margin: 0 0 1rem; }
 .orders-filter-label { color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .57rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
 .orders-filter-scroll { display: flex; max-width: 100%; gap: 1.05rem; overflow-x: auto; scrollbar-width: none; }
 .orders-filter-scroll::-webkit-scrollbar { display: none; }

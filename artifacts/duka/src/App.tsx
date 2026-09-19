@@ -1703,19 +1703,22 @@ function Orders() {
       onError: (error) => setMutationError(error instanceof Error && error.message ? error.message : 'That order update could not be saved. Try again.'),
     });
   };
-  const paymentFilterOptions = [
-    { value: 'all', label: 'All payments' },
+  const orderFilterOptions = [
+    { value: 'all', label: 'All' },
     { value: 'reserved', label: 'Reserved' },
     { value: 'deposit_paid', label: 'Deposit paid' },
     { value: 'paid', label: 'Paid' },
-  ];
-  const fulfillmentFilterOptions = [
-    { value: 'all', label: 'All fulfilment' },
     { value: 'pending', label: 'To ship' },
     { value: 'shipped', label: 'Shipped' },
     { value: 'delivered', label: 'Delivered' },
   ];
-  const filter = paymentFilter !== 'all' || fulfillmentFilter !== 'all' ? 'filtered' : 'all';
+  const selectOrderFilter = (value: string) => {
+    const paymentValue = ['reserved', 'deposit_paid', 'paid'].includes(value) ? value : 'all';
+    const fulfillmentValue = ['pending', 'shipped', 'delivered'].includes(value) ? value : 'all';
+    setPaymentFilter(paymentValue);
+    setFulfillmentFilter(fulfillmentValue);
+  };
+  const filter = paymentFilter !== 'all' ? paymentFilter : fulfillmentFilter !== 'all' ? fulfillmentFilter : 'all';
   const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value;
 
   return <Shell>
@@ -1727,14 +1730,12 @@ function Orders() {
        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-orders-collection-rate" label="Collection rate" value={<span data-testid="text-collection-rate">{metrics.collectionRate.toFixed(1)}%</span>} note="Paid amount against order value" />
     </section>
     <section className="mt-5">
-       {mutationError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}<Card className="overflow-hidden">
-        <div className="orders-controls filter-surface">
-          <div className="orders-filter-groups">
-            <div className="orders-filter-group" role="group" aria-label="Payment status filters"><span>Payment</span><div className="orders-filter-scroll">{paymentFilterOptions.map((option) => <button type="button" key={option.value} onClick={() => setPaymentFilter(option.value)} aria-pressed={paymentFilter === option.value} data-testid={`button-filter-payment-${option.value}`} className={cn('orders-filter-button', paymentFilter === option.value && 'is-active')}>{option.label}</button>)}</div></div>
-            <div className="orders-filter-group" role="group" aria-label="Fulfillment status filters"><span>Fulfillment</span><div className="orders-filter-scroll">{fulfillmentFilterOptions.map((option) => <button type="button" key={option.value} onClick={() => setFulfillmentFilter(option.value)} aria-pressed={fulfillmentFilter === option.value} data-testid={`button-filter-fulfillment-${option.value}`} className={cn('orders-filter-button', fulfillmentFilter === option.value && 'is-active')}>{option.label}</button>)}</div></div>
-          </div>
-          <div className="list-search-shell"><Search className="pointer-events-none absolute left-2.5 top-2.5 text-[hsl(var(--muted-foreground))]" size={14} /><input aria-label="Search orders" data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" className="list-search-input" /></div>
+       {mutationError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}
+       <div className="orders-controls orders-page-controls filter-surface">
+         <div className="orders-filter-scroll" role="group" aria-label="Order filters">{orderFilterOptions.map((option) => <button type="button" key={option.value} onClick={() => selectOrderFilter(option.value)} aria-pressed={filter === option.value} data-testid={`button-filter-${option.value}`} className={cn('orders-filter-button', filter === option.value && 'is-active')}>{option.label}</button>)}</div>
+         <div className="list-search-shell"><Search className="pointer-events-none absolute left-2.5 top-2.5 text-[hsl(var(--muted-foreground))]" size={14} /><input aria-label="Search orders" data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" className="list-search-input" /></div>
         </div>
+       <Card className="overflow-hidden">
           {query.isLoading ? <div className="space-y-4 p-5 sm:p-6" aria-label="Loading orders"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div> : query.isError ? <div className="p-5 sm:p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="orders-table-wrap" role="table" aria-label="Orders"><div className="orders-table-head" role="row"><span role="columnheader">Order ID</span><span role="columnheader">Buyer / item</span><span role="columnheader">Traffic</span><span role="columnheader">Order value</span><span role="columnheader">Placed</span><span role="columnheader">Payment</span><span role="columnheader">Fulfillment</span></div>{orders.map((order) => <div key={order.id} className="orders-table-row" role="row" data-testid={`row-orders-order-${order.id}`}><div className="orders-order-id-cell"><span className="orders-mobile-label">Order ID</span><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></div><div className="orders-buyer-cell"><div className="orders-avatar">{initials(order.customerName || order.productName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 truncate text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName}</div>{order.deliveryMethod && <div className="mt-1 truncate text-[10px] text-[hsl(var(--muted-foreground))]" title={order.deliveryAddress ?? undefined}>{order.deliveryMethod === 'delivery' ? `Delivery · ${moneyExact(order.deliveryFee)}` : 'Pickup'}{order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}</div>}</div></div><div className="orders-traffic-cell"><span className="orders-mobile-label">Traffic</span><span className="orders-traffic-icon" data-testid={`text-order-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div><div className="orders-value-cell"><span className="orders-mobile-label">Order value</span><div className="font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{moneyExact(collectedFor(order))} collected</div></div><div className="orders-date-cell"><span className="orders-mobile-label">Placed</span><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</span></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Payment</span><button type="button" disabled={update.isPending} aria-label={`Advance payment status for ${order.customerName || order.productName}`} title="Advance payment status" data-testid={`button-payment-${order.id}`} onClick={() => { const status: 'reserved' | 'deposit_paid' | 'paid' = order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved'; updateOrder(order, { status }); }}><StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>{paymentLabel(order)}</StatusPill></button></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Fulfillment</span><button type="button" disabled={update.isPending} aria-label={`Advance fulfillment status for ${order.customerName || order.productName}`} title="Advance fulfillment status" data-testid={`button-fulfillment-${order.id}`} onClick={() => { const fulfillment: 'pending' | 'shipped' | 'delivered' = order.fulfillment === 'pending' ? 'shipped' : order.fulfillment === 'shipped' ? 'delivered' : 'pending'; updateOrder(order, { fulfillment }); }}><StatusPill tone={order.fulfillment === 'delivered' ? 'mint' : order.fulfillment === 'shipped' ? 'blue' : 'neutral'}>{fulfillmentLabel(order.fulfillment)}</StatusPill></button></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} action={!search && filter === 'all' ? <Link href="/take-order" data-testid="link-create-first-order"><Button><Plus size={15} />Create a link</Button></Link> : undefined} /></div>}
       </Card>
     </section>
