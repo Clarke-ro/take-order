@@ -288,7 +288,7 @@ function ChannelInline({ value }: { value: string }) {
   return <span className="inline-flex items-center gap-1.5"><ChannelMark value={value} size={14} /><ChannelLabel value={value} /></span>;
 }
 
-export function ChannelPicker({ value, onChange, testId }: { value: OrderInput['channel']; onChange: (value: OrderInput['channel']) => void; testId: string }) {
+export function ChannelPicker({ value, onChange, testId }: { value: OrderInput['channel'] | ''; onChange: (value: OrderInput['channel']) => void; testId: string }) {
   return <div data-testid={testId} className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Conversation channel">
     {orderChannels.map((channel) => {
       const selected = value === channel.value;
@@ -1874,7 +1874,7 @@ function TakeOrder() {
     amount: '',
     paymentMode: 'full' as 'full' | 'deposit' | 'reserve',
     depositAmount: '',
-    channel: 'whatsapp' as OrderInput['channel'],
+     channel: '' as OrderInput['channel'] | '',
   });
   const product = (productsQuery.data ?? []).find((item) => item.id === Number(form.productId));
   const previewName = path === 'custom' ? form.customName : product?.name;
@@ -1887,14 +1887,14 @@ function TakeOrder() {
   };
   const validStep = step === 1
     ? (path === 'catalog' ? Boolean(form.productId) : Boolean(form.customName.trim()))
-    : Boolean(form.amount) && Number(form.amount) >= 0 && (form.paymentMode !== 'deposit' || (Boolean(form.depositAmount) && Number(form.depositAmount) <= Number(form.amount)));
+     : Boolean(form.amount) && Number(form.amount) >= 0 && Boolean(form.channel) && (form.paymentMode !== 'deposit' || (Boolean(form.depositAmount) && Number(form.depositAmount) <= Number(form.amount)));
   const createLink = (productId: number) => {
     const data: OrderInput = {
       productId,
       amount: Number(form.amount),
       paymentMode: form.paymentMode,
       depositAmount: form.paymentMode === 'deposit' ? Number(form.depositAmount) : null,
-      channel: form.channel,
+       channel: form.channel as OrderInput['channel'],
     };
     createOrder.mutate({ data }, { onSuccess: (order) => setCreated(order) });
   };
@@ -1936,7 +1936,7 @@ function TakeOrder() {
     setCreated(null);
     setStep(1);
     setPath('catalog');
-    setForm({ productId: '', customName: '', amount: '', paymentMode: 'full', depositAmount: '', channel: 'whatsapp' });
+     setForm({ productId: '', customName: '', amount: '', paymentMode: 'full', depositAmount: '', channel: '' });
   };
 
   if (created) {
@@ -2126,7 +2126,7 @@ function MultiItemTakeOrderModern() {
   const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
   const [depositAmount, setDepositAmount] = useState('');
   const [deliveryFee, setDeliveryFee] = useState('0');
-  const [channel, setChannel] = useState<OrderInput['channel']>('whatsapp');
+   const [channel, setChannel] = useState<OrderInput['channel'] | ''>('');
   const [catalogSearch, setCatalogSearch] = useState('');
   const [created, setCreated] = useState<Order | null>(null);
   const [copied, setCopied] = useState(false);
@@ -2156,9 +2156,9 @@ function MultiItemTakeOrderModern() {
   const validDeposit = paymentMode !== 'deposit' || (Number.isFinite(deposit) && deposit > 0 && deposit <= total);
   const deliveryFeeAmount = Number(deliveryFee);
   const validDeliveryFee = Number.isFinite(deliveryFeeAmount) && deliveryFeeAmount >= 0;
-  const canContinue = step === 1
-    ? items.length > 0 && items.every((item) => item.amount > 0)
-    : total > 0 && validDeposit && validDeliveryFee;
+   const canContinue = step === 1
+     ? items.length > 0 && items.every((item) => item.amount > 0)
+     : total > 0 && validDeposit && validDeliveryFee && Boolean(channel);
   const showPreview = step === 3;
   const goToStep = (nextStep: TakeOrderStep) => {
     if (nextStep === 1) {
@@ -2233,7 +2233,7 @@ function MultiItemTakeOrderModern() {
       paymentMode,
       depositAmount: paymentMode === 'deposit' ? deposit : null,
       deliveryFee: deliveryFeeAmount,
-      channel,
+       channel: channel as OrderInput['channel'],
     };
     createOrder.mutate({ data }, {
       onSuccess: (order) => { setFeedback(null); setCreated(order); },
@@ -2274,6 +2274,10 @@ function MultiItemTakeOrderModern() {
       setFeedback('The delivery fee must be $0.00 or more.');
       return;
     }
+     if (step === 2 && !channel) {
+       setFeedback('Choose the conversation channel before continuing.');
+       return;
+     }
     if (step < 3) {
       setStep((current) => (current + 1) as TakeOrderStep);
       return;
@@ -2306,7 +2310,7 @@ function MultiItemTakeOrderModern() {
     setPaymentMode('full');
     setDepositAmount('');
     setDeliveryFee('0');
-    setChannel('whatsapp');
+     setChannel('');
   };
 
   if (created) {
