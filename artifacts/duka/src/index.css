@@ -3129,12 +3129,12 @@ button[data-testid^="button-filter-"]:focus-visible {
 
 /* Keep catalog choices compact and consistent with the first-page choice cards. */
 .take-order-catalog-stage.is-empty .take-order-product-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); justify-content: center; gap: .75rem; }
-.take-order-catalog-stage.is-empty .take-order-product-card { display: flex; width: 100%; max-width: 160px; height: 160px; min-height: 160px; aspect-ratio: 1 / 1; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: .55rem; padding: .7rem; }
-.take-order-catalog-stage.is-empty .take-order-product-image { width: 3.7rem; height: 3.7rem; max-width: 100%; aspect-ratio: 1 / 1; align-self: center; border-radius: 10px; object-fit: cover; }
-.take-order-catalog-stage.is-empty .take-order-product-copy { padding: 0 .1rem; }
-.take-order-catalog-stage.is-empty .take-order-product-copy strong { font-size: .78rem; }
-.take-order-catalog-stage.is-empty .take-order-product-copy small { margin-top: .25rem; font-size: .62rem; }
-.take-order-catalog-stage.is-empty .take-order-product-copy b { margin-top: .35rem; font-size: .65rem; }
+.take-order-catalog-stage.is-empty .take-order-product-card { display: flex; width: 100%; max-width: 160px; height: 160px; min-height: 160px; aspect-ratio: 1 / 1; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 0; overflow: hidden; padding: 0; }
+.take-order-catalog-stage.is-empty .take-order-product-image { width: 100%; height: 112px; max-width: 100%; flex: 0 0 112px; aspect-ratio: auto; align-self: stretch; border-radius: 0; object-fit: cover; }
+.take-order-catalog-stage.is-empty .take-order-product-copy { min-height: 0; padding: .4rem .55rem .35rem; }
+.take-order-catalog-stage.is-empty .take-order-product-copy strong { font-size: .72rem; }
+.take-order-catalog-stage.is-empty .take-order-product-copy small { margin-top: .12rem; font-size: .55rem; }
+.take-order-catalog-stage.is-empty .take-order-product-copy b { margin-top: .18rem; font-size: .6rem; }
 .take-order-catalog-stage.is-empty .take-order-product-add { position: absolute; top: .7rem; right: .7rem; height: 1.8rem; width: 1.8rem; }
 
 @media (max-width: 860px) {
