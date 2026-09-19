@@ -1,0 +1,90 @@
+# UI Overhaul Brief for Take Order
+
+This is a full review of the current app across Dashboard, Catalog, Orders, Reports, Clients, Expenses, and the "Take an order" flow (including the buyer-facing page). Work through it in the priority order given. Each item names exactly what's wrong and what to do about it — implement literally, don't just restyle around the problem.
+
+---
+
+## PRIORITY 1 — Fix the "Take an order" flow first
+
+This is the core of the product and currently has the most structural redundancy.
+
+1. **Collapse 3 steps into 2, or stop repeating the full item list on every step.** Right now "Items," "Checkout," and "Review" each show the complete list of selected products with prices and remove (×) buttons, almost identically, three times in a row. By the Review step this is the third full repetition of the same 4-item list. Either:
+   - Merge "Items" and "Checkout" into a single step (select products AND set payment terms on one screen), leaving "Review" as the only recap step, or
+   - If keeping 3 steps, make steps 2 and 3 show a **compact, read-only** summary (item names + total, no per-item remove buttons) instead of the fully editable list — editing should only happen in step 1.
+
+2. **Fix the icon on "Not from catalog."** It currently uses a sparkle icon, which implies AI/automatic generation. Nothing automatic happens here — it's a manual one-off entry form. Replace with a neutral icon (plain "+", a pencil, or a simple box icon).
+
+3. **Fix the buyer page's fake photo carousel.** When a product has no real uploaded photos, the buyer-facing order page currently shows a 4-image thumbnail strip using recolored placeholder art as if they were different angles/photos of the product. This can mislead a buyer into thinking there are multiple visual variants. If there's no real photo, show a single placeholder image (or a clear "no photo yet" state) — never fabricate a multi-image gallery from decorative recolors.
+
+4. **Reconsider the static seller tagline on buyer pages.** The buyer page shows the seller's business name with a fixed category tagline underneath (e.g., "sneakers") on every single order link, even when the order itself is for something completely different (a dress, skincare, a handbag). Either drop this tagline from the per-order buyer page, or make sure it reflects something that won't look mismatched against arbitrary order contents.
+
+5. **Fix the broken-looking placeholder logo on the "Link is ready" success screen.** It currently renders as a plain solid black square, which reads as a missing/broken image rather than an intentional default. Give it a proper default (seller initials, or a generic icon) when no logo has been uploaded.
+
+6. **Double-check the delivery/payment section's placement relative to the per-item carousel** on the buyer page for multi-item orders. Delivery method and payment are order-level (not per-item), but the buyer page cycles through items one at a time (visible as "01/04" pagination) — make sure the shared order-level delivery and payment step is clearly separated from that per-item carousel, not confusingly nested inside it.
+
+---
+
+## PRIORITY 2 — Fix misleading data displays (these look like bugs, not just style issues)
+
+7. **Stat-card delta badges use naive up=green/down=red coloring regardless of whether that direction is actually good.** Concrete examples found:
+   - Catalog: "Low stock" count dropping 25% is shown in red (as if bad) — fewer low-stock items is good.
+   - Clients: "Owing clients" dropping 45.5% is shown in red — fewer clients owing money is good.
+   - Clients: "To serve" dropping 90.9% is shown in red — fewer pending fulfillments is good.
+   Fix: define per-metric whether up or down is favorable, and color/arrow the badge accordingly — don't apply a single up=green/down=red rule to every card.
+
+8. **Several deltas are suspiciously uniform or duplicated and need a logic check, not just a style fix:**
+   - Dashboard: Sales, Revenue, and Orders all show exactly "−100%" simultaneously — this pattern strongly suggests the percentage-change calculation divides by a zero-value previous period and produces −100% by default rather than something like "New" or no badge at all. Fix the underlying calculation for this case.
+   - Reports: "Reported profit" and "Cash balance" show the identical value ($727) and identical delta (+68.9%) — verify whether these are genuinely supposed to be identical at this stage or whether one is accidentally mirroring the other.
+   - Orders: "Collection rate" shows 15.4% and its delta badge also shows exactly "−15.4%" — check this isn't accidentally reusing the same number for both the value and the change.
+
+9. **Fix the "Waiting for buyer" pseudo-client on the Clients page.** Orders that haven't had buyer details submitted yet are currently being grouped into a single fake "client" row showing 20 combined orders and a $4,670 balance due — this looks like one real client owes that amount, when it's actually 20 separate anonymous/incomplete orders. Fix: exclude orders with no buyer identity from the Clients list entirely, or show them in a clearly separate "Pending / unclaimed orders" section — never merge them into one pseudo-client row.
+
+10. **Give "In person" its own metric set on the Channel insight panel.** It currently shows Views and Conversion % alongside WhatsApp/Instagram, but an offline/in-person channel doesn't have "views" in any meaningful sense. Drop Views/Conversion for in-person and show just Orders/Revenue, or otherwise handle offline channels distinctly from link-based ones.
+
+---
+
+## PRIORITY 3 — Rewrite text that leaks internal/technical framing
+
+11. Reports page: "6 legacy sales use estimated costs" → reword to something a small business owner would say naturally, e.g. "6 older sales are using an estimated cost instead of the exact cost at the time." Same for "Combined expenses" and "gross margin" — use plain language throughout Reports and Expenses, not accounting/engineering terms.
+12. Reports: rename "Snapshot context" to something that actually describes what the number means (it currently reads as a placeholder/debug label).
+13. Catalog cards: "Choose an option: 200ml" / "Choose an option: Bar" is **buyer-facing instructional phrasing showing up inside the seller's own catalog management view.** In the seller's own catalog, this should read as plain data — e.g. "Option: 200ml" or just the option group name — not an instruction addressed to a buyer.
+
+---
+
+## PRIORITY 4 — Table and column structure fixes
+
+14. **Orders page: split the filter tabs by dimension.** The current single row of 7 tabs (All / Reserved / Deposit paid / Paid / To ship / Shipped / Delivered) mixes two different things — payment status and fulfillment status — into one flat list. The table itself already correctly separates these into two columns ("Payment" and "Fulfillment"), so the filters should mirror that: two separate filter controls (or a two-level tab group), one for payment status and one for fulfillment status.
+
+15. **Reports "Top-selling items" table has too many columns and overflows horizontally**, requiring a scrollbar inside a dashboard card (Item / Category / Orders / Revenue / Margin-cost / Stock / a cut-off "Det..." column). Trim the default view to the essentials (Item, Orders, Revenue, Margin) and move Stock and any additional detail into an expandable row or a separate details view, rather than adding more columns to an already-cramped table.
+
+16. **Catalog's list/table view wastes vertical space on an oversized product illustration per row** — each row's thumbnail is rendered at nearly full card width instead of a small fixed-size icon, which defeats the purpose of a compact list view. Shrink thumbnails in this view to a small, consistent size (roughly 48–64px).
+
+17. **Catalog cards show stock status twice** — once as a floating pill on the product image ("1 in stock") and again as text at the bottom of the card ("1 / Running low"). Keep one, remove the other (the bottom text version carries more information — status wording like "Running low" — so keep that one).
+
+18. **Give "estimated" and "not tracked" margin badges visually distinct styling.** Both currently use the same pink/rose pill even though they mean very different things — "estimated" means a real (if imprecise) number exists, "not tracked" means there's no cost data at all. Use a neutral/gray treatment for "not tracked" and reserve the colored badge for "estimated."
+
+---
+
+## PRIORITY 5 — Dashboard-level cleanup
+
+19. **Reduce the 8 equal-weight stat cards on Dashboard to a prioritized 3–4.** Right now Sales, Revenue, Views, Active users, Outstanding balances, Orders, Shares, and Likes all get the same visual weight. Lead with the metrics that actually drive decisions (Revenue, Outstanding balances, Orders) and move secondary ones (Views, Active users) down or into Reports.
+
+20. **Hide or clearly label "Shares" and "Likes" as not-yet-active**, rather than showing empty dashes and "No recorded activity" text that reads like something is broken. Since social engagement tracking isn't wired up yet (planned for later), either remove these cards from the main dashboard until there's real data, or label them explicitly as "Coming soon."
+
+21. **Distinguish pending ("Waiting for buyer") rows visually from completed transactions** in the Recent Transactions and Orders tables — right now they use the same avatar-initial styling ("WF") as real named customers elsewhere in the app (e.g., "JA," "CA" on the Clients page), which could read as an actual customer's initials. Use a distinct, muted treatment (dashed outline, gray icon, no fabricated initials) for orders where the buyer hasn't submitted details yet.
+
+---
+
+## PRIORITY 6 — Small consistency fixes
+
+22. Label the two unlabeled icon buttons next to Catalog's search bar (their purpose isn't clear from the icons alone) — add tooltips or visible labels.
+23. Clarify what the notification dot next to "Connect tools" in the sidebar actually indicates, or remove it if it's not tied to a real status yet.
+24. Align the "conversation started on" channel options (currently WhatsApp/Instagram/TikTok/Snapchat/In person) with whatever the Connect tools screen actually offers — right now there's a mismatch in which channels appear in each place.
+25. Establish one consistent number-formatting convention (currency symbols, thousands separators, percentage decimals) across every screen — some cards currently mix styles.
+26. Establish a clear type-weight hierarchy so page titles, stat values, and stat labels are visually distinct from each other — several cards currently use similar heavy weights for both the number and its label, reducing scannability.
+
+---
+
+## What NOT to change
+
+The stepper pattern on "Take an order" (numbered steps with checkmarks once complete), the empty state on Expenses ("No operating expenses yet" + helper text + CTA), and the "Buyer preview" live-preview panel on the Review step are all good patterns — keep this style and structure, and reuse the Expenses empty-state pattern anywhere else in the app that currently lacks a proper empty state.
