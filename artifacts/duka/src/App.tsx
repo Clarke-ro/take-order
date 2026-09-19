@@ -2341,7 +2341,8 @@ function MultiItemTakeOrderModern() {
                   </div>
                   <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
                </div>}
-              {step === 1 && catalogStage && <div className={cn('take-order-catalog-stage', items.length > 0 && 'has-selection')}>
+               {step === 1 && catalogStage && <>
+                 <div className={cn('take-order-catalog-stage', items.length > 0 && 'has-selection')}>
                <div className="take-order-catalog-browser">
                   {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}
                   <div className="take-order-catalog-toolbar">
@@ -2358,9 +2359,10 @@ function MultiItemTakeOrderModern() {
                </div>
                  {items.length > 0 && <div className="take-order-catalog-selection-column">
                    <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} showActions={false} />
-                   <Button type="submit" className="take-order-catalog-continue" disabled={!canContinue || busy || productsQuery.isLoading} data-testid="button-continue-catalog">Continue to checkout <ArrowRight size={15} /></Button>
                  </div>}
-              </div>}
+                 </div>
+                 {items.length > 0 && <div className="take-order-catalog-page-action"><Button type="submit" className="take-order-catalog-continue" disabled={!canContinue || busy || productsQuery.isLoading} data-testid="button-continue-catalog">Continue to checkout <ArrowRight size={15} /></Button></div>}
+               </>}
                 {step === 1 && itemSource === 'custom' && <div className="take-order-custom-stage">
                   {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}
                   <TakeOrderFeedback message={feedback} />
