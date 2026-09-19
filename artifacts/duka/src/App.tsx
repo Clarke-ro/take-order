@@ -1728,7 +1728,6 @@ function Orders() {
     </section>
     <section className="mt-5">
        {mutationError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}<Card className="overflow-hidden">
-        <h2 className="orders-list-heading">Orders</h2>
         <div className="orders-controls filter-surface">
           <div className="orders-filter-groups">
             <div className="orders-filter-group" role="group" aria-label="Payment status filters"><span>Payment</span><div className="orders-filter-scroll">{paymentFilterOptions.map((option) => <button type="button" key={option.value} onClick={() => setPaymentFilter(option.value)} aria-pressed={paymentFilter === option.value} data-testid={`button-filter-payment-${option.value}`} className={cn('orders-filter-button', paymentFilter === option.value && 'is-active')}>{option.label}</button>)}</div></div>
