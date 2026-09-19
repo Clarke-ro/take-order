@@ -4,7 +4,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/routes/duka.test.ts
+// src/routes/take-order.test.ts
 import assert2 from "node:assert/strict";
 import { createServer } from "node:http";
 import test from "node:test";
@@ -11416,11 +11416,17 @@ var productsTable = pgTable("products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   category: text("category").notNull(),
+  sku: text("sku"),
+  description: text("description"),
   price: numeric("price", { precision: 12, scale: 2 }).notNull(),
+  compareAtPrice: numeric("compare_at_price", { precision: 12, scale: 2 }),
   cost: numeric("cost", { precision: 12, scale: 2 }),
   stock: integer2("stock").notNull().default(0),
   variants: text("variants").array().notNull().default([]),
   preferences: jsonb("preferences").$type().notNull().default([]),
+  customFields: jsonb("custom_fields").$type().notNull().default([]),
+  imageUrl: text("image_url"),
+  imageUrls: text("image_urls").array().notNull().default([]),
   accent: text("accent").notNull().default("#0F6E6B")
 });
 var insertProductSchema = createInsertSchema(productsTable).omit({ id: true });
@@ -11461,7 +11467,13 @@ var orderItemsTable = pgTable3("order_items", {
   orderId: integer4("order_id").notNull(),
   productId: integer4("product_id").notNull(),
   productName: text3("product_name").notNull(),
+  source: text3("source").notNull().default("catalog"),
+  sku: text3("sku"),
+  description: text3("description"),
+  compareAtPrice: numeric3("compare_at_price", { precision: 12, scale: 2 }),
+  imageUrls: text3("image_urls").array().notNull().default([]),
   amount: numeric3("amount", { precision: 12, scale: 2 }).notNull(),
+  quantity: integer4("quantity").notNull().default(1),
   position: integer4("position").notNull().default(0),
   buyerVariant: text3("buyer_variant"),
   buyerDetails: text3("buyer_details"),
@@ -15388,7 +15400,10 @@ var ListProductsResponseItem = objectType({
   "id": numberType().int(),
   "name": stringType(),
   "category": stringType(),
+  "sku": stringType().nullable(),
+  "description": stringType().nullable(),
   "price": numberType(),
+  "compareAtPrice": numberType().nullable(),
   "cost": numberType().nullable(),
   "stock": numberType().int(),
   "variants": arrayType(stringType()),
@@ -15396,16 +15411,26 @@ var ListProductsResponseItem = objectType({
     "label": stringType().min(1),
     "options": arrayType(stringType().min(1)).min(1)
   })),
+  "customFields": arrayType(objectType({
+    "label": stringType().min(1),
+    "value": stringType()
+  })),
+  "imageUrl": stringType().url().nullable(),
+  "imageUrls": arrayType(stringType().url()),
   "accent": stringType()
 });
 var ListProductsResponse = arrayType(ListProductsResponseItem);
 var createProductBodyPriceMin = 0;
+var createProductBodyCompareAtPriceMin = 0;
 var createProductBodyCostMin = 0;
 var createProductBodyStockMin = 0;
 var CreateProductBody = objectType({
   "name": stringType().min(1),
   "category": stringType(),
+  "sku": stringType().nullish(),
+  "description": stringType().nullish(),
   "price": numberType().min(createProductBodyPriceMin),
+  "compareAtPrice": numberType().min(createProductBodyCompareAtPriceMin).nullish(),
   "cost": numberType().min(createProductBodyCostMin).nullish(),
   "stock": numberType().int().min(createProductBodyStockMin),
   "variants": arrayType(stringType()).optional(),
@@ -15413,13 +15438,22 @@ var CreateProductBody = objectType({
     "label": stringType().min(1),
     "options": arrayType(stringType().min(1)).min(1)
   })).optional(),
+  "customFields": arrayType(objectType({
+    "label": stringType().min(1),
+    "value": stringType()
+  })).optional(),
+  "imageUrl": stringType().url().nullish(),
+  "imageUrls": arrayType(stringType().url()).optional(),
   "accent": stringType().optional()
 });
 var CreateProductResponse = objectType({
   "id": numberType().int(),
   "name": stringType(),
   "category": stringType(),
+  "sku": stringType().nullable(),
+  "description": stringType().nullable(),
   "price": numberType(),
+  "compareAtPrice": numberType().nullable(),
   "cost": numberType().nullable(),
   "stock": numberType().int(),
   "variants": arrayType(stringType()),
@@ -15427,18 +15461,28 @@ var CreateProductResponse = objectType({
     "label": stringType().min(1),
     "options": arrayType(stringType().min(1)).min(1)
   })),
+  "customFields": arrayType(objectType({
+    "label": stringType().min(1),
+    "value": stringType()
+  })),
+  "imageUrl": stringType().url().nullable(),
+  "imageUrls": arrayType(stringType().url()),
   "accent": stringType()
 });
 var UpdateProductParams = objectType({
   "id": coerce.number().int()
 });
 var updateProductBodyPriceMin = 0;
+var updateProductBodyCompareAtPriceMin = 0;
 var updateProductBodyCostMin = 0;
 var updateProductBodyStockMin = 0;
 var UpdateProductBody = objectType({
   "name": stringType().min(1).optional(),
   "category": stringType().optional(),
+  "sku": stringType().nullish(),
+  "description": stringType().nullish(),
   "price": numberType().min(updateProductBodyPriceMin).optional(),
+  "compareAtPrice": numberType().min(updateProductBodyCompareAtPriceMin).nullish(),
   "cost": numberType().min(updateProductBodyCostMin).nullish(),
   "stock": numberType().int().min(updateProductBodyStockMin).optional(),
   "variants": arrayType(stringType()).optional(),
@@ -15446,13 +15490,22 @@ var UpdateProductBody = objectType({
     "label": stringType().min(1),
     "options": arrayType(stringType().min(1)).min(1)
   })).optional(),
+  "customFields": arrayType(objectType({
+    "label": stringType().min(1),
+    "value": stringType()
+  })).optional(),
+  "imageUrl": stringType().url().nullish(),
+  "imageUrls": arrayType(stringType().url()).optional(),
   "accent": stringType().optional()
 });
 var UpdateProductResponse = objectType({
   "id": numberType().int(),
   "name": stringType(),
   "category": stringType(),
+  "sku": stringType().nullable(),
+  "description": stringType().nullable(),
   "price": numberType(),
+  "compareAtPrice": numberType().nullable(),
   "cost": numberType().nullable(),
   "stock": numberType().int(),
   "variants": arrayType(stringType()),
@@ -15460,6 +15513,12 @@ var UpdateProductResponse = objectType({
     "label": stringType().min(1),
     "options": arrayType(stringType().min(1)).min(1)
   })),
+  "customFields": arrayType(objectType({
+    "label": stringType().min(1),
+    "value": stringType()
+  })),
+  "imageUrl": stringType().url().nullable(),
+  "imageUrls": arrayType(stringType().url()),
   "accent": stringType()
 });
 var DeleteProductParams = objectType({
@@ -15493,7 +15552,8 @@ var ListOrdersResponseItem = objectType({
   "items": arrayType(objectType({
     "productId": numberType().int(),
     "productName": stringType(),
-    "amount": numberType()
+    "amount": numberType(),
+    "quantity": numberType().int().min(1)
   }))
 });
 var ListOrdersResponse = arrayType(ListOrdersResponseItem);
@@ -15506,7 +15566,8 @@ var CreateOrderBody = objectType({
   "amount": numberType().min(createOrderBodyAmountMin).optional(),
   "items": arrayType(objectType({
     "productId": numberType().int(),
-    "amount": numberType().min(createOrderBodyItemsItemAmountMin)
+    "amount": numberType().min(createOrderBodyItemsItemAmountMin),
+    "quantity": numberType().int().min(1).optional()
   })).min(1).optional(),
   "deliveryFee": numberType().min(createOrderBodyDeliveryFeeMin).optional(),
   "depositAmount": numberType().min(createOrderBodyDepositAmountMin).nullish(),
@@ -15540,7 +15601,8 @@ var CreateOrderResponse = objectType({
   "items": arrayType(objectType({
     "productId": numberType().int(),
     "productName": stringType(),
-    "amount": numberType()
+    "amount": numberType(),
+    "quantity": numberType().int().min(1)
   }))
 });
 var GetOrderParams = objectType({
@@ -15573,7 +15635,8 @@ var GetOrderResponse = objectType({
   "items": arrayType(objectType({
     "productId": numberType().int(),
     "productName": stringType(),
-    "amount": numberType()
+    "amount": numberType(),
+    "quantity": numberType().int().min(1)
   }))
 });
 var UpdateOrderParams = objectType({
@@ -15610,12 +15673,14 @@ var UpdateOrderResponse = objectType({
   "items": arrayType(objectType({
     "productId": numberType().int(),
     "productName": stringType(),
-    "amount": numberType()
+    "amount": numberType(),
+    "quantity": numberType().int().min(1)
   }))
 });
 var GetPublicOrderParams = objectType({
   "token": coerce.string()
 });
+var getPublicOrderResponseItemsItemStockMin = 0;
 var GetPublicOrderResponse = objectType({
   "token": stringType(),
   "productName": stringType(),
@@ -15631,12 +15696,19 @@ var GetPublicOrderResponse = objectType({
     "productId": numberType().int(),
     "productName": stringType(),
     "amount": numberType(),
+    "quantity": numberType().int().min(1),
     "variants": arrayType(stringType()),
     "preferences": arrayType(objectType({
       "label": stringType().min(1),
       "options": arrayType(stringType().min(1)).min(1)
     })),
-    "source": enumType(["catalog", "custom"])
+    "source": enumType(["catalog", "custom"]),
+    "sku": stringType().nullable(),
+    "description": stringType().nullable(),
+    "compareAtPrice": numberType().nullable(),
+    "imageUrls": arrayType(stringType().url()),
+    "stock": numberType().int().min(getPublicOrderResponseItemsItemStockMin),
+    "available": booleanType()
   }))
 });
 var SubmitPublicOrderParams = objectType({
@@ -15653,6 +15725,7 @@ var SubmitPublicOrderBody = objectType({
   "referenceImage": stringType().optional(),
   "itemDetails": arrayType(objectType({
     "itemIndex": numberType().int().min(submitPublicOrderBodyItemDetailsItemItemIndexMin),
+    "quantity": numberType().int().min(1).optional(),
     "variant": stringType().optional(),
     "details": stringType().optional(),
     "referenceImage": stringType().optional()
@@ -15686,7 +15759,8 @@ var SubmitPublicOrderResponse = objectType({
   "items": arrayType(objectType({
     "productId": numberType().int(),
     "productName": stringType(),
-    "amount": numberType()
+    "amount": numberType(),
+    "quantity": numberType().int().min(1)
   }))
 });
 var GetDashboardSummaryQueryParams = objectType({
@@ -15810,7 +15884,7 @@ router.get("/healthz", (_req, res) => {
 });
 var health_default = router;
 
-// src/routes/duka.ts
+// src/routes/take-order.ts
 import { Router as Router2 } from "express";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
@@ -15993,25 +16067,121 @@ function calculateDashboardSummary(products, orders, operatingExpenseRows, now =
   };
 }
 
-// src/routes/duka.ts
-function createDukaRouter(database) {
+// src/routes/take-order.ts
+function preferencesForProduct(preferences, variants = []) {
+  const isSizeOption = (value) => /^(xxxs?|[smlx]{1,4}|small|medium|large|extra small|extra large|one size)$/i.test(value.trim());
+  const colorWords = /* @__PURE__ */ new Set([
+    "aqua",
+    "beige",
+    "black",
+    "blue",
+    "bronze",
+    "brown",
+    "burgundy",
+    "camel",
+    "charcoal",
+    "clay",
+    "clear",
+    "cobalt",
+    "coral",
+    "cream",
+    "cyan",
+    "gold",
+    "gray",
+    "grey",
+    "green",
+    "ivory",
+    "khaki",
+    "lavender",
+    "lilac",
+    "magenta",
+    "maroon",
+    "mint",
+    "navy",
+    "nude",
+    "olive",
+    "orange",
+    "peach",
+    "pink",
+    "purple",
+    "red",
+    "rose",
+    "rust",
+    "sage",
+    "salmon",
+    "silver",
+    "tan",
+    "teal",
+    "transparent",
+    "turquoise",
+    "violet",
+    "white",
+    "wine",
+    "yellow"
+  ]);
+  const isColorOption = (value) => {
+    const normalized = value.trim().toLowerCase();
+    if (/^#[0-9a-f]{3,8}$/i.test(normalized)) return true;
+    return normalized.split(/[\s/&-]+/).filter(Boolean).every((word) => colorWords.has(word) || word === "light" || word === "dark");
+  };
+  const isLegacyChoiceGroup = (label) => label.trim().toLowerCase() === "choose an option";
+  const normalizeGroups = (groups) => {
+    const normalized = groups.flatMap((group) => {
+      const sizeOptions2 = group.options.filter(isSizeOption);
+      const otherOptions2 = group.options.filter((option) => !isSizeOption(option));
+      if (isLegacyChoiceGroup(group.label) && sizeOptions2.length === group.options.length) {
+        return [{ ...group, label: "Size" }];
+      }
+      if (isLegacyChoiceGroup(group.label) && sizeOptions2.length > 0 && otherOptions2.length > 0 && otherOptions2.every(isColorOption)) {
+        return [
+          { label: "Color", options: otherOptions2 },
+          { label: "Size", options: sizeOptions2 }
+        ];
+      }
+      return [group];
+    });
+    return normalized.sort((left, right) => Number(left.label.trim().toLowerCase() === "size") - Number(right.label.trim().toLowerCase() === "size"));
+  };
+  const validPreferences = Array.isArray(preferences) ? normalizeGroups(
+    preferences.map((group) => ({
+      label: typeof group?.label === "string" ? group.label.trim() : "",
+      options: Array.isArray(group?.options) ? group.options.filter((option) => typeof option === "string").map((option) => option.trim()).filter(Boolean) : []
+    })).filter((group) => group.label && group.options.length > 0)
+  ) : [];
+  if (validPreferences.length > 0) return validPreferences;
+  if (variants.length === 0) return [];
+  const sizeOptions = variants.filter(isSizeOption);
+  const otherOptions = variants.filter((option) => !isSizeOption(option));
+  if (sizeOptions.length === variants.length) return [{ label: "Size", options: sizeOptions }];
+  if (sizeOptions.length > 0 && otherOptions.every(isColorOption)) {
+    return normalizeGroups([
+      { label: "Color", options: otherOptions },
+      { label: "Size", options: sizeOptions }
+    ]);
+  }
+  return [{ label: "Choose an option", options: variants }];
+}
+function isReusableCatalogProduct(product) {
+  return product.category.trim().toLowerCase() !== "custom order";
+}
+function createTakeOrderRouter(database) {
   const router2 = Router2();
   const toNumber = (value) => value == null ? null : Number(value);
   function productResponse(product) {
+    const imageUrls = product.imageUrls?.length ? product.imageUrls : product.imageUrl ? [product.imageUrl] : [];
     return {
       ...product,
+      sku: product.sku ?? null,
+      description: product.description ?? null,
       price: Number(product.price),
+      compareAtPrice: toNumber(product.compareAtPrice),
       cost: toNumber(product.cost),
       variants: product.variants ?? [],
-      preferences: preferencesForProduct(product.preferences, product.variants ?? [])
+      preferences: preferencesForProduct(product.preferences, product.variants ?? []),
+      customFields: product.customFields ?? [],
+      imageUrl: product.imageUrl ?? null,
+      imageUrls
     };
-  }
-  function preferencesForProduct(preferences, variants = []) {
-    const validPreferences = Array.isArray(preferences) ? preferences.map((group) => ({
-      label: typeof group?.label === "string" ? group.label.trim() : "",
-      options: Array.isArray(group?.options) ? group.options.filter((option) => typeof option === "string").map((option) => option.trim()).filter(Boolean) : []
-    })).filter((group) => group.label && group.options.length > 0) : [];
-    return validPreferences.length > 0 ? validPreferences : variants.length > 0 ? [{ label: "Choose an option", options: variants }] : [];
   }
   function orderResponse(order, items = []) {
     return {
@@ -16026,7 +16196,8 @@ function createDukaRouter(database) {
       items: items.length > 0 ? items : [{
         productId: order.productId,
         productName: order.productName,
-        amount: Number(order.amount)
+        amount: Number(order.amount),
+        quantity: 1
       }]
     };
   }
@@ -16043,7 +16214,8 @@ function createDukaRouter(database) {
     return storedItems.map((item) => ({
       productId: item.productId,
       productName: item.productName,
-      amount: Number(item.amount)
+      amount: Number(item.amount),
+      quantity: item.quantity
     }));
   }
   async function sellerItemsForOrders(orders) {
@@ -16055,7 +16227,8 @@ function createDukaRouter(database) {
       current.push({
         productId: item.productId,
         productName: item.productName,
-        amount: Number(item.amount)
+        amount: Number(item.amount),
+        quantity: item.quantity ?? 1
       });
       byOrder.set(item.orderId, current);
     }
@@ -16066,7 +16239,7 @@ function createDukaRouter(database) {
       token: order.token,
       productName: order.productName,
       amount: Number(order.amount),
-      subtotal: items.reduce((sum, item) => sum + item.amount, 0),
+      subtotal: items.reduce((sum, item) => sum + item.amount * item.quantity, 0),
       deliveryFee: toNumber(order.deliveryFee) ?? 0,
       deliveryMethod: order.deliveryMethod ?? null,
       depositAmount: toNumber(order.depositAmount),
@@ -16084,22 +16257,41 @@ function createDukaRouter(database) {
         productId: order.productId,
         productName: order.productName,
         amount: Number(order.amount),
+        quantity: 1,
+        source: product?.category === "Custom order" ? "custom" : "catalog",
         variants: product?.variants ?? [],
         preferences: preferencesForProduct(product?.preferences, product?.variants ?? []),
-        source: product?.category === "Custom order" ? "custom" : "catalog"
+        sku: product?.sku ?? null,
+        description: product?.description ?? null,
+        compareAtPrice: toNumber(product?.compareAtPrice ?? null),
+        imageUrls: product?.imageUrls?.length ? product.imageUrls : product?.imageUrl ? [product.imageUrl] : [],
+        stock: product?.stock ?? 0,
+        available: product?.category !== "Custom order" && (product?.stock ?? 0) > 0
       }];
     }
     const productIds = [...new Set(storedItems.map((item) => item.productId))];
     const products = await database.select().from(productsTable).where(inArray(productsTable.id, productIds));
     const productsById = new Map(products.map((product) => [product.id, product]));
-    return storedItems.map((item) => ({
-      productId: item.productId,
-      productName: item.productName,
-      amount: Number(item.amount),
-      variants: productsById.get(item.productId)?.variants ?? [],
-      preferences: preferencesForProduct(productsById.get(item.productId)?.preferences, productsById.get(item.productId)?.variants ?? []),
-      source: productsById.get(item.productId)?.category === "Custom order" ? "custom" : "catalog"
-    }));
+    return storedItems.map((item) => {
+      const product = productsById.get(item.productId);
+      const source = item.source === "custom" || product?.category === "Custom order" ? "custom" : "catalog";
+      const stock = product?.stock ?? 0;
+      return {
+        productId: item.productId,
+        productName: item.productName,
+        amount: Number(item.amount),
+        quantity: item.quantity ?? 1,
+        variants: product?.variants ?? [],
+        preferences: preferencesForProduct(product?.preferences, product?.variants ?? []),
+        source,
+        sku: item.sku ?? product?.sku ?? null,
+        description: item.description ?? product?.description ?? null,
+        compareAtPrice: toNumber(item.compareAtPrice ?? product?.compareAtPrice ?? null),
+        imageUrls: item.imageUrls?.length ? item.imageUrls : product?.imageUrls?.length ? product.imageUrls : product?.imageUrl ? [product.imageUrl] : [],
+        stock,
+        available: source === "catalog" && stock >= item.quantity
+      };
+    });
   }
   async function adjustStock(productId, direction) {
     const [product] = await database.select().from(productsTable).where(eq(productsTable.id, productId));
@@ -16107,13 +16299,13 @@ function createDukaRouter(database) {
     await database.update(productsTable).set({ stock: Math.max(0, product.stock + direction) }).where(eq(productsTable.id, productId));
   }
   async function adjustOrderStock(order, direction) {
-    const items = await database.select({ productId: orderItemsTable.productId }).from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+    const items = await database.select({ productId: orderItemsTable.productId, quantity: orderItemsTable.quantity }).from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
     if (items.length === 0) {
       await adjustStock(order.productId, direction);
       return;
     }
     for (const item of items) {
-      await adjustStock(item.productId, direction);
+      await adjustStock(item.productId, direction * item.quantity);
     }
   }
   const isSaleStatus = (status) => status === "paid" || status === "deposit_paid";
@@ -16121,16 +16313,19 @@ function createDukaRouter(database) {
     if (existing.productCost !== null || isSaleStatus(existing.status) || !isSaleStatus(nextStatus)) {
       return void 0;
     }
-    const items = await database.select({ productId: orderItemsTable.productId }).from(orderItemsTable).where(eq(orderItemsTable.orderId, existing.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
-    const productIds = items.length > 0 ? items.map((item) => item.productId) : [existing.productId];
+    const itemRows = await database.select({ productId: orderItemsTable.productId, quantity: orderItemsTable.quantity }).from(orderItemsTable).where(eq(orderItemsTable.orderId, existing.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+    const productIds = itemRows.length > 0 ? itemRows.map((item) => item.productId) : [existing.productId];
     const products = await database.select({ id: productsTable.id, cost: productsTable.cost }).from(productsTable).where(inArray(productsTable.id, [...new Set(productIds)]));
-    const costs = productIds.map((productId) => products.find((product) => product.id === productId)?.cost ?? null);
+    const costs = itemRows.length > 0 ? itemRows.map((item) => {
+      const cost = products.find((product) => product.id === item.productId)?.cost;
+      return cost == null ? null : Number(cost) * (item.quantity ?? 1);
+    }) : [products.find((product) => product.id === existing.productId)?.cost == null ? null : Number(products.find((product) => product.id === existing.productId).cost)];
     if (costs.some((cost) => cost === null)) return null;
-    return costs.reduce((total, cost) => total + Number(cost), 0).toFixed(2);
+    return costs.reduce((total, cost) => total + (cost == null ? 0 : Number(cost)), 0).toFixed(2);
   }
   router2.get("/products", async (_req, res) => {
     const products = await database.select().from(productsTable).orderBy(productsTable.id);
-    res.json(ListProductsResponse.parse(products.map(productResponse)));
+    res.json(ListProductsResponse.parse(products.filter(isReusableCatalogProduct).map(productResponse)));
   });
   router2.post("/products", async (req, res) => {
     const parsed = CreateProductBody.safeParse(req.body);
@@ -16140,10 +16335,16 @@ function createDukaRouter(database) {
     }
     const [product] = await database.insert(productsTable).values({
       ...parsed.data,
+      sku: parsed.data.sku?.trim() || null,
+      description: parsed.data.description?.trim() || null,
       price: parsed.data.price.toFixed(2),
+      compareAtPrice: parsed.data.compareAtPrice == null ? null : parsed.data.compareAtPrice.toFixed(2),
       cost: parsed.data.cost == null ? null : parsed.data.cost.toFixed(2),
       variants: parsed.data.variants ?? [],
       preferences: parsed.data.preferences ?? [],
+      customFields: parsed.data.customFields ?? [],
+      imageUrl: parsed.data.imageUrl ?? null,
+      imageUrls: parsed.data.imageUrls ?? [],
       accent: parsed.data.accent ?? "#0F6E6B"
     }).returning();
     res.status(201).json(CreateProductResponse.parse(productResponse(product)));
@@ -16162,7 +16363,10 @@ function createDukaRouter(database) {
     const update = {};
     if (parsed.data.name !== void 0) update.name = parsed.data.name;
     if (parsed.data.category !== void 0) update.category = parsed.data.category;
+    if (parsed.data.sku !== void 0) update.sku = parsed.data.sku?.trim() || null;
+    if (parsed.data.description !== void 0) update.description = parsed.data.description?.trim() || null;
     if (parsed.data.price !== void 0) update.price = parsed.data.price.toFixed(2);
+    if (parsed.data.compareAtPrice !== void 0) update.compareAtPrice = parsed.data.compareAtPrice == null ? null : parsed.data.compareAtPrice.toFixed(2);
     if (parsed.data.cost !== void 0) update.cost = parsed.data.cost == null ? null : parsed.data.cost.toFixed(2);
     if (parsed.data.stock !== void 0) update.stock = parsed.data.stock;
     if (parsed.data.variants !== void 0) {
@@ -16173,6 +16377,9 @@ function createDukaRouter(database) {
       update.preferences = parsed.data.preferences;
       update.variants = parsed.data.preferences.flatMap((group) => group.options);
     }
+    if (parsed.data.customFields !== void 0) update.customFields = parsed.data.customFields;
+    if (parsed.data.imageUrl !== void 0) update.imageUrl = parsed.data.imageUrl;
+    if (parsed.data.imageUrls !== void 0) update.imageUrls = parsed.data.imageUrls;
     if (parsed.data.accent !== void 0) update.accent = parsed.data.accent;
     const [product] = await database.update(productsTable).set(update).where(eq(productsTable.id, params.data.id)).returning();
     if (!product) {
@@ -16261,7 +16468,7 @@ function createDukaRouter(database) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const requestedItems = parsed.data.items?.length ? parsed.data.items : parsed.data.productId != null && parsed.data.amount != null ? [{ productId: parsed.data.productId, amount: parsed.data.amount }] : null;
+    const requestedItems = (parsed.data.items?.length ? parsed.data.items : parsed.data.productId != null && parsed.data.amount != null ? [{ productId: parsed.data.productId, amount: parsed.data.amount, quantity: 1 }] : null)?.map((item) => ({ ...item, quantity: item.quantity ?? 1 }));
     if (!requestedItems?.length) {
       res.status(400).json({ error: "At least one order item is required" });
       return;
@@ -16274,7 +16481,12 @@ function createDukaRouter(database) {
       res.status(404).json({ error: "Product not found" });
       return;
     }
-    const totalAmount = requestedItems.reduce((total, item) => total + item.amount, 0);
+    const invalidQuantity = requestedItems.find((item) => !Number.isInteger(item.quantity) || item.quantity < 1);
+    if (invalidQuantity) {
+      res.status(400).json({ error: "Each order item quantity must be a whole number greater than zero" });
+      return;
+    }
+    const totalAmount = requestedItems.reduce((total, item) => total + item.amount * item.quantity, 0);
     if (parsed.data.depositAmount != null && parsed.data.depositAmount > totalAmount) {
       res.status(400).json({ error: "Deposit cannot exceed the order total" });
       return;
@@ -16298,7 +16510,13 @@ function createDukaRouter(database) {
         orderId: order.id,
         productId: item.productId,
         productName: productsById.get(item.productId).name,
+        source: productsById.get(item.productId).category.trim().toLowerCase() === "custom order" ? "custom" : "catalog",
+        sku: productsById.get(item.productId).sku ?? null,
+        description: productsById.get(item.productId).description ?? null,
+        compareAtPrice: productsById.get(item.productId).compareAtPrice,
+        imageUrls: productsById.get(item.productId).imageUrls?.length ? productsById.get(item.productId).imageUrls : productsById.get(item.productId).imageUrl ? [productsById.get(item.productId).imageUrl] : [],
         amount: item.amount.toFixed(2),
+        quantity: item.quantity,
         position
       }))
     );
@@ -16383,14 +16601,31 @@ function createDukaRouter(database) {
       res.status(400).json({ error: "A delivery address is required when delivery is selected" });
       return;
     }
-    const deliveryFee = Number(existing.deliveryFee ?? 0);
-    const baseAmount = Number(existing.amount) - (existing.deliveryMethod === "delivery" ? deliveryFee : 0);
-    const finalAmount = baseAmount + (deliveryMethod === "delivery" ? deliveryFee : 0);
     const nextStatus = shouldReserve ? "reserved" : existing.paymentMode === "deposit" ? "deposit_paid" : "paid";
     const saleProductCost = await productCostForSale(existing, nextStatus);
     const itemDetails = parsed.data.itemDetails ?? [];
     const itemDetailsByIndex = new Map(itemDetails.map((detail) => [detail.itemIndex, detail]));
     const storedItems = await database.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, existing.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+    const productIds = [...new Set(storedItems.map((item) => item.productId))];
+    const products = productIds.length ? await database.select().from(productsTable).where(inArray(productsTable.id, productIds)) : [];
+    const productsById = new Map(products.map((product) => [product.id, product]));
+    const requestedQuantities = storedItems.map((item, index) => itemDetailsByIndex.get(index)?.quantity ?? item.quantity ?? 1);
+    if (requestedQuantities.some((quantity) => !Number.isInteger(quantity) || quantity < 1)) {
+      res.status(400).json({ error: "Each item quantity must be a whole number greater than zero" });
+      return;
+    }
+    for (const [index, item] of storedItems.entries()) {
+      const product = productsById.get(item.productId);
+      if (!product || product.category.trim().toLowerCase() === "custom order") continue;
+      const availableStock = product.stock + (isSaleStatus(existing.status) ? item.quantity : 0);
+      if (requestedQuantities[index] > availableStock) {
+        res.status(400).json({ error: `${item.productName} does not have enough stock for that quantity` });
+        return;
+      }
+    }
+    const deliveryFee = Number(existing.deliveryFee ?? 0);
+    const baseAmount = storedItems.length ? storedItems.reduce((total, item, index) => total + Number(item.amount) * requestedQuantities[index], 0) : Number(existing.amount) - (existing.deliveryMethod === "delivery" ? deliveryFee : 0);
+    const finalAmount = baseAmount + (deliveryMethod === "delivery" ? deliveryFee : 0);
     const combinedBuyerDetails = itemDetails.filter((detail) => detail.details?.trim() || detail.variant?.trim()).map((detail) => {
       const parts = [detail.variant?.trim(), detail.details?.trim()].filter(Boolean);
       return `Item ${detail.itemIndex + 1}: ${parts.join(" \xB7 ")}`;
@@ -16410,15 +16645,26 @@ function createDukaRouter(database) {
     }).where(eq(ordersTable.id, existing.id)).returning();
     await Promise.all(storedItems.map((item, index) => {
       const detail = itemDetailsByIndex.get(index);
-      if (!detail) return Promise.resolve();
+      if (!detail && requestedQuantities[index] === item.quantity) return Promise.resolve();
       return database.update(orderItemsTable).set({
-        buyerVariant: detail.variant?.trim() || null,
-        buyerDetails: detail.details?.trim() || null,
-        referenceImage: detail.referenceImage?.trim() || null
+        quantity: requestedQuantities[index],
+        ...detail ? {
+          buyerVariant: detail.variant?.trim() || null,
+          buyerDetails: detail.details?.trim() || null,
+          referenceImage: detail.referenceImage?.trim() || null
+        } : {}
       }).where(eq(orderItemsTable.id, item.id));
     }));
-    if (nextStatus === "paid" && existing.status !== "paid") await adjustOrderStock(existing, -1);
-    res.json(SubmitPublicOrderResponse.parse(orderResponse(order)));
+    if (nextStatus === "paid" && !isSaleStatus(existing.status)) {
+      await adjustOrderStock(order, -1);
+    } else if (nextStatus === "paid" && isSaleStatus(existing.status)) {
+      await Promise.all(storedItems.map((item, index) => {
+        const delta = item.quantity - requestedQuantities[index];
+        return delta ? adjustStock(item.productId, delta) : Promise.resolve();
+      }));
+    }
+    const items = await sellerItemsForOrder(order);
+    res.json(SubmitPublicOrderResponse.parse(orderResponse(order, items)));
   });
   router2.get("/dashboard/summary", async (req, res) => {
     const parseDateQuery = (value) => {
@@ -16445,7 +16691,7 @@ function createDukaRouter(database) {
       database.select().from(expensesTable)
     ]);
     res.json(GetDashboardSummaryResponse.parse(
-      calculateDashboardSummary(products, orders, operatingExpenseRows, /* @__PURE__ */ new Date(), range)
+      calculateDashboardSummary(products.filter(isReusableCatalogProduct), orders, operatingExpenseRows, /* @__PURE__ */ new Date(), range)
     ));
   });
   return router2;
@@ -16455,7 +16701,7 @@ function createDukaRouter(database) {
 function createRouter(database) {
   const router2 = Router3();
   router2.use(health_default);
-  router2.use(createDukaRouter(database));
+  router2.use(createTakeOrderRouter(database));
   return router2;
 }
 
@@ -16506,7 +16752,28 @@ function createApp(database) {
   return app;
 }
 
-// src/routes/duka.test.ts
+// src/routes/take-order.test.ts
+test("normalizes mixed legacy color and size variants into stacked buyer groups", () => {
+  assert2.deepEqual(
+    preferencesForProduct([], ["Black", "White", "M", "L"]),
+    [
+      { label: "Color", options: ["Black", "White"] },
+      { label: "Size", options: ["M", "L"] }
+    ]
+  );
+  assert2.deepEqual(
+    preferencesForProduct([{ label: "Choose an option", options: ["Navy", "Medium"] }], []),
+    [
+      { label: "Color", options: ["Navy"] },
+      { label: "Size", options: ["Medium"] }
+    ]
+  );
+});
+test("keeps one-off custom order products out of reusable catalog results", () => {
+  assert2.equal(isReusableCatalogProduct({ category: "Apparel" }), true);
+  assert2.equal(isReusableCatalogProduct({ category: "Custom order" }), false);
+  assert2.equal(isReusableCatalogProduct({ category: " custom ORDER " }), false);
+});
 function createSeededDatabase(seed) {
   return {
     select() {
@@ -16516,6 +16783,20 @@ function createSeededDatabase(seed) {
           if (table === ordersTable) return Promise.resolve(seed.orders);
           if (table === expensesTable) return Promise.resolve(seed.expenses);
           throw new Error("Unexpected table requested by dashboard route");
+        }
+      };
+    }
+  };
+}
+function createProductListDatabase(products) {
+  return {
+    select() {
+      return {
+        from(table) {
+          if (table !== productsTable) throw new Error("Unexpected table requested by product route");
+          return {
+            orderBy: () => Promise.resolve(products)
+          };
         }
       };
     }
@@ -16578,6 +16859,23 @@ async function requestSummary(seed, query = "") {
     );
   }
 }
+async function requestProducts(products) {
+  const server = createServer(createApp(createProductListDatabase(products)));
+  await new Promise((resolve) => server.listen(0, resolve));
+  try {
+    const address = server.address();
+    assert2(address && typeof address !== "string");
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/products`);
+    return {
+      status: response.status,
+      body: await response.json()
+    };
+  } finally {
+    await new Promise(
+      (resolve, reject) => server.close((error40) => error40 ? reject(error40) : resolve())
+    );
+  }
+}
 test.after(async () => {
   await pool.end();
 });
@@ -16611,6 +16909,8 @@ test("GET /dashboard/summary adapts seeded database records into the response co
         stock: 2,
         variants: ["S", "M"],
         preferences: [],
+        customFields: [],
+        imageUrl: null,
         accent: "#0F6E6B"
       }
     ],
@@ -16684,6 +16984,146 @@ test("GET /dashboard/summary adapts seeded database records into the response co
     }
   ]);
 });
+test("GET /products keeps reusable catalog items separate from one-off items", async () => {
+  const response = await requestProducts([
+    {
+      id: 1,
+      name: "Reusable linen set",
+      category: "Apparel",
+      price: "100.00",
+      cost: "20.00",
+      stock: 2,
+      variants: [],
+      preferences: [],
+      customFields: [],
+      imageUrl: null,
+      accent: "#0F6E6B"
+    },
+    {
+      id: 2,
+      name: "Custom sleeve alteration",
+      category: "Custom order",
+      price: "35.00",
+      cost: null,
+      stock: 0,
+      variants: ["One-off"],
+      preferences: [{ label: "Finish", options: ["Short sleeve"] }],
+      customFields: [],
+      imageUrl: null,
+      accent: "#2F5BFF"
+    }
+  ]);
+  assert2.equal(response.status, 200);
+  assert2.deepEqual(
+    response.body.map(({ id, name }) => ({ id, name })),
+    [{ id: 1, name: "Reusable linen set" }]
+  );
+});
+test("dashboard keeps one-off sales in totals without treating them as catalog inventory", async () => {
+  const response = await requestSummary({
+    products: [
+      {
+        id: 1,
+        name: "Reusable linen set",
+        category: "Apparel",
+        price: "100.00",
+        cost: "20.00",
+        stock: 2,
+        variants: [],
+        preferences: [],
+        customFields: [],
+        imageUrl: null,
+        accent: "#0F6E6B"
+      },
+      {
+        id: 2,
+        name: "Custom sleeve alteration",
+        category: "Custom order",
+        price: "35.00",
+        cost: null,
+        stock: 0,
+        variants: [],
+        preferences: [],
+        customFields: [],
+        imageUrl: null,
+        accent: "#2F5BFF"
+      }
+    ],
+    orders: [
+      {
+        id: 1,
+        token: "catalog-sale",
+        productId: 1,
+        productName: "Reusable linen set",
+        customerName: "Ama",
+        customerPhone: null,
+        channel: "whatsapp",
+        amount: "100.00",
+        deliveryFee: "0.00",
+        deliveryMethod: null,
+        deliveryAddress: null,
+        productCost: "20.00",
+        depositAmount: null,
+        paymentMode: "full",
+        status: "paid",
+        fulfillment: "pending",
+        createdAt: /* @__PURE__ */ new Date("2026-09-13T12:00:00.000Z"),
+        linkOpens: 1,
+        shares: null,
+        likes: null,
+        engagementSource: null,
+        referenceImage: null,
+        buyerDetails: null
+      },
+      {
+        id: 2,
+        token: "custom-sale",
+        productId: 2,
+        productName: "Custom sleeve alteration",
+        customerName: "Kojo",
+        customerPhone: null,
+        channel: "instagram",
+        amount: "35.00",
+        deliveryFee: "0.00",
+        deliveryMethod: null,
+        deliveryAddress: null,
+        productCost: null,
+        depositAmount: null,
+        paymentMode: "full",
+        status: "paid",
+        fulfillment: "pending",
+        createdAt: /* @__PURE__ */ new Date("2026-09-13T12:00:00.000Z"),
+        linkOpens: 1,
+        shares: null,
+        likes: null,
+        engagementSource: null,
+        referenceImage: null,
+        buyerDetails: null
+      }
+    ],
+    expenses: []
+  });
+  assert2.equal(response.status, 200);
+  const summary = GetDashboardSummaryResponse.parse(response.body);
+  assert2.equal(summary.revenue, 135);
+  assert2.equal(summary.orders, 2);
+  assert2.equal(summary.productCosts, 20);
+  assert2.equal(summary.expenses, 20);
+  assert2.deepEqual(summary.productPerformance, [
+    {
+      name: "Reusable linen set",
+      category: "Apparel",
+      revenue: 100,
+      orders: 1,
+      stock: 2,
+      margin: 80,
+      costTracked: true,
+      marginStatus: "tracked",
+      snapshotOrders: 1,
+      legacyOrders: 0
+    }
+  ]);
+});
 test("GET /dashboard/summary scopes engagement totals to a custom range", async () => {
   const response = await requestSummary(
     {
@@ -16697,6 +17137,8 @@ test("GET /dashboard/summary scopes engagement totals to a custom range", async 
           stock: 10,
           variants: [],
           preferences: [],
+          customFields: [],
+          imageUrl: null,
           accent: "#0F6E6B"
         }
       ],
@@ -16773,6 +17215,8 @@ test("GET /dashboard/summary identifies a legacy sale with no captured cost", as
         stock: 2,
         variants: [],
         preferences: [],
+        customFields: [],
+        imageUrl: null,
         accent: "#0F6E6B"
       }
     ],
@@ -17009,6 +17453,93 @@ test("multi-item order links preserve item prices and compound the checkout tota
     const [secondAfterCheckout] = await database.select({ stock: productsTable.stock }).from(productsTable).where(eq2(productsTable.id, secondProduct.id));
     assert2.equal(firstAfterCheckout.stock, 9);
     assert2.equal(secondAfterCheckout.stock, 9);
+  });
+});
+test("buyer links expose product metadata and persist buyer quantity through checkout", async () => {
+  await withDatabaseTransaction(async (database, baseUrl) => {
+    const [product] = await database.insert(productsTable).values({
+      name: "Gallery product fixture",
+      category: "Apparel",
+      sku: "GALLERY-001",
+      description: "A buyer-facing product description.",
+      price: "40.00",
+      compareAtPrice: "60.00",
+      cost: "15.00",
+      stock: 5,
+      variants: ["Small", "Large"],
+      preferences: [{ label: "Size", options: ["Small", "Large"] }],
+      customFields: [],
+      imageUrl: "https://example.com/gallery-primary.jpg",
+      imageUrls: [
+        "https://example.com/gallery-primary.jpg",
+        "https://example.com/gallery-detail.jpg"
+      ],
+      accent: "#0F6E6B"
+    }).returning();
+    const created = await requestJson(baseUrl, "/api/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        productId: product.id,
+        amount: 40,
+        paymentMode: "full",
+        channel: "whatsapp"
+      })
+    });
+    assert2.equal(created.status, 201);
+    const publicOrder = await requestJson(baseUrl, `/api/public/orders/${created.body.token}`);
+    assert2.equal(publicOrder.status, 200);
+    assert2.deepEqual(publicOrder.body.items[0], {
+      productId: product.id,
+      productName: "Gallery product fixture",
+      amount: 40,
+      quantity: 1,
+      variants: ["Small", "Large"],
+      preferences: [{ label: "Size", options: ["Small", "Large"] }],
+      source: "catalog",
+      sku: "GALLERY-001",
+      description: "A buyer-facing product description.",
+      compareAtPrice: 60,
+      imageUrls: [
+        "https://example.com/gallery-primary.jpg",
+        "https://example.com/gallery-detail.jpg"
+      ],
+      stock: 5,
+      available: true
+    });
+    assert2.equal(publicOrder.body.subtotal, 40);
+    const tooMany = await requestJson(baseUrl, `/api/public/orders/${created.body.token}`, {
+      method: "POST",
+      body: JSON.stringify({
+        customerName: "Ama",
+        customerPhone: "0241234567",
+        itemDetails: [{ itemIndex: 0, quantity: 6 }],
+        paymentAction: "pay"
+      })
+    });
+    assert2.equal(tooMany.status, 400);
+    const checkedOut = await requestJson(baseUrl, `/api/public/orders/${created.body.token}`, {
+      method: "POST",
+      body: JSON.stringify({
+        customerName: "Ama",
+        customerPhone: "0241234567",
+        itemDetails: [{ itemIndex: 0, quantity: 3, variant: "Large" }],
+        paymentAction: "pay"
+      })
+    });
+    assert2.equal(checkedOut.status, 200);
+    assert2.equal(checkedOut.body.amount, 120);
+    assert2.equal(checkedOut.body.items[0].quantity, 3);
+    const sellerOrder = await requestJson(baseUrl, `/api/orders/${created.body.id}`);
+    assert2.equal(sellerOrder.status, 200);
+    assert2.equal(sellerOrder.body.amount, 120);
+    assert2.deepEqual(sellerOrder.body.items, [{
+      productId: product.id,
+      productName: "Gallery product fixture",
+      amount: 40,
+      quantity: 3
+    }]);
+    const [updatedProduct] = await database.select({ stock: productsTable.stock }).from(productsTable).where(eq2(productsTable.id, product.id));
+    assert2.equal(updatedProduct.stock, 2);
   });
 });
 test("buyer delivery choices use the link snapshot, require an address, and do not double-charge", async () => {
