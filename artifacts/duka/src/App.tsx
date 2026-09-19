@@ -2949,7 +2949,7 @@ function OrderDetail() {
   const { id = '' } = useParams<{ id: string }>();
   const orderId = Number(id);
   const validOrderId = Number.isInteger(orderId) && orderId > 0;
-  const query = useGetOrder(orderId, { query: { enabled: validOrderId, refetchOnMount: 'always' } });
+  const query = useGetOrder(orderId, { query: { queryKey: getGetOrderQueryKey(orderId), enabled: validOrderId, refetchOnMount: 'always' } });
   const update = useUpdateOrder();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -2998,6 +2998,9 @@ function OrderDetail() {
     window.open(`https://wa.me/${phone.replace(/\+/g, '')}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
   };
 
+  if (!validOrderId) {
+    return <Shell><Link href="/orders" className="order-detail-back" data-testid="link-back-orders"><ArrowLeft size={15} />Back to orders</Link><EmptyState card icon={PackageSearch} title="Order not found" description="That order number is not valid." action={<Button variant="outline" onClick={() => setLocation('/orders')} data-testid="button-return-orders">View all orders</Button>} /></Shell>;
+  }
   if (query.isLoading) {
     return <Shell><div className="order-detail-loading" aria-label="Loading order"><Skeleton className="h-4 w-24" /><Skeleton className="mt-7 h-12 w-64" /><div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]"><Skeleton className="h-[520px] w-full" /><Skeleton className="h-[420px] w-full" /></div></div></Shell>;
   }
