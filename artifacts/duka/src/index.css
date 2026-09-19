@@ -2878,7 +2878,8 @@ button[data-testid^="button-filter-"]:focus-visible {
 }
 
 /* Keep order filters readable by separating payment from fulfilment. */
-.orders-filter-groups { display: grid; gap: .55rem; min-width: 0; }
+.orders-filter-groups { display: flex; align-items: center; gap: 1.25rem; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.orders-filter-groups::-webkit-scrollbar { display: none; }
 .orders-filter-group { display: flex; align-items: center; gap: .55rem; min-width: 0; }
 .orders-filter-group > span { flex: 0 0 4.4rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .56rem; letter-spacing: .08em; text-transform: uppercase; }
 .orders-filter-group .orders-filter-scroll { flex: 1 1 auto; }
@@ -2901,8 +2902,6 @@ button[data-testid^="button-filter-"]:focus-visible {
 .reports-table td:nth-child(7) { display: none; }
 
 @media (max-width: 760px) {
-  .orders-filter-group { align-items: flex-start; flex-direction: column; gap: .3rem; }
-  .orders-filter-group > span { flex-basis: auto; }
-  .orders-filter-group .orders-filter-scroll { width: 100%; }
+  .orders-filter-groups { width: 100%; }
   .catalog-grid { grid-template-columns: minmax(0, 1fr); }
 }
