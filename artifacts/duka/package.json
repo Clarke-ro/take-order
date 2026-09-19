@@ -7,7 +7,7 @@
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "PORT=\"${PORT:-23398}\" BASE_PATH=\"${BASE_PATH:-/}\" vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
-    "test": "tsx --test src/lib/analytics-state.test.tsx",
+    "test": "tsx --test src/lib/analytics-state.test.tsx src/lib/currency.test.ts",
     "test:browser": "tsx src/lib/dashboard-picker.browser.test.ts",
     "test:browser:production": "pnpm build && DASHBOARD_PRODUCTION_TEST=1 tsx src/lib/dashboard-picker.browser.test.ts",
     "test:browser:channel": "tsx src/lib/channel-conversion.browser.test.ts",
