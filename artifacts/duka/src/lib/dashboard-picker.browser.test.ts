@@ -205,6 +205,7 @@ async function main() {
     await app.cdp.command("Runtime.enable");
     await app.cdp.command("Page.addScriptToEvaluateOnNewDocument", {
       source: `
+        localStorage.setItem("duka-mock-authenticated", "true");
         localStorage.setItem("duka-onboarding-complete", "true");
         localStorage.setItem("duka-onboarding-profile", JSON.stringify({
           sellerName: "Browser Test Seller",
@@ -271,6 +272,7 @@ async function blockedStorageMain() {
     await app.cdp.command("Runtime.enable");
     await app.cdp.command("Page.addScriptToEvaluateOnNewDocument", {
       source: `
+        localStorage.setItem("duka-mock-authenticated", "true");
         localStorage.setItem("duka-onboarding-complete", "true");
         localStorage.setItem("duka-onboarding-profile", JSON.stringify({
           sellerName: "Privacy Test Seller",
@@ -339,6 +341,7 @@ async function productionMain() {
     await app.cdp.command("Runtime.enable");
     await app.cdp.command("Page.addScriptToEvaluateOnNewDocument", {
       source: `
+        localStorage.setItem("duka-mock-authenticated", "true");
         localStorage.setItem("duka-onboarding-complete", "true");
         localStorage.setItem("duka-onboarding-profile", JSON.stringify({
           sellerName: "Production Test Seller",

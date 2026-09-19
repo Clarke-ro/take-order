@@ -717,7 +717,7 @@ function Auth() {
   </div>;
 }
 
-function HomeRoute() {
+function SellerRoute({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -730,7 +730,15 @@ function HomeRoute() {
     else setReady(true);
   }, [setLocation]);
   if (!ready) return <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6"><div className="w-full max-w-[320px]"><Skeleton className="mx-auto h-10 w-10 rounded-[14px]" /><Skeleton className="mx-auto mt-6 h-8 w-48" /><Skeleton className="mx-auto mt-3 h-3 w-60" /></div></div>;
-  return <Overview />;
+  return <>{children}</>;
+}
+
+function ProtectedRoute({ page: Page }: { page: React.ComponentType }) {
+  return <SellerRoute><Page /></SellerRoute>;
+}
+
+function HomeRoute() {
+  return <ProtectedRoute page={Overview} />;
 }
 
 export function Overview() {
@@ -1459,7 +1467,11 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
       setError('Add an item name and a valid selling price.');
       return;
     }
-    const onSuccess = () => { queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() }); onClose(); };
+    const onSuccess = () => {
+      void queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+      invalidateDashboardSummary(queryClient);
+      onClose();
+    };
     const onError = (mutationError: unknown) => setError(mutationError instanceof Error && mutationError.message ? mutationError.message : 'This item could not be saved. Try again.');
     product ? update.mutate({ id: product.id, data }, { onSuccess, onError }) : create.mutate({ data }, { onSuccess, onError });
   };
@@ -1588,7 +1600,10 @@ function Catalog() {
     if (window.confirm(`Delete ${product.name} from your catalog?`)) {
       setActionError('');
       deleteProduct.mutate({ id: product.id }, {
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() }),
+        onSuccess: () => {
+          void queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+          invalidateDashboardSummary(queryClient);
+        },
         onError: (error) => setActionError(error instanceof Error && error.message ? error.message : 'This item could not be deleted. Try again.'),
       });
     }
@@ -1870,7 +1885,8 @@ function TakeOrder() {
       };
       createProduct.mutate({ data }, {
         onSuccess: (newProduct) => {
-          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+          void queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+          invalidateDashboardSummary(queryClient);
           createLink(newProduct.id);
         },
       });
@@ -2934,7 +2950,7 @@ function OrderDetail() {
   </Shell>;
 }
 
-function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/auth" component={Auth} /><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog/new" component={CatalogEditorRoute} /><Route path="/catalog/edit/:id" component={CatalogEditorRoute} /><Route path="/catalog" component={Catalog} /><Route path="/orders/:id" component={OrderDetail} /><Route path="/orders" component={Orders} /><Route path="/reports/channel-conversion" component={ChannelConversionInsight} /><Route path="/reports" component={Reports} /><Route path="/clients" component={Clients} /><Route path="/expenses" component={Expenses} /><Route path="/take-order" component={MultiItemTakeOrderModern} /><Route path="/settings" component={SettingsPage} /><Route path="/connect" component={Connect} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
+function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/auth" component={Auth} /><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog/new" component={() => <ProtectedRoute page={CatalogEditorRoute} />} /><Route path="/catalog/edit/:id" component={() => <ProtectedRoute page={CatalogEditorRoute} />} /><Route path="/catalog" component={() => <ProtectedRoute page={Catalog} />} /><Route path="/orders/:id" component={() => <ProtectedRoute page={OrderDetail} />} /><Route path="/orders" component={() => <ProtectedRoute page={Orders} />} /><Route path="/reports/channel-conversion" component={() => <ProtectedRoute page={ChannelConversionInsight} />} /><Route path="/reports" component={() => <ProtectedRoute page={Reports} />} /><Route path="/clients" component={() => <ProtectedRoute page={Clients} />} /><Route path="/expenses" component={() => <ProtectedRoute page={Expenses} />} /><Route path="/take-order" component={() => <ProtectedRoute page={MultiItemTakeOrderModern} />} /><Route path="/settings" component={() => <ProtectedRoute page={SettingsPage} />} /><Route path="/connect" component={() => <ProtectedRoute page={Connect} />} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
 function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
 export default App;
 
