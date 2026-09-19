@@ -2,12 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { currencyForLocation } from './currency';
 
-test('uses the browser timezone when it identifies a supported location', () => {
-  const currency = currencyForLocation({ language: 'en-US', timeZone: 'Africa/Sao_Tome' });
+test('uses the locale region before the browser timezone', () => {
+  const currency = currencyForLocation({ language: 'en-GH', timeZone: 'Africa/Sao_Tome' });
 
-  assert.equal(currency.currency, 'STN');
-  assert.equal(currency.locale, 'pt-ST');
+  assert.equal(currency.currency, 'GHS');
+  assert.equal(currency.locale, 'en-GH');
   assert.ok(currency.symbol.length > 0);
+});
+
+test('uses the browser timezone when the locale has no region', () => {
+  assert.equal(currencyForLocation({ language: 'en', timeZone: 'Africa/Sao_Tome' }).currency, 'STN');
 });
 
 test('falls back to a locale region when the timezone is unavailable', () => {

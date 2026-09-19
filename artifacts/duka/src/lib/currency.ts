@@ -87,7 +87,7 @@ function currencySymbol(locale: string, currency: string): string {
 }
 
 export function currencyForLocation({ language, timeZone }: LocationHints = {}): CurrencyConfig {
-  const region = (timeZone && regionByTimeZone[timeZone]) || regionFromLanguage(language) || 'GH';
+  const region = regionFromLanguage(language) || (timeZone && regionByTimeZone[timeZone]) || 'GH';
   const selected = currencyByRegion[region] ?? currencyByRegion.GH;
   return {
     locale: selected.locale,
