@@ -7,4 +7,4 @@ Regenerate API specs and changed workspace package declarations before trusting 
 
 **Why:** The workspace can resolve checked-in dist declarations while source files contain newer fields, producing misleading missing-export and response-shape errors.
 
-**How to apply:** Run the relevant package build/codegen (including `tsc --build` for changed declaration packages), then run the root typecheck and affected artifact tests.
+**How to apply:** Run the relevant package build/codegen (including `tsc --build` for changed declaration packages), then run the root typecheck and affected artifact tests. Keep nullable fields explicitly represented in server defaults when generated response schemas require them.

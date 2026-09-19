@@ -310,6 +310,15 @@ export const PublicOrderStatus = {
   paid: 'paid',
 } as const;
 
+export type PublicOrderDeliveryDefault = typeof PublicOrderDeliveryDefault[keyof typeof PublicOrderDeliveryDefault];
+
+
+export const PublicOrderDeliveryDefault = {
+  pickup: 'pickup',
+  delivery: 'delivery',
+  both: 'both',
+} as const;
+
 export type PublicOrderItemSource = typeof PublicOrderItemSource[keyof typeof PublicOrderItemSource];
 
 
@@ -351,6 +360,13 @@ export interface PublicOrder {
   depositAmount?: number | null;
   paymentMode: PublicOrderPaymentMode;
   status: PublicOrderStatus;
+  businessName: string;
+  businessDescription: string;
+  /** @nullable */
+  logoDataUrl: string | null;
+  deliveryDefault: PublicOrderDeliveryDefault;
+  checkoutAskForDetails: boolean;
+  checkoutAllowReferenceImages: boolean;
   variants: string[];
   items: PublicOrderItem[];
 }
@@ -543,6 +559,54 @@ export interface ExpenseUpdate {
   /** @nullable */
   note?: string | null;
 }
+
+export type SellerSettingsPaymentMode = typeof SellerSettingsPaymentMode[keyof typeof SellerSettingsPaymentMode];
+
+
+export const SellerSettingsPaymentMode = {
+  full: 'full',
+  deposit: 'deposit',
+  reserve: 'reserve',
+} as const;
+
+export type SellerSettingsDeliveryDefault = typeof SellerSettingsDeliveryDefault[keyof typeof SellerSettingsDeliveryDefault];
+
+
+export const SellerSettingsDeliveryDefault = {
+  pickup: 'pickup',
+  delivery: 'delivery',
+  both: 'both',
+} as const;
+
+export interface SellerSettings {
+  sellerName: string;
+  businessName: string;
+  description: string;
+  /** @nullable */
+  logoDataUrl: string | null;
+  channels: string[];
+  paymentMode: SellerSettingsPaymentMode;
+  checkoutAskForDetails: boolean;
+  checkoutAllowReferenceImages: boolean;
+  deliveryDefault: SellerSettingsDeliveryDefault;
+  /** @minimum 0 */
+  deliveryFee: number;
+  customDomain: string;
+  seoTitle: string;
+  seoDescription: string;
+  trackingId: string;
+  organizationName: string;
+  organizationEmail: string;
+  organizationPhone: string;
+  organizationCountry: string;
+  organizationAddress: string;
+  orderUpdates: boolean;
+  stockAlerts: boolean;
+  compactTables: boolean;
+  connectedTools: string[];
+}
+
+export type SellerSettingsInput = SellerSettings;
 
 export type GetDashboardSummaryParams = {
 /**

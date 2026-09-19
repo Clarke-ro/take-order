@@ -8,7 +8,7 @@ var __export = (target, all) => {
 import assert2 from "node:assert/strict";
 import { createServer } from "node:http";
 import test from "node:test";
-import { eq as eq2 } from "drizzle-orm";
+import { eq as eq3 } from "drizzle-orm";
 
 // ../../lib/db/src/schema/index.ts
 var schema_exports = {};
@@ -18,9 +18,11 @@ __export(schema_exports, {
   insertOrderItemSchema: () => insertOrderItemSchema,
   insertOrderSchema: () => insertOrderSchema,
   insertProductSchema: () => insertProductSchema,
+  insertSellerSettingsSchema: () => insertSellerSettingsSchema,
   orderItemsTable: () => orderItemsTable,
   ordersTable: () => ordersTable,
-  productsTable: () => productsTable
+  productsTable: () => productsTable,
+  sellerSettingsTable: () => sellerSettingsTable
 });
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/classic/external.js
@@ -11497,6 +11499,15 @@ var expensesTable = pgTable4("expenses", {
 });
 var insertExpenseSchema = createInsertSchema(expensesTable).omit({ id: true, createdAt: true });
 
+// ../../lib/db/src/schema/seller-settings.ts
+import { jsonb as jsonb2, pgTable as pgTable5, serial as serial5, text as text5 } from "drizzle-orm/pg-core";
+var sellerSettingsTable = pgTable5("seller_settings", {
+  id: serial5("id").primaryKey(),
+  ownerUserId: text5("owner_user_id").notNull().unique(),
+  settings: jsonb2("settings").$type().notNull().default({})
+});
+var insertSellerSettingsSchema = createInsertSchema(sellerSettingsTable).omit({ id: true });
+
 // ../../lib/db/src/index.ts
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
@@ -15694,6 +15705,12 @@ var GetPublicOrderResponse = objectType({
   "depositAmount": numberType().nullish(),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
   "status": enumType(["reserved", "deposit_paid", "paid"]),
+  "businessName": stringType(),
+  "businessDescription": stringType(),
+  "logoDataUrl": stringType().nullable(),
+  "deliveryDefault": enumType(["pickup", "delivery", "both"]),
+  "checkoutAskForDetails": booleanType(),
+  "checkoutAllowReferenceImages": booleanType(),
   "variants": arrayType(stringType()),
   "items": arrayType(objectType({
     "productId": numberType().int(),
@@ -15869,6 +15886,84 @@ var DeleteExpenseParams = objectType({
   "id": coerce.number().int()
 });
 var DeleteExpenseResponse = voidType();
+var getSellerSettingsResponseDeliveryFeeMin = 0;
+var GetSellerSettingsResponse = objectType({
+  "sellerName": stringType(),
+  "businessName": stringType(),
+  "description": stringType(),
+  "logoDataUrl": stringType().nullable(),
+  "channels": arrayType(stringType()),
+  "paymentMode": enumType(["full", "deposit", "reserve"]),
+  "checkoutAskForDetails": booleanType(),
+  "checkoutAllowReferenceImages": booleanType(),
+  "deliveryDefault": enumType(["pickup", "delivery", "both"]),
+  "deliveryFee": numberType().min(getSellerSettingsResponseDeliveryFeeMin),
+  "customDomain": stringType(),
+  "seoTitle": stringType(),
+  "seoDescription": stringType(),
+  "trackingId": stringType(),
+  "organizationName": stringType(),
+  "organizationEmail": stringType(),
+  "organizationPhone": stringType(),
+  "organizationCountry": stringType(),
+  "organizationAddress": stringType(),
+  "orderUpdates": booleanType(),
+  "stockAlerts": booleanType(),
+  "compactTables": booleanType(),
+  "connectedTools": arrayType(stringType())
+});
+var updateSellerSettingsBodyOneDeliveryFeeMin = 0;
+var UpdateSellerSettingsBody = objectType({
+  "sellerName": stringType(),
+  "businessName": stringType(),
+  "description": stringType(),
+  "logoDataUrl": stringType().nullable(),
+  "channels": arrayType(stringType()),
+  "paymentMode": enumType(["full", "deposit", "reserve"]),
+  "checkoutAskForDetails": booleanType(),
+  "checkoutAllowReferenceImages": booleanType(),
+  "deliveryDefault": enumType(["pickup", "delivery", "both"]),
+  "deliveryFee": numberType().min(updateSellerSettingsBodyOneDeliveryFeeMin),
+  "customDomain": stringType(),
+  "seoTitle": stringType(),
+  "seoDescription": stringType(),
+  "trackingId": stringType(),
+  "organizationName": stringType(),
+  "organizationEmail": stringType(),
+  "organizationPhone": stringType(),
+  "organizationCountry": stringType(),
+  "organizationAddress": stringType(),
+  "orderUpdates": booleanType(),
+  "stockAlerts": booleanType(),
+  "compactTables": booleanType(),
+  "connectedTools": arrayType(stringType())
+});
+var updateSellerSettingsResponseDeliveryFeeMin = 0;
+var UpdateSellerSettingsResponse = objectType({
+  "sellerName": stringType(),
+  "businessName": stringType(),
+  "description": stringType(),
+  "logoDataUrl": stringType().nullable(),
+  "channels": arrayType(stringType()),
+  "paymentMode": enumType(["full", "deposit", "reserve"]),
+  "checkoutAskForDetails": booleanType(),
+  "checkoutAllowReferenceImages": booleanType(),
+  "deliveryDefault": enumType(["pickup", "delivery", "both"]),
+  "deliveryFee": numberType().min(updateSellerSettingsResponseDeliveryFeeMin),
+  "customDomain": stringType(),
+  "seoTitle": stringType(),
+  "seoDescription": stringType(),
+  "trackingId": stringType(),
+  "organizationName": stringType(),
+  "organizationEmail": stringType(),
+  "organizationPhone": stringType(),
+  "organizationCountry": stringType(),
+  "organizationAddress": stringType(),
+  "orderUpdates": booleanType(),
+  "stockAlerts": booleanType(),
+  "compactTables": booleanType(),
+  "connectedTools": arrayType(stringType())
+});
 
 // src/app.ts
 import express from "express";
@@ -15878,7 +15973,7 @@ import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 
 // src/routes/index.ts
-import { Router as Router3 } from "express";
+import { Router as Router4 } from "express";
 
 // src/routes/health.ts
 import { Router } from "express";
@@ -15890,8 +15985,8 @@ router.get("/healthz", (_req, res) => {
 var health_default = router;
 
 // src/routes/take-order.ts
-import { Router as Router2 } from "express";
-import { asc, desc, eq, inArray, and } from "drizzle-orm";
+import { Router as Router3 } from "express";
+import { asc, desc, eq as eq2, inArray, and } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 
 // src/lib/dashboard-analytics.ts
@@ -16072,6 +16167,65 @@ function calculateDashboardSummary(products, orders, operatingExpenseRows, now =
   };
 }
 
+// src/routes/settings.ts
+import { eq } from "drizzle-orm";
+import { Router as Router2 } from "express";
+var defaultSellerSettings = {
+  sellerName: "",
+  businessName: "",
+  description: "",
+  logoDataUrl: null,
+  channels: [],
+  paymentMode: "reserve",
+  checkoutAskForDetails: true,
+  checkoutAllowReferenceImages: true,
+  deliveryDefault: "both",
+  deliveryFee: 0,
+  customDomain: "",
+  seoTitle: "",
+  seoDescription: "",
+  trackingId: "",
+  organizationName: "",
+  organizationEmail: "",
+  organizationPhone: "",
+  organizationCountry: "gh",
+  organizationAddress: "",
+  orderUpdates: true,
+  stockAlerts: true,
+  compactTables: false,
+  connectedTools: []
+};
+async function readSellerSettings(database, ownerUserId) {
+  const [record2] = await database.select().from(sellerSettingsTable).where(eq(sellerSettingsTable.ownerUserId, ownerUserId));
+  return GetSellerSettingsResponse.parse({ ...defaultSellerSettings, ...record2?.settings ?? {} });
+}
+function createSettingsRouter(database, requireSellerAuth) {
+  const router2 = Router2();
+  const sellerId = (res) => {
+    const value = res.locals.userId;
+    if (typeof value !== "string") throw new Error("Authenticated seller identity is missing");
+    return value;
+  };
+  router2.get("/settings", requireSellerAuth, async (_req, res) => {
+    res.json(GetSellerSettingsResponse.parse(await readSellerSettings(database, sellerId(res))));
+  });
+  router2.put("/settings", requireSellerAuth, async (req, res) => {
+    const parsed = UpdateSellerSettingsBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const ownerUserId = sellerId(res);
+    const values = { ownerUserId, settings: parsed.data };
+    const [record2] = await database.insert(sellerSettingsTable).values(values).onConflictDoUpdate({
+      target: sellerSettingsTable.ownerUserId,
+      set: { settings: parsed.data }
+    }).returning();
+    res.json(UpdateSellerSettingsResponse.parse({ ...defaultSellerSettings, ...record2.settings ?? {} }));
+  });
+  return router2;
+}
+
 // src/routes/take-order.ts
 function preferencesForProduct(preferences, variants = []) {
   const isSizeOption = (value) => /^(xxxs?|[smlx]{1,4}|small|medium|large|extra small|extra large|one size)$/i.test(value.trim());
@@ -16170,9 +16324,9 @@ function isReusableCatalogProduct(product) {
   return product.category.trim().toLowerCase() !== "custom order";
 }
 function createTakeOrderRouter(database, requireSellerAuth) {
-  const router2 = Router2();
-  const sellerRouter = Router2();
-  const publicRouter = Router2();
+  const router2 = Router3();
+  const sellerRouter = Router3();
+  const publicRouter = Router3();
   const sellerId = (res) => {
     const value = res.locals.userId;
     if (typeof value !== "string") throw new Error("Authenticated seller identity is missing");
@@ -16222,7 +16376,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     };
   }
   async function sellerItemsForOrder(order) {
-    const storedItems = await database.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+    const storedItems = await database.select().from(orderItemsTable).where(eq2(orderItemsTable.orderId, order.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
     return storedItems.map((item) => ({
       productId: item.productId,
       productName: item.productName,
@@ -16246,7 +16400,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     }
     return byOrder;
   }
-  function publicOrderResponse(order, items) {
+  function publicOrderResponse(order, sellerSettings, items) {
     return {
       token: order.token,
       productName: order.productName,
@@ -16257,14 +16411,20 @@ function createTakeOrderRouter(database, requireSellerAuth) {
       depositAmount: toNumber(order.depositAmount),
       paymentMode: order.paymentMode,
       status: order.status,
+      businessName: sellerSettings.businessName || "The Sunday Edit",
+      businessDescription: sellerSettings.description,
+      logoDataUrl: sellerSettings.logoDataUrl,
+      deliveryDefault: sellerSettings.deliveryDefault,
+      checkoutAskForDetails: sellerSettings.checkoutAskForDetails,
+      checkoutAllowReferenceImages: sellerSettings.checkoutAllowReferenceImages,
       variants: items[0]?.variants ?? [],
       items
     };
   }
   async function publicItemsForOrder(order) {
-    const storedItems = await database.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+    const storedItems = await database.select().from(orderItemsTable).where(eq2(orderItemsTable.orderId, order.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
     if (storedItems.length === 0) {
-      const [product] = await database.select().from(productsTable).where(eq(productsTable.id, order.productId));
+      const [product] = await database.select().from(productsTable).where(eq2(productsTable.id, order.productId));
       return [{
         productId: order.productId,
         productName: order.productName,
@@ -16306,12 +16466,12 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     });
   }
   async function adjustStock(productId, direction) {
-    const [product] = await database.select().from(productsTable).where(eq(productsTable.id, productId));
+    const [product] = await database.select().from(productsTable).where(eq2(productsTable.id, productId));
     if (!product) return;
-    await database.update(productsTable).set({ stock: Math.max(0, product.stock + direction) }).where(eq(productsTable.id, productId));
+    await database.update(productsTable).set({ stock: Math.max(0, product.stock + direction) }).where(eq2(productsTable.id, productId));
   }
   async function adjustOrderStock(order, direction) {
-    const items = await database.select({ productId: orderItemsTable.productId, quantity: orderItemsTable.quantity }).from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+    const items = await database.select({ productId: orderItemsTable.productId, quantity: orderItemsTable.quantity }).from(orderItemsTable).where(eq2(orderItemsTable.orderId, order.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
     if (items.length === 0) {
       await adjustStock(order.productId, direction);
       return;
@@ -16325,7 +16485,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     if (existing.productCost !== null || isSaleStatus(existing.status) || !isSaleStatus(nextStatus)) {
       return void 0;
     }
-    const itemRows = await database.select({ productId: orderItemsTable.productId, quantity: orderItemsTable.quantity }).from(orderItemsTable).where(eq(orderItemsTable.orderId, existing.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+    const itemRows = await database.select({ productId: orderItemsTable.productId, quantity: orderItemsTable.quantity }).from(orderItemsTable).where(eq2(orderItemsTable.orderId, existing.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
     const productIds = itemRows.length > 0 ? itemRows.map((item) => item.productId) : [existing.productId];
     const products = await database.select({ id: productsTable.id, cost: productsTable.cost }).from(productsTable).where(inArray(productsTable.id, [...new Set(productIds)]));
     const costs = itemRows.length > 0 ? itemRows.map((item) => {
@@ -16336,7 +16496,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     return costs.reduce((total, cost) => total + (cost == null ? 0 : Number(cost)), 0).toFixed(2);
   }
   sellerRouter.get("/products", requireSellerAuth, async (_req, res) => {
-    const products = await database.select().from(productsTable).where(eq(productsTable.ownerUserId, sellerId(res))).orderBy(productsTable.id);
+    const products = await database.select().from(productsTable).where(eq2(productsTable.ownerUserId, sellerId(res))).orderBy(productsTable.id);
     res.json(ListProductsResponse.parse(products.filter(isReusableCatalogProduct).map(productResponse)));
   });
   sellerRouter.post("/products", requireSellerAuth, async (req, res) => {
@@ -16394,7 +16554,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     if (parsed.data.imageUrl !== void 0) update.imageUrl = parsed.data.imageUrl;
     if (parsed.data.imageUrls !== void 0) update.imageUrls = parsed.data.imageUrls;
     if (parsed.data.accent !== void 0) update.accent = parsed.data.accent;
-    const [product] = await database.update(productsTable).set(update).where(and(eq(productsTable.id, params.data.id), eq(productsTable.ownerUserId, sellerId(res)))).returning();
+    const [product] = await database.update(productsTable).set(update).where(and(eq2(productsTable.id, params.data.id), eq2(productsTable.ownerUserId, sellerId(res)))).returning();
     if (!product) {
       res.status(404).json({ error: "Product not found" });
       return;
@@ -16407,7 +16567,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
       res.status(400).json({ error: params.error.message });
       return;
     }
-    const [product] = await database.delete(productsTable).where(and(eq(productsTable.id, params.data.id), eq(productsTable.ownerUserId, sellerId(res)))).returning();
+    const [product] = await database.delete(productsTable).where(and(eq2(productsTable.id, params.data.id), eq2(productsTable.ownerUserId, sellerId(res)))).returning();
     if (!product) {
       res.status(404).json({ error: "Product not found" });
       return;
@@ -16415,7 +16575,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     res.sendStatus(204);
   });
   sellerRouter.get("/expenses", requireSellerAuth, async (_req, res) => {
-    const expenses = await database.select().from(expensesTable).where(eq(expensesTable.ownerUserId, sellerId(res))).orderBy(desc(expensesTable.expenseDate), desc(expensesTable.id));
+    const expenses = await database.select().from(expensesTable).where(eq2(expensesTable.ownerUserId, sellerId(res))).orderBy(desc(expensesTable.expenseDate), desc(expensesTable.id));
     res.json(ListExpensesResponse.parse(expenses.map(expenseResponse)));
   });
   sellerRouter.post("/expenses", requireSellerAuth, async (req, res) => {
@@ -16451,7 +16611,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     if (parsed.data.amount !== void 0) update.amount = parsed.data.amount.toFixed(2);
     if (parsed.data.date !== void 0) update.expenseDate = parsed.data.date;
     if (parsed.data.note !== void 0) update.note = parsed.data.note?.trim() || null;
-    const [expense] = await database.update(expensesTable).set(update).where(and(eq(expensesTable.id, params.data.id), eq(expensesTable.ownerUserId, sellerId(res)))).returning();
+    const [expense] = await database.update(expensesTable).set(update).where(and(eq2(expensesTable.id, params.data.id), eq2(expensesTable.ownerUserId, sellerId(res)))).returning();
     if (!expense) {
       res.status(404).json({ error: "Expense not found" });
       return;
@@ -16464,7 +16624,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
       res.status(400).json({ error: params.error.message });
       return;
     }
-    const [expense] = await database.delete(expensesTable).where(and(eq(expensesTable.id, params.data.id), eq(expensesTable.ownerUserId, sellerId(res)))).returning();
+    const [expense] = await database.delete(expensesTable).where(and(eq2(expensesTable.id, params.data.id), eq2(expensesTable.ownerUserId, sellerId(res)))).returning();
     if (!expense) {
       res.status(404).json({ error: "Expense not found" });
       return;
@@ -16472,7 +16632,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     res.sendStatus(204);
   });
   sellerRouter.get("/orders", requireSellerAuth, async (_req, res) => {
-    const orders = await database.select().from(ordersTable).where(eq(ordersTable.ownerUserId, sellerId(res))).orderBy(desc(ordersTable.createdAt));
+    const orders = await database.select().from(ordersTable).where(eq2(ordersTable.ownerUserId, sellerId(res))).orderBy(desc(ordersTable.createdAt));
     const itemsByOrder = await sellerItemsForOrders(orders);
     res.json(ListOrdersResponse.parse(orders.map((order) => orderResponse(order, itemsByOrder.get(order.id)))));
   });
@@ -16488,7 +16648,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
       return;
     }
     const productIds = [...new Set(requestedItems.map((item) => item.productId))];
-    const products = await database.select().from(productsTable).where(and(inArray(productsTable.id, productIds), eq(productsTable.ownerUserId, sellerId(res))));
+    const products = await database.select().from(productsTable).where(and(inArray(productsTable.id, productIds), eq2(productsTable.ownerUserId, sellerId(res))));
     const productsById = new Map(products.map((product) => [product.id, product]));
     const missingProduct = requestedItems.find((item) => !productsById.has(item.productId));
     if (missingProduct) {
@@ -16544,7 +16704,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
       res.status(400).json({ error: params.error.message });
       return;
     }
-    const [order] = await database.select().from(ordersTable).where(and(eq(ordersTable.id, params.data.id), eq(ordersTable.ownerUserId, sellerId(res))));
+    const [order] = await database.select().from(ordersTable).where(and(eq2(ordersTable.id, params.data.id), eq2(ordersTable.ownerUserId, sellerId(res))));
     if (!order) {
       res.status(404).json({ error: "Order not found" });
       return;
@@ -16563,7 +16723,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const [existing] = await database.select().from(ordersTable).where(and(eq(ordersTable.id, params.data.id), eq(ordersTable.ownerUserId, sellerId(res))));
+    const [existing] = await database.select().from(ordersTable).where(and(eq2(ordersTable.id, params.data.id), eq2(ordersTable.ownerUserId, sellerId(res))));
     if (!existing) {
       res.status(404).json({ error: "Order not found" });
       return;
@@ -16572,7 +16732,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     const saleProductCost = await productCostForSale(existing, nextStatus);
     const [order] = await database.update(ordersTable).set(
       saleProductCost === void 0 ? parsed.data : { ...parsed.data, productCost: saleProductCost }
-    ).where(and(eq(ordersTable.id, params.data.id), eq(ordersTable.ownerUserId, sellerId(res)))).returning();
+    ).where(and(eq2(ordersTable.id, params.data.id), eq2(ordersTable.ownerUserId, sellerId(res)))).returning();
     const stockDelta = stockDeltaForOrderStatusChange(existing.status, parsed.data.status ?? existing.status);
     if (stockDelta) await adjustOrderStock(existing, stockDelta);
     const items = await sellerItemsForOrder(order);
@@ -16584,14 +16744,15 @@ function createTakeOrderRouter(database, requireSellerAuth) {
       res.status(400).json({ error: params.error.message });
       return;
     }
-    const [order] = await database.select().from(ordersTable).where(eq(ordersTable.token, params.data.token));
+    const [order] = await database.select().from(ordersTable).where(eq2(ordersTable.token, params.data.token));
     if (!order) {
       res.status(404).json({ error: "Order link not found" });
       return;
     }
-    const [updated] = await database.update(ordersTable).set({ linkOpens: order.linkOpens + 1 }).where(eq(ordersTable.id, order.id)).returning();
+    const [updated] = await database.update(ordersTable).set({ linkOpens: order.linkOpens + 1 }).where(eq2(ordersTable.id, order.id)).returning();
     const items = await publicItemsForOrder(updated);
-    res.json(GetPublicOrderResponse.parse(publicOrderResponse(updated, items)));
+    const sellerSettings = await readSellerSettings(database, updated.ownerUserId ?? "");
+    res.json(GetPublicOrderResponse.parse(publicOrderResponse(updated, sellerSettings, items)));
   });
   publicRouter.post("/public/orders/:token", async (req, res) => {
     const params = SubmitPublicOrderParams.safeParse(req.params);
@@ -16604,7 +16765,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const [existing] = await database.select().from(ordersTable).where(eq(ordersTable.token, params.data.token));
+    const [existing] = await database.select().from(ordersTable).where(eq2(ordersTable.token, params.data.token));
     if (!existing) {
       res.status(404).json({ error: "Order link not found" });
       return;
@@ -16620,7 +16781,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     const saleProductCost = await productCostForSale(existing, nextStatus);
     const itemDetails = parsed.data.itemDetails ?? [];
     const itemDetailsByIndex = new Map(itemDetails.map((detail) => [detail.itemIndex, detail]));
-    const storedItems = await database.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, existing.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
+    const storedItems = await database.select().from(orderItemsTable).where(eq2(orderItemsTable.orderId, existing.id)).orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
     const productIds = [...new Set(storedItems.map((item) => item.productId))];
     const products = productIds.length ? await database.select().from(productsTable).where(inArray(productsTable.id, productIds)) : [];
     const productsById = new Map(products.map((product) => [product.id, product]));
@@ -16657,7 +16818,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
       referenceImage: parsed.data.referenceImage ?? firstReferenceImage ?? null,
       status: nextStatus,
       ...saleProductCost === void 0 ? {} : { productCost: saleProductCost }
-    }).where(eq(ordersTable.id, existing.id)).returning();
+    }).where(eq2(ordersTable.id, existing.id)).returning();
     await Promise.all(storedItems.map((item, index) => {
       const detail = itemDetailsByIndex.get(index);
       if (!detail && requestedQuantities[index] === item.quantity) return Promise.resolve();
@@ -16668,7 +16829,7 @@ function createTakeOrderRouter(database, requireSellerAuth) {
           buyerDetails: detail.details?.trim() || null,
           referenceImage: detail.referenceImage?.trim() || null
         } : {}
-      }).where(eq(orderItemsTable.id, item.id));
+      }).where(eq2(orderItemsTable.id, item.id));
     }));
     if (nextStatus === "paid" && !isSaleStatus(existing.status)) {
       await adjustOrderStock(order, -1);
@@ -16701,9 +16862,9 @@ function createTakeOrderRouter(database, requireSellerAuth) {
     }
     const range = from || to ? { from, to } : void 0;
     const [products, orders, operatingExpenseRows] = await Promise.all([
-      database.select().from(productsTable).where(eq(productsTable.ownerUserId, sellerId(res))),
-      database.select().from(ordersTable).where(eq(ordersTable.ownerUserId, sellerId(res))),
-      database.select().from(expensesTable).where(eq(expensesTable.ownerUserId, sellerId(res)))
+      database.select().from(productsTable).where(eq2(productsTable.ownerUserId, sellerId(res))),
+      database.select().from(ordersTable).where(eq2(ordersTable.ownerUserId, sellerId(res))),
+      database.select().from(expensesTable).where(eq2(expensesTable.ownerUserId, sellerId(res)))
     ]);
     res.json(GetDashboardSummaryResponse.parse(
       calculateDashboardSummary(products.filter(isReusableCatalogProduct), orders, operatingExpenseRows, /* @__PURE__ */ new Date(), range)
@@ -16716,9 +16877,10 @@ function createTakeOrderRouter(database, requireSellerAuth) {
 
 // src/routes/index.ts
 function createRouter(database, requireSellerAuth) {
-  const router2 = Router3();
+  const router2 = Router4();
   router2.use(health_default);
   router2.use(createTakeOrderRouter(database, requireSellerAuth));
+  router2.use(createSettingsRouter(database, requireSellerAuth));
   return router2;
 }
 
@@ -17516,7 +17678,7 @@ test("buyer deposit checkout and seller payment preserve the original product co
     assert2.equal(checkedOut.status, 200);
     assert2.equal(checkedOut.body.status, "deposit_paid");
     assert2.equal(checkedOut.body.productCost, 12.5);
-    await database.update(productsTable).set({ cost: "99.00" }).where(eq2(productsTable.id, product.id));
+    await database.update(productsTable).set({ cost: "99.00" }).where(eq3(productsTable.id, product.id));
     const fullyPaid = await requestJson(
       baseUrl,
       `/api/orders/${created.body.id}`,
@@ -17528,7 +17690,7 @@ test("buyer deposit checkout and seller payment preserve the original product co
     assert2.equal(fullyPaid.status, 200);
     assert2.equal(fullyPaid.body.status, "paid");
     assert2.equal(fullyPaid.body.productCost, 12.5);
-    const [stored] = await database.select().from(ordersTable).where(eq2(ordersTable.id, created.body.id));
+    const [stored] = await database.select().from(ordersTable).where(eq3(ordersTable.id, created.body.id));
     assert2.equal(stored.productCost, "12.50");
   });
 });
@@ -17569,7 +17731,7 @@ test("re-opening a paid order cannot replace its historical product cost", async
     assert2.equal(paid.status, 200);
     assert2.equal(paid.body.status, "paid");
     assert2.equal(paid.body.productCost, 18);
-    await database.update(productsTable).set({ cost: "76.00" }).where(eq2(productsTable.id, product.id));
+    await database.update(productsTable).set({ cost: "76.00" }).where(eq3(productsTable.id, product.id));
     const reopened = await requestJson(
       baseUrl,
       `/api/orders/${created.body.id}`,
@@ -17591,7 +17753,7 @@ test("re-opening a paid order cannot replace its historical product cost", async
     assert2.equal(paidAgain.status, 200);
     assert2.equal(paidAgain.body.status, "paid");
     assert2.equal(paidAgain.body.productCost, 18);
-    const [stored] = await database.select().from(ordersTable).where(eq2(ordersTable.id, created.body.id));
+    const [stored] = await database.select().from(ordersTable).where(eq3(ordersTable.id, created.body.id));
     assert2.equal(stored.productCost, "18.00");
   });
 });
@@ -17672,8 +17834,8 @@ test("multi-item order links preserve item prices and compound the checkout tota
     );
     assert2.equal(checkedOut.status, 200);
     assert2.equal(checkedOut.body.status, "paid");
-    const [firstAfterCheckout] = await database.select({ stock: productsTable.stock }).from(productsTable).where(eq2(productsTable.id, firstProduct.id));
-    const [secondAfterCheckout] = await database.select({ stock: productsTable.stock }).from(productsTable).where(eq2(productsTable.id, secondProduct.id));
+    const [firstAfterCheckout] = await database.select({ stock: productsTable.stock }).from(productsTable).where(eq3(productsTable.id, firstProduct.id));
+    const [secondAfterCheckout] = await database.select({ stock: productsTable.stock }).from(productsTable).where(eq3(productsTable.id, secondProduct.id));
     assert2.equal(firstAfterCheckout.stock, 9);
     assert2.equal(secondAfterCheckout.stock, 9);
   });
@@ -17762,7 +17924,7 @@ test("buyer links expose product metadata and persist buyer quantity through che
       amount: 40,
       quantity: 3
     }]);
-    const [updatedProduct] = await database.select({ stock: productsTable.stock }).from(productsTable).where(eq2(productsTable.id, product.id));
+    const [updatedProduct] = await database.select({ stock: productsTable.stock }).from(productsTable).where(eq3(productsTable.id, product.id));
     assert2.equal(updatedProduct.stock, 2);
   });
 });

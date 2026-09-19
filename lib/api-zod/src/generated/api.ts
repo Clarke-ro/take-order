@@ -431,6 +431,12 @@ export const GetPublicOrderResponse = zod.object({
   "depositAmount": zod.number().nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
   "status": zod.enum(['reserved', 'deposit_paid', 'paid']),
+  "businessName": zod.string(),
+  "businessDescription": zod.string(),
+  "logoDataUrl": zod.string().nullable(),
+  "deliveryDefault": zod.enum(['pickup', 'delivery', 'both']),
+  "checkoutAskForDetails": zod.boolean(),
+  "checkoutAllowReferenceImages": zod.boolean(),
   "variants": zod.array(zod.string()),
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
@@ -660,5 +666,103 @@ export const DeleteExpenseParams = zod.object({
 })
 
 export const DeleteExpenseResponse = zod.void()
+
+
+/**
+ * @summary Get seller workspace settings
+ */
+export const getSellerSettingsResponseDeliveryFeeMin = 0;
+
+
+
+export const GetSellerSettingsResponse = zod.object({
+  "sellerName": zod.string(),
+  "businessName": zod.string(),
+  "description": zod.string(),
+  "logoDataUrl": zod.string().nullable(),
+  "channels": zod.array(zod.string()),
+  "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
+  "checkoutAskForDetails": zod.boolean(),
+  "checkoutAllowReferenceImages": zod.boolean(),
+  "deliveryDefault": zod.enum(['pickup', 'delivery', 'both']),
+  "deliveryFee": zod.number().min(getSellerSettingsResponseDeliveryFeeMin),
+  "customDomain": zod.string(),
+  "seoTitle": zod.string(),
+  "seoDescription": zod.string(),
+  "trackingId": zod.string(),
+  "organizationName": zod.string(),
+  "organizationEmail": zod.string(),
+  "organizationPhone": zod.string(),
+  "organizationCountry": zod.string(),
+  "organizationAddress": zod.string(),
+  "orderUpdates": zod.boolean(),
+  "stockAlerts": zod.boolean(),
+  "compactTables": zod.boolean(),
+  "connectedTools": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Save seller workspace settings
+ */
+export const updateSellerSettingsBodyOneDeliveryFeeMin = 0;
+
+
+
+export const UpdateSellerSettingsBody = zod.object({
+  "sellerName": zod.string(),
+  "businessName": zod.string(),
+  "description": zod.string(),
+  "logoDataUrl": zod.string().nullable(),
+  "channels": zod.array(zod.string()),
+  "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
+  "checkoutAskForDetails": zod.boolean(),
+  "checkoutAllowReferenceImages": zod.boolean(),
+  "deliveryDefault": zod.enum(['pickup', 'delivery', 'both']),
+  "deliveryFee": zod.number().min(updateSellerSettingsBodyOneDeliveryFeeMin),
+  "customDomain": zod.string(),
+  "seoTitle": zod.string(),
+  "seoDescription": zod.string(),
+  "trackingId": zod.string(),
+  "organizationName": zod.string(),
+  "organizationEmail": zod.string(),
+  "organizationPhone": zod.string(),
+  "organizationCountry": zod.string(),
+  "organizationAddress": zod.string(),
+  "orderUpdates": zod.boolean(),
+  "stockAlerts": zod.boolean(),
+  "compactTables": zod.boolean(),
+  "connectedTools": zod.array(zod.string())
+})
+
+export const updateSellerSettingsResponseDeliveryFeeMin = 0;
+
+
+
+export const UpdateSellerSettingsResponse = zod.object({
+  "sellerName": zod.string(),
+  "businessName": zod.string(),
+  "description": zod.string(),
+  "logoDataUrl": zod.string().nullable(),
+  "channels": zod.array(zod.string()),
+  "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
+  "checkoutAskForDetails": zod.boolean(),
+  "checkoutAllowReferenceImages": zod.boolean(),
+  "deliveryDefault": zod.enum(['pickup', 'delivery', 'both']),
+  "deliveryFee": zod.number().min(updateSellerSettingsResponseDeliveryFeeMin),
+  "customDomain": zod.string(),
+  "seoTitle": zod.string(),
+  "seoDescription": zod.string(),
+  "trackingId": zod.string(),
+  "organizationName": zod.string(),
+  "organizationEmail": zod.string(),
+  "organizationPhone": zod.string(),
+  "organizationCountry": zod.string(),
+  "organizationAddress": zod.string(),
+  "orderUpdates": zod.boolean(),
+  "stockAlerts": zod.boolean(),
+  "compactTables": zod.boolean(),
+  "connectedTools": zod.array(zod.string())
+})
 
 

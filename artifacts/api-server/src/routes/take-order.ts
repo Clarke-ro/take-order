@@ -45,6 +45,7 @@ import {
   type DashboardRange,
 } from "../lib/dashboard-analytics";
 import type { RequestHandler } from "express";
+import { readSellerSettings } from "./settings";
 
 export function preferencesForProduct(
   preferences: ProductPreferenceGroup[] | null | undefined,
@@ -220,6 +221,7 @@ async function sellerItemsForOrders(orders: Array<typeof ordersTable.$inferSelec
 
 function publicOrderResponse(
   order: typeof ordersTable.$inferSelect,
+  sellerSettings: Awaited<ReturnType<typeof readSellerSettings>>,
   items: Array<{
     productId: number;
     productName: string;
@@ -246,6 +248,12 @@ function publicOrderResponse(
     depositAmount: toNumber(order.depositAmount),
     paymentMode: order.paymentMode,
     status: order.status,
+    businessName: sellerSettings.businessName || "The Sunday Edit",
+    businessDescription: sellerSettings.description,
+     logoDataUrl: sellerSettings.logoDataUrl,
+    deliveryDefault: sellerSettings.deliveryDefault,
+    checkoutAskForDetails: sellerSettings.checkoutAskForDetails,
+    checkoutAllowReferenceImages: sellerSettings.checkoutAllowReferenceImages,
     variants: items[0]?.variants ?? [],
     items,
   };
@@ -717,7 +725,8 @@ publicRouter.get("/public/orders/:token", async (req, res): Promise<void> => {
     .where(eq(ordersTable.id, order.id))
     .returning();
   const items = await publicItemsForOrder(updated);
-  res.json(GetPublicOrderResponse.parse(publicOrderResponse(updated, items)));
+  const sellerSettings = await readSellerSettings(database, updated.ownerUserId ?? "");
+  res.json(GetPublicOrderResponse.parse(publicOrderResponse(updated, sellerSettings, items)));
 });
 
 publicRouter.post("/public/orders/:token", async (req, res): Promise<void> => {

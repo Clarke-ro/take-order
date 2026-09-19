@@ -18,6 +18,8 @@ tags:
     description: Business summaries
   - name: expenses
     description: Operating expense tracking
+  - name: settings
+    description: Seller workspace settings
 paths:
   /healthz:
     get:
@@ -276,6 +278,35 @@ paths:
       responses:
         "204":
           description: Operating expense deleted
+  /settings:
+    get:
+      operationId: getSellerSettings
+      tags: [settings]
+      summary: Get seller workspace settings
+      responses:
+        "200":
+          description: Seller workspace settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SellerSettings"
+    put:
+      operationId: updateSellerSettings
+      tags: [settings]
+      summary: Save seller workspace settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SellerSettingsInput"
+      responses:
+        "200":
+          description: Saved seller workspace settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SellerSettings"
 components:
   parameters:
     IdParam:
@@ -465,7 +496,7 @@ components:
         fulfillment: { type: string, enum: [pending, shipped, delivered] }
     PublicOrder:
       type: object
-      required: [token, productName, amount, subtotal, deliveryFee, paymentMode, status, variants, items]
+      required: [token, productName, amount, subtotal, deliveryFee, paymentMode, status, variants, items, businessName, businessDescription, logoDataUrl, deliveryDefault, checkoutAskForDetails, checkoutAllowReferenceImages]
       properties:
         token: { type: string }
         productName: { type: string }
@@ -476,6 +507,12 @@ components:
         depositAmount: { type: ["number", "null"] }
         paymentMode: { type: string, enum: [full, deposit, reserve] }
         status: { type: string, enum: [reserved, deposit_paid, paid] }
+        businessName: { type: string }
+        businessDescription: { type: string }
+        logoDataUrl: { type: ["string", "null"] }
+        deliveryDefault: { type: string, enum: [pickup, delivery, both] }
+        checkoutAskForDetails: { type: boolean }
+        checkoutAllowReferenceImages: { type: boolean }
         variants:
           type: array
           items: { type: string }
@@ -629,4 +666,38 @@ components:
         amount: { type: number, minimum: 0 }
         date: { type: string }
         note: { type: ["string", "null"] }
+    SellerSettings:
+      type: object
+      required: [sellerName, businessName, description, logoDataUrl, channels, paymentMode, checkoutAskForDetails, checkoutAllowReferenceImages, deliveryDefault, deliveryFee, customDomain, seoTitle, seoDescription, trackingId, organizationName, organizationEmail, organizationPhone, organizationCountry, organizationAddress, orderUpdates, stockAlerts, compactTables, connectedTools]
+      properties:
+        sellerName: { type: string }
+        businessName: { type: string }
+        description: { type: string }
+        logoDataUrl: { type: ["string", "null"] }
+        channels:
+          type: array
+          items: { type: string }
+        paymentMode: { type: string, enum: [full, deposit, reserve] }
+        checkoutAskForDetails: { type: boolean }
+        checkoutAllowReferenceImages: { type: boolean }
+        deliveryDefault: { type: string, enum: [pickup, delivery, both] }
+        deliveryFee: { type: number, minimum: 0 }
+        customDomain: { type: string }
+        seoTitle: { type: string }
+        seoDescription: { type: string }
+        trackingId: { type: string }
+        organizationName: { type: string }
+        organizationEmail: { type: string }
+        organizationPhone: { type: string }
+        organizationCountry: { type: string }
+        organizationAddress: { type: string }
+        orderUpdates: { type: boolean }
+        stockAlerts: { type: boolean }
+        compactTables: { type: boolean }
+        connectedTools:
+          type: array
+          items: { type: string }
+    SellerSettingsInput:
+      allOf:
+        - $ref: "#/components/schemas/SellerSettings"
 

@@ -2543,6 +2543,18 @@ button[data-testid="button-buyer-reserve"].text-white {
 
 /* Public buyer checkout. The buyer completes one item card at a time, then sees payment once. */
 .buyer-order-form { display: block; }
+.buyer-order-form[data-ask-for-details="false"] #buyer-details,
+.buyer-order-form[data-ask-for-details="false"] #buyer-order-details,
+.buyer-order-form[data-ask-for-details="false"] #buyer-inline-order-details,
+.buyer-order-form[data-ask-for-details="false"] #buyer-item-details,
+.buyer-order-form[data-ask-for-details="false"] label[for="buyer-details"],
+.buyer-order-form[data-ask-for-details="false"] label[for="buyer-order-details"],
+.buyer-order-form[data-ask-for-details="false"] label[for="buyer-inline-order-details"],
+.buyer-order-form[data-ask-for-details="false"] label[for="buyer-item-details"],
+.buyer-order-form[data-allow-reference-images="false"] label[for="buyer-reference-image"],
+.buyer-order-form[data-allow-reference-images="false"] #buyer-reference-image,
+.buyer-order-form[data-allow-reference-images="false"] .buyer-custom-upload-area,
+.buyer-order-form[data-allow-reference-images="false"] .buyer-gallery-caption { display: none; }
 .buyer-item-entry, .buyer-final-checkout { display: grid; gap: 1.25rem; }
 .buyer-item-entry-heading, .buyer-final-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid hsl(var(--border)); padding-bottom: 1rem; }
 .buyer-item-entry-heading h2, .buyer-final-heading h2 { margin: 0; font-family: var(--app-font-sans); font-size: 1.1rem; font-weight: 600; letter-spacing: -.015em; line-height: 1.3; }

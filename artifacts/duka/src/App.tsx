@@ -18,11 +18,13 @@ import {
 import {
   getGetPublicOrderQueryKey, getListOrdersQueryKey,
   getListProductsQueryKey, getGetDashboardSummaryQueryKey, getListExpensesQueryKey,
+  getGetSellerSettingsQueryKey,
   useCreateExpense, useCreateOrder, useCreateProduct, useDeleteExpense, useDeleteProduct,
   useGetDashboardSummary, useGetPublicOrder, useHealthCheck, useListOrders, useListProducts,
-  useListExpenses, useSubmitPublicOrder, useUpdateExpense, useUpdateOrder, useUpdateProduct
+  useListExpenses, useGetSellerSettings, useSubmitPublicOrder, useUpdateExpense, useUpdateOrder, useUpdateProduct,
+  useUpdateSellerSettings
 } from '@workspace/api-client-react';
-import type { Expense, ExpenseInput, ExpenseUpdate, Order, OrderInput, Product, ProductCustomField, ProductInput, ProductPreferenceGroup, PublicOrderInput } from '@workspace/api-client-react';
+import type { Expense, ExpenseInput, ExpenseUpdate, Order, OrderInput, Product, ProductCustomField, ProductInput, ProductPreferenceGroup, PublicOrderInput, SellerSettings } from '@workspace/api-client-react';
 import NotFound from '@/pages/not-found';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -368,7 +370,7 @@ const readSellerProfile = (): SellerProfile | null => {
 const writeSellerProfile = (profile: SellerProfile) => {
   try { window.localStorage.setItem(ONBOARDING_KEY, JSON.stringify(profile)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
 };
-const defaultSellerSettings: SellerSettingsPreferences = { orderUpdates: true, stockAlerts: true, compactTables: false };
+const defaultSellerPreferences: SellerSettingsPreferences = { orderUpdates: true, stockAlerts: true, compactTables: false };
 const readSellerSettings = (): SellerSettingsPreferences => {
   try {
     const value = window.localStorage.getItem(SELLER_SETTINGS_KEY);
@@ -378,10 +380,35 @@ const readSellerSettings = (): SellerSettingsPreferences => {
       stockAlerts: parsed.stockAlerts !== false,
       compactTables: parsed.compactTables === true,
     };
-  } catch { return defaultSellerSettings; }
+  } catch { return defaultSellerPreferences; }
 };
 const writeSellerSettings = (settings: SellerSettingsPreferences) => {
   try { window.localStorage.setItem(SELLER_SETTINGS_KEY, JSON.stringify(settings)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+};
+const emptySellerSettings: SellerSettings = {
+  sellerName: '',
+  businessName: '',
+  description: '',
+  logoDataUrl: null,
+  channels: [],
+  paymentMode: 'reserve',
+  checkoutAskForDetails: true,
+  checkoutAllowReferenceImages: true,
+  deliveryDefault: 'both',
+  deliveryFee: 0,
+  customDomain: '',
+  seoTitle: '',
+  seoDescription: '',
+  trackingId: '',
+  organizationName: '',
+  organizationEmail: '',
+  organizationPhone: '',
+  organizationCountry: 'gh',
+  organizationAddress: '',
+  orderUpdates: true,
+  stockAlerts: true,
+  compactTables: false,
+  connectedTools: [],
 };
 const readOnboardingStep = (): number => {
   try {
@@ -2028,6 +2055,7 @@ function TakeOrderCheckoutCard({ items, total, feedback, onRemove, onOneOff, but
 
 function MultiItemTakeOrderModern() {
   const productsQuery = useListProducts();
+  const settingsQuery = useGetSellerSettings();
   const createOrder = useCreateOrder();
   const createProduct = useCreateProduct();
   const seller = readSellerProfile();
@@ -2044,6 +2072,11 @@ function MultiItemTakeOrderModern() {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  useEffect(() => {
+    if (!settingsQuery.data) return;
+    setPaymentMode(settingsQuery.data.paymentMode);
+    setDeliveryFee(String(settingsQuery.data.deliveryFee));
+  }, [settingsQuery.data]);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
   const choiceOnly = step === 1 && itemSource === null && items.length === 0;
   const catalogStage = step === 1 && itemSource === 'catalog';
@@ -2271,7 +2304,7 @@ function MultiItemTakeOrderModern() {
          </div>
          {showPreview && <aside className="take-order-preview-column">
            <div className="take-order-preview-heading"><div><div className="take-order-section-eyebrow">Buyer preview</div><h2>What your buyer sees</h2><span className="take-order-preview-status"><span />Updates as you build</span></div><Eye size={17} aria-hidden="true" /></div>
-         <div className="take-order-preview-frame"><BuyerOrderSurface businessName={seller?.businessName || 'The Sunday Edit'} description={seller?.description} items={previewItems} paymentMode={paymentMode} depositAmount={paymentMode === 'deposit' ? deposit : null}>{(activeItem) => <div className="space-y-5"><div><label className="field-label">Your name</label><input disabled placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input disabled placeholder="Best number to reach you" className="field-input" /></div>{activeItem.preferences.length > 0 && <div><label className="field-label">Choose your options</label><div className="space-y-3">{activeItem.preferences.map((preference) => <div key={preference.label}><span className="text-xs font-semibold">{preference.label}</span><div className="mt-2 flex flex-wrap gap-2">{preference.options.map((option) => <span key={option} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{option}</span>)}</div></div>)}</div></div>}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea disabled placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>{paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] p-3 text-left text-xs font-bold text-white">{paymentMode === 'deposit' ? `Pay deposit · ${depositAmount ? moneyExact(deposit) : '—'}` : `Pay ${moneyExact(total)}`}</div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 text-left text-xs font-bold">Reserve for later</div></div>}<button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-70">{paymentMode === 'reserve' ? 'Reserve these items' : 'Continue to mock payment'} <ArrowUpRight size={15} /></button></div>}</BuyerOrderSurface></div>
+          <div className="take-order-preview-frame"><BuyerOrderSurface businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'} description={settingsQuery.data?.description || seller?.description} logoDataUrl={settingsQuery.data?.logoDataUrl} items={previewItems} paymentMode={paymentMode} depositAmount={paymentMode === 'deposit' ? deposit : null}>{(activeItem) => <div className="space-y-5"><div><label className="field-label">Your name</label><input disabled placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input disabled placeholder="Best number to reach you" className="field-input" /></div>{activeItem.preferences.length > 0 && <div><label className="field-label">Choose your options</label><div className="space-y-3">{activeItem.preferences.map((preference) => <div key={preference.label}><span className="text-xs font-semibold">{preference.label}</span><div className="mt-2 flex flex-wrap gap-2">{preference.options.map((option) => <span key={option} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{option}</span>)}</div></div>)}</div></div>}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea disabled placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>{paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] p-3 text-left text-xs font-bold text-white">{paymentMode === 'deposit' ? `Pay deposit · ${depositAmount ? moneyExact(deposit) : '—'}` : `Pay ${moneyExact(total)}`}</div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 text-left text-xs font-bold">Reserve for later</div></div>}<button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-70">{paymentMode === 'reserve' ? 'Reserve these items' : 'Continue to mock payment'} <ArrowUpRight size={15} /></button></div>}</BuyerOrderSurface></div>
           <div className="take-order-preview-note"><Eye size={15} /><span>Preview updates as you build. The buyer link will open the full page.</span></div>
          </aside>}
       </div>
@@ -2386,6 +2419,7 @@ function MultiItemTakeOrder() {
 type BuyerOrderSurfaceProps = {
   businessName: string;
   description?: string;
+  logoDataUrl?: string | null;
   productName?: string;
   amount?: number;
   paymentMode: 'full' | 'deposit' | 'reserve';
@@ -2417,7 +2451,7 @@ type BuyerOrderItem = {
   source: 'catalog' | 'custom';
 };
 
-export function BuyerOrderSurface({ businessName, description, productName, amount, paymentMode, depositAmount, totalAmount, variants = [], items, previewImages, activeIndex: controlledIndex, onActiveIndexChange, isCheckout = false, children }: BuyerOrderSurfaceProps) {
+export function BuyerOrderSurface({ businessName, description, logoDataUrl, productName, amount, paymentMode, depositAmount, totalAmount, variants = [], items, previewImages, activeIndex: controlledIndex, onActiveIndexChange, isCheckout = false, children }: BuyerOrderSurfaceProps) {
   const displayItems = items?.length ? items : [{ productId: 0, productName: productName || 'Your item', amount: amount || 0, variants, preferences: variants.length ? [{ label: 'Choose an option', options: variants }] : [], source: 'catalog' as const }];
   const [internalIndex, setInternalIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
@@ -2442,7 +2476,7 @@ export function BuyerOrderSurface({ businessName, description, productName, amou
     <div className="buyer-checkout-header-row">
       <header className="buyer-checkout-brand-bar">
         <div className="buyer-seller-identity">
-          <BrandMark variant="icon" className="buyer-seller-logo buyer-app-seller-mark" />
+          <SellerLogo businessName={businessName} logoDataUrl={logoDataUrl ?? undefined} className="buyer-seller-logo buyer-app-seller-mark" />
           <div className="buyer-seller-copy">
             <strong>{businessName}</strong>
             <p>{sellerDescription}</p>
@@ -2522,8 +2556,6 @@ function PublicOrderPage() {
   const query = useGetPublicOrder(token, { query: { enabled: Boolean(token), queryKey: getGetPublicOrderQueryKey(token) } });
   const submit = useSubmitPublicOrder();
   const queryClient = useQueryClient();
-  const seller = readSellerProfile();
-  const businessName = seller?.businessName || 'The Sunday Edit';
   const [submitted, setSubmitted] = useState(false);
   const [showMockPayment, setShowMockPayment] = useState(false);
   const [mockPayment, setMockPayment] = useState({ cardNumber: '', expiry: '', cvc: '' });
@@ -2545,6 +2577,7 @@ function PublicOrderPage() {
     setContactStep(false);
     setItemStep(0);
     setCheckout(false);
+    setForm({ name: '', phone: '', deliveryMethod: order.deliveryDefault === 'delivery' ? 'delivery' : 'pickup', address: '', orderDetails: '' });
   }, [order?.token, order?.items.length]);
   const change = (key: 'name' | 'phone' | 'deliveryMethod' | 'address' | 'orderDetails' | 'details', value: string) => {
     if (key === 'details') {
@@ -2575,7 +2608,7 @@ function PublicOrderPage() {
         return;
       }
       const missingPreference = activeItem?.preferences.some((group) => !activeForm.preferences[group.label]);
-      const missingImage = activeItem?.source === 'custom' && !activeForm.imagePreview;
+      const missingImage = order?.checkoutAllowReferenceImages !== false && activeItem?.source === 'custom' && !activeForm.imagePreview;
       if (missingPreference || missingImage) return;
       if (order && itemStep < order.items.length - 1) {
         setItemStep((current) => current + 1);
@@ -2615,11 +2648,13 @@ function PublicOrderPage() {
   const buyerDeliveryFee = form.deliveryMethod === 'delivery' ? order.deliveryFee : 0;
   const buyerTotal = orderSubtotal + buyerDeliveryFee;
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-4 sm:py-8"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={businessName} description={seller?.description} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onBackToReview={() => setShowMockPayment(false)} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
+   return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-4 sm:py-8"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onBackToReview={() => setShowMockPayment(false)} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
 }
 
 export function Connect() {
   const health = useHealthCheck();
+  const settingsQuery = useGetSellerSettings();
+  const saveSettingsMutation = useUpdateSellerSettings();
   const tools: Array<{ name: string; detail: string; markKey: MarkKey; group: string }> = [
     { name: 'WhatsApp', detail: 'Share buyer links in a chat', markKey: 'whatsapp', group: 'Social' },
     { name: 'Instagram', detail: 'Keep sales from DMs easy to trace', markKey: 'instagram', group: 'Social' },
@@ -2632,6 +2667,10 @@ export function Connect() {
   ];
   const [connected, setConnected] = useState<string[]>(readConnectedTools);
   useEffect(() => {
+    if (settingsQuery.data?.connectedTools) {
+      setConnected(settingsQuery.data.connectedTools);
+      return;
+    }
     const storage = getPreferenceStorage();
     if (!storage) return;
 
@@ -2639,15 +2678,23 @@ export function Connect() {
       if (event.storageArea && event.storageArea !== storage) return;
       setConnected(readConnectedTools(storage));
     });
-  }, []);
+  }, [settingsQuery.data?.connectedTools]);
+  const persistTools = (next: string[]) => {
+    writeConnectedTools(next);
+    if (settingsQuery.data) {
+      saveSettingsMutation.mutate({ data: { ...settingsQuery.data, connectedTools: next } });
+    }
+  };
   const toggle = (name: string) => setConnected((current) => {
     const next = togglePreference(current, name);
-    writeConnectedTools(next);
+    persistTools(next);
     return next;
   });
   const clearAll = () => {
+    const next = clearPreferences();
     clearConnectedTools();
-    setConnected(clearPreferences());
+    setConnected(next);
+    persistTools(next);
   };
    return <Shell><div className="mx-auto max-w-[1060px]"><div className="mx-auto max-w-[640px] text-center"><div className="font-mono-ui text-[10px] font-bold uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">Optional setup</div><h1 className="mt-3 font-display text-[clamp(36px,5vw,58px)] font-bold leading-[.95] tracking-[-.065em]">Let’s get your tools in one view.</h1><p className="mx-auto mt-4 max-w-[560px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">Choose the places you already sell or get paid. This saves a local preference for now — it does not authorize an integration.</p><div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[hsl(var(--accent))]/35 bg-[hsl(var(--accent))]/10 px-3 py-2 text-[11px] font-semibold text-[hsl(var(--accent-foreground))]"><ShieldIcon />Take Order never reads personal chats.</div></div><div className="mt-10 flex flex-col gap-3 border-b border-[hsl(var(--border))] pb-3 sm:flex-row sm:items-center sm:justify-between"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Your channels and tools</div><div className="flex flex-wrap items-center gap-3"><span className="flex items-center gap-1.5 text-[10px] font-semibold text-[hsl(var(--muted-foreground))]"><span className={cn('h-2 w-2 rounded-full', health.isError ? 'bg-[hsl(var(--destructive))]' : 'bg-[hsl(var(--accent))]')} />{health.isError ? 'Workspace check unavailable' : 'Workspace ready'}</span><Button type="button" variant="outline" onClick={clearAll} disabled={!connected.length} data-testid="button-clear-connected-tools">Clear all saved choices</Button></div></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{tools.map((tool) => { const isConnected = connected.includes(tool.name); const mark = markCatalog[tool.markKey]; return <button key={tool.name} onClick={() => toggle(tool.name)} aria-pressed={isConnected} aria-label={connectPreferenceAriaLabel(tool.name, isConnected)} data-testid={`button-connect-${tool.name.toLowerCase().replaceAll(' ', '-')}`} className={cn('tool-tile soft-focus group rounded-[17px] border p-4 text-left', isConnected ? 'border-[hsl(var(--accent))]/55 bg-[hsl(var(--accent))]/10' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:border-[hsl(var(--muted-foreground))]/45')}><div className="flex items-start justify-between"><div className="tool-mark flex h-11 w-11 items-center justify-center rounded-[13px] bg-[hsl(var(--muted))]" style={{ color: mark.color }}><ChannelMark value={tool.markKey} size={22} /></div><span className={cn('rounded-full px-2 py-1 text-[9px] font-bold', isConnected ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{connectPreferenceLabel(isConnected)}</span></div><div className="mt-5 flex items-end justify-between gap-2"><div><div className="text-sm font-bold">{tool.name}</div><div className="mt-1 text-[11px] leading-4 text-[hsl(var(--muted-foreground))]">{tool.detail}</div></div><span className="font-mono-ui text-[9px] uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]">{tool.group}</span></div></button>; })}</div><div className="mt-8 grid gap-4 lg:grid-cols-[1.15fr_.85fr]"><Card className="flex gap-4 p-5"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Link2 size={17} /></div><div><h2 className="text-sm font-bold">A connection is never required to sell.</h2><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Create buyer links, collect details, and track inventory without connecting a social or payment account. These tiles are simply your setup checklist until real integrations are attached.</p></div></Card><Card className="p-5"><div className="flex items-center gap-2 text-xs font-bold"><Check size={15} className="text-[hsl(var(--accent-foreground))]" />{connected.length ? `${connected.length} tool preference${connected.length === 1 ? '' : 's'} saved` : 'No tool preferences yet'}</div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">You can change these choices any time. They stay on this device.</p></Card></div></div></Shell>;
 }
@@ -2690,24 +2737,57 @@ function SettingsToggle({ label, description, checked, onChange }: { label: stri
 }
 
 function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>('general');
+  const queryClient = useQueryClient();
+  const [activeSection, setActiveSection] = useState<string>('general');
   const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [] });
   const [preferences, setPreferences] = useState<SellerSettingsPreferences>(() => readSellerSettings());
+  const settingsQuery = useGetSellerSettings();
+  const saveSettingsMutation = useUpdateSellerSettings();
+  const [settings, setSettings] = useState<SellerSettings>(emptySellerSettings);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [logoError, setLogoError] = useState('');
-  const active = settingsItem(activeSection);
+  const active = settingsItem(activeSection as SettingsSectionId);
 
   useEffect(() => {
-    writeSellerSettings(preferences);
-  }, [preferences]);
+    if (!settingsQuery.data) return;
+    const local = readSellerProfile();
+    const next = {
+      ...settingsQuery.data,
+      sellerName: settingsQuery.data.sellerName || local?.sellerName || '',
+      businessName: settingsQuery.data.businessName || local?.businessName || '',
+      description: settingsQuery.data.description || local?.description || '',
+      channels: settingsQuery.data.channels.length ? settingsQuery.data.channels : local?.channels || [],
+      logoDataUrl: settingsQuery.data.logoDataUrl || local?.logoDataUrl || null,
+    };
+    setSettings(next);
+    setProfile({
+      sellerName: next.sellerName,
+      businessName: next.businessName,
+      description: next.description,
+      channels: next.channels,
+      ...(next.logoDataUrl ? { logoDataUrl: next.logoDataUrl } : {}),
+    });
+    setPreferences({ orderUpdates: next.orderUpdates, stockAlerts: next.stockAlerts, compactTables: next.compactTables });
+  }, [settingsQuery.data]);
 
   const updateProfile = (key: keyof SellerProfile, value: string) => {
     setProfile((current) => ({ ...current, [key]: value }));
+    if (key !== 'logoDataUrl') setSettings((current) => ({ ...current, [key]: value }));
     setSaved(false);
+    setSaveError('');
   };
   const saveProfile = () => {
     writeSellerProfile(profile);
-    setSaved(true);
+    saveSettingsMutation.mutate({ data: settings }, {
+      onSuccess: (data) => {
+        setSettings(data);
+        setSaved(true);
+        setSaveError('');
+        queryClient.setQueryData(getGetSellerSettingsQueryKey(), data);
+      },
+      onError: (error) => setSaveError(error instanceof Error ? error.message : 'Your settings could not be saved.'),
+    });
   };
   const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -2725,7 +2805,9 @@ function SettingsPage() {
     reader.onload = () => {
       if (typeof reader.result !== 'string') return;
       setLogoError('');
-      setProfile((current) => ({ ...current, logoDataUrl: reader.result as string }));
+      const logoDataUrl = reader.result as string;
+      setProfile((current) => ({ ...current, logoDataUrl }));
+      setSettings((current) => ({ ...current, logoDataUrl }));
       setSaved(false);
     };
     reader.onerror = () => setLogoError('That image could not be read. Try another file.');
@@ -2737,11 +2819,71 @@ function SettingsPage() {
       delete next.logoDataUrl;
       return next;
     });
+    setSettings((current) => ({ ...current, logoDataUrl: null }));
     setSaved(false);
   };
-  const setPreference = (key: keyof SellerSettingsPreferences, value: boolean) => setPreferences((current) => ({ ...current, [key]: value }));
+  const setPreference = (key: keyof SellerSettingsPreferences, value: boolean) => {
+    setPreferences((current) => ({ ...current, [key]: value }));
+    setSettings((current) => ({ ...current, [key]: value }));
+    setSaved(false);
+  };
+  const setSetting = <K extends keyof SellerSettings>(key: K, value: SellerSettings[K]) => {
+    setSettings((current) => ({ ...current, [key]: value }));
+    setSaved(false);
+    setSaveError('');
+  };
+  const saveSettings = () => {
+    setSaveError('');
+    saveSettingsMutation.mutate({ data: settings }, {
+      onSuccess: (data) => {
+        setSettings(data);
+        setProfile({
+          sellerName: data.sellerName,
+          businessName: data.businessName,
+          description: data.description,
+          channels: data.channels,
+          ...(data.logoDataUrl ? { logoDataUrl: data.logoDataUrl } : {}),
+        });
+        writeSellerProfile({
+          sellerName: data.sellerName,
+          businessName: data.businessName,
+          description: data.description,
+          channels: data.channels,
+          ...(data.logoDataUrl ? { logoDataUrl: data.logoDataUrl } : {}),
+        });
+        setSaved(true);
+        queryClient.setQueryData(getGetSellerSettingsQueryKey(), data);
+      },
+      onError: (error) => setSaveError(error instanceof Error ? error.message : 'Your settings could not be saved.'),
+    });
+  };
 
   const renderSettingsContent = () => {
+    if (settingsQuery.isLoading) return <div className="settings-card"><div className="flex items-center gap-3 text-sm font-semibold"><Loader2 size={16} className="animate-spin" />Loading saved settings</div><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your workspace settings are being restored.</p></div>;
+    if (settingsQuery.isError) return <div className="settings-card"><div className="text-sm font-semibold">Settings could not be loaded</div><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your saved settings are still safe. Try again to continue.</p><Button type="button" variant="outline" className="mt-4" onClick={() => settingsQuery.refetch()}>Try again</Button></div>;
+    const saveAction = <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[hsl(var(--border))] pt-5"><p className="text-xs text-[hsl(var(--muted-foreground))]">{saveError || (saved ? 'Saved to your seller workspace.' : 'Changes are ready to save.')}</p><Button type="button" onClick={saveSettings} disabled={saveSettingsMutation.isPending}>{saveSettingsMutation.isPending && <Loader2 size={15} className="animate-spin" />}{saved ? <><Check size={15} />Saved</> : 'Save changes'}</Button></div>;
+    if (activeSection === 'general') return <div className="space-y-5">
+      <div className="settings-card flex flex-col gap-5 sm:flex-row sm:items-center">
+        <SellerLogo businessName={settings.businessName || 'Your shop'} logoDataUrl={settings.logoDataUrl ?? undefined} className="settings-profile-logo" />
+        <div className="min-w-0 flex-1"><div className="text-sm font-semibold">{settings.logoDataUrl ? 'Your logo is ready' : 'Add a business logo'}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Use a square PNG, JPG, WebP, or SVG up to 2 MB. It appears on buyer order pages.</p><div className="mt-3 flex flex-wrap gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] px-3 py-2 text-[11px] font-semibold text-[hsl(var(--primary-foreground))]"><ImagePlus size={14} />{settings.logoDataUrl ? 'Replace logo' : 'Upload logo'}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" tabIndex={-1} className="sr-only" onChange={handleLogoChange} data-testid="input-settings-logo" /></label>{settings.logoDataUrl && <button type="button" onClick={removeLogo} className="inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--border))] px-3 py-2 text-[11px] font-semibold hover:bg-[hsl(var(--muted))]" data-testid="button-remove-settings-logo"><X size={14} />Remove</button>}</div>{logoError && <p role="alert" className="mt-2 text-xs text-[hsl(var(--destructive))]">{logoError}</p>}</div>
+      </div>
+      <div className="settings-card grid gap-5 sm:grid-cols-2">
+        <div><label className="field-label" htmlFor="settings-seller-name">Your name</label><input id="settings-seller-name" data-testid="input-settings-seller-name" className="field-input" value={settings.sellerName} onChange={(event) => updateProfile('sellerName', event.target.value)} placeholder="e.g. Amina Mensah" /></div>
+        <div><label className="field-label" htmlFor="settings-business-name">Business or shop name</label><input id="settings-business-name" data-testid="input-settings-business-name" className="field-input" value={settings.businessName} onChange={(event) => updateProfile('businessName', event.target.value)} placeholder="e.g. The Sunday Edit" /></div>
+        <div className="sm:col-span-2"><label className="field-label" htmlFor="settings-description">Short shop description</label><textarea id="settings-description" data-testid="input-settings-description" className="field-input resize-none leading-6" rows={4} value={settings.description} onChange={(event) => updateProfile('description', event.target.value)} placeholder="Tell buyers what you sell and where they can find you." /></div>
+        {saveAction}
+      </div>
+      <div className="settings-card"><div className="flex items-center gap-2 text-sm font-semibold"><Store size={16} />Public storefront</div><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">These saved details appear on shared buyer order pages.</p><div className="mt-4 flex flex-wrap gap-2">{profile.channels.length ? profile.channels.map((channel) => <span key={channel} className="rounded-full bg-[hsl(var(--muted))] px-3 py-1.5 text-[11px] font-semibold">{channel}</span>) : <span className="text-xs text-[hsl(var(--muted-foreground))]">No sales channels selected yet.</span>}</div></div>
+    </div>;
+    if (activeSection === 'workflow') return <div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Order updates" description="Keep order status changes visible in the workspace." checked={settings.orderUpdates} onChange={(value) => setPreference('orderUpdates', value)} /><SettingsToggle label="Stock alerts" description="Highlight products that are running low or out of stock." checked={settings.stockAlerts} onChange={(value) => setPreference('stockAlerts', value)} /><SettingsToggle label="Compact tables" description="Use tighter rows when scanning orders, clients, and expenses." checked={settings.compactTables} onChange={(value) => setPreference('compactTables', value)} /><div className="p-5">{saveAction}</div></div>;
+    if (activeSection === 'payments') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Payment behaviour</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">This default is used when you create a new buyer order link.</p></div><WalletCards size={19} className="text-[hsl(var(--muted-foreground))]" /></div><label className="field-label mt-5" htmlFor="settings-payment-mode">Default payment mode</label><select id="settings-payment-mode" className="field-input" value={settings.paymentMode} onChange={(event) => setSetting('paymentMode', event.target.value as SellerSettings['paymentMode'])}><option value="reserve">Reserve order and confirm payment later</option><option value="full">Pay now with demo payment</option><option value="deposit">Collect a deposit with demo payment</option></select>{saveAction}</div><div className="settings-note"><CreditCard size={16} /><p><strong>Payments are demo-only for now.</strong> No real card or mobile-money transaction is processed until a payment provider is connected.</p></div></div>;
+    if (activeSection === 'checkout') return <div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Ask for useful order details" description="Let buyers add delivery timing, access notes, or other context." checked={settings.checkoutAskForDetails} onChange={(value) => setSetting('checkoutAskForDetails', value)} /><SettingsToggle label="Allow reference images" description="Let buyers attach an image when a product needs visual guidance." checked={settings.checkoutAllowReferenceImages} onChange={(value) => setSetting('checkoutAllowReferenceImages', value)} /><div className="settings-row"><div><div className="text-sm font-semibold">Checkout reassurance</div><div className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Buyers see a clear summary before sending an order.</div></div><span className="settings-status"><Check size={13} />Enabled</span></div><div className="p-5">{saveAction}</div></div>;
+    if (activeSection === 'delivery') return <div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Fulfilment defaults</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">These saved values are copied to new buyer order links.</p></div><Truck size={19} className="text-[hsl(var(--muted-foreground))]" /></div><label className="field-label mt-5" htmlFor="settings-delivery-default">Default option</label><select id="settings-delivery-default" className="field-input" value={settings.deliveryDefault} onChange={(event) => setSetting('deliveryDefault', event.target.value as SellerSettings['deliveryDefault'])}><option value="pickup">Pickup</option><option value="delivery">Delivery</option><option value="both">Let buyers choose</option></select><label className="field-label mt-5" htmlFor="settings-delivery-fee">Flat delivery fee</label><div className="relative"><span className="pointer-events-none absolute left-3 top-2.5 text-xs text-[hsl(var(--muted-foreground))]">$</span><input id="settings-delivery-fee" className="field-input pl-7" type="number" min="0" step="0.01" value={settings.deliveryFee} onChange={(event) => setSetting('deliveryFee', Math.max(0, Number(event.target.value) || 0))} /></div>{saveAction}</div>;
+    if (activeSection === 'domains') return <div className="space-y-5"><div className="settings-card"><h3 className="text-sm font-semibold">Buyer link</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Shared order links continue to use the Take Order workspace domain.</p><div className="mt-4 flex items-center gap-3 rounded-[10px] bg-[hsl(var(--muted))] px-3 py-3 text-xs"><Globe2 size={15} /><span className="truncate">take-order.app/your-shop</span><span className="settings-status ml-auto">Live</span></div></div><div className="settings-card"><h3 className="text-sm font-semibold">Custom domain preference</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Save the domain you plan to use. Domain connection is not available yet, so it will not be shown as active.</p><div className="mt-4 flex gap-2"><input className="field-input" value={settings.customDomain} onChange={(event) => setSetting('customDomain', event.target.value)} placeholder="orders.yourshop.com" /><span className="settings-status self-center whitespace-nowrap">{settings.customDomain ? 'Saved preference' : 'Not configured'}</span></div>{saveAction}</div></div>;
+    if (activeSection === 'seo') return <div className="settings-card space-y-5"><div><label className="field-label" htmlFor="settings-seo-title">Store title</label><input id="settings-seo-title" className="field-input" value={settings.seoTitle} onChange={(event) => setSetting('seoTitle', event.target.value)} placeholder={settings.businessName || 'Your shop'} /></div><div><label className="field-label" htmlFor="settings-seo-description">Search description</label><textarea id="settings-seo-description" className="field-input resize-none" rows={3} value={settings.seoDescription} onChange={(event) => setSetting('seoDescription', event.target.value)} placeholder="A short description for search previews." /></div><div><label className="field-label" htmlFor="settings-tracking-id">Tracking ID <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><input id="settings-tracking-id" className="field-input" value={settings.trackingId} onChange={(event) => setSetting('trackingId', event.target.value)} placeholder="e.g. G-XXXXXXXXXX" /></div>{saveAction}</div>;
+    if (activeSection === 'advanced') return <div className="space-y-5"><div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Compact tables" description="Use tighter rows throughout the seller workspace." checked={settings.compactTables} onChange={(value) => setPreference('compactTables', value)} /><div className="settings-row"><div><div className="text-sm font-semibold">Server-saved data</div><div className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Profile and workspace preferences follow your authenticated seller account.</div></div><span className="settings-status"><Check size={13} />Private</span></div><div className="p-5">{saveAction}</div></div><div className="settings-card"><h3 className="text-sm font-semibold">Reset saved settings</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">This restores empty profile, delivery, checkout, SEO, and organization values. It does not delete products or orders.</p><button type="button" className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--destructive))]/35 px-3 py-2 text-xs font-semibold text-[hsl(var(--destructive))]" onClick={() => { if (!window.confirm('Reset saved seller settings?')) return; setSettings(emptySellerSettings); setProfile({ sellerName: '', businessName: '', description: '', channels: [] }); setPreferences(defaultSellerPreferences); setSaved(false); setSaveError(''); saveSettingsMutation.mutate({ data: emptySellerSettings }); }}>Reset settings</button></div></div>;
+    if (false) return <div className="settings-card grid gap-5 sm:grid-cols-2"><div><label className="field-label" htmlFor="settings-org-name">Legal or trading name</label><input id="settings-org-name" className="field-input" value={settings.organizationName} onChange={(event) => setSetting('organizationName', event.target.value)} /></div><div><label className="field-label" htmlFor="settings-org-email">Business email</label><input id="settings-org-email" className="field-input" type="email" value={settings.organizationEmail} onChange={(event) => setSetting('organizationEmail', event.target.value)} placeholder="you@example.com" /></div><div><label className="field-label" htmlFor="settings-org-phone">Business phone</label><input id="settings-org-phone" className="field-input" type="tel" value={settings.organizationPhone} onChange={(event) => setSetting('organizationPhone', event.target.value)} placeholder="+233 00 000 0000" /></div><div><label className="field-label" htmlFor="settings-org-country">Country or region</label><select id="settings-org-country" className="field-input" value={settings.organizationCountry} onChange={(event) => setSetting('organizationCountry', event.target.value)}><option value="gh">Ghana</option><option value="ng">Nigeria</option><option value="za">South Africa</option><option value="other">Other</option></select></div><div className="sm:col-span-2"><label className="field-label" htmlFor="settings-org-address">Business address</label><textarea id="settings-org-address" className="field-input resize-none" rows={3} value={settings.organizationAddress} onChange={(event) => setSetting('organizationAddress', event.target.value)} placeholder="Add an address for invoices and fulfilment." /></div><div className="sm:col-span-2">{saveAction}</div></div>;
+    if (activeSection === 'integrations') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Connected tools</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your selected tools are saved as preferences. No tool is authorized unless a connection is explicitly completed.</p></div><Link2 size={19} className="text-[hsl(var(--muted-foreground))]" /></div><div className="mt-4 text-xs text-[hsl(var(--muted-foreground))]">{settings.connectedTools.length ? `${settings.connectedTools.length} tool preference${settings.connectedTools.length === 1 ? '' : 's'} saved.` : 'No tool preferences saved yet.'}</div><Link href="/connect" className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--border))] px-3 py-2 text-xs font-semibold hover:bg-[hsl(var(--muted))]">Manage integrations <ArrowRight size={14} /></Link></div><div className="settings-note"><ShieldIcon /><p>Take Order never reads personal chats. Billing and staff access are not connected yet.</p></div></div>;
     if (activeSection === 'general') return <div className="space-y-5">
       <div className="settings-card flex flex-col gap-5 sm:flex-row sm:items-center">
         <SellerLogo businessName={profile.businessName || 'Your shop'} logoDataUrl={profile.logoDataUrl} className="settings-profile-logo" />
@@ -2762,7 +2904,7 @@ function SettingsPage() {
     if (activeSection === 'domains') return <div className="space-y-5"><div className="settings-card"><h3 className="text-sm font-semibold">Buyer link</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Shared order links use your Take Order workspace domain.</p><div className="mt-4 flex items-center gap-3 rounded-[10px] bg-[hsl(var(--muted))] px-3 py-3 text-xs"><Globe2 size={15} /><span className="truncate">take-order.app/your-shop</span><span className="settings-status ml-auto">Live</span></div></div><div className="settings-card"><h3 className="text-sm font-semibold">Custom domain</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Connect a domain later to give buyers a branded link.</p><div className="mt-4 flex gap-2"><input className="field-input" placeholder="orders.yourshop.com" disabled /><Button type="button" variant="outline" disabled>Connect</Button></div></div></div>;
     if (activeSection === 'membership') return <div className="settings-card"><div className="flex items-start justify-between gap-4"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Current workspace</div><h3 className="mt-2 font-display text-2xl font-bold">Starter</h3><p className="mt-2 max-w-[450px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">Everything you need to create buyer links, manage products, and understand your day-to-day sales.</p></div><div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[hsl(var(--muted))]"><WalletCards size={18} /></div></div><div className="mt-6 grid gap-3 sm:grid-cols-3"><div className="settings-stat"><strong>1</strong><span>workspace</span></div><div className="settings-stat"><strong>Unlimited</strong><span>buyer links</span></div><div className="settings-stat"><strong>Local</strong><span>preferences</span></div></div></div>;
     if (activeSection === 'seo') return <div className="settings-card space-y-5"><div><label className="field-label" htmlFor="settings-seo-title">Store title</label><input id="settings-seo-title" className="field-input" defaultValue={profile.businessName || 'Your shop'} /></div><div><label className="field-label" htmlFor="settings-seo-description">Search description</label><textarea id="settings-seo-description" className="field-input resize-none" rows={3} defaultValue={profile.description} placeholder="A short description for search previews." /></div><div><label className="field-label" htmlFor="settings-tracking-id">Tracking ID <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><input id="settings-tracking-id" className="field-input" placeholder="e.g. G-XXXXXXXXXX" /></div><Button type="button" variant="outline">Save SEO settings</Button></div>;
-    if (activeSection === 'advanced') return <div className="space-y-5"><div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Compact tables" description="Use tighter rows throughout the seller workspace." checked={preferences.compactTables} onChange={(value) => setPreference('compactTables', value)} /><div className="settings-row"><div><div className="text-sm font-semibold">Browser-only data</div><div className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Profile, channel choices, and display preferences stay in this browser.</div></div><span className="settings-status"><Check size={13} />Private</span></div></div><div className="settings-card"><h3 className="text-sm font-semibold">Reset local preferences</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">This does not delete products or orders. It only clears seller profile and workspace preferences.</p><button type="button" className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--destructive))]/35 px-3 py-2 text-xs font-semibold text-[hsl(var(--destructive))]" onClick={() => { if (!window.confirm('Reset local seller preferences?')) return; window.localStorage.removeItem(ONBOARDING_KEY); window.localStorage.removeItem(SELLER_SETTINGS_KEY); setProfile({ sellerName: '', businessName: '', description: '', channels: [] }); setPreferences(defaultSellerSettings); setSaved(false); }}>Reset preferences</button></div></div>;
+    if (activeSection === 'advanced') return <div className="space-y-5"><div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Compact tables" description="Use tighter rows throughout the seller workspace." checked={preferences.compactTables} onChange={(value) => setPreference('compactTables', value)} /><div className="settings-row"><div><div className="text-sm font-semibold">Browser-only data</div><div className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Profile, channel choices, and display preferences stay in this browser.</div></div><span className="settings-status"><Check size={13} />Private</span></div></div><div className="settings-card"><h3 className="text-sm font-semibold">Reset local preferences</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">This does not delete products or orders. It only clears seller profile and workspace preferences.</p><button type="button" className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--destructive))]/35 px-3 py-2 text-xs font-semibold text-[hsl(var(--destructive))]" onClick={() => { if (!window.confirm('Reset local seller preferences?')) return; window.localStorage.removeItem(ONBOARDING_KEY); window.localStorage.removeItem(SELLER_SETTINGS_KEY); setProfile({ sellerName: '', businessName: '', description: '', channels: [] }); setPreferences(defaultSellerPreferences); setSaved(false); }}>Reset preferences</button></div></div>;
     if (activeSection === 'details') return <div className="settings-card grid gap-5 sm:grid-cols-2"><div><label className="field-label" htmlFor="settings-org-name">Legal or trading name</label><input id="settings-org-name" className="field-input" defaultValue={profile.businessName} /></div><div><label className="field-label" htmlFor="settings-org-email">Business email</label><input id="settings-org-email" className="field-input" type="email" placeholder="you@example.com" /></div><div><label className="field-label" htmlFor="settings-org-phone">Business phone</label><input id="settings-org-phone" className="field-input" type="tel" placeholder="+233 00 000 0000" /></div><div><label className="field-label" htmlFor="settings-org-country">Country or region</label><select id="settings-org-country" className="field-input" defaultValue="gh"><option value="gh">Ghana</option><option value="ng">Nigeria</option><option value="za">South Africa</option><option value="other">Other</option></select></div><div className="sm:col-span-2"><label className="field-label" htmlFor="settings-org-address">Business address</label><textarea id="settings-org-address" className="field-input resize-none" rows={3} placeholder="Add an address for invoices and fulfilment." /></div><Button type="button" variant="outline">Save organization details</Button></div>;
     if (activeSection === 'billing') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Billing is not connected</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your Starter workspace has no subscription invoices or payment method yet.</p></div><ReceiptText size={19} className="text-[hsl(var(--muted-foreground))]" /></div><Button type="button" variant="outline" className="mt-5" disabled>Manage billing</Button></div><div className="settings-note"><ShieldIcon /><p>Billing details will appear here when a paid workspace plan is available.</p></div></div>;
     if (activeSection === 'staff') return <div className="space-y-5"><div className="settings-card"><h3 className="text-sm font-semibold">Workspace staff</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Invite people to help manage products and orders. Staff access is not connected yet.</p><div className="mt-5 flex items-center gap-3 rounded-[12px] border border-[hsl(var(--border))] p-3"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-[11px] font-bold text-white">{initials(profile.sellerName || 'Owner')}</div><div><div className="text-sm font-semibold">{profile.sellerName || 'Workspace owner'}</div><div className="text-xs text-[hsl(var(--muted-foreground))]">Owner · full access</div></div><span className="settings-status ml-auto">Active</span></div><Button type="button" variant="outline" className="mt-4" disabled>Invite staff</Button></div></div>;
@@ -3051,6 +3193,8 @@ export function BuyerOrderForm({
   amount,
   depositAmount,
   deliveryFee = 0,
+  askForDetails = true,
+  allowReferenceImages = true,
   item: providedItem,
   itemIndex = 0,
   itemCount = 1,
@@ -3080,6 +3224,8 @@ export function BuyerOrderForm({
   amount: number;
   depositAmount: number | null | undefined;
   deliveryFee?: number;
+  askForDetails?: boolean;
+  allowReferenceImages?: boolean;
   item?: BuyerOrderItem;
   itemIndex?: number;
   itemCount?: number;
@@ -3122,7 +3268,7 @@ export function BuyerOrderForm({
   }, [item.imageUrl, item.imageUrls, item.productName]);
   const activeGalleryImage = galleryImages[Math.min(activeGalleryIndex, galleryImages.length - 1)] ?? productImageFor(item.productName);
   const itemRequirementsMet = item.preferences.every((preference) => Boolean(itemForm.preferences[preference.label]))
-    && (item.source !== 'custom' || Boolean(itemForm.imagePreview))
+    && (item.source !== 'custom' || !allowReferenceImages || Boolean(itemForm.imagePreview))
     && (item.source === 'custom' || (item.available !== false && itemForm.quantity <= (item.stock ?? 0)));
   useEffect(() => {
     setEditingContact(false);
@@ -3131,18 +3277,18 @@ export function BuyerOrderForm({
     setPaymentMethodConfirmed(false);
   }, [itemIndex, contactStep, checkout]);
   if (!providedItem) {
-    return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="space-y-5">
+    return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="space-y-5" data-ask-for-details={askForDetails} data-allow-reference-images={allowReferenceImages}>
        {submitError && <div className="rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-public-order-error">{submitError}</div>}
       <div><label htmlFor="buyer-name" className="field-label">Your name</label><input id="buyer-name" data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div>
       <div><label htmlFor="buyer-phone" className="field-label">Phone number</label><input id="buyer-phone" data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>
-      <div><label htmlFor="buyer-details" className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-details" data-testid="input-buyer-details" value={form.details ?? ''} onChange={(event) => onChange('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>
-      <div><span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span><label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{form.image ? form.image : 'Attach an image'}</label><input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />{form.imagePreview && <img src={form.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>
+       {askForDetails && <div><label htmlFor="buyer-details" className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-details" data-testid="input-buyer-details" value={form.details ?? ''} onChange={(event) => onChange('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>}
+       {allowReferenceImages && <div><span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span><label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{form.image ? form.image : 'Attach an image'}</label><input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />{form.imagePreview && <img src={form.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>}
       {showMockPayment && <div className="buyer-mock-payment" aria-labelledby="mock-payment-heading"><div className="flex items-center justify-between gap-3"><h3 id="mock-payment-heading" className="flex items-center gap-2 text-sm font-bold"><WalletCards aria-hidden="true" size={16} />Mock payment checkout</h3><StatusPill tone="gold">Demo</StatusPill></div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">No real charge will be made. Use any test details to continue.</p><div className="mt-4 space-y-3"><div><label htmlFor="mock-card-number" className="field-label">Card number</label><input id="mock-card-number" data-testid="input-mock-card-number" required inputMode="numeric" value={mockPayment.cardNumber} onChange={(event) => onMockPaymentChange('cardNumber', event.target.value)} placeholder="4242 4242 4242 4242" className="field-input" /></div><div className="grid grid-cols-2 gap-3"><div><label htmlFor="mock-expiry" className="field-label">Expiry</label><input id="mock-expiry" data-testid="input-mock-expiry" required value={mockPayment.expiry} onChange={(event) => onMockPaymentChange('expiry', event.target.value)} placeholder="12/30" className="field-input" /></div><div><label htmlFor="mock-cvc" className="field-label">CVC</label><input id="mock-cvc" data-testid="input-mock-cvc" required inputMode="numeric" value={mockPayment.cvc} onChange={(event) => onMockPaymentChange('cvc', event.target.value)} placeholder="123" className="field-input" /></div></div></div></div>}
        {paymentMode !== 'reserve' && <fieldset className="grid grid-cols-2 gap-2" aria-label="Payment options"><legend className="sr-only">Payment options</legend><button type="button" role="radio" aria-checked={form.action === 'pay'} onClick={() => onPaymentAction('pay')} data-testid="button-buyer-pay" className={cn('buyer-payment-option', form.action === 'pay' && 'is-selected')}>{paymentMode === 'deposit' ? `Pay deposit · ${moneyExact(payableDeposit)}` : `Pay ${moneyExact(amount)}`}</button><button type="button" role="radio" aria-checked={form.action === 'reserve'} onClick={() => onPaymentAction('reserve')} data-testid="button-buyer-reserve" className={cn('buyer-payment-option', form.action === 'reserve' && 'is-selected')}>Reserve for later</button></fieldset>}
       <Button type="submit" disabled={submitPending || (paymentMode !== 'reserve' && !form.action)} className="w-full py-3.5" data-testid="button-submit-public-order">{submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}{paymentMode === 'reserve' || form.action === 'reserve' ? 'Reserve these items' : showMockPayment ? 'Complete mock payment' : 'Continue to mock payment'} <ArrowUpRight aria-hidden="true" size={15} /></Button>
     </form>;
   }
-  return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="buyer-order-form">
+  return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="buyer-order-form" data-ask-for-details={askForDetails} data-allow-reference-images={allowReferenceImages}>
      {submitError && <div className="mb-5 rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-public-order-error">{submitError}</div>}
     {!checkout ? contactStep ? <div className="buyer-item-entry">
        <section className="buyer-buyer-details-section" aria-labelledby="buyer-details-heading"><div className="buyer-section-heading"><h2 id="buyer-details-heading">Contact information</h2></div><div className="buyer-form-module buyer-contact-module"><div className="buyer-contact-fields"><div><label htmlFor="buyer-name" className="field-label">Your name</label><input id="buyer-name" data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div><div><label htmlFor="buyer-phone" className="field-label">Phone number</label><input id="buyer-phone" data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div></div></div><div className="buyer-subsection-heading"><h3>Delivery service <span className="font-normal text-[hsl(var(--muted-foreground))]">(required)</span></h3></div><div className="buyer-form-module buyer-delivery-module"><fieldset className="buyer-delivery-fields"><legend className="sr-only">Choose a delivery service</legend><div className="buyer-service-choice-grid"><label className={cn('buyer-service-choice', selectedDeliveryMethod === 'pickup' && 'is-selected')}><input className="buyer-service-choice-input" type="radio" name="buyer-delivery-method" value="pickup" checked={selectedDeliveryMethod === 'pickup'} onChange={(event) => onChange('deliveryMethod', event.target.value)} required /><span className="buyer-service-choice-check" aria-hidden="true">{selectedDeliveryMethod === 'pickup' && <Check size={12} strokeWidth={3} />}</span><span className="buyer-service-choice-copy"><strong>Pick up</strong><small>No delivery fee</small></span></label><label className={cn('buyer-service-choice', selectedDeliveryMethod === 'delivery' && 'is-selected')}><input className="buyer-service-choice-input" type="radio" name="buyer-delivery-method" value="delivery" checked={selectedDeliveryMethod === 'delivery'} onChange={(event) => onChange('deliveryMethod', event.target.value)} /><span className="buyer-service-choice-check" aria-hidden="true">{selectedDeliveryMethod === 'delivery' && <Check size={12} strokeWidth={3} />}</span><span className="buyer-service-choice-copy"><strong>Delivery</strong><small>{deliveryFee > 0 ? `Flat fee · ${moneyExact(deliveryFee)}` : 'No extra fee'}</small></span></label></div>{selectedDeliveryMethod === 'delivery' && <div className="page-in"><label htmlFor="buyer-address" className="field-label">Delivery address</label><textarea id="buyer-address" data-testid="input-buyer-address" required value={form.address ?? ''} onChange={(event) => onChange('address', event.target.value)} placeholder="Street, area, landmark, or pickup details..." rows={2} className="field-input resize-none" /></div>}<div><label htmlFor="buyer-order-details" className="field-label">Useful details <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-order-details" data-testid="input-buyer-order-details" value={form.orderDetails ?? ''} onChange={(event) => onChange('orderDetails', event.target.value)} placeholder="Delivery timing, access notes, or anything already agreed..." rows={2} className="field-input resize-none" /></div></fieldset></div></section>
@@ -3172,7 +3318,7 @@ export function BuyerOrderForm({
          <section className={cn('buyer-item-preferences-section buyer-product-detail', item.preferences.length > 0 && 'has-variants')} aria-labelledby="buyer-item-preferences-heading">
           <div className="buyer-item-preferences-layout">
               <div className={cn('buyer-item-visual', item.source === 'custom' ? 'buyer-custom-item-visual' : 'buyer-product-gallery')}>
-               {item.source === 'custom' ? <>
+               {item.source === 'custom' && allowReferenceImages ? <>
                  <label htmlFor="buyer-reference-image" className="buyer-custom-upload-area">
                    {itemForm.imagePreview ? <img src={itemForm.imagePreview} alt="Selected item reference" /> : <><ImagePlus size={24} aria-hidden="true" /><strong>Upload an item image</strong><span>Add a reference photo for the seller.</span></>}
                  </label>
