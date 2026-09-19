@@ -2946,7 +2946,8 @@ button[data-testid^="button-filter-"]:focus-visible {
 .take-order-custom-preference-row .field-input { min-height: 2.35rem; border-radius: 8px; font-size: .68rem; }
 .take-order-custom-preference-remove { display: inline-flex; height: 2rem; width: 2rem; align-items: center; justify-content: center; border-radius: 7px; color: hsl(var(--muted-foreground)); }
 .take-order-custom-preference-remove:hover { background: hsl(var(--muted)); color: hsl(var(--destructive)); }
-.take-order-custom-add-item { width: 100%; min-height: 2.8rem; justify-content: center; border-style: dashed; border-color: hsl(var(--foreground) / .45); border-radius: 10px; font-size: .75rem; }
+.take-order-custom-add-item { width: 100%; min-height: 2.8rem; justify-content: center; border: 1px solid hsl(var(--foreground)); border-radius: 10px; background: hsl(var(--foreground)); color: hsl(var(--background)); font-size: .75rem; }
+.take-order-custom-add-item:hover, .take-order-custom-add-item:focus-visible { background: hsl(var(--foreground) / .86); color: hsl(var(--background)); }
 .take-order-custom-add-item:disabled { opacity: .52; }
 .take-order-custom-order-panel { display: flex; min-width: 0; min-height: 30rem; flex-direction: column; overflow: hidden; border: 1px solid hsl(var(--foreground)); border-radius: 17px; background: hsl(var(--foreground)); color: hsl(var(--background)); box-shadow: 0 8px 22px hsl(var(--foreground) / .12); }
 .take-order-custom-order-body { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; padding: 1.35rem; }
