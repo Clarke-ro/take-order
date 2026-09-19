@@ -4,112 +4,77 @@ export type CurrencyConfig = {
   symbol: string;
 };
 
-export const storeCurrencyOptions = [
-  { currency: 'AED', label: 'United Arab Emirates dirham' },
-  { currency: 'AOA', label: 'Angolan kwanza' },
-  { currency: 'AUD', label: 'Australian dollar' },
-  { currency: 'BRL', label: 'Brazilian real' },
-  { currency: 'CAD', label: 'Canadian dollar' },
-  { currency: 'CHF', label: 'Swiss franc' },
-  { currency: 'CNY', label: 'Chinese yuan' },
-  { currency: 'CVE', label: 'Cape Verdean escudo' },
-  { currency: 'EGP', label: 'Egyptian pound' },
-  { currency: 'ETB', label: 'Ethiopian birr' },
-  { currency: 'EUR', label: 'Euro' },
-  { currency: 'GBP', label: 'British pound' },
-  { currency: 'GHS', label: 'Ghanaian cedi' },
-  { currency: 'INR', label: 'Indian rupee' },
-  { currency: 'JPY', label: 'Japanese yen' },
-  { currency: 'KES', label: 'Kenyan shilling' },
-  { currency: 'MZN', label: 'Mozambican metical' },
-  { currency: 'NGN', label: 'Nigerian naira' },
-  { currency: 'NZD', label: 'New Zealand dollar' },
-  { currency: 'RWF', label: 'Rwandan franc' },
-  { currency: 'STN', label: 'São Tomé and Príncipe dobra' },
-  { currency: 'TZS', label: 'Tanzanian shilling' },
-  { currency: 'UGX', label: 'Ugandan shilling' },
-  { currency: 'USD', label: 'US dollar' },
-  { currency: 'ZAR', label: 'South African rand' },
-  { currency: 'ZMW', label: 'Zambian kwacha' },
-  { currency: 'ZWL', label: 'Zimbabwean dollar' },
+export const storeCurrencyCodes = [
+  'AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT',
+  'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD',
+  'CDF', 'CHF', 'CLP', 'CNY', 'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD',
+  'EGP', 'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ',
+  'GYD', 'HKD', 'HNL', 'HTG', 'HUF', 'IDR', 'ILS', 'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD',
+  'JPY', 'KES', 'KGS', 'KHR', 'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR',
+  'LRD', 'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MRU', 'MUR', 'MVR',
+  'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD', 'OMR', 'PAB', 'PEN',
+  'PGK', 'PHP', 'PKR', 'PLN', 'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR',
+  'SDG', 'SEK', 'SGD', 'SHP', 'SLE', 'SOS', 'SRD', 'SSP', 'STN', 'SYP', 'SZL', 'THB', 'TJS',
+  'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VES',
+  'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWL',
 ] as const;
 
-type LocationHints = {
-  language?: string;
-  timeZone?: string;
+type CurrencyCode = typeof storeCurrencyCodes[number];
+
+const currencyByRegion: Record<string, CurrencyCode> = {
+  AD: 'EUR', AE: 'AED', AF: 'AFN', AG: 'XCD', AI: 'XCD', AL: 'ALL', AM: 'AMD', AO: 'AOA',
+  AR: 'ARS', AS: 'USD', AT: 'EUR', AU: 'AUD', AW: 'AWG', AX: 'EUR', AZ: 'AZN', BA: 'BAM',
+  BB: 'BBD', BD: 'BDT', BE: 'EUR', BF: 'XOF', BG: 'BGN', BH: 'BHD', BI: 'BIF', BJ: 'XOF',
+  BL: 'EUR', BM: 'BMD', BN: 'BND', BO: 'BOB', BQ: 'USD', BR: 'BRL', BS: 'BSD', BT: 'BTN',
+  BV: 'NOK', BW: 'BWP', BY: 'BYN', BZ: 'BZD', CA: 'CAD', CC: 'AUD', CD: 'CDF', CF: 'XAF',
+  CG: 'XAF', CH: 'CHF', CI: 'XOF', CK: 'NZD', CL: 'CLP', CM: 'XAF', CN: 'CNY', CO: 'COP',
+  CR: 'CRC', CU: 'CUP', CV: 'CVE', CW: 'ANG', CX: 'AUD', CY: 'EUR', CZ: 'CZK', DE: 'EUR',
+  DJ: 'DJF', DK: 'DKK', DM: 'XCD', DO: 'DOP', DZ: 'DZD', EC: 'USD', EE: 'EUR', EG: 'EGP',
+  EH: 'MAD', ER: 'ERN', ES: 'EUR', ET: 'ETB', FI: 'EUR', FJ: 'FJD', FK: 'FKP', FM: 'USD',
+  FO: 'DKK', FR: 'EUR', GA: 'XAF', GB: 'GBP', GD: 'XCD', GE: 'GEL', GF: 'EUR', GG: 'GBP',
+  GH: 'GHS', GI: 'GIP', GL: 'DKK', GM: 'GMD', GN: 'GNF', GP: 'EUR', GQ: 'XAF', GR: 'EUR',
+  GS: 'GBP', GT: 'GTQ', GU: 'USD', GW: 'XOF', GY: 'GYD', HK: 'HKD', HM: 'AUD', HN: 'HNL',
+  HR: 'EUR', HT: 'HTG', HU: 'HUF', ID: 'IDR', IE: 'EUR', IL: 'ILS', IM: 'GBP', IN: 'INR',
+  IO: 'USD', IQ: 'IQD', IR: 'IRR', IS: 'ISK', IT: 'EUR', JE: 'GBP', JM: 'JMD', JO: 'JOD',
+  JP: 'JPY', KE: 'KES', KG: 'KGS', KH: 'KHR', KI: 'AUD', KM: 'KMF', KN: 'XCD', KP: 'KPW',
+  KR: 'KRW', KW: 'KWD', KY: 'KYD', KZ: 'KZT', LA: 'LAK', LB: 'LBP', LC: 'XCD', LI: 'CHF',
+  LK: 'LKR', LR: 'LRD', LS: 'LSL', LT: 'EUR', LU: 'EUR', LV: 'EUR', LY: 'LYD', MA: 'MAD',
+  MC: 'EUR', MD: 'MDL', ME: 'EUR', MF: 'EUR', MG: 'MGA', MH: 'USD', MK: 'MKD', ML: 'XOF',
+  MM: 'MMK', MN: 'MNT', MO: 'MOP', MP: 'USD', MQ: 'EUR', MR: 'MRU', MS: 'XCD', MT: 'EUR',
+  MU: 'MUR', MV: 'MVR', MW: 'MWK', MX: 'MXN', MY: 'MYR', MZ: 'MZN', NA: 'NAD', NC: 'XPF',
+  NE: 'XOF', NF: 'AUD', NG: 'NGN', NI: 'NIO', NL: 'EUR', NO: 'NOK', NP: 'NPR', NR: 'AUD',
+  NU: 'NZD', NZ: 'NZD', OM: 'OMR', PA: 'PAB', PE: 'PEN', PF: 'XPF', PG: 'PGK', PH: 'PHP',
+  PK: 'PKR', PL: 'PLN', PM: 'EUR', PN: 'NZD', PR: 'USD', PS: 'ILS', PT: 'EUR', PW: 'USD',
+  PY: 'PYG', QA: 'QAR', RE: 'EUR', RO: 'RON', RS: 'RSD', RU: 'RUB', RW: 'RWF', SA: 'SAR',
+  SB: 'SBD', SC: 'SCR', SD: 'SDG', SE: 'SEK', SG: 'SGD', SH: 'SHP', SI: 'EUR', SJ: 'NOK',
+  SK: 'EUR', SL: 'SLE', SM: 'EUR', SN: 'XOF', SO: 'SOS', SR: 'SRD', SS: 'SSP', ST: 'STN',
+  SV: 'USD', SX: 'ANG', SY: 'SYP', SZ: 'SZL', TC: 'USD', TD: 'XAF', TF: 'EUR', TG: 'XOF',
+  TH: 'THB', TJ: 'TJS', TK: 'NZD', TL: 'USD', TM: 'TMT', TN: 'TND', TO: 'TOP', TR: 'TRY', XK: 'EUR',
+  TT: 'TTD', TV: 'AUD', TW: 'TWD', TZ: 'TZS', UA: 'UAH', UG: 'UGX', UM: 'USD', US: 'USD',
+  UY: 'UYU', UZ: 'UZS', VA: 'EUR', VC: 'XCD', VE: 'VES', VG: 'USD', VI: 'USD', VN: 'VND',
+  VU: 'VUV', WF: 'XPF', WS: 'WST', YE: 'YER', YT: 'EUR', ZA: 'ZAR', ZM: 'ZMW', ZW: 'ZWL',
 };
 
-const currencyByRegion: Record<string, { currency: string; locale: string }> = {
-  AE: { currency: 'AED', locale: 'en-AE' },
-  AO: { currency: 'AOA', locale: 'pt-AO' },
-  AU: { currency: 'AUD', locale: 'en-AU' },
-  BR: { currency: 'BRL', locale: 'pt-BR' },
-  CA: { currency: 'CAD', locale: 'en-CA' },
-  CH: { currency: 'CHF', locale: 'de-CH' },
-  CN: { currency: 'CNY', locale: 'zh-CN' },
-  CV: { currency: 'CVE', locale: 'pt-CV' },
-  DE: { currency: 'EUR', locale: 'de-DE' },
-  EG: { currency: 'EGP', locale: 'ar-EG' },
-  ES: { currency: 'EUR', locale: 'es-ES' },
-  ET: { currency: 'ETB', locale: 'am-ET' },
-  FR: { currency: 'EUR', locale: 'fr-FR' },
-  GB: { currency: 'GBP', locale: 'en-GB' },
-  GH: { currency: 'GHS', locale: 'en-GH' },
-  IN: { currency: 'INR', locale: 'en-IN' },
-  JP: { currency: 'JPY', locale: 'ja-JP' },
-  KE: { currency: 'KES', locale: 'en-KE' },
-  MZ: { currency: 'MZN', locale: 'pt-MZ' },
-  NG: { currency: 'NGN', locale: 'en-NG' },
-  NZ: { currency: 'NZD', locale: 'en-NZ' },
-  PT: { currency: 'EUR', locale: 'pt-PT' },
-  RW: { currency: 'RWF', locale: 'rw-RW' },
-  ST: { currency: 'STN', locale: 'pt-ST' },
-  TZ: { currency: 'TZS', locale: 'sw-TZ' },
-  UG: { currency: 'UGX', locale: 'en-UG' },
-  US: { currency: 'USD', locale: 'en-US' },
-  ZA: { currency: 'ZAR', locale: 'en-ZA' },
-  ZM: { currency: 'ZMW', locale: 'en-ZM' },
-  ZW: { currency: 'ZWL', locale: 'en-ZW' },
+const localeByCurrency: Partial<Record<CurrencyCode, string>> = {
+  AED: 'en-AE', AFN: 'fa-AF', ALL: 'sq-AL', AMD: 'hy-AM', ANG: 'nl-CW', AOA: 'pt-AO',
+  ARS: 'es-AR', AUD: 'en-AU', AZN: 'az-AZ', BDT: 'bn-BD', BGN: 'bg-BG', BHD: 'ar-BH',
+  BRL: 'pt-BR', CAD: 'en-CA', CHF: 'de-CH', CLP: 'es-CL', CNY: 'zh-CN', COP: 'es-CO',
+  CRC: 'es-CR', CVE: 'pt-CV', CZK: 'cs-CZ', DKK: 'da-DK', DOP: 'es-DO', DZD: 'ar-DZ',
+  EGP: 'ar-EG', ETB: 'am-ET', EUR: 'en-IE', FJD: 'en-FJ', GBP: 'en-GB', GEL: 'ka-GE',
+  GHS: 'en-GH', GMD: 'en-GM', GNF: 'fr-GN', GTQ: 'es-GT', GYD: 'en-GY', HKD: 'zh-HK',
+  HNL: 'es-HN', HUF: 'hu-HU', IDR: 'id-ID', ILS: 'he-IL', INR: 'en-IN', IQD: 'ar-IQ',
+  ISK: 'is-IS', JMD: 'en-JM', JOD: 'ar-JO', JPY: 'ja-JP', KES: 'en-KE', KHR: 'km-KH',
+  KRW: 'ko-KR', KWD: 'ar-KW', KZT: 'kk-KZ', LKR: 'si-LK', MAD: 'ar-MA', MGA: 'mg-MG',
+  MKD: 'mk-MK', MMK: 'my-MM', MNT: 'mn-MN', MOP: 'zh-MO', MUR: 'en-MU', MVR: 'dv-MV',
+  MWK: 'en-MW', MXN: 'es-MX', MYR: 'ms-MY', MZN: 'pt-MZ', NAD: 'en-NA', NGN: 'en-NG',
+  NIO: 'es-NI', NOK: 'nb-NO', NPR: 'ne-NP', NZD: 'en-NZ', OMR: 'ar-OM', PAB: 'es-PA',
+  PEN: 'es-PE', PHP: 'en-PH', PKR: 'ur-PK', PLN: 'pl-PL', PYG: 'es-PY', QAR: 'ar-QA',
+  RON: 'ro-RO', RUB: 'ru-RU', RWF: 'rw-RW', SAR: 'ar-SA', SEK: 'sv-SE', SGD: 'en-SG',
+  SLE: 'en-SL', STN: 'pt-ST', SYP: 'ar-SY', THB: 'th-TH', TND: 'ar-TN', TRY: 'tr-TR',
+  TTD: 'en-TT', TWD: 'zh-TW', TZS: 'sw-TZ', UAH: 'uk-UA', UGX: 'en-UG', USD: 'en-US',
+  UYU: 'es-UY', UZS: 'uz-UZ', VES: 'es-VE', VND: 'vi-VN', XAF: 'fr-CM', XCD: 'en-AG',
+  XOF: 'fr-SN', XPF: 'fr-PF', YER: 'ar-YE', ZAR: 'en-ZA', ZMW: 'en-ZM', ZWL: 'en-ZW',
 };
-
-const currencyByCode = Object.fromEntries(
-  Object.values(currencyByRegion).map((selected) => [selected.currency, selected]),
-) as Record<string, { currency: string; locale: string }>;
-
-const regionByTimeZone: Record<string, string> = {
-  'Africa/Accra': 'GH',
-  'Africa/Addis_Ababa': 'ET',
-  'Africa/Cairo': 'EG',
-  'Africa/Dar_es_Salaam': 'TZ',
-  'Africa/Johannesburg': 'ZA',
-  'Africa/Kampala': 'UG',
-  'Africa/Kigali': 'RW',
-  'Africa/Luanda': 'AO',
-  'Africa/Maputo': 'MZ',
-  'Africa/Nairobi': 'KE',
-  'Africa/Lagos': 'NG',
-  'Africa/Sao_Tome': 'ST',
-  'America/Sao_Paulo': 'BR',
-  'America/Toronto': 'CA',
-  'America/Vancouver': 'CA',
-  'America/New_York': 'US',
-  'America/Los_Angeles': 'US',
-  'Asia/Calcutta': 'IN',
-  'Asia/Kolkata': 'IN',
-  'Asia/Shanghai': 'CN',
-  'Asia/Tokyo': 'JP',
-  'Australia/Sydney': 'AU',
-  'Europe/Berlin': 'DE',
-  'Europe/Lisbon': 'PT',
-  'Europe/London': 'GB',
-  'Europe/Paris': 'FR',
-  'Pacific/Auckland': 'NZ',
-};
-
-function regionFromLanguage(language: string | undefined): string | undefined {
-  const match = language?.match(/[-_]([A-Z]{2}|\d{3})$/i);
-  return match?.[1]?.toUpperCase();
-}
 
 function currencySymbol(locale: string, currency: string): string {
   return new Intl.NumberFormat(locale, {
@@ -120,36 +85,46 @@ function currencySymbol(locale: string, currency: string): string {
   }).formatToParts(0).find((part) => part.type === 'currency')?.value ?? currency;
 }
 
-export function currencyForLocation({ language, timeZone }: LocationHints = {}): CurrencyConfig {
-  const region = regionFromLanguage(language) || (timeZone && regionByTimeZone[timeZone]) || 'GH';
-  const selected = currencyByRegion[region] ?? currencyByRegion.GH;
-  return {
-    locale: selected.locale,
-    currency: selected.currency,
-    symbol: currencySymbol(selected.locale, selected.currency),
-  };
+function currencyLabel(currency: CurrencyCode): string {
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'currency' }).of(currency) ?? currency;
+  } catch {
+    return currency;
+  }
 }
 
-function toCurrencyConfig(selected: { currency: string; locale: string }): CurrencyConfig {
-  return {
-    locale: selected.locale,
-    currency: selected.currency,
-    symbol: currencySymbol(selected.locale, selected.currency),
-  };
+export const storeCurrencyOptions = storeCurrencyCodes.map((currency) => ({
+  currency,
+  label: currencyLabel(currency),
+}));
+
+function toCurrencyConfig(currency: CurrencyCode): CurrencyConfig {
+  const locale = localeByCurrency[currency] ?? 'en-US';
+  return { locale, currency, symbol: currencySymbol(locale, currency) };
 }
 
 export function currencyForCode(currency: string | null | undefined): CurrencyConfig {
-  return toCurrencyConfig(currencyByCode[currency?.toUpperCase() ?? ''] ?? currencyByCode.GHS);
+  const code = currency?.toUpperCase() as CurrencyCode | undefined;
+  return toCurrencyConfig(code && storeCurrencyCodes.includes(code) ? code : 'GHS');
 }
 
-const browserLocation: LocationHints = typeof navigator === 'undefined'
-  ? {}
-  : {
-    language: navigator.language,
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  };
+export function currencyForLanguage(language: string | undefined): CurrencyConfig | null {
+  const match = language?.match(/[-_]([A-Z]{2}|\d{3})(?:$|[-_])/i);
+  const region = match?.[1]?.toUpperCase();
+  const currency = region ? currencyByRegion[region] : undefined;
+  return currency ? toCurrencyConfig(currency) : null;
+}
 
-export const appCurrency = currencyForLocation(browserLocation);
+export function countryNameForCode(country: string | null | undefined): string | null {
+  if (!country) return null;
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(country.toUpperCase()) ?? country.toUpperCase();
+  } catch {
+    return country.toUpperCase();
+  }
+}
+
+export const appCurrency = currencyForCode('GHS');
 let activeCurrency = appCurrency;
 
 export function setActiveCurrency(currency: string | CurrencyConfig): void {

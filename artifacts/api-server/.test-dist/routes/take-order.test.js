@@ -15708,7 +15708,7 @@ var GetPublicOrderResponse = objectType({
   "businessName": stringType(),
   "businessDescription": stringType(),
   "logoDataUrl": stringType().nullable(),
-  "currency": enumType(["AED", "AOA", "AUD", "BRL", "CAD", "CHF", "CNY", "CVE", "EGP", "EUR", "ETB", "GBP", "GHS", "INR", "JPY", "KES", "MZN", "NGN", "NZD", "RWF", "STN", "TZS", "UGX", "USD", "ZAR", "ZMW", "ZWL"]),
+  "currency": enumType(["AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CLP", "CNY", "COP", "CRC", "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR", "ISK", "JMD", "JOD", "JPY", "KES", "KGS", "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD", "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR", "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN", "SYP", "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH", "UGX", "USD", "UYU", "UZS", "VES", "VND", "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWL"]),
   "deliveryDefault": enumType(["pickup", "delivery", "both"]),
   "checkoutAskForDetails": booleanType(),
   "checkoutAllowReferenceImages": booleanType(),
@@ -15894,7 +15894,7 @@ var GetSellerSettingsResponse = objectType({
   "description": stringType(),
   "logoDataUrl": stringType().nullable(),
   "channels": arrayType(stringType()),
-  "currency": enumType(["AED", "AOA", "AUD", "BRL", "CAD", "CHF", "CNY", "CVE", "EGP", "EUR", "ETB", "GBP", "GHS", "INR", "JPY", "KES", "MZN", "NGN", "NZD", "RWF", "STN", "TZS", "UGX", "USD", "ZAR", "ZMW", "ZWL"]),
+  "currency": enumType(["AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CLP", "CNY", "COP", "CRC", "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR", "ISK", "JMD", "JOD", "JPY", "KES", "KGS", "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD", "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR", "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN", "SYP", "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH", "UGX", "USD", "UYU", "UZS", "VES", "VND", "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWL"]),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
   "checkoutAskForDetails": booleanType(),
   "checkoutAllowReferenceImages": booleanType(),
@@ -15921,7 +15921,7 @@ var UpdateSellerSettingsBody = objectType({
   "description": stringType(),
   "logoDataUrl": stringType().nullable(),
   "channels": arrayType(stringType()),
-  "currency": enumType(["AED", "AOA", "AUD", "BRL", "CAD", "CHF", "CNY", "CVE", "EGP", "EUR", "ETB", "GBP", "GHS", "INR", "JPY", "KES", "MZN", "NGN", "NZD", "RWF", "STN", "TZS", "UGX", "USD", "ZAR", "ZMW", "ZWL"]),
+  "currency": enumType(["AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CLP", "CNY", "COP", "CRC", "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR", "ISK", "JMD", "JOD", "JPY", "KES", "KGS", "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD", "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR", "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN", "SYP", "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH", "UGX", "USD", "UYU", "UZS", "VES", "VND", "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWL"]),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
   "checkoutAskForDetails": booleanType(),
   "checkoutAllowReferenceImages": booleanType(),
@@ -15948,7 +15948,7 @@ var UpdateSellerSettingsResponse = objectType({
   "description": stringType(),
   "logoDataUrl": stringType().nullable(),
   "channels": arrayType(stringType()),
-  "currency": enumType(["AED", "AOA", "AUD", "BRL", "CAD", "CHF", "CNY", "CVE", "EGP", "EUR", "ETB", "GBP", "GHS", "INR", "JPY", "KES", "MZN", "NGN", "NZD", "RWF", "STN", "TZS", "UGX", "USD", "ZAR", "ZMW", "ZWL"]),
+  "currency": enumType(["AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CLP", "CNY", "COP", "CRC", "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR", "ISK", "JMD", "JOD", "JPY", "KES", "KGS", "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD", "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR", "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN", "SYP", "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH", "UGX", "USD", "UYU", "UZS", "VES", "VND", "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWL"]),
   "paymentMode": enumType(["full", "deposit", "reserve"]),
   "checkoutAskForDetails": booleanType(),
   "checkoutAllowReferenceImages": booleanType(),
@@ -15968,6 +15968,11 @@ var UpdateSellerSettingsResponse = objectType({
   "compactTables": booleanType(),
   "connectedTools": arrayType(stringType())
 });
+var GetCurrencyHintResponse = objectType({
+  "country": stringType().nullable(),
+  "currency": unionType([literalType("AED"), literalType("AFN"), literalType("ALL"), literalType("AMD"), literalType("ANG"), literalType("AOA"), literalType("ARS"), literalType("AUD"), literalType("AWG"), literalType("AZN"), literalType("BAM"), literalType("BBD"), literalType("BDT"), literalType("BGN"), literalType("BHD"), literalType("BIF"), literalType("BMD"), literalType("BND"), literalType("BOB"), literalType("BRL"), literalType("BSD"), literalType("BTN"), literalType("BWP"), literalType("BYN"), literalType("BZD"), literalType("CAD"), literalType("CDF"), literalType("CHF"), literalType("CLP"), literalType("CNY"), literalType("COP"), literalType("CRC"), literalType("CUP"), literalType("CVE"), literalType("CZK"), literalType("DJF"), literalType("DKK"), literalType("DOP"), literalType("DZD"), literalType("EGP"), literalType("ERN"), literalType("ETB"), literalType("EUR"), literalType("FJD"), literalType("FKP"), literalType("GBP"), literalType("GEL"), literalType("GHS"), literalType("GIP"), literalType("GMD"), literalType("GNF"), literalType("GTQ"), literalType("GYD"), literalType("HKD"), literalType("HNL"), literalType("HTG"), literalType("HUF"), literalType("IDR"), literalType("ILS"), literalType("INR"), literalType("IQD"), literalType("IRR"), literalType("ISK"), literalType("JMD"), literalType("JOD"), literalType("JPY"), literalType("KES"), literalType("KGS"), literalType("KHR"), literalType("KMF"), literalType("KPW"), literalType("KRW"), literalType("KWD"), literalType("KYD"), literalType("KZT"), literalType("LAK"), literalType("LBP"), literalType("LKR"), literalType("LRD"), literalType("LSL"), literalType("LYD"), literalType("MAD"), literalType("MDL"), literalType("MGA"), literalType("MKD"), literalType("MMK"), literalType("MNT"), literalType("MOP"), literalType("MRU"), literalType("MUR"), literalType("MVR"), literalType("MWK"), literalType("MXN"), literalType("MYR"), literalType("MZN"), literalType("NAD"), literalType("NGN"), literalType("NIO"), literalType("NOK"), literalType("NPR"), literalType("NZD"), literalType("OMR"), literalType("PAB"), literalType("PEN"), literalType("PGK"), literalType("PHP"), literalType("PKR"), literalType("PLN"), literalType("PYG"), literalType("QAR"), literalType("RON"), literalType("RSD"), literalType("RUB"), literalType("RWF"), literalType("SAR"), literalType("SBD"), literalType("SCR"), literalType("SDG"), literalType("SEK"), literalType("SGD"), literalType("SHP"), literalType("SLE"), literalType("SOS"), literalType("SRD"), literalType("SSP"), literalType("STN"), literalType("SYP"), literalType("SZL"), literalType("THB"), literalType("TJS"), literalType("TMT"), literalType("TND"), literalType("TOP"), literalType("TRY"), literalType("TTD"), literalType("TWD"), literalType("TZS"), literalType("UAH"), literalType("UGX"), literalType("USD"), literalType("UYU"), literalType("UZS"), literalType("VES"), literalType("VND"), literalType("VUV"), literalType("WST"), literalType("XAF"), literalType("XCD"), literalType("XOF"), literalType("XPF"), literalType("YER"), literalType("ZAR"), literalType("ZMW"), literalType("ZWL"), literalType(null)]).nullable(),
+  "source": enumType(["cloudflare", "geo_ip", "accept_language", "unknown"])
+});
 
 // src/app.ts
 import express from "express";
@@ -15977,7 +15982,7 @@ import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 
 // src/routes/index.ts
-import { Router as Router4 } from "express";
+import { Router as Router5 } from "express";
 
 // src/routes/health.ts
 import { Router } from "express";
@@ -16881,12 +16886,349 @@ function createTakeOrderRouter(database, requireSellerAuth) {
   return router2;
 }
 
+// src/routes/currency-hint.ts
+import { Router as Router4 } from "express";
+
+// src/lib/currency-detection.ts
+var countryCurrency = {
+  AD: "EUR",
+  AE: "AED",
+  AF: "AFN",
+  AG: "XCD",
+  AI: "XCD",
+  AL: "ALL",
+  AM: "AMD",
+  AO: "AOA",
+  AR: "ARS",
+  AS: "USD",
+  AT: "EUR",
+  AU: "AUD",
+  AW: "AWG",
+  AX: "EUR",
+  AZ: "AZN",
+  BA: "BAM",
+  BB: "BBD",
+  BD: "BDT",
+  BE: "EUR",
+  BF: "XOF",
+  BG: "BGN",
+  BH: "BHD",
+  BI: "BIF",
+  BJ: "XOF",
+  BL: "EUR",
+  BM: "BMD",
+  BN: "BND",
+  BO: "BOB",
+  BQ: "USD",
+  BR: "BRL",
+  BS: "BSD",
+  BT: "BTN",
+  BV: "NOK",
+  BW: "BWP",
+  BY: "BYN",
+  BZ: "BZD",
+  CA: "CAD",
+  CC: "AUD",
+  CD: "CDF",
+  CF: "XAF",
+  CG: "XAF",
+  CH: "CHF",
+  CI: "XOF",
+  CK: "NZD",
+  CL: "CLP",
+  CM: "XAF",
+  CN: "CNY",
+  CO: "COP",
+  CR: "CRC",
+  CU: "CUP",
+  CV: "CVE",
+  CW: "ANG",
+  CX: "AUD",
+  CY: "EUR",
+  CZ: "CZK",
+  DE: "EUR",
+  DJ: "DJF",
+  DK: "DKK",
+  DM: "XCD",
+  DO: "DOP",
+  DZ: "DZD",
+  EC: "USD",
+  EE: "EUR",
+  EG: "EGP",
+  EH: "MAD",
+  ER: "ERN",
+  ES: "EUR",
+  ET: "ETB",
+  FI: "EUR",
+  FJ: "FJD",
+  FK: "FKP",
+  FM: "USD",
+  FO: "DKK",
+  FR: "EUR",
+  GA: "XAF",
+  GB: "GBP",
+  GD: "XCD",
+  GE: "GEL",
+  GF: "EUR",
+  GG: "GBP",
+  GH: "GHS",
+  GI: "GIP",
+  GL: "DKK",
+  GM: "GMD",
+  GN: "GNF",
+  GP: "EUR",
+  GQ: "XAF",
+  GR: "EUR",
+  GS: "GBP",
+  GT: "GTQ",
+  GU: "USD",
+  GW: "XOF",
+  GY: "GYD",
+  HK: "HKD",
+  HM: "AUD",
+  HN: "HNL",
+  HR: "EUR",
+  HT: "HTG",
+  HU: "HUF",
+  ID: "IDR",
+  IE: "EUR",
+  IL: "ILS",
+  IM: "GBP",
+  IN: "INR",
+  IO: "USD",
+  IQ: "IQD",
+  IR: "IRR",
+  IS: "ISK",
+  IT: "EUR",
+  JE: "GBP",
+  JM: "JMD",
+  XK: "EUR",
+  JO: "JOD",
+  JP: "JPY",
+  KE: "KES",
+  KG: "KGS",
+  KH: "KHR",
+  KI: "AUD",
+  KM: "KMF",
+  KN: "XCD",
+  KP: "KPW",
+  KR: "KRW",
+  KW: "KWD",
+  KY: "KYD",
+  KZ: "KZT",
+  LA: "LAK",
+  LB: "LBP",
+  LC: "XCD",
+  LI: "CHF",
+  LK: "LKR",
+  LR: "LRD",
+  LS: "LSL",
+  LT: "EUR",
+  LU: "EUR",
+  LV: "EUR",
+  LY: "LYD",
+  MA: "MAD",
+  MC: "EUR",
+  MD: "MDL",
+  ME: "EUR",
+  MF: "EUR",
+  MG: "MGA",
+  MH: "USD",
+  MK: "MKD",
+  ML: "XOF",
+  MM: "MMK",
+  MN: "MNT",
+  MO: "MOP",
+  MP: "USD",
+  MQ: "EUR",
+  MR: "MRU",
+  MS: "XCD",
+  MT: "EUR",
+  MU: "MUR",
+  MV: "MVR",
+  MW: "MWK",
+  MX: "MXN",
+  MY: "MYR",
+  MZ: "MZN",
+  NA: "NAD",
+  NC: "XPF",
+  NE: "XOF",
+  NF: "AUD",
+  NG: "NGN",
+  NI: "NIO",
+  NL: "EUR",
+  NO: "NOK",
+  NP: "NPR",
+  NR: "AUD",
+  NU: "NZD",
+  NZ: "NZD",
+  OM: "OMR",
+  PA: "PAB",
+  PE: "PEN",
+  PF: "XPF",
+  PG: "PGK",
+  PH: "PHP",
+  PK: "PKR",
+  PL: "PLN",
+  PM: "EUR",
+  PN: "NZD",
+  PR: "USD",
+  PS: "ILS",
+  PT: "EUR",
+  PW: "USD",
+  PY: "PYG",
+  QA: "QAR",
+  RE: "EUR",
+  RO: "RON",
+  RS: "RSD",
+  RU: "RUB",
+  RW: "RWF",
+  SA: "SAR",
+  SB: "SBD",
+  SC: "SCR",
+  SD: "SDG",
+  SE: "SEK",
+  SG: "SGD",
+  SH: "SHP",
+  SI: "EUR",
+  SJ: "NOK",
+  SK: "EUR",
+  SL: "SLE",
+  SM: "EUR",
+  SN: "XOF",
+  SO: "SOS",
+  SR: "SRD",
+  SS: "SSP",
+  ST: "STN",
+  SV: "USD",
+  SX: "ANG",
+  SY: "SYP",
+  SZ: "SZL",
+  TC: "USD",
+  TD: "XAF",
+  TF: "EUR",
+  TG: "XOF",
+  TH: "THB",
+  TJ: "TJS",
+  TK: "NZD",
+  TL: "USD",
+  TM: "TMT",
+  TN: "TND",
+  TO: "TOP",
+  TR: "TRY",
+  TT: "TTD",
+  TV: "AUD",
+  TW: "TWD",
+  TZ: "TZS",
+  UA: "UAH",
+  UG: "UGX",
+  UM: "USD",
+  US: "USD",
+  UY: "UYU",
+  UZ: "UZS",
+  VA: "EUR",
+  VC: "XCD",
+  VE: "VES",
+  VG: "USD",
+  VI: "USD",
+  VN: "VND",
+  VU: "VUV",
+  WF: "XPF",
+  WS: "WST",
+  YE: "YER",
+  YT: "EUR",
+  ZA: "ZAR",
+  ZM: "ZMW",
+  ZW: "ZWL"
+};
+var languageRegion = (language) => {
+  const match = language?.match(/[-_]([A-Z]{2}|\d{3})(?:$|[-_])/i);
+  return match?.[1]?.toUpperCase();
+};
+function currencyForCountry(country) {
+  return countryCurrency[country?.trim().toUpperCase() ?? ""];
+}
+function countryFromAcceptLanguage(header) {
+  for (const language of header?.split(",") ?? []) {
+    const region = languageRegion(language.split(";")[0]?.trim());
+    if (region && countryCurrency[region]) return region;
+  }
+  return void 0;
+}
+function firstForwardedValue(value) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw?.split(",")[0]?.trim() || void 0;
+}
+function requestClientIp(req) {
+  return firstForwardedValue(req.headers["cf-connecting-ip"]) ?? firstForwardedValue(req.headers["x-forwarded-for"]) ?? req.socket.remoteAddress ?? void 0;
+}
+function isPrivateOrLocalIp(ip) {
+  if (!ip) return true;
+  const normalized = ip.replace(/^::ffff:/, "").trim();
+  if (normalized === "::1" || normalized === "127.0.0.1" || normalized === "localhost") return true;
+  if (normalized.includes(":")) return normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe80:");
+  const octets = normalized.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return true;
+  return octets[0] === 10 || octets[0] === 127 || octets[0] === 192 && octets[1] === 168 || octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31;
+}
+async function countryFromIp(ip) {
+  if (isPrivateOrLocalIp(ip)) return void 0;
+  try {
+    const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/country/`, {
+      headers: { accept: "text/plain" },
+      signal: AbortSignal.timeout(1500)
+    });
+    if (!response.ok) return void 0;
+    const country = (await response.text()).trim().toUpperCase();
+    return countryCurrency[country] ? country : void 0;
+  } catch {
+    return void 0;
+  }
+}
+
+// src/routes/currency-hint.ts
+function createCurrencyHintRouter(database, requireSellerAuth) {
+  void database;
+  const router2 = Router4();
+  router2.get("/currency-hint", requireSellerAuth, async (req, res) => {
+    const cloudflareCountry = typeof req.headers["cf-ipcountry"] === "string" ? req.headers["cf-ipcountry"].toUpperCase() : void 0;
+    const cloudflareCurrency = currencyForCountry(cloudflareCountry);
+    if (cloudflareCurrency) {
+      res.json(GetCurrencyHintResponse.parse({
+        country: cloudflareCountry,
+        currency: cloudflareCurrency,
+        source: "cloudflare"
+      }));
+      return;
+    }
+    const geoCountry = await countryFromIp(requestClientIp(req));
+    const geoCurrency = currencyForCountry(geoCountry);
+    if (geoCurrency && geoCountry) {
+      res.json(GetCurrencyHintResponse.parse({
+        country: geoCountry,
+        currency: geoCurrency,
+        source: "geo_ip"
+      }));
+      return;
+    }
+    const languageCountry = countryFromAcceptLanguage(req.headers["accept-language"]);
+    const languageCurrency = currencyForCountry(languageCountry);
+    res.json(GetCurrencyHintResponse.parse({
+      country: languageCountry ?? null,
+      currency: languageCurrency ?? null,
+      source: languageCurrency ? "accept_language" : "unknown"
+    }));
+  });
+  return router2;
+}
+
 // src/routes/index.ts
 function createRouter(database, requireSellerAuth) {
-  const router2 = Router4();
+  const router2 = Router5();
   router2.use(health_default);
   router2.use(createTakeOrderRouter(database, requireSellerAuth));
   router2.use(createSettingsRouter(database, requireSellerAuth));
+  router2.use(createCurrencyHintRouter(database, requireSellerAuth));
   return router2;
 }
 

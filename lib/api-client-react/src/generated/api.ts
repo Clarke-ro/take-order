@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CurrencyHint,
   DashboardSummary,
   Expense,
   ExpenseInput,
@@ -136,10 +137,6 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
 
 
 
@@ -1545,3 +1542,73 @@ export const useUpdateSellerSettings = <TError = ErrorType<unknown>,
       return useMutation(getUpdateSellerSettingsMutationOptions(options));
     }
 
+export const getGetCurrencyHintUrl = () => {
+
+
+
+
+  return `/api/currency-hint`
+}
+
+/**
+ * @summary Suggest a seller currency from request location
+ */
+export const getCurrencyHint = async ( options?: Parameters<typeof customFetch>[1]): Promise<CurrencyHint> => {
+
+  return customFetch<CurrencyHint>(getGetCurrencyHintUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCurrencyHintQueryKey = () => {
+    return [
+    `/api/currency-hint`
+    ] as const;
+    }
+
+
+export const getGetCurrencyHintQueryOptions = <TData = Awaited<ReturnType<typeof getCurrencyHint>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrencyHint>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrencyHintQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrencyHint>>> = ({ signal }) => getCurrencyHint({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrencyHint>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCurrencyHintQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrencyHint>>>
+export type GetCurrencyHintQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Suggest a seller currency from request location
+ */
+
+export function useGetCurrencyHint<TData = Awaited<ReturnType<typeof getCurrencyHint>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrencyHint>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCurrencyHintQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}

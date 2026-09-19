@@ -307,6 +307,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SellerSettings"
+  /currency-hint:
+    get:
+      operationId: getCurrencyHint
+      tags: [settings]
+      summary: Suggest a seller currency from request location
+      responses:
+        "200":
+          description: Currency suggestion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencyHint"
 components:
   parameters:
     IdParam:
@@ -510,7 +522,7 @@ components:
         businessName: { type: string }
         businessDescription: { type: string }
         logoDataUrl: { type: ["string", "null"] }
-        currency: { type: string, enum: [AED, AOA, AUD, BRL, CAD, CHF, CNY, CVE, EGP, EUR, ETB, GBP, GHS, INR, JPY, KES, MZN, NGN, NZD, RWF, STN, TZS, UGX, USD, ZAR, ZMW, ZWL] }
+        currency: { type: string, enum: [AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BYN, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ERN, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HTG, HUF, IDR, ILS, INR, IQD, IRR, ISK, JMD, JOD, JPY, KES, KGS, KHR, KMF, KPW, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LSL, LYD, MAD, MDL, MGA, MKD, MMK, MNT, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, STN, SYP, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VES, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL] }
         deliveryDefault: { type: string, enum: [pickup, delivery, both] }
         checkoutAskForDetails: { type: boolean }
         checkoutAllowReferenceImages: { type: boolean }
@@ -678,7 +690,7 @@ components:
         channels:
           type: array
           items: { type: string }
-        currency: { type: string, enum: [AED, AOA, AUD, BRL, CAD, CHF, CNY, CVE, EGP, EUR, ETB, GBP, GHS, INR, JPY, KES, MZN, NGN, NZD, RWF, STN, TZS, UGX, USD, ZAR, ZMW, ZWL] }
+        currency: { type: string, enum: [AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BYN, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ERN, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HTG, HUF, IDR, ILS, INR, IQD, IRR, ISK, JMD, JOD, JPY, KES, KGS, KHR, KMF, KPW, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LSL, LYD, MAD, MDL, MGA, MKD, MMK, MNT, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, STN, SYP, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VES, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL] }
         paymentMode: { type: string, enum: [full, deposit, reserve] }
         checkoutAskForDetails: { type: boolean }
         checkoutAllowReferenceImages: { type: boolean }
@@ -702,4 +714,11 @@ components:
     SellerSettingsInput:
       allOf:
         - $ref: "#/components/schemas/SellerSettings"
+    CurrencyHint:
+      type: object
+      required: [country, currency, source]
+      properties:
+        country: { type: ["string", "null"] }
+        currency: { type: ["string", "null"], enum: [AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BYN, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ERN, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HTG, HUF, IDR, ILS, INR, IQD, IRR, ISK, JMD, JOD, JPY, KES, KGS, KHR, KMF, KPW, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LSL, LYD, MAD, MDL, MGA, MKD, MMK, MNT, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, STN, SYP, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VES, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL, null] }
+        source: { type: string, enum: [cloudflare, geo_ip, accept_language, unknown] }
 

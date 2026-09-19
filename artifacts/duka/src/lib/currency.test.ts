@@ -1,26 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { currencyForCode, currencyForLocation, storeCurrencyOptions } from './currency';
+import { currencyForCode, currencyForLanguage, storeCurrencyOptions } from './currency';
 
-test('uses the locale region before the browser timezone', () => {
-  const currency = currencyForLocation({ language: 'en-GH', timeZone: 'Africa/Sao_Tome' });
+test('uses the language region without consulting timezone', () => {
+  const currency = currencyForLanguage('en-GH');
 
-  assert.equal(currency.currency, 'GHS');
-  assert.equal(currency.locale, 'en-GH');
-  assert.ok(currency.symbol.length > 0);
+  assert.equal(currency?.currency, 'GHS');
+  assert.equal(currency?.locale, 'en-GH');
+  assert.ok(currency?.symbol.length);
 });
 
-test('uses the browser timezone when the locale has no region', () => {
-  assert.equal(currencyForLocation({ language: 'en', timeZone: 'Africa/Sao_Tome' }).currency, 'STN');
+test('leaves the picker unselected when language has no region', () => {
+  assert.equal(currencyForLanguage('en'), null);
 });
 
-test('falls back to a locale region when the timezone is unavailable', () => {
-  assert.equal(currencyForLocation({ language: 'en-GB' }).currency, 'GBP');
-  assert.equal(currencyForLocation({ language: 'en-GH' }).currency, 'GHS');
+test('uses a language region when available', () => {
+  assert.equal(currencyForLanguage('en-GB')?.currency, 'GBP');
+  assert.equal(currencyForLanguage('en-GH')?.currency, 'GHS');
 });
 
-test('uses GHS as the safe fallback for unknown locations', () => {
-  assert.equal(currencyForLocation({ language: 'xx', timeZone: 'Unknown/Place' }).currency, 'GHS');
+test('leaves unknown locations unselected', () => {
+  assert.equal(currencyForLanguage('xx'), null);
 });
 
 test('resolves an explicit store currency independently of browser location', () => {

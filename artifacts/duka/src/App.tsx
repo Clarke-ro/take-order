@@ -18,7 +18,7 @@ import {
 import {
   getGetPublicOrderQueryKey, getListOrdersQueryKey,
   getListProductsQueryKey, getGetDashboardSummaryQueryKey, getListExpensesQueryKey,
-  getGetSellerSettingsQueryKey,
+  getGetSellerSettingsQueryKey, useGetCurrencyHint,
   useCreateExpense, useCreateOrder, useCreateProduct, useDeleteExpense, useDeleteProduct,
   useGetDashboardSummary, useGetPublicOrder, useHealthCheck, useListOrders, useListProducts,
   useListExpenses, useGetSellerSettings, useSubmitPublicOrder, useUpdateExpense, useUpdateOrder, useUpdateProduct,
@@ -30,7 +30,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AnalyticsStateMarker, getAnalyticsViewState } from '@/lib/analytics-state';
-import { currentCurrency, formatCompactMoney, formatMoney, setActiveCurrency, storeCurrencyOptions } from '@/lib/currency';
+import { countryNameForCode, currencyForLanguage, currentCurrency, formatCompactMoney, formatMoney, setActiveCurrency, storeCurrencyOptions } from '@/lib/currency';
 import {
   clearPreferences,
   connectPreferenceAriaLabel,
@@ -318,7 +318,7 @@ export function OnboardingChannelPicker({
   </div>;
 }
 
-type SellerProfile = { sellerName: string; businessName: string; description: string; channels: string[]; logoDataUrl?: string };
+type SellerProfile = { sellerName: string; businessName: string; description: string; channels: string[]; logoDataUrl?: string; currency?: SellerSettings['currency'] | null };
 type SellerSettingsPreferences = { orderUpdates: boolean; stockAlerts: boolean; compactTables: boolean };
 const ONBOARDING_KEY = 'duka-onboarding-profile';
 const ONBOARDING_STEP_KEY = 'duka-onboarding-step';
@@ -587,14 +587,24 @@ function InsightCard({ icon: Icon, title, description, className = '', dataTestI
 export function Onboarding() {
   const [, setLocation] = useLocation();
   const [step, setStep] = useState(() => readOnboardingStep());
-  const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [] });
+  const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [], currency: null });
   const [logoError, setLogoError] = useState('');
+  const [onboardingSaveError, setOnboardingSaveError] = useState('');
+  const currencyHintQuery = useGetCurrencyHint();
+  const settingsQuery = useGetSellerSettings();
+  const saveOnboardingSettingsMutation = useUpdateSellerSettings();
   useEffect(() => {
     writeSellerProfile(profile);
   }, [profile]);
   useEffect(() => {
     writeOnboardingStep(step);
   }, [step]);
+  useEffect(() => {
+    if (profile.currency || currencyHintQuery.isLoading) return;
+    const suggestedCurrency = currencyHintQuery.data?.currency
+      ?? currencyForLanguage(typeof navigator === 'undefined' ? undefined : navigator.language)?.currency;
+    if (suggestedCurrency) setProfile((current) => current.currency ? current : { ...current, currency: suggestedCurrency as SellerSettings['currency'] });
+  }, [currencyHintQuery.data?.currency, currencyHintQuery.isLoading, profile.currency]);
   const update = (key: keyof SellerProfile, value: string) => {
     const next = { ...profile, [key]: value };
     setProfile(next);
@@ -637,17 +647,42 @@ export function Onboarding() {
     writeOnboardingStep(nextStep);
     setStep(nextStep);
   };
+  const finishSetup = () => {
+    if (!profile.currency) return;
+    const existing = settingsQuery.data ?? emptySellerSettings;
+    saveOnboardingSettingsMutation.mutate({
+      data: {
+        ...existing,
+        sellerName: profile.sellerName,
+        businessName: profile.businessName,
+        description: profile.description,
+        channels: profile.channels,
+        logoDataUrl: profile.logoDataUrl ?? existing.logoDataUrl,
+        currency: profile.currency,
+      },
+    }, {
+      onSuccess: (data) => {
+        queryClient.setQueryData(getGetSellerSettingsQueryKey(), data);
+        setOnboardingSaveError('');
+        finishOnboarding();
+        changeStep(3);
+      },
+      onError: (error) => setOnboardingSaveError(error instanceof Error ? error.message : 'Your setup could not be saved. Try again.'),
+    });
+  };
   const skip = () => { finishOnboarding(); setLocation('/'); };
   const next = () => {
     if (step === 0 && profile.description.trim()) changeStep(1);
     else if (step === 1 && profile.sellerName.trim() && profile.businessName.trim()) changeStep(2);
-    else if (step === 2) { finishOnboarding(); changeStep(3); }
+    else if (step === 2) finishSetup();
   };
-  const canContinue = step === 0 ? Boolean(profile.description.trim()) : step === 1 ? Boolean(profile.sellerName.trim() && profile.businessName.trim()) : true;
+  const canContinue = step === 0 ? Boolean(profile.description.trim()) : step === 1 ? Boolean(profile.sellerName.trim() && profile.businessName.trim()) : Boolean(profile.currency);
   const continuationGuidance = step === 0 && !canContinue
     ? 'Add what you sell and where buyers find you before continuing.'
     : step === 1 && !canContinue
       ? 'Add your name and business or shop name before continuing.'
+        : step === 2 && !canContinue
+          ? 'Choose a base currency before finishing setup.'
       : null;
   const panelCopy = [
     { eyebrow: 'A calmer way to sell', title: 'Keep every order moving.', body: 'Take Order gives your buyers one clear place to choose, confirm, and pay.', note: 'Set up once. Share whenever you are ready.' },
@@ -667,11 +702,11 @@ export function Onboarding() {
           <div className="onboarding-form-panel">
            {step === 0 && <div className="page-in"><div className="onboarding-kicker">Step one of three</div><h1>Tell us what you sell.</h1><p className="onboarding-lede">A few words is enough. This helps us shape your starting point around the way you already work.</p><textarea autoFocus data-testid="input-onboarding-description" value={profile.description} onChange={(event) => update('description', event.target.value)} placeholder="I sell handmade jewellery, mostly through Instagram and WhatsApp." rows={6} className="field-input onboarding-textarea" /><div className="onboarding-helper"><CheckCircle2 size={15} aria-hidden="true" />No account connections are needed for setup.</div></div>}
            {step === 1 && <div className="page-in"><div className="onboarding-kicker">Step two of three</div><h1>Set up your identity.</h1><p className="onboarding-lede">Use the name buyers know you by. You can always refine your workspace later.</p><div className="onboarding-fields"><div><label className="field-label" htmlFor="onboarding-seller-name">Your name</label><input autoFocus id="onboarding-seller-name" data-testid="input-onboarding-seller-name" value={profile.sellerName} onChange={(event) => update('sellerName', event.target.value)} placeholder="e.g. Amina Mensah" className="field-input" /></div><div><label className="field-label" htmlFor="onboarding-business-name">Business or shop name</label><input id="onboarding-business-name" data-testid="input-onboarding-business-name" value={profile.businessName} onChange={(event) => update('businessName', event.target.value)} placeholder="e.g. The Sunday Edit" className="field-input" /></div><div><div className="field-label">Business logo <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></div><div className="seller-logo-picker"><SellerLogo businessName={profile.businessName || 'Your shop'} logoDataUrl={profile.logoDataUrl} className="seller-logo-picker-mark" /><div className="min-w-0 flex-1"><div className="text-sm font-semibold">{profile.logoDataUrl ? 'Your logo is ready' : 'Use a logo or our generated graphic'}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">PNG, JPG, WebP, or SVG up to 2 MB.</p><div className="mt-3 flex flex-wrap gap-2"><label className="onboarding-upload"><ImagePlus size={14} />{profile.logoDataUrl ? 'Replace logo' : 'Upload logo'}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" tabIndex={-1} className="sr-only" onChange={handleLogoChange} data-testid="input-onboarding-logo" /></label>{profile.logoDataUrl && <button type="button" onClick={removeLogo} className="onboarding-remove" data-testid="button-remove-onboarding-logo"><X size={14} />Remove</button>}</div>{logoError && <p role="alert" className="mt-2 text-xs text-[hsl(var(--destructive))]">{logoError}</p>}</div></div></div></div></div>}
-           {step === 2 && <div className="page-in"><div className="onboarding-kicker">Step three of three</div><h1>Where do you usually sell?</h1><p className="onboarding-lede">Pick the places buyers already find you. These are preferences only; Take Order does not connect or read them.</p><div className="onboarding-channel-area"><OnboardingChannelPicker selectedChannels={profile.channels} onToggle={toggleChannel} /></div></div>}
+            {step === 2 && <div className="page-in"><div className="onboarding-kicker">Step three of three</div><h1>Set your currency and channels.</h1><p className="onboarding-lede">Your currency is used across your workspace and buyer links. You can change the suggestion before finishing, and later from settings.</p><div className="mb-7"><label className="field-label" htmlFor="onboarding-currency">Base currency</label><select id="onboarding-currency" data-testid="select-onboarding-currency" className="field-input" value={profile.currency ?? ''} onChange={(event) => { setOnboardingSaveError(''); setProfile((current) => ({ ...current, currency: event.target.value as SellerSettings['currency'] })); }}><option value="">Choose a currency</option>{storeCurrencyOptions.map((option) => <option key={option.currency} value={option.currency}>{option.label} ({option.currency})</option>)}</select>{currencyHintQuery.data?.currency && <p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">We think you’re in {countryNameForCode(currencyHintQuery.data.country) ?? 'your current location'} — {storeCurrencyOptions.find((option) => option.currency === currencyHintQuery.data?.currency)?.label ?? currencyHintQuery.data.currency} ({currencyHintQuery.data.currency}) is suggested. You can choose another currency above.</p>}{!currencyHintQuery.isLoading && !currencyHintQuery.data?.currency && !profile.currency && <p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">We could not make a reliable location suggestion. Choose any currency from the full list.</p>}</div><div className="onboarding-channel-area"><div className="field-label mb-3">Where do you usually sell?</div><OnboardingChannelPicker selectedChannels={profile.channels} onToggle={toggleChannel} /></div>{onboardingSaveError && <p role="alert" className="mt-5 text-xs text-[hsl(var(--destructive))]">{onboardingSaveError}</p>}</div>}
            {step === 3 && <div className="page-in onboarding-complete"><div className="onboarding-success"><Check size={22} /></div><div className="onboarding-kicker">Setup complete</div><h1>Your shop has a home.</h1><p className="onboarding-lede">Your preferences are saved locally. Choose the next useful step and Take Order will keep the rest tidy.</p><div className="onboarding-next-steps"><Link href="/catalog" data-testid="link-onboarding-add-item"><span className="step-number">01</span><span><strong>Add your first catalog item</strong><small>Name, price, cost, and stock — that’s the foundation.</small></span><ArrowRight size={16} /></Link><Link href="/connect" data-testid="link-onboarding-connect-tools"><span className="step-number">02</span><span><strong>Review optional tools</strong><small>Save the channels and payment tools you use.</small></span><ArrowRight size={16} /></Link></div><Button onClick={() => setLocation('/')} className="onboarding-open-button" data-testid="button-open-workspace">Open my workspace <ArrowRight size={15} /></Button></div>}
            {step < 3 && <div className="onboarding-actions">
              {continuationGuidance && <p id="onboarding-continue-guidance" role="status" aria-live="polite" aria-atomic="true" className="onboarding-guidance">{continuationGuidance}</p>}
-             <div className="onboarding-action-row"><button type="button" onClick={() => step === 0 ? skip() : changeStep(step - 1)} data-testid="button-onboarding-back" className="onboarding-back">{step === 0 ? 'Not now' : <><ArrowLeft size={14} />Back</>}</button><Button onClick={next} disabled={!canContinue} aria-describedby={continuationGuidance ? 'onboarding-continue-guidance' : undefined} data-testid="button-onboarding-continue">{step === 2 ? 'Finish setup' : 'Continue'}<ArrowRight size={15} /></Button></div>
+              <div className="onboarding-action-row"><button type="button" onClick={() => step === 0 ? skip() : changeStep(step - 1)} data-testid="button-onboarding-back" className="onboarding-back">{step === 0 ? 'Not now' : <><ArrowLeft size={14} />Back</>}</button><Button onClick={next} disabled={!canContinue || settingsQuery.isLoading || saveOnboardingSettingsMutation.isPending} aria-describedby={continuationGuidance ? 'onboarding-continue-guidance' : undefined} data-testid="button-onboarding-continue">{saveOnboardingSettingsMutation.isPending ? 'Saving…' : step === 2 ? 'Finish setup' : 'Continue'}<ArrowRight size={15} /></Button></div>
            </div>}
           </div>
         </div>

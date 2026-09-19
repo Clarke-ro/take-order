@@ -7,7 +7,7 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "test": "rm -rf .test-dist && tsc -p tsconfig.test.json && esbuild src/lib/dashboard-analytics.test.ts src/routes/take-order.test.ts --bundle --platform=node --format=esm --outdir=.test-dist --outbase=src --external:pg --external:express --external:cors --external:pino --external:pino-http --external:drizzle-orm --external:@clerk/express --external:@clerk/shared --external:http-proxy-middleware && node --test .test-dist/lib/dashboard-analytics.test.js .test-dist/routes/take-order.test.js",
+    "test": "rm -rf .test-dist && tsc -p tsconfig.test.json && esbuild src/lib/dashboard-analytics.test.ts src/lib/currency-detection.test.ts src/routes/take-order.test.ts --bundle --platform=node --format=esm --outdir=.test-dist --outbase=src --external:pg --external:express --external:cors --external:pino --external:pino-http --external:drizzle-orm --external:@clerk/express --external:@clerk/shared --external:http-proxy-middleware && node --test .test-dist/lib/dashboard-analytics.test.js .test-dist/lib/currency-detection.test.js .test-dist/routes/take-order.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

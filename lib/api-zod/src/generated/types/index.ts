@@ -7,6 +7,9 @@
  */
 
 export * from './channelPerformance';
+export * from './currencyHint';
+export * from './currencyHintCurrency';
+export * from './currencyHintSource';
 export * from './dailyPerformance';
 export * from './dashboardSummary';
 export * from './expense';

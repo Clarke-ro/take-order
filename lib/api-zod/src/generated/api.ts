@@ -434,7 +434,7 @@ export const GetPublicOrderResponse = zod.object({
   "businessName": zod.string(),
   "businessDescription": zod.string(),
   "logoDataUrl": zod.string().nullable(),
-  "currency": zod.enum(['AED', 'AOA', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'CVE', 'EGP', 'EUR', 'ETB', 'GBP', 'GHS', 'INR', 'JPY', 'KES', 'MZN', 'NGN', 'NZD', 'RWF', 'STN', 'TZS', 'UGX', 'USD', 'ZAR', 'ZMW', 'ZWL']),
+  "currency": zod.enum(['AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY', 'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP', 'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HTG', 'HUF', 'IDR', 'ILS', 'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR', 'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR', 'LRD', 'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MRU', 'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG', 'SEK', 'SGD', 'SHP', 'SLE', 'SOS', 'SRD', 'SSP', 'STN', 'SYP', 'SZL', 'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWL']),
   "deliveryDefault": zod.enum(['pickup', 'delivery', 'both']),
   "checkoutAskForDetails": zod.boolean(),
   "checkoutAllowReferenceImages": zod.boolean(),
@@ -682,7 +682,7 @@ export const GetSellerSettingsResponse = zod.object({
   "description": zod.string(),
   "logoDataUrl": zod.string().nullable(),
   "channels": zod.array(zod.string()),
-  "currency": zod.enum(['AED', 'AOA', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'CVE', 'EGP', 'EUR', 'ETB', 'GBP', 'GHS', 'INR', 'JPY', 'KES', 'MZN', 'NGN', 'NZD', 'RWF', 'STN', 'TZS', 'UGX', 'USD', 'ZAR', 'ZMW', 'ZWL']),
+  "currency": zod.enum(['AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY', 'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP', 'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HTG', 'HUF', 'IDR', 'ILS', 'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR', 'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR', 'LRD', 'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MRU', 'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG', 'SEK', 'SGD', 'SHP', 'SLE', 'SOS', 'SRD', 'SSP', 'STN', 'SYP', 'SZL', 'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWL']),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
   "checkoutAskForDetails": zod.boolean(),
   "checkoutAllowReferenceImages": zod.boolean(),
@@ -717,7 +717,7 @@ export const UpdateSellerSettingsBody = zod.object({
   "description": zod.string(),
   "logoDataUrl": zod.string().nullable(),
   "channels": zod.array(zod.string()),
-  "currency": zod.enum(['AED', 'AOA', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'CVE', 'EGP', 'EUR', 'ETB', 'GBP', 'GHS', 'INR', 'JPY', 'KES', 'MZN', 'NGN', 'NZD', 'RWF', 'STN', 'TZS', 'UGX', 'USD', 'ZAR', 'ZMW', 'ZWL']),
+  "currency": zod.enum(['AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY', 'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP', 'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HTG', 'HUF', 'IDR', 'ILS', 'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR', 'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR', 'LRD', 'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MRU', 'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG', 'SEK', 'SGD', 'SHP', 'SLE', 'SOS', 'SRD', 'SSP', 'STN', 'SYP', 'SZL', 'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWL']),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
   "checkoutAskForDetails": zod.boolean(),
   "checkoutAllowReferenceImages": zod.boolean(),
@@ -748,7 +748,7 @@ export const UpdateSellerSettingsResponse = zod.object({
   "description": zod.string(),
   "logoDataUrl": zod.string().nullable(),
   "channels": zod.array(zod.string()),
-  "currency": zod.enum(['AED', 'AOA', 'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'CVE', 'EGP', 'EUR', 'ETB', 'GBP', 'GHS', 'INR', 'JPY', 'KES', 'MZN', 'NGN', 'NZD', 'RWF', 'STN', 'TZS', 'UGX', 'USD', 'ZAR', 'ZMW', 'ZWL']),
+  "currency": zod.enum(['AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY', 'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP', 'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HTG', 'HUF', 'IDR', 'ILS', 'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR', 'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR', 'LRD', 'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MRU', 'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG', 'SEK', 'SGD', 'SHP', 'SLE', 'SOS', 'SRD', 'SSP', 'STN', 'SYP', 'SZL', 'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWL']),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
   "checkoutAskForDetails": zod.boolean(),
   "checkoutAllowReferenceImages": zod.boolean(),
@@ -767,6 +767,16 @@ export const UpdateSellerSettingsResponse = zod.object({
   "stockAlerts": zod.boolean(),
   "compactTables": zod.boolean(),
   "connectedTools": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Suggest a seller currency from request location
+ */
+export const GetCurrencyHintResponse = zod.object({
+  "country": zod.string().nullable(),
+  "currency": zod.union([zod.literal('AED'),zod.literal('AFN'),zod.literal('ALL'),zod.literal('AMD'),zod.literal('ANG'),zod.literal('AOA'),zod.literal('ARS'),zod.literal('AUD'),zod.literal('AWG'),zod.literal('AZN'),zod.literal('BAM'),zod.literal('BBD'),zod.literal('BDT'),zod.literal('BGN'),zod.literal('BHD'),zod.literal('BIF'),zod.literal('BMD'),zod.literal('BND'),zod.literal('BOB'),zod.literal('BRL'),zod.literal('BSD'),zod.literal('BTN'),zod.literal('BWP'),zod.literal('BYN'),zod.literal('BZD'),zod.literal('CAD'),zod.literal('CDF'),zod.literal('CHF'),zod.literal('CLP'),zod.literal('CNY'),zod.literal('COP'),zod.literal('CRC'),zod.literal('CUP'),zod.literal('CVE'),zod.literal('CZK'),zod.literal('DJF'),zod.literal('DKK'),zod.literal('DOP'),zod.literal('DZD'),zod.literal('EGP'),zod.literal('ERN'),zod.literal('ETB'),zod.literal('EUR'),zod.literal('FJD'),zod.literal('FKP'),zod.literal('GBP'),zod.literal('GEL'),zod.literal('GHS'),zod.literal('GIP'),zod.literal('GMD'),zod.literal('GNF'),zod.literal('GTQ'),zod.literal('GYD'),zod.literal('HKD'),zod.literal('HNL'),zod.literal('HTG'),zod.literal('HUF'),zod.literal('IDR'),zod.literal('ILS'),zod.literal('INR'),zod.literal('IQD'),zod.literal('IRR'),zod.literal('ISK'),zod.literal('JMD'),zod.literal('JOD'),zod.literal('JPY'),zod.literal('KES'),zod.literal('KGS'),zod.literal('KHR'),zod.literal('KMF'),zod.literal('KPW'),zod.literal('KRW'),zod.literal('KWD'),zod.literal('KYD'),zod.literal('KZT'),zod.literal('LAK'),zod.literal('LBP'),zod.literal('LKR'),zod.literal('LRD'),zod.literal('LSL'),zod.literal('LYD'),zod.literal('MAD'),zod.literal('MDL'),zod.literal('MGA'),zod.literal('MKD'),zod.literal('MMK'),zod.literal('MNT'),zod.literal('MOP'),zod.literal('MRU'),zod.literal('MUR'),zod.literal('MVR'),zod.literal('MWK'),zod.literal('MXN'),zod.literal('MYR'),zod.literal('MZN'),zod.literal('NAD'),zod.literal('NGN'),zod.literal('NIO'),zod.literal('NOK'),zod.literal('NPR'),zod.literal('NZD'),zod.literal('OMR'),zod.literal('PAB'),zod.literal('PEN'),zod.literal('PGK'),zod.literal('PHP'),zod.literal('PKR'),zod.literal('PLN'),zod.literal('PYG'),zod.literal('QAR'),zod.literal('RON'),zod.literal('RSD'),zod.literal('RUB'),zod.literal('RWF'),zod.literal('SAR'),zod.literal('SBD'),zod.literal('SCR'),zod.literal('SDG'),zod.literal('SEK'),zod.literal('SGD'),zod.literal('SHP'),zod.literal('SLE'),zod.literal('SOS'),zod.literal('SRD'),zod.literal('SSP'),zod.literal('STN'),zod.literal('SYP'),zod.literal('SZL'),zod.literal('THB'),zod.literal('TJS'),zod.literal('TMT'),zod.literal('TND'),zod.literal('TOP'),zod.literal('TRY'),zod.literal('TTD'),zod.literal('TWD'),zod.literal('TZS'),zod.literal('UAH'),zod.literal('UGX'),zod.literal('USD'),zod.literal('UYU'),zod.literal('UZS'),zod.literal('VES'),zod.literal('VND'),zod.literal('VUV'),zod.literal('WST'),zod.literal('XAF'),zod.literal('XCD'),zod.literal('XOF'),zod.literal('XPF'),zod.literal('YER'),zod.literal('ZAR'),zod.literal('ZMW'),zod.literal('ZWL'),zod.literal(null)]).nullable(),
+  "source": zod.enum(['cloudflare', 'geo_ip', 'accept_language', 'unknown'])
 })
 
 

@@ -6,10 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type PublicOrderCurrency = typeof PublicOrderCurrency[keyof typeof PublicOrderCurrency];
+/**
+ * @nullable
+ */
+export type CurrencyHintCurrency = typeof CurrencyHintCurrency[keyof typeof CurrencyHintCurrency] | null;
 
 
-export const PublicOrderCurrency = {
+export const CurrencyHintCurrency = {
   AED: 'AED',
   AFN: 'AFN',
   ALL: 'ALL',

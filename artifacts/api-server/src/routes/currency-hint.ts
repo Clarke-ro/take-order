@@ -1,5 +1,5 @@
 import { Router, type IRouter, type RequestHandler } from "express";
-import { CurrencyHintResponse } from "@workspace/api-zod";
+import { GetCurrencyHintResponse } from "@workspace/api-zod";
 import {
   countryFromAcceptLanguage,
   countryFromIp,
@@ -18,7 +18,7 @@ export function createCurrencyHintRouter(database: typeof db, requireSellerAuth:
       : undefined;
     const cloudflareCurrency = currencyForCountry(cloudflareCountry);
     if (cloudflareCurrency) {
-      res.json(CurrencyHintResponse.parse({
+      res.json(GetCurrencyHintResponse.parse({
         country: cloudflareCountry,
         currency: cloudflareCurrency,
         source: "cloudflare",
@@ -29,7 +29,7 @@ export function createCurrencyHintRouter(database: typeof db, requireSellerAuth:
     const geoCountry = await countryFromIp(requestClientIp(req));
     const geoCurrency = currencyForCountry(geoCountry);
     if (geoCurrency && geoCountry) {
-      res.json(CurrencyHintResponse.parse({
+      res.json(GetCurrencyHintResponse.parse({
         country: geoCountry,
         currency: geoCurrency,
         source: "geo_ip",
@@ -39,7 +39,7 @@ export function createCurrencyHintRouter(database: typeof db, requireSellerAuth:
 
     const languageCountry = countryFromAcceptLanguage(req.headers["accept-language"]);
     const languageCurrency = currencyForCountry(languageCountry);
-    res.json(CurrencyHintResponse.parse({
+    res.json(GetCurrencyHintResponse.parse({
       country: languageCountry ?? null,
       currency: languageCurrency ?? null,
       source: languageCurrency ? "accept_language" : "unknown",
