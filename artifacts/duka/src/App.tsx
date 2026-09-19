@@ -2094,6 +2094,24 @@ function TakeOrderCustomOrderPanel({ items, total, canContinue, busy, onRemove, 
   </aside>;
 }
 
+function TakeOrderCheckoutSummary({ items, total, paymentMode, deposit }: { items: DraftOrderItem[]; total: number; paymentMode: 'full' | 'deposit' | 'reserve'; deposit: number }) {
+  const paymentLabel = paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'reserve' ? 'Reserve it · Pay later' : 'Pay in full';
+  return <aside className="take-order-checkout-summary">
+    <div className="take-order-checkout-summary-body">
+      <div className="take-order-checkout-summary-heading"><ShoppingBag size={22} /><div><strong>Basket</strong><span>Order summary</span></div></div>
+      <div className="take-order-checkout-summary-section">
+        <div className="take-order-checkout-summary-label">Items</div>
+        <div className="take-order-checkout-summary-items">{items.map((item) => <div key={item.key}><span>{item.name} × 1</span><strong>{moneyExact(item.amount)}</strong></div>)}</div>
+      </div>
+      <div className="take-order-checkout-summary-divider" />
+      <div className="take-order-checkout-summary-line"><span>Subtotal</span><strong>{moneyExact(total)}</strong></div>
+      <div className="take-order-checkout-summary-line"><span>Payment method</span><strong>{paymentLabel}</strong></div>
+      <div className="take-order-checkout-summary-total"><div><span>Total</span><strong>{moneyExact(total)}</strong></div><small>Final total payable on confirmation</small></div>
+    </div>
+    <div className="take-order-checkout-summary-note">Summary will be confirmed on step 3</div>
+  </aside>;
+}
+
 function MultiItemTakeOrderModern() {
   const productsQuery = useListProducts();
   const settingsQuery = useGetSellerSettings();
