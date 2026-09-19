@@ -2121,7 +2121,7 @@ function MultiItemTakeOrderModern() {
   const [step, setStep] = useState<TakeOrderStep>(1);
   const [items, setItems] = useState<DraftOrderItem[]>([]);
   const [nextKey, setNextKey] = useState(1);
-  const [itemSource, setItemSource] = useState<TakeOrderItemSource | null>('catalog');
+  const [itemSource, setItemSource] = useState<TakeOrderItemSource | null>(null);
   const [customDraft, setCustomDraft] = useState<{ name: string; amount: string; preferences: ProductPreferenceDraft[] }>({ name: '', amount: '', preferences: [] });
   const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
   const [depositAmount, setDepositAmount] = useState('');
@@ -2289,7 +2289,7 @@ function MultiItemTakeOrderModern() {
     setStep(1);
     setItems([]);
     setNextKey(1);
-     setItemSource('catalog');
+     setItemSource(null);
      setCustomDraft({ name: '', amount: '', preferences: [] });
      setCatalogSearch('');
      setCatalogCategory('All');
@@ -2324,10 +2324,16 @@ function MultiItemTakeOrderModern() {
          <div className={cn('take-order-builder-card take-order-flow-panel', catalogStage && 'take-order-catalog-stage-card', choiceOnly && 'take-order-choice-stage-card')}>
           <form onSubmit={submit}>
                 {choiceOnly && <div className="take-order-choice-stage">
+                  <div className="take-order-choice-stage-heading">
+                    <div className="take-order-section-eyebrow">Step 01 · Add an item</div>
+                    <h2>How would you like to add an item?</h2>
+                    <p>Start with a saved product or create a one-off item from your conversation.</p>
+                  </div>
                   <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
                </div>}
               {step === 1 && catalogStage && <div className={cn('take-order-catalog-stage', items.length ? 'has-selection' : 'is-empty')}>
                <div className="take-order-catalog-browser">
+                  {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}
                   <div className="take-order-catalog-toolbar">
                     <div className="take-order-search">
                       <Search size={18} aria-hidden="true" />
@@ -2351,6 +2357,7 @@ function MultiItemTakeOrderModern() {
                 {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />}
               </div>}
                 {step === 1 && itemSource === 'custom' && <div className="take-order-custom-stage">
+                  {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}
                   <TakeOrderFeedback message={feedback} />
                   <div className="take-order-custom-columns">
                     <section className="take-order-custom-form-panel" aria-label="Custom item details">
