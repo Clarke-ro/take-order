@@ -2355,9 +2355,8 @@ function MultiItemTakeOrderModern() {
                      <div className="take-order-catalog-section-heading"><h2>{catalogSearch ? 'Products' : 'Catalog products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
                     {catalogItems}
                   </section>}
-                  {items.length > 0 && <div className="take-order-catalog-action-row"><Button type="submit" className="take-order-catalog-continue" disabled={!canContinue || busy || productsQuery.isLoading} data-testid="button-continue-catalog">Continue to checkout <ArrowRight size={15} /></Button></div>}
                </div>
-                 {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} showActions={false} />}
+                 {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />}
               </div>}
                 {step === 1 && itemSource === 'custom' && <div className="take-order-custom-stage">
                   {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}
