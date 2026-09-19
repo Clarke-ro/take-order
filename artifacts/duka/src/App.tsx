@@ -2356,7 +2356,10 @@ function MultiItemTakeOrderModern() {
                     {catalogItems}
                   </section>}
                </div>
-                 {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />}
+                 {items.length > 0 && <div className="take-order-catalog-selection-column">
+                   <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} showActions={false} />
+                   <Button type="submit" className="take-order-catalog-continue" disabled={!canContinue || busy || productsQuery.isLoading} data-testid="button-continue-catalog">Continue to checkout <ArrowRight size={15} /></Button>
+                 </div>}
               </div>}
                 {step === 1 && itemSource === 'custom' && <div className="take-order-custom-stage">
                   {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}

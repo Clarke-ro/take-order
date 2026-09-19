@@ -3047,6 +3047,7 @@ button[data-testid^="button-filter-"]:focus-visible {
 .take-order-catalog-stage.has-selection .take-order-catalog-selection .take-order-catalog-continue { margin-top: 1.1rem; border: 0; background: hsl(var(--background)); color: hsl(var(--foreground)); }
 .take-order-catalog-stage.has-selection .take-order-catalog-selection .take-order-catalog-custom-link { color: hsl(var(--background) / .72); }
 .take-order-catalog-stage.has-selection .take-order-catalog-selection .take-order-feedback { margin-inline: 0; }
+.take-order-catalog-selection-column { grid-area: selection; min-width: 0; }
 .take-order-catalog-stage.has-selection .take-order-selection { min-width: 0; }
 .take-order-catalog-stage.has-selection .take-order-catalog-selection { position: sticky; top: 1rem; max-width: none; margin: 0; animation: take-order-selection-in .28s ease both; }
 .take-order-catalog-stage .take-order-help { margin: 0; border: 1px dashed hsl(var(--border)); border-radius: 13px; padding: 1rem; text-align: center; }
