@@ -814,9 +814,7 @@ export function Overview() {
   const productsQuery = useListProducts();
   const ordersQuery = useListOrders();
   const summary = summaryQuery.data;
-  const channels = summary?.channelPerformance ?? [];
   const daily = summary?.dailyPerformance ?? [];
-  const productPerformance = summary?.productPerformance ?? [];
   const products = productsQuery.data ?? [];
   const orders = ordersQuery.data ?? [];
   const periodOrders = useMemo(() => periodRange ? orders.filter((order) => {
@@ -825,8 +823,6 @@ export function Overview() {
   }) : orders, [orders, periodRange]);
   const lowStock = products.filter((product) => product.stock <= 3);
   const missingCosts = products.filter((product) => product.cost == null);
-  const totalOpens = channels.reduce((sum, channel) => sum + channel.opens, 0);
-  const activeChannels = channels.filter((channel) => channel.opens > 0).length;
   const namedClients = new Set(periodOrders.map((order) => order.customerName?.trim()).filter(Boolean)).size;
   const waitingPayments = periodOrders.filter((order) => order.status === 'reserved' || order.status === 'deposit_paid').length;
   const shippedOrders = periodOrders.filter((order) => order.fulfillment === 'shipped' || order.fulfillment === 'delivered').length;
@@ -916,10 +912,6 @@ export function Overview() {
          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
           <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and shop expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{periodLabel}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow" aria-busy={summaryRefreshing}>{summaryRefreshing ? <div className="flex h-full flex-col justify-center gap-4"><Skeleton className="h-3 w-28" /><Skeleton className="h-48 w-full" /></div> : daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Shop expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Total costs" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
          <AlertsRail outstanding={summary?.outstanding ?? 0} lowStock={lowStock} missingCosts={missingCosts} productLoading={productsQuery.isLoading} productCount={products.length} orderCount={periodOrders.length} loading={summaryRefreshing} />
-      </div>
-      <div className="mt-8 grid gap-5 xl:gap-12 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)]">
-         <ProductPerformance products={productPerformance} loading={summaryRefreshing} />
-         <ChannelPerformance channels={channels} loading={summaryRefreshing} />
       </div>
       <RecentTransactions />
     </>}</div></Shell>;
