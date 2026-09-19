@@ -2956,6 +2956,8 @@ button[data-testid^="button-filter-"]:focus-visible {
 .take-order-category:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 .take-order-category.is-active { border-color: hsl(var(--foreground)); background: hsl(var(--foreground)); color: hsl(var(--background)); }
 .take-order-add-products { border-top: 1px solid hsl(var(--border)); margin-top: 1.5rem; padding-top: 1.35rem; }
+.take-order-catalog-toolbar + .take-order-add-products { border-top: 0; margin-top: 0; padding-top: 0; }
+.take-order-add-products + .take-order-recent-products { margin-top: 1.8rem; }
 .take-order-add-products .take-order-choice-grid { gap: .7rem; }
 .take-order-add-products .take-order-choice-card { min-height: 5.4rem; border-radius: 13px; background: hsl(var(--card)); padding: .8rem; }
 .take-order-add-products .take-order-choice-card.is-active { border-color: hsl(var(--accent-foreground) / .65); background: hsl(var(--accent) / .12); box-shadow: inset 0 0 0 1px hsl(var(--accent-foreground) / .13); }

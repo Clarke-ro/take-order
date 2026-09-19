@@ -2290,6 +2290,10 @@ function MultiItemTakeOrderModern() {
                     </div>
                     <button type="button" className="take-order-custom-action" onClick={() => { setItemSource('custom'); setFeedback(null); }}><Plus size={18} />Add custom item</button>
                   </div>
+                  <section className="take-order-add-products" aria-label="Add products">
+                    <div className="take-order-catalog-section-heading"><h2>Add products</h2></div>
+                    <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
+                  </section>
                   {(catalogProducts.length > 0 || productsQuery.isLoading || productsQuery.isError) && <section className="take-order-recent-products" aria-label="Recent products">
                     <div className="take-order-catalog-section-heading"><h2>{catalogSearch || catalogCategory !== 'All' ? 'Products' : 'Recent products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
                     {catalogItems}
@@ -2298,10 +2302,6 @@ function MultiItemTakeOrderModern() {
                     <div className="take-order-catalog-section-heading"><h2>Categories</h2></div>
                     <div className="take-order-category-list" role="group" aria-label="Product categories">{catalogCategories.map((category) => <button type="button" key={category} className={cn('take-order-category', catalogCategory === category && 'is-active')} onClick={() => setCatalogCategory(category)} aria-pressed={catalogCategory === category}>{category}</button>)}</div>
                   </div>}
-                  <section className="take-order-add-products" aria-label="Add products">
-                    <div className="take-order-catalog-section-heading"><h2>Add products</h2></div>
-                    <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
-                  </section>
                </div>
                 {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />}
               </div>}
