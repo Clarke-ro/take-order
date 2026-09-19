@@ -3128,9 +3128,9 @@ button[data-testid^="button-filter-"]:focus-visible {
 .take-order-checkout-summary-note { border-top: 1px solid hsl(var(--background) / .16); padding: .95rem 1rem; color: hsl(var(--background) / .56); font-size: .62rem; text-align: center; }
 
 /* Keep catalog choices compact and consistent with the first-page choice cards. */
-.take-order-catalog-stage.is-empty .take-order-product-grid { grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: .75rem; }
-.take-order-catalog-stage.is-empty .take-order-product-card { display: flex; min-height: 0; aspect-ratio: 1 / 1.06; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: .55rem; padding: .7rem; }
-.take-order-catalog-stage.is-empty .take-order-product-image { width: 140px; height: 140px; max-width: 100%; aspect-ratio: 1 / 1; align-self: center; border-radius: 10px; object-fit: cover; }
+.take-order-catalog-stage.is-empty .take-order-product-grid { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .75rem; }
+.take-order-catalog-stage.is-empty .take-order-product-card { display: flex; min-height: 0; aspect-ratio: 1 / 1.18; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: .55rem; padding: .7rem; }
+.take-order-catalog-stage.is-empty .take-order-product-image { width: 10rem; height: 10rem; max-width: 100%; aspect-ratio: 1 / 1; align-self: center; border-radius: 10px; object-fit: cover; }
 .take-order-catalog-stage.is-empty .take-order-product-copy { padding: 0 .1rem; }
 .take-order-catalog-stage.is-empty .take-order-product-copy strong { font-size: .78rem; }
 .take-order-catalog-stage.is-empty .take-order-product-copy small { margin-top: .25rem; font-size: .62rem; }
