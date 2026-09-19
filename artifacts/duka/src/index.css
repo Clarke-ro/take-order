@@ -888,6 +888,9 @@ button { cursor: pointer; }
 .product-currency-input input { min-width: 0; flex: 1; border: 0; border-left: 1px solid #eef0f2; border-radius: 0; outline: 0; padding: .58rem .55rem; font-family: inherit; font-size: .72rem; }
 .product-reference-section { margin-top: 1rem; }
 .product-reference-section h2 { margin: 0 0 .55rem; }
+.product-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.product-section-heading p { margin: .35rem 0 0; color: #8b929c; font-size: .7rem; line-height: 1.45; }
+.product-section-heading .product-inline-action { flex-shrink: 0; }
 .product-inline-action { border: 1px solid #e5e7ea; border-radius: 8px; background: #fff; }
 .product-inline-action button { display: flex; width: 100%; min-height: 2.35rem; align-items: center; justify-content: center; gap: .75rem; color: #20252c; font-size: .74rem; }
 .product-inline-action button:hover { background: #fbfcfd; }
