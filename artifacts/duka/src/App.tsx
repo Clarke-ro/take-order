@@ -289,10 +289,10 @@ function ChannelInline({ value }: { value: string }) {
 }
 
 export function ChannelPicker({ value, onChange, testId }: { value: OrderInput['channel'] | ''; onChange: (value: OrderInput['channel']) => void; testId: string }) {
-  return <div data-testid={testId} className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Conversation channel">
+  return <div data-testid={testId} className="take-order-channel-picker grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Conversation channel">
     {orderChannels.map((channel) => {
       const selected = value === channel.value;
-      return <button key={channel.value} type="button" role="radio" aria-label={channel.label} aria-checked={selected} data-testid={`${testId}-${channel.value}`} onClick={() => onChange(channel.value)} className={cn('flex items-center gap-2 rounded-[10px] border px-3 py-2.5 text-left text-xs font-semibold transition-colors', selected ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))]')}>
+       return <button key={channel.value} type="button" role="radio" aria-label={channel.label} aria-checked={selected} data-testid={`${testId}-${channel.value}`} onClick={() => onChange(channel.value)} className={cn('take-order-channel-option flex items-center gap-2 rounded-[10px] border px-3 py-2.5 text-left text-xs font-semibold transition-colors', selected ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))]')}>
          <ChannelMark value={channel.value} size={15} colorful={!selected} className={selected ? 'text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--foreground))]'} />
         <span>{channel.label}</span>
       </button>;
