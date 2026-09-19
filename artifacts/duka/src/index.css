@@ -2552,8 +2552,8 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-layout.is-review-only .take-order-builder-card,
 .take-order-layout.is-review-only .take-order-builder-card > form { display: contents; }
 .take-order-layout.is-review-only .take-order-builder-card > form > *:not(.take-order-form-footer) { display: none; }
-.take-order-layout.is-review-only .take-order-preview-column { order: 1; position: static; width: min(100%, 64rem); margin-inline: auto; }
-.take-order-layout.is-review-only .take-order-preview-frame { max-height: none; min-height: 32rem; padding: 2rem; }
+.take-order-layout.is-review-only .take-order-preview-column { order: 1; position: static; width: min(100%, 64rem); margin-inline: auto; border: 0; background: transparent; overflow: visible; }
+.take-order-layout.is-review-only .take-order-preview-frame { max-height: none; min-height: 32rem; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--card)); padding: 2rem; box-shadow: 0 16px 40px hsl(var(--foreground) / .06); }
 .take-order-layout.is-review-only .take-order-form-footer { order: 2; width: min(100%, 64rem); min-height: 4.2rem; margin-inline: auto; justify-content: flex-end; border: 1px solid hsl(var(--border)); border-radius: 12px; padding: .8rem 1rem; }
 .take-order-success { max-width: 38rem; margin: 2rem auto; }
 .take-order-success-mark { display: flex; height: 4rem; width: 4rem; align-items: center; justify-content: center; border-radius: 16px; background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
