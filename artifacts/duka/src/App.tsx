@@ -2076,12 +2076,14 @@ function MultiItemTakeOrderModern() {
   const [step, setStep] = useState<TakeOrderStep>(1);
   const [items, setItems] = useState<DraftOrderItem[]>([]);
   const [nextKey, setNextKey] = useState(1);
-  const [itemSource, setItemSource] = useState<TakeOrderItemSource | null>(null);
+  const [itemSource, setItemSource] = useState<TakeOrderItemSource | null>('catalog');
   const [customDraft, setCustomDraft] = useState<{ name: string; amount: string; preferences: ProductPreferenceDraft[] }>({ name: '', amount: '', preferences: [] });
   const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
   const [depositAmount, setDepositAmount] = useState('');
   const [deliveryFee, setDeliveryFee] = useState('0');
   const [channel, setChannel] = useState<OrderInput['channel']>('whatsapp');
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogCategory, setCatalogCategory] = useState('All');
   const [created, setCreated] = useState<Order | null>(null);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -2092,6 +2094,16 @@ function MultiItemTakeOrderModern() {
     setDeliveryFee(String(settingsQuery.data.deliveryFee));
   }, [settingsQuery.data]);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
+  const catalogProducts = productsQuery.data ?? [];
+  const catalogCategories = useMemo(() => ['All', ...Array.from(new Set(catalogProducts.map((product) => product.category).filter(Boolean)))], [catalogProducts]);
+  const filteredCatalogProducts = useMemo(() => {
+    const search = catalogSearch.trim().toLowerCase();
+    return catalogProducts.filter((product) => {
+      const matchesCategory = catalogCategory === 'All' || product.category === catalogCategory;
+      const matchesSearch = !search || `${product.name} ${product.category} ${product.description ?? ''}`.toLowerCase().includes(search);
+      return matchesCategory && matchesSearch;
+    });
+  }, [catalogCategory, catalogProducts, catalogSearch]);
   const choiceOnly = step === 1 && itemSource === null && items.length === 0;
   const catalogStage = step === 1 && itemSource === 'catalog';
   const previewItems: BuyerOrderItem[] = items.length
@@ -2144,13 +2156,16 @@ function MultiItemTakeOrderModern() {
     ? <div className="take-order-catalog-grid" aria-label="Loading catalog items">{[1, 2, 3, 4].map((item) => <div key={item} className="take-order-catalog-skeleton" />)}</div>
     : productsQuery.isError
       ? <div className="take-order-inline-error" role="alert">Catalog unavailable. <button type="button" onClick={() => productsQuery.refetch()}>Try again</button></div>
-      : productsQuery.data?.length
-        ? <div className="take-order-catalog-grid" aria-label="Catalog items">{productsQuery.data.map((product) => <button type="button" key={product.id} className={cn('take-order-catalog-item', items.some((item) => item.productId === product.id) && 'is-selected')} onClick={() => toggleCatalogProduct(product)} aria-label={`${items.some((item) => item.productId === product.id) ? 'Remove' : 'Add'} ${product.name} ${items.some((item) => item.productId === product.id) ? 'from' : 'to'} order`} aria-pressed={items.some((item) => item.productId === product.id)}>
-          <span className="take-order-catalog-toggle" aria-hidden="true">{items.some((item) => item.productId === product.id) ? <Check size={13} strokeWidth={3} /> : <Plus size={13} />}</span>
-          <img src={product.imageUrl ?? productImageFor(product.name)} alt="" className="take-order-catalog-image" />
-          <span className="take-order-catalog-copy"><strong>{product.name}</strong><small>{product.variants.length ? `${product.variants.length} variant${product.variants.length === 1 ? '' : 's'}` : product.category || 'Catalog item'}</small><b>{moneyExact(product.price)}</b></span>
-        </button>)}</div>
-        : <p className="take-order-help">No products yet. Add a product in Catalog or use a one-off item instead.</p>;
+      : filteredCatalogProducts.length
+        ? <div className="take-order-product-grid" aria-label="Catalog products">{filteredCatalogProducts.map((product) => {
+          const selected = items.some((item) => item.productId === product.id);
+          return <button type="button" key={product.id} className={cn('take-order-product-card', selected && 'is-selected')} onClick={() => toggleCatalogProduct(product)} aria-label={`${selected ? 'Remove' : 'Add'} ${product.name} ${selected ? 'from' : 'to'} order`} aria-pressed={selected}>
+            <img src={product.imageUrl ?? productImageFor(product.name)} alt="" className="take-order-product-image" />
+            <span className="take-order-product-copy"><strong>{product.name}</strong><small>{product.category || 'Catalog item'}{product.description ? ` · ${product.description}` : ''}</small><b>{moneyExact(product.price)}</b></span>
+            <span className="take-order-product-add" aria-hidden="true">{selected ? <Check size={16} strokeWidth={3} /> : <Plus size={18} />}</span>
+          </button>;
+        })}</div>
+        : <p className="take-order-help">{catalogProducts.length ? 'No products match this search.' : 'No saved products yet. Add a one-off item to start this order.'}</p>;
   const updateAmount = (key: number, value: string) => {
     const amount = Number(value);
     setItems((current) => current.map((item) => item.key === key ? { ...item, amount: Number.isFinite(amount) && amount >= 0 ? amount : 0 } : item));
@@ -2229,8 +2244,10 @@ function MultiItemTakeOrderModern() {
     setStep(1);
     setItems([]);
     setNextKey(1);
-     setItemSource(null);
+     setItemSource('catalog');
      setCustomDraft({ name: '', amount: '', preferences: [] });
+     setCatalogSearch('');
+     setCatalogCategory('All');
     setPaymentMode('full');
     setDepositAmount('');
     setDeliveryFee('0');
@@ -2264,14 +2281,29 @@ function MultiItemTakeOrderModern() {
                 {choiceOnly && <div className="take-order-choice-stage">
                   <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
                </div>}
-              {step === 1 && catalogStage && <div className="take-order-catalog-stage">
+              {step === 1 && catalogStage && <div className={cn('take-order-catalog-stage', items.length ? 'has-selection' : 'is-empty')}>
                <div className="take-order-catalog-browser">
-                 <div className="take-order-section-eyebrow">Catalog</div>
-                 <h2>Select products for this checkout.</h2>
-                 <p>Choose one or more products for the same client. Select a tile again to remove it.</p>
-                 {catalogItems}
+                  <div className="take-order-catalog-toolbar">
+                    <div className="take-order-search">
+                      <Search size={18} aria-hidden="true" />
+                      <input aria-label="Search catalog" value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="Search your catalog or type product name..." />
+                    </div>
+                    <button type="button" className="take-order-custom-action" onClick={() => { setItemSource('custom'); setFeedback(null); }}><Plus size={18} />Add custom item</button>
+                  </div>
+                  {(catalogProducts.length > 0 || productsQuery.isLoading || productsQuery.isError) && <section className="take-order-recent-products" aria-label="Recent products">
+                    <div className="take-order-catalog-section-heading"><h2>{catalogSearch || catalogCategory !== 'All' ? 'Products' : 'Recent products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
+                    {catalogItems}
+                  </section>}
+                  {catalogProducts.length > 0 && <div className="take-order-categories">
+                    <div className="take-order-catalog-section-heading"><h2>Categories</h2></div>
+                    <div className="take-order-category-list" role="group" aria-label="Product categories">{catalogCategories.map((category) => <button type="button" key={category} className={cn('take-order-category', catalogCategory === category && 'is-active')} onClick={() => setCatalogCategory(category)} aria-pressed={catalogCategory === category}>{category}</button>)}</div>
+                  </div>}
+                  <section className="take-order-add-products" aria-label="Add products">
+                    <div className="take-order-catalog-section-heading"><h2>Add products</h2></div>
+                    <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
+                  </section>
                </div>
-               <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />
+                {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />}
               </div>}
                {step === 1 && itemSource === 'custom' && <TakeOrderSection className="take-order-one-off-section" eyebrow="Step 01 · New item" title="Build this item for the buyer." description="Name the item, set the price, and add any choices the buyer should select.">
                <div className="take-order-choice-form">
