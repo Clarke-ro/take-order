@@ -2345,7 +2345,7 @@ function MultiItemTakeOrderModern() {
                   </div>
                   <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
                </div>}
-              {step === 1 && catalogStage && <div className={cn('take-order-catalog-stage', items.length ? 'has-selection' : 'is-empty')}>
+              {step === 1 && catalogStage && <div className={cn('take-order-catalog-stage', items.length > 0 && 'has-selection')}>
                <div className="take-order-catalog-browser">
                   {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}
                   <div className="take-order-catalog-toolbar">
@@ -2363,8 +2363,8 @@ function MultiItemTakeOrderModern() {
                     <div className="take-order-catalog-section-heading"><h2>Categories</h2></div>
                     <div className="take-order-category-list" role="group" aria-label="Product categories">{catalogCategories.map((category) => <button type="button" key={category} className={cn('take-order-category', catalogCategory === category && 'is-active')} onClick={() => setCatalogCategory(category)} aria-pressed={catalogCategory === category}>{category}</button>)}</div>
                   </div>}
+                   {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />}
                </div>
-                {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />}
               </div>}
                 {step === 1 && itemSource === 'custom' && <div className="take-order-custom-stage">
                   {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}
