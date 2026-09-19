@@ -2067,6 +2067,33 @@ function TakeOrderCheckoutCard({ items, total, feedback, onRemove, onOneOff, but
   </div>;
 }
 
+function TakeOrderCustomOrderPanel({ items, total, canContinue, busy, onRemove, onUpdateAmount }: { items: DraftOrderItem[]; total: number; canContinue: boolean; busy: boolean; onRemove: (key: number) => void; onUpdateAmount: (key: number, value: string) => void }) {
+  return <aside className="take-order-custom-order-panel">
+    <div className="take-order-custom-order-body">
+      <div className="take-order-custom-order-label">This order</div>
+      {items.length ? <div className="take-order-custom-order-items">
+        {items.map((item) => <div key={item.key} className="take-order-custom-order-row">
+          <div className="take-order-custom-order-mark" style={{ color: item.accent }}><Package size={16} /></div>
+          <div className="take-order-custom-order-copy"><strong>{item.name}</strong><span>{item.preferences.length ? `${item.preferences.length} option group${item.preferences.length === 1 ? '' : 's'}` : 'Custom item'}</span></div>
+          <div className="take-order-custom-order-price"><span>{currencySymbol()}</span><input aria-label={`Price for ${item.name}`} type="number" min="0" step=".01" value={item.amount} onChange={(event) => onUpdateAmount(item.key, event.target.value)} /></div>
+          <button type="button" aria-label={`Remove ${item.name}`} onClick={() => onRemove(item.key)}><X size={14} /></button>
+        </div>)}
+        <div className="take-order-custom-order-total"><span>Total</span><strong>{moneyExact(total)}</strong></div>
+      </div> : <div className="take-order-custom-order-empty">
+        <Package size={44} strokeWidth={1.35} aria-hidden="true" />
+        <strong>Nothing added yet</strong>
+        <span>Your order starts here.</span>
+      </div>}
+    </div>
+    <div className="take-order-custom-order-footer">
+      <span className="take-order-custom-order-hint"><ShieldIcon /> No account connection needed</span>
+      <Button type="submit" className="take-order-custom-continue" disabled={!canContinue || busy} data-testid="button-create-order-link">
+        {busy && <Loader2 className="animate-spin" size={15} />}Continue <ArrowRight size={15} />
+      </Button>
+    </div>
+  </aside>;
+}
+
 function MultiItemTakeOrderModern() {
   const productsQuery = useListProducts();
   const settingsQuery = useGetSellerSettings();
