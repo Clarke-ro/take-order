@@ -2163,6 +2163,20 @@ function MultiItemTakeOrderModern() {
     ? items.length > 0 && items.every((item) => item.amount > 0)
     : total > 0 && validDeposit && validDeliveryFee;
   const showPreview = step === 3;
+  const goToStep = (nextStep: TakeOrderStep) => {
+    if (nextStep === 1) {
+      setStep(1);
+      setFeedback(null);
+      return;
+    }
+    if (!items.length || items.some((item) => item.amount <= 0)) {
+      setFeedback('Add at least one item with a price greater than 0.00 before continuing.');
+      setStep(1);
+      return;
+    }
+    setFeedback(null);
+    setStep(nextStep);
+  };
 
   const getErrorMessage = (error: unknown, fallback: string) => error instanceof Error && error.message ? error.message : fallback;
   const toggleCatalogProduct = (product: Product) => {
@@ -2319,7 +2333,7 @@ function MultiItemTakeOrderModern() {
        <PageHeading
          title="Create an order"
        />
-       <TakeOrderStepRail step={step} onStepChange={setStep} />
+       <TakeOrderStepRail step={step} onStepChange={goToStep} />
        <div className={cn('take-order-layout', !showPreview && 'is-builder-only')}>
          <div className={cn('take-order-builder-card take-order-flow-panel', catalogStage && 'take-order-catalog-stage-card', choiceOnly && 'take-order-choice-stage-card')}>
           <form onSubmit={submit}>
@@ -2405,7 +2419,7 @@ function MultiItemTakeOrderModern() {
               <div className="take-order-review-details"><div><span>Payment</span><strong>{paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'full' ? 'Pay in full' : 'Reserve for later'}</strong></div><div><span>Conversation</span><strong><ChannelInline value={channel} /></strong></div></div>
               <div className="take-order-review-note"><CheckCircle2 size={17} /><div><strong>Buyer details stay with the order.</strong><span>They can add their name, phone number, notes, and an optional reference image on the next page.</span></div></div>
             </TakeOrderSection>}
-              {!catalogStage && !choiceOnly && !(step === 1 && itemSource === 'custom') && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step === 2 ? 'Confirm checkout' : step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
+              {!catalogStage && !choiceOnly && !(step === 1 && itemSource === 'custom') && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => goToStep((step - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step === 2 ? 'Confirm checkout' : step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
           </form>
          </div>
          {showPreview && <aside className="take-order-preview-column">
