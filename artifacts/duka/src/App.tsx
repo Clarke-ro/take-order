@@ -2139,15 +2139,13 @@ function MultiItemTakeOrderModern() {
   }, [settingsQuery.data]);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
   const catalogProducts = productsQuery.data ?? [];
-  const catalogCategories = useMemo(() => ['All', ...Array.from(new Set(catalogProducts.map((product) => product.category).filter(Boolean)))], [catalogProducts]);
   const filteredCatalogProducts = useMemo(() => {
     const search = catalogSearch.trim().toLowerCase();
     return catalogProducts.filter((product) => {
-      const matchesCategory = catalogCategory === 'All' || product.category === catalogCategory;
       const matchesSearch = !search || `${product.name} ${product.category} ${product.description ?? ''}`.toLowerCase().includes(search);
-      return matchesCategory && matchesSearch;
+      return matchesSearch;
     });
-  }, [catalogCategory, catalogProducts, catalogSearch]);
+  }, [catalogProducts, catalogSearch]);
   const choiceOnly = step === 1 && itemSource === null && items.length === 0;
   const catalogStage = step === 1 && itemSource === 'catalog';
   const previewItems: BuyerOrderItem[] = items.length
@@ -2305,7 +2303,6 @@ function MultiItemTakeOrderModern() {
      setItemSource(null);
      setCustomDraft({ name: '', amount: '', preferences: [] });
      setCatalogSearch('');
-     setCatalogCategory('All');
     setPaymentMode('full');
     setDepositAmount('');
     setDeliveryFee('0');
@@ -2355,7 +2352,7 @@ function MultiItemTakeOrderModern() {
                     <button type="button" className="take-order-custom-action" onClick={() => { setItemSource('custom'); setFeedback(null); }}><Plus size={18} />Add custom item</button>
                   </div>
                   {(catalogProducts.length > 0 || productsQuery.isLoading || productsQuery.isError) && <section className="take-order-recent-products" aria-label="Recent products">
-                     <div className="take-order-catalog-section-heading"><h2>{catalogSearch || catalogCategory !== 'All' ? 'Products' : 'Catalog products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
+                     <div className="take-order-catalog-section-heading"><h2>{catalogSearch ? 'Products' : 'Catalog products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
                     {catalogItems}
                   </section>}
                </div>
