@@ -2063,7 +2063,7 @@ function TakeOrderCheckoutCard({ items, total, feedback, onRemove, onOneOff, but
     </div>
     {showPayableTotal && <div className="take-order-checkout-payable"><span>Total payable amount</span><strong>{moneyExact(total)}</strong></div>}
     {feedback && <TakeOrderFeedback message={feedback} />}
-    {showActions && <>{showContinue && <Button type="submit" className="take-order-catalog-continue" disabled={disabled || !items.length || items.some((item) => item.amount <= 0)} data-testid={buttonTestId}>Continue <ArrowRight size={15} /></Button>}<button type="button" className="take-order-catalog-custom-link" onClick={onOneOff}>Add a one-off item instead</button></>}
+    {showActions && <>{showContinue && <Button type="submit" className="take-order-catalog-continue" disabled={disabled || !items.length || items.some((item) => item.amount <= 0)} data-testid={buttonTestId}>Continue to checkout <ArrowRight size={15} /></Button>}<button type="button" className="take-order-catalog-custom-link" onClick={onOneOff}>Add a one-off item instead</button></>}
   </div>;
 }
 
@@ -2128,7 +2128,6 @@ function MultiItemTakeOrderModern() {
   const [deliveryFee, setDeliveryFee] = useState('0');
   const [channel, setChannel] = useState<OrderInput['channel']>('whatsapp');
   const [catalogSearch, setCatalogSearch] = useState('');
-  const [catalogCategory, setCatalogCategory] = useState('All');
   const [created, setCreated] = useState<Order | null>(null);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -2359,10 +2358,6 @@ function MultiItemTakeOrderModern() {
                      <div className="take-order-catalog-section-heading"><h2>{catalogSearch || catalogCategory !== 'All' ? 'Products' : 'Catalog products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
                     {catalogItems}
                   </section>}
-                  {catalogProducts.length > 0 && <div className="take-order-categories">
-                    <div className="take-order-catalog-section-heading"><h2>Categories</h2></div>
-                    <div className="take-order-category-list" role="group" aria-label="Product categories">{catalogCategories.map((category) => <button type="button" key={category} className={cn('take-order-category', catalogCategory === category && 'is-active')} onClick={() => setCatalogCategory(category)} aria-pressed={catalogCategory === category}>{category}</button>)}</div>
-                  </div>}
                </div>
                  {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />}
               </div>}

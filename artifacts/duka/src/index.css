@@ -3021,12 +3021,6 @@ button[data-testid^="button-filter-"]:focus-visible {
 .take-order-product-copy b { margin-top: .4rem; font-family: var(--app-font-mono); font-size: .65rem; font-weight: 700; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
 .take-order-product-add { display: inline-flex; height: 1.75rem; width: 1.75rem; align-items: center; justify-content: center; border: 1px solid hsl(var(--border)); border-radius: 999px; background: hsl(var(--background)); color: hsl(var(--foreground)); }
 .take-order-product-card.is-selected .take-order-product-add { border-color: hsl(var(--foreground)); background: hsl(var(--foreground)); color: hsl(var(--background)); }
-.take-order-categories { border-top: 1px solid hsl(var(--border)); margin-top: .4rem; padding-top: 1.35rem; }
-.take-order-category-list { display: flex; flex-wrap: wrap; gap: .45rem; }
-.take-order-category { border: 1px solid hsl(var(--border)); border-radius: 999px; background: transparent; padding: .48rem .75rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-sans); font-size: .64rem; font-weight: 700; letter-spacing: -.005em; transition: border-color .18s, background-color .18s, color .18s; }
-.take-order-category:hover, .take-order-category:focus-visible { border-color: hsl(var(--foreground) / .4); color: hsl(var(--foreground)); }
-.take-order-category:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
-.take-order-category.is-active { border-color: hsl(var(--foreground)); background: hsl(var(--foreground)); color: hsl(var(--background)); }
 .take-order-add-products { border-top: 1px solid hsl(var(--border)); margin-top: 1.5rem; padding-top: 1.35rem; }
 .take-order-catalog-toolbar + .take-order-add-products { border-top: 0; margin-top: 0; padding-top: 0; }
 .take-order-add-products + .take-order-recent-products { margin-top: 1.8rem; }
