@@ -30,6 +30,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AnalyticsStateMarker, getAnalyticsViewState } from '@/lib/analytics-state';
+import { appCurrency, formatCompactMoney, formatMoney } from '@/lib/currency';
 import {
   clearPreferences,
   connectPreferenceAriaLabel,
@@ -44,8 +45,8 @@ const queryClient = new QueryClient();
 const runtimeEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {};
 
 export const CHANNEL_CONVERSION_REFRESH_INTERVAL_MS = 5_000;
-const money = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
-const moneyExact = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0);
+const money = formatCompactMoney;
+const moneyExact = formatMoney;
 const number = (value: number | null | undefined) => new Intl.NumberFormat('en-US').format(value || 0);
 const dateShort = (value: string | null | undefined) => {
   if (!value) return '—';
