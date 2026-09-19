@@ -30,6 +30,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AnalyticsStateMarker, getAnalyticsViewState } from '@/lib/analytics-state';
+import { catalogValue } from '@/lib/catalog-metrics';
 import { countryNameForCode, currencyForLanguage, currentCurrency, formatCompactMoney, formatMoney, setActiveCurrency, storeCurrencyOptions } from '@/lib/currency';
 import {
   clearPreferences,
@@ -1579,13 +1580,13 @@ function Catalog() {
       });
     }
   };
-  const inventoryValue = (query.data ?? []).reduce((sum, product) => sum + (product.price * product.stock), 0);
+  const inventoryValue = catalogValue(query.data ?? []);
   const lowStock = (query.data ?? []).filter((product) => product.stock < 5).length;
   const categories = new Set((query.data ?? []).map((product) => product.category)).size;
    return <Shell>
       <PageHeading title="Catalog" description="Keep the products, prices, stock, and buyer choices you reuse most in one place." action={<Button onClick={() => setLocation('/catalog/new')} data-testid="button-new-product"><Plus size={16} />Add item</Button>} />
     <section className="catalog-summary" aria-label="Catalog summary">
-       <MetricCard className="rise-in" dataTestId="card-catalog-inventory-value" label="Inventory value" value={money(inventoryValue)} note={`${query.data?.length ?? 0} catalog items priced`} />
+       <MetricCard className="rise-in" dataTestId="card-catalog-inventory-value" label="Catalog value" value={money(inventoryValue)} note={`${query.data?.length ?? 0} catalog item prices`} />
         <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-catalog-items" label="Items" value={query.data?.length ?? 0} note={`${categories} ${categories === 1 ? 'category' : 'categories'} in the catalog`} />
        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-catalog-low-stock" label="Low stock" value={<span className={cn(lowStock > 0 && 'text-[hsl(var(--destructive))]')}>{lowStock}</span>} indicator={(query.data?.length ?? 0) > 0 ? { direction: lowStock > 0 ? 'down' : 'neutral', percentage: (lowStock / query.data!.length) * 100, tone: lowStock > 0 ? 'negative' : 'positive' } : undefined} note={lowStock ? `${lowStock} ${lowStock === 1 ? 'item needs' : 'items need'} a restock` : 'All levels look good'} />
        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-catalog-categories" label="Categories" value={categories} note={`${query.data?.length ?? 0} items grouped for buyers`} />
