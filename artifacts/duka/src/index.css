@@ -3013,6 +3013,7 @@ button[data-testid^="button-filter-"]:focus-visible {
 .take-order-product-card:hover, .take-order-product-card:focus-visible { border-color: hsl(var(--foreground) / .4); background: hsl(var(--background)); box-shadow: 0 6px 16px hsl(var(--foreground) / .06); transform: translateY(-1px); }
 .take-order-product-card:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
 .take-order-product-card.is-selected { border-color: hsl(var(--accent-foreground) / .7); background: hsl(var(--accent) / .12); box-shadow: inset 0 0 0 1px hsl(var(--accent-foreground) / .16); }
+.take-order-catalog-stage.is-empty .take-order-product-grid { grid-template-columns: minmax(0, 1fr); }
 .take-order-product-image { display: block; width: 3.7rem; height: 3.7rem; border-radius: 11px; background: hsl(var(--muted)); object-fit: cover; }
 .take-order-product-copy { display: block; min-width: 0; }
 .take-order-product-copy strong, .take-order-product-copy small, .take-order-product-copy b { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }

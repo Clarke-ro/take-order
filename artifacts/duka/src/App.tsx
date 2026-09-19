@@ -2341,12 +2341,8 @@ function MultiItemTakeOrderModern() {
                     </div>
                     <button type="button" className="take-order-custom-action" onClick={() => { setItemSource('custom'); setFeedback(null); }}><Plus size={18} />Add custom item</button>
                   </div>
-                  <section className="take-order-add-products" aria-label="Add products">
-                    <div className="take-order-catalog-section-heading"><h2>Add products</h2></div>
-                    <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
-                  </section>
                   {(catalogProducts.length > 0 || productsQuery.isLoading || productsQuery.isError) && <section className="take-order-recent-products" aria-label="Recent products">
-                    <div className="take-order-catalog-section-heading"><h2>{catalogSearch || catalogCategory !== 'All' ? 'Products' : 'Recent products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
+                     <div className="take-order-catalog-section-heading"><h2>{catalogSearch || catalogCategory !== 'All' ? 'Products' : 'Catalog products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
                     {catalogItems}
                   </section>}
                   {catalogProducts.length > 0 && <div className="take-order-categories">
