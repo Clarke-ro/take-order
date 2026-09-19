@@ -16,11 +16,11 @@ import {
   Tooltip as RechartsTooltip, XAxis, YAxis
 } from 'recharts';
 import {
-  getGetPublicOrderQueryKey, getListOrdersQueryKey,
+  getGetOrderQueryKey, getGetPublicOrderQueryKey, getListOrdersQueryKey,
   getListProductsQueryKey, getGetDashboardSummaryQueryKey, getListExpensesQueryKey,
   getGetSellerSettingsQueryKey, useGetCurrencyHint,
   useCreateExpense, useCreateOrder, useCreateProduct, useDeleteExpense, useDeleteProduct,
-  useGetDashboardSummary, useGetPublicOrder, useHealthCheck, useListOrders, useListProducts,
+  useGetDashboardSummary, useGetOrder, useGetPublicOrder, useHealthCheck, useListOrders, useListProducts,
   useListExpenses, useGetSellerSettings, useSubmitPublicOrder, useUpdateExpense, useUpdateOrder, useUpdateProduct,
   useUpdateSellerSettings
 } from '@workspace/api-client-react';
@@ -1217,7 +1217,7 @@ function RecentTransactions() {
   return <Card className="recent-transactions-card list-card mt-5 overflow-hidden">
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Latest activity</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Recent transactions</h2></div><Link href="/orders" data-testid="link-see-all-orders"><Button variant="ghost">See all <ArrowUpRight size={15} /></Button></Link></div>
      <div className="list-toolbar filter-surface"><div className="list-filter-tabs" role="group" aria-label="Recent transaction filters">{filterOptions.map((option) => <button type="button" key={option.value} onClick={() => setFilter(option.value)} aria-pressed={filter === option.value} className={cn('list-filter-tab', filter === option.value && 'is-active')}>{option.label}</button>)}</div><div className="list-search-shell"><Search className="pointer-events-none absolute left-2.5 top-2.5 text-[hsl(var(--muted-foreground))]" size={14} /><input aria-label="Search recent transactions" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search" className="list-search-input" /></div></div>
-     {query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="overflow-x-auto"><table className="list-table w-full min-w-[780px] text-left"><thead><tr><th className="px-5 py-3 sm:px-6">Order ID</th><th className="px-4 py-3">Buyer / item</th><th className="px-4 py-3 text-center">Traffic</th><th className="px-4 py-3">Placed</th><th className="px-4 py-3">Order value</th><th className="px-5 py-3 sm:px-6">Payment</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id} className="transaction-row" data-testid={`row-transaction-${order.id}`}><td className="px-5 py-4 sm:px-6" data-testid={`text-transaction-order-id-${order.id}`}><span className="orders-order-id">#{String(order.id).padStart(7, '0')}</span></td><td className="px-4 py-4"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-[10px] font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName}</div></div></div></td><td className="px-4 py-4"><div className="orders-traffic-cell"><span className="orders-traffic-icon" data-testid={`text-transaction-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div></td><td className="px-4 py-4 text-sm text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</td><td className="data-value px-4 py-4 text-xs">{moneyExact(order.amount)}</td><td className="px-5 py-4 sm:px-6"><StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill></td></tr>)}</tbody></table></div> : <div className="p-8"><EmptyState icon={ShoppingBag} title="No transactions match" description="Try another filter or search." action={<Link href="/take-order"><Button><Plus size={15} />Create a link</Button></Link>} /></div>}
+     {query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="overflow-x-auto"><table className="list-table w-full min-w-[780px] text-left"><thead><tr><th className="px-5 py-3 sm:px-6">Order ID</th><th className="px-4 py-3">Buyer / item</th><th className="px-4 py-3 text-center">Traffic</th><th className="px-4 py-3">Placed</th><th className="px-4 py-3">Order value</th><th className="px-5 py-3 sm:px-6">Payment</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id} className="transaction-row" data-testid={`row-transaction-${order.id}`}><td className="px-5 py-4 sm:px-6" data-testid={`text-transaction-order-id-${order.id}`}><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-recent-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></td><td className="px-4 py-4"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-[10px] font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName}</div></div></div></td><td className="px-4 py-4"><div className="orders-traffic-cell"><span className="orders-traffic-icon" data-testid={`text-transaction-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div></td><td className="px-4 py-4 text-sm text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</td><td className="data-value px-4 py-4 text-xs">{moneyExact(order.amount)}</td><td className="px-5 py-4 sm:px-6"><StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill></td></tr>)}</tbody></table></div> : <div className="p-8"><EmptyState icon={ShoppingBag} title="No transactions match" description="Try another filter or search." action={<Link href="/take-order"><Button><Plus size={15} />Create a link</Button></Link>} /></div>}
   </Card>;
 }
 
@@ -2948,13 +2948,14 @@ function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" f
 function OrderDetail() {
   const { id = '' } = useParams<{ id: string }>();
   const orderId = Number(id);
-  const query = useListOrders();
+  const validOrderId = Number.isInteger(orderId) && orderId > 0;
+  const query = useGetOrder(orderId, { query: { enabled: validOrderId, refetchOnMount: 'always' } });
   const update = useUpdateOrder();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [copied, setCopied] = useState(false);
   const [actionError, setActionError] = useState('');
-  const order = useMemo(() => (query.data ?? []).find((candidate) => candidate.id === orderId), [query.data, orderId]);
+  const order = validOrderId ? query.data : undefined;
 
   const collected = order ? (order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0) : 0;
   const outstanding = order ? Math.max(0, order.amount - collected) : 0;
@@ -2966,6 +2967,7 @@ function OrderDetail() {
     update.mutate({ id: order.id, data }, {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getGetOrderQueryKey(order.id) });
         invalidateDashboardSummary(queryClient);
       },
       onError: (error) => setActionError(error instanceof Error && error.message ? error.message : 'That update could not be saved. Try again.'),
