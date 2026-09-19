@@ -680,7 +680,7 @@ button { cursor: pointer; }
 .orders-filter-button.is-active { border-bottom-color: hsl(var(--foreground)); }
 .orders-table-wrap { overflow-x: auto; }
 .orders-table-head, .orders-table-row { display: grid; grid-template-columns: minmax(96px, .55fr) minmax(220px, 1.35fr) 4.5rem minmax(118px, .8fr) minmax(82px, .55fr) minmax(126px, .86fr) minmax(112px, .78fr); min-width: 1000px; gap: 1.5rem; align-items: center; }
-.orders-table-head { background: hsl(var(--card)); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
+.orders-table-head { position: sticky; top: 0; z-index: 2; background: hsl(var(--card)); padding: .72rem 1.5rem; color: hsl(var(--muted-foreground)); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; white-space: nowrap; }
 .orders-table-head > span:nth-child(3) { text-align: center; transform: translateX(-.35rem); }
 .orders-table-row { border-bottom: 1px solid hsl(var(--border)); padding: 1.05rem 1.5rem; transition: background-color .18s; }
 .orders-table-row:last-child { border-bottom: 0; }
