@@ -1,6 +1,9 @@
 import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
-import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
+import { Link, Redirect, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
+import { ClerkProvider, SignIn, SignUp, useAuth } from '@clerk/react';
+import { publishableKeyFromHost } from '@clerk/react/internal';
+import { shadcn } from '@clerk/themes';
 import {
   AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
   CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, ExternalLink, Eye, FileText, Globe2, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
@@ -36,6 +39,7 @@ import {
 } from '@/lib/channel-preferences';
 
 const queryClient = new QueryClient();
+const runtimeEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {};
 
 export const CHANNEL_CONVERSION_REFRESH_INTERVAL_MS = 5_000;
 const money = (value: number | null | undefined) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
@@ -315,7 +319,6 @@ type SellerSettingsPreferences = { orderUpdates: boolean; stockAlerts: boolean; 
 const ONBOARDING_KEY = 'duka-onboarding-profile';
 const ONBOARDING_STEP_KEY = 'duka-onboarding-step';
 const ONBOARDING_DONE_KEY = 'duka-onboarding-complete';
-const MOCK_AUTH_KEY = 'duka-mock-authenticated';
 export const CONNECTED_TOOLS_KEY = 'duka-connected-tools';
 const SELLER_SETTINGS_KEY = 'duka-seller-settings';
 
@@ -398,13 +401,6 @@ const writeOnboardingStep = (step: number) => {
   try { window.localStorage.setItem(ONBOARDING_STEP_KEY, String(step)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
 };
 const finishOnboarding = () => window.localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
-const readMockAuth = (): boolean => {
-  try { return window.localStorage.getItem(MOCK_AUTH_KEY) === 'true'; } catch { return false; }
-};
-const writeMockAuth = () => {
-  try { window.localStorage.setItem(MOCK_AUTH_KEY, 'true'); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
-};
-
 export function Sidebar() {
   const [location] = useLocation();
   const seller = readSellerProfile();
@@ -654,64 +650,45 @@ export function Onboarding() {
   </div>;
 }
 
-function Auth() {
-  const [, setLocation] = useLocation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const demoEmail = 'demo@takeorder.app';
-  const demoPassword = 'demo123';
-  const useDemoLogin = () => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setError('');
-  };
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (email.trim().toLowerCase() !== demoEmail || password !== demoPassword) {
-      setError('Use the demo login below to enter the seller workspace.');
-      return;
-    }
-    writeMockAuth();
-    setLocation('/');
-  };
+function SignInPage() {
+  const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
+  return <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+    <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+  </div>;
+}
+
+function SignUpPage() {
+  const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
+  return <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+    <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+  </div>;
+}
+
+function LandingPage() {
   return <div className="onboarding-shell auth-shell">
     <div className="onboarding-layout">
-      <section className="onboarding-main" aria-label="Take Order sign in">
+      <section className="onboarding-main" aria-label="Take Order overview">
         <header className="onboarding-header auth-header">
           <Link href="/" data-testid="link-auth-logo" aria-label="Take Order home"><BrandLockup className="gap-2" /></Link>
         </header>
         <div className="onboarding-form-wrap auth-form-wrap">
           <div className="onboarding-form-panel auth-form-panel">
-            <h1>Welcome back</h1>
-            <p className="onboarding-lede">Sign in below to manage your shop, products, and orders.</p>
-            <form className="auth-form" onSubmit={submit}>
-              <div>
-                <label className="field-label" htmlFor="auth-email">Email</label>
-                <input autoFocus id="auth-email" data-testid="input-auth-email" type="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(''); }} placeholder="Enter your email" className="field-input" required />
-              </div>
-              <div>
-                <div className="auth-password-label"><label className="field-label" htmlFor="auth-password">Password</label><button type="button" className="auth-text-link" onClick={() => setError('Password recovery is not connected in mock mode.')}>Forgot password</button></div>
-                <input id="auth-password" data-testid="input-auth-password" type="password" autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} placeholder="Enter your password" className="field-input" required />
-              </div>
-              {error && <p className="auth-error" role="alert">{error}</p>}
-              <button type="submit" className="auth-submit" data-testid="button-auth-sign-in">Sign in <ArrowRight size={15} aria-hidden="true" /></button>
-              <p className="auth-legal">By using the Take Order workspace, you accept our terms and privacy policy.</p>
-            </form>
-            <div className="auth-divider" />
-            <div className="auth-footer-links">
-              <p>New to Take Order? <Link href="/onboarding" data-testid="link-auth-start-setup" className="auth-text-link">Start setup</Link></p>
-              <button type="button" className="auth-demo-link" onClick={useDemoLogin} data-testid="button-auth-demo-login">Use demo login <span>{demoEmail} / {demoPassword}</span></button>
-              <p className="auth-demo-note">Mock authentication is enabled while the real sign-in provider is being connected.</p>
+            <div className="onboarding-kicker">Seller workspace</div>
+            <h1>Keep every order moving.</h1>
+            <p className="onboarding-lede">Take Order gives you one clear place to manage products, share buyer links, and keep your shop organised.</p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/sign-in" className="auth-submit" data-testid="link-auth-sign-in">Sign in <ArrowRight size={15} aria-hidden="true" /></Link>
+              <Link href="/sign-up" className="auth-text-link inline-flex items-center rounded-[10px] border border-[hsl(var(--border))] px-4 py-3" data-testid="link-auth-sign-up">Create an account</Link>
             </div>
+            <p className="auth-legal mt-6">Your seller data is private to your account. Buyer order links remain shareable without a seller login.</p>
           </div>
         </div>
       </section>
       <aside className="onboarding-brand-panel auth-brand-panel">
         <div className="onboarding-brand-top"><BrandLockup className="onboarding-brand-lockup" /><span className="onboarding-panel-tag">Seller workspace</span></div>
-        <div className="onboarding-panel-copy"><div className="onboarding-panel-eyebrow">A calmer way to sell</div><h2>Your shop should grow, not just run you.</h2><p>Take Order gives you one clear place to manage products, share buyer links, and keep every order moving.</p><div className="onboarding-panel-note"><span className="onboarding-note-dot" />Start with a demo login. No real account is created.</div></div>
+        <div className="onboarding-panel-copy"><div className="onboarding-panel-eyebrow">A calmer way to sell</div><h2>Your shop should grow, not just run you.</h2><p>Set up your workspace, add products, and send buyers one simple link.</p><div className="onboarding-panel-note"><span className="onboarding-note-dot" />Secure sign-in powered by Clerk.</div></div>
         <div className="onboarding-product-scene" aria-hidden="true"><div className="product-orbit product-orbit-one" /><div className="product-orbit product-orbit-two" /><div className="product-device"><div className="product-device-top"><span>take order</span><span className="product-status"><i />live</span></div><div className="product-device-content"><span className="product-device-label">Your workspace</span><strong>Take Order</strong><div className="product-device-line" /><div className="product-device-row"><span /><span /><span /></div></div><div className="product-device-base" /></div><div className="product-floating-card"><Link2 size={14} /><span>One simple link</span></div></div>
-        <div className="onboarding-panel-footer auth-panel-footer"><span>MOCK MODE</span><div className="onboarding-panel-dashes"><i className="is-active" /></div><span>TAKE ORDER</span></div>
+        <div className="onboarding-panel-footer auth-panel-footer"><span>PRIVATE</span><div className="onboarding-panel-dashes"><i className="is-active" /></div><span>TAKE ORDER</span></div>
       </aside>
     </div>
   </div>;
@@ -719,17 +696,19 @@ function Auth() {
 
 function SellerRoute({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
+  const { isLoaded, isSignedIn } = useAuth();
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    if (!readMockAuth()) {
-      setLocation('/auth');
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      setLocation('/sign-in');
       return;
     }
     const completed = readOnboardingComplete();
     if (completed === false) setLocation('/onboarding');
     else setReady(true);
-  }, [setLocation]);
-  if (!ready) return <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6"><div className="w-full max-w-[320px]"><Skeleton className="mx-auto h-10 w-10 rounded-[14px]" /><Skeleton className="mx-auto mt-6 h-8 w-48" /><Skeleton className="mx-auto mt-3 h-3 w-60" /></div></div>;
+  }, [isLoaded, isSignedIn, setLocation]);
+  if (!isLoaded || !isSignedIn || !ready) return <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6"><div className="w-full max-w-[320px]"><Skeleton className="mx-auto h-10 w-10 rounded-[14px]" /><Skeleton className="mx-auto mt-6 h-8 w-48" /><Skeleton className="mx-auto mt-3 h-3 w-60" /></div></div>;
   return <>{children}</>;
 }
 
@@ -738,7 +717,19 @@ function ProtectedRoute({ page: Page }: { page: React.ComponentType }) {
 }
 
 function HomeRoute() {
-  return <ProtectedRoute page={Overview} />;
+  const { isLoaded, isSignedIn } = useAuth();
+  if (!isLoaded) return <div className="onboarding-shell min-h-[100dvh]" />;
+  return isSignedIn ? <ProtectedRoute page={Overview} /> : <LandingPage />;
+}
+
+function OnboardingRoute() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) setLocation('/sign-in');
+  }, [isLoaded, isSignedIn, setLocation]);
+  if (!isLoaded || !isSignedIn) return <div className="onboarding-shell min-h-[100dvh]" />;
+  return <Onboarding />;
 }
 
 export function Overview() {
@@ -2950,8 +2941,100 @@ function OrderDetail() {
   </Shell>;
 }
 
-function Router() { const [location] = useLocation(); return <ErrorBoundary resetKey={location}><Switch><Route path="/auth" component={Auth} /><Route path="/onboarding" component={Onboarding} /><Route path="/" component={HomeRoute} /><Route path="/catalog/new" component={() => <ProtectedRoute page={CatalogEditorRoute} />} /><Route path="/catalog/edit/:id" component={() => <ProtectedRoute page={CatalogEditorRoute} />} /><Route path="/catalog" component={() => <ProtectedRoute page={Catalog} />} /><Route path="/orders/:id" component={() => <ProtectedRoute page={OrderDetail} />} /><Route path="/orders" component={() => <ProtectedRoute page={Orders} />} /><Route path="/reports/channel-conversion" component={() => <ProtectedRoute page={ChannelConversionInsight} />} /><Route path="/reports" component={() => <ProtectedRoute page={Reports} />} /><Route path="/clients" component={() => <ProtectedRoute page={Clients} />} /><Route path="/expenses" component={() => <ProtectedRoute page={Expenses} />} /><Route path="/take-order" component={() => <ProtectedRoute page={MultiItemTakeOrderModern} />} /><Route path="/settings" component={() => <ProtectedRoute page={SettingsPage} />} /><Route path="/connect" component={() => <ProtectedRoute page={Connect} />} /><Route path="/o/:token" component={PublicOrderPage} /><Route component={NotFound} /></Switch></ErrorBoundary>; }
-function App() { return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>; }
+const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
+const browserHostname = typeof window === 'undefined' ? 'localhost' : window.location.hostname;
+const browserOrigin = typeof window === 'undefined' ? '' : window.location.origin;
+const clerkPubKey = runtimeEnv.VITE_CLERK_PUBLISHABLE_KEY
+  ? publishableKeyFromHost(browserHostname, runtimeEnv.VITE_CLERK_PUBLISHABLE_KEY)
+  : '';
+const clerkProxyUrl = runtimeEnv.VITE_CLERK_PROXY_URL || '';
+const stripBase = (path: string) => basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
+const clerkAppearance = {
+  theme: shadcn,
+  cssLayerName: 'clerk',
+  options: {
+    logoPlacement: 'inside' as const,
+    logoLinkUrl: basePath || '/',
+    logoImageUrl: `${browserOrigin}${basePath}/logo.svg`,
+  },
+  variables: {
+    colorPrimary: '#111111',
+    colorForeground: '#171717',
+    colorMutedForeground: '#737373',
+    colorDanger: '#b42318',
+    colorBackground: '#ffffff',
+    colorInput: '#ffffff',
+    colorInputForeground: '#171717',
+    colorNeutral: '#d4d4d4',
+    fontFamily: 'Inter, sans-serif',
+    borderRadius: '0.75rem',
+  },
+  elements: {
+    rootBox: 'w-full flex justify-center',
+    cardBox: 'bg-white rounded-2xl w-[440px] max-w-full overflow-hidden',
+    card: '!shadow-none !border-0 !bg-transparent !rounded-none',
+    footer: '!shadow-none !border-0 !bg-transparent !rounded-none',
+    headerTitle: 'text-neutral-950',
+    headerSubtitle: 'text-neutral-600',
+    socialButtonsBlockButtonText: 'text-neutral-900',
+    formFieldLabel: 'text-neutral-800',
+    footerActionLink: 'text-neutral-950',
+    footerActionText: 'text-neutral-600',
+    dividerText: 'text-neutral-500',
+    formButtonPrimary: 'bg-neutral-950 hover:bg-neutral-800',
+    formFieldInput: 'border-neutral-300 text-neutral-950',
+    logoBox: 'h-10',
+    logoImage: 'max-h-10',
+  },
+};
+
+function ClerkShell() {
+  const [, setLocation] = useLocation();
+  const app = <QueryClientProvider client={queryClient}><TooltipProvider><Router /><Toaster /></TooltipProvider></QueryClientProvider>;
+  if (!clerkPubKey) return app;
+  return <ClerkProvider
+    publishableKey={clerkPubKey}
+    proxyUrl={clerkProxyUrl}
+    appearance={clerkAppearance}
+    signInUrl={`${basePath}/sign-in`}
+    signUpUrl={`${basePath}/sign-up`}
+    localization={{
+      signIn: { start: { title: 'Welcome back', subtitle: 'Sign in to access your workspace' } },
+      signUp: { start: { title: 'Create your account', subtitle: 'Set up your private seller workspace' } },
+    }}
+    routerPush={(to) => setLocation(stripBase(to))}
+    routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+  >{app}</ClerkProvider>;
+}
+
+function Router() {
+  const [location] = useLocation();
+  return <ErrorBoundary resetKey={location}><Switch>
+    <Route path="/auth" component={() => <Redirect to="/sign-in" />} />
+    <Route path="/sign-in/*?" component={SignInPage} />
+    <Route path="/sign-up/*?" component={SignUpPage} />
+    <Route path="/onboarding" component={OnboardingRoute} />
+    <Route path="/" component={HomeRoute} />
+    <Route path="/catalog/new" component={() => <ProtectedRoute page={CatalogEditorRoute} />} />
+    <Route path="/catalog/edit/:id" component={() => <ProtectedRoute page={CatalogEditorRoute} />} />
+    <Route path="/catalog" component={() => <ProtectedRoute page={Catalog} />} />
+    <Route path="/orders/:id" component={() => <ProtectedRoute page={OrderDetail} />} />
+    <Route path="/orders" component={() => <ProtectedRoute page={Orders} />} />
+    <Route path="/reports/channel-conversion" component={() => <ProtectedRoute page={ChannelConversionInsight} />} />
+    <Route path="/reports" component={() => <ProtectedRoute page={Reports} />} />
+    <Route path="/clients" component={() => <ProtectedRoute page={Clients} />} />
+    <Route path="/expenses" component={() => <ProtectedRoute page={Expenses} />} />
+    <Route path="/take-order" component={() => <ProtectedRoute page={MultiItemTakeOrderModern} />} />
+    <Route path="/settings" component={() => <ProtectedRoute page={SettingsPage} />} />
+    <Route path="/connect" component={() => <ProtectedRoute page={Connect} />} />
+    <Route path="/o/:token" component={PublicOrderPage} />
+    <Route component={NotFound} />
+  </Switch></ErrorBoundary>;
+}
+
+function App() {
+  return <WouterRouter base={basePath}><ClerkShell /></WouterRouter>;
+}
 export default App;
 
 const fulfillmentTone = (fulfillment: Order['fulfillment']): 'neutral' | 'mint' | 'blue' =>

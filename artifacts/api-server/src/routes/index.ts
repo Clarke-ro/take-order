@@ -1,13 +1,14 @@
 import { Router, type IRouter } from "express";
+import type { RequestHandler } from "express";
 import type { db } from "@workspace/db";
 import healthRouter from "./health";
 import { createTakeOrderRouter } from "./take-order";
 
-export function createRouter(database: typeof db): IRouter {
+export function createRouter(database: typeof db, requireSellerAuth: RequestHandler): IRouter {
   const router: IRouter = Router();
 
   router.use(healthRouter);
-  router.use(createTakeOrderRouter(database));
+  router.use(createTakeOrderRouter(database, requireSellerAuth));
 
   return router;
 }

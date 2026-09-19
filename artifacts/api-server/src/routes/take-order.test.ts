@@ -4,6 +4,7 @@ import test from "node:test";
 import { eq } from "drizzle-orm";
 import {
   expensesTable,
+  orderItemsTable,
   ordersTable,
   productsTable,
 } from "@workspace/db/schema";
@@ -12,11 +13,13 @@ import { GetDashboardSummaryResponse } from "@workspace/api-zod";
 import { createApp } from "../app.js";
 import { isReusableCatalogProduct, preferencesForProduct } from "./take-order.js";
 
-type SeedProduct = Omit<typeof productsTable.$inferSelect, "sku" | "description" | "compareAtPrice" | "imageUrls"> & Partial<Pick<typeof productsTable.$inferSelect, "sku" | "description" | "compareAtPrice" | "imageUrls">>;
+type SeedProduct = Omit<typeof productsTable.$inferSelect, "ownerUserId" | "sku" | "description" | "compareAtPrice" | "imageUrls"> & Partial<Pick<typeof productsTable.$inferSelect, "ownerUserId" | "sku" | "description" | "compareAtPrice" | "imageUrls">>;
+type SeedOrder = Omit<typeof ordersTable.$inferSelect, "ownerUserId"> & Partial<Pick<typeof ordersTable.$inferSelect, "ownerUserId">>;
+type SeedExpense = Omit<typeof expensesTable.$inferSelect, "ownerUserId"> & Partial<Pick<typeof expensesTable.$inferSelect, "ownerUserId">>;
 type Seed = {
   products: SeedProduct[];
-  orders: Array<typeof ordersTable.$inferSelect>;
-  expenses: Array<typeof expensesTable.$inferSelect>;
+  orders: SeedOrder[];
+  expenses: SeedExpense[];
 };
 
 test("normalizes mixed legacy color and size variants into stacked buyer groups", () => {
@@ -42,29 +45,50 @@ test("keeps one-off custom order products out of reusable catalog results", () =
   assert.equal(isReusableCatalogProduct({ category: " custom ORDER " }), false);
 });
 
-function createSeededDatabase(seed: Seed): typeof db {
+function createSeededDatabase(seed: Seed, visibleOwnerId = "test-user"): typeof db {
   return {
     select() {
       return {
         from(table: unknown) {
-          if (table === productsTable) return Promise.resolve(seed.products);
-          if (table === ordersTable) return Promise.resolve(seed.orders);
-          if (table === expensesTable) return Promise.resolve(seed.expenses);
-          throw new Error("Unexpected table requested by dashboard route");
+          if (table === orderItemsTable) {
+            return {
+              where: () => ({
+                orderBy: () => Promise.resolve([]),
+              }),
+            };
+          }
+          const rows = table === productsTable
+            ? seed.products
+            : table === ordersTable
+              ? seed.orders
+              : table === expensesTable
+                ? seed.expenses
+                : null;
+          if (!rows) throw new Error("Unexpected table requested by dashboard route");
+          const visibleRows = rows.filter((row) => row.ownerUserId == null || row.ownerUserId === visibleOwnerId);
+          const query = {
+            orderBy: () => Promise.resolve(visibleRows),
+            then: (resolve: (value: typeof visibleRows) => unknown) => Promise.resolve(visibleRows).then(resolve),
+          };
+          return {
+            where: () => query,
+          };
         },
       };
     },
   } as unknown as typeof db;
 }
 
-function createProductListDatabase(products: Seed["products"]): typeof db {
+function createProductListDatabase(products: Seed["products"], visibleOwnerId = "test-user"): typeof db {
   return {
     select() {
       return {
         from(table: unknown) {
           if (table !== productsTable) throw new Error("Unexpected table requested by product route");
           return {
-            orderBy: () => Promise.resolve(products),
+            where: () => ({
+              orderBy: () => Promise.resolve(products.filter((product) => product.ownerUserId == null || product.ownerUserId === visibleOwnerId)),
+            }),
           };
         },
       };
@@ -73,6 +97,11 @@ function createProductListDatabase(products: Seed["products"]): typeof db {
 }
 
 const transactionRollback = Symbol("transaction rollback");
+const authFor = (userId: string): import("express").RequestHandler => (_req, res, next) => {
+  res.locals.userId = userId;
+  next();
+};
+const testAuthMiddleware = authFor("test-user");
 
 async function withDatabaseTransaction(
   run: (database: typeof db, baseUrl: string) => Promise<void>,
@@ -80,7 +109,7 @@ async function withDatabaseTransaction(
   try {
     await db.transaction(async (transaction) => {
       const server = createServer(
-        createApp(transaction as unknown as typeof db),
+        createApp(transaction as unknown as typeof db, { authMiddleware: testAuthMiddleware }),
       );
       await new Promise<void>((resolve) => server.listen(0, resolve));
 
@@ -125,7 +154,7 @@ async function requestSummary(seed: Seed, query = ""): Promise<{
   status: number;
   body: unknown;
 }> {
-  const server = createServer(createApp(createSeededDatabase(seed)));
+  const server = createServer(createApp(createSeededDatabase(seed), { authMiddleware: testAuthMiddleware }));
   await new Promise<void>((resolve) => server.listen(0, resolve));
 
   try {
@@ -149,7 +178,7 @@ async function requestProducts(products: Seed["products"]): Promise<{
   status: number;
   body: unknown;
 }> {
-  const server = createServer(createApp(createProductListDatabase(products)));
+  const server = createServer(createApp(createProductListDatabase(products), { authMiddleware: testAuthMiddleware }));
   await new Promise<void>((resolve) => server.listen(0, resolve));
 
   try {
@@ -166,6 +195,110 @@ async function requestProducts(products: Seed["products"]): Promise<{
     );
   }
 }
+
+test("seller data requires auth and stays isolated by Clerk user id", async () => {
+  const product = (id: number, ownerUserId: string): SeedProduct => ({
+    id,
+    ownerUserId,
+    name: ownerUserId === "seller-a" ? "Seller A product" : "Seller B product",
+    category: "Test",
+    price: "25.00",
+    cost: "10.00",
+    stock: 4,
+    variants: [],
+    preferences: [],
+    customFields: [],
+    imageUrl: null,
+    accent: "#0F6E6B",
+  });
+  const order = (id: number, ownerUserId: string): SeedOrder => ({
+    id,
+    ownerUserId,
+    token: `${ownerUserId}-token`,
+    productId: id,
+    productName: ownerUserId === "seller-a" ? "Seller A product" : "Seller B product",
+    customerName: "Buyer",
+    customerPhone: null,
+    channel: "whatsapp",
+    amount: "25.00",
+    deliveryFee: "0.00",
+    deliveryMethod: null,
+    deliveryAddress: null,
+    productCost: "10.00",
+    depositAmount: null,
+    paymentMode: "full",
+    status: "paid",
+    fulfillment: "pending",
+    createdAt: new Date("2026-09-19T10:00:00.000Z"),
+    linkOpens: 2,
+    shares: null,
+    likes: null,
+    engagementSource: null,
+    referenceImage: null,
+    buyerDetails: null,
+  });
+  const expense = (id: number, ownerUserId: string): SeedExpense => ({
+    id,
+    ownerUserId,
+    title: ownerUserId === "seller-a" ? "Seller A expense" : "Seller B expense",
+    category: "other",
+    amount: "5.00",
+    expenseDate: "2026-09-19",
+    note: null,
+    createdAt: new Date("2026-09-19T10:00:00.000Z"),
+  });
+  const seed: Seed = {
+    products: [product(1, "seller-a"), product(2, "seller-b")],
+    orders: [order(1, "seller-a"), order(2, "seller-b")],
+    expenses: [expense(1, "seller-a"), expense(2, "seller-b")],
+  };
+  const server = createServer(createApp(createSeededDatabase(seed, "seller-a"), {
+    authMiddleware: authFor("seller-a"),
+  }));
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+
+  try {
+    const address = server.address();
+    assert(address && typeof address !== "string");
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const [productsResponse, ordersResponse, expensesResponse, summaryResponse] = await Promise.all([
+      fetch(`${baseUrl}/api/products`),
+      fetch(`${baseUrl}/api/orders`),
+      fetch(`${baseUrl}/api/expenses`),
+      fetch(`${baseUrl}/api/dashboard/summary`),
+    ]);
+    assert.equal(productsResponse.status, 200);
+    assert.equal(ordersResponse.status, 200);
+    assert.equal(expensesResponse.status, 200);
+    assert.equal(summaryResponse.status, 200);
+    const productsBody = await productsResponse.json() as Array<{ name: string }>;
+    const ordersBody = await ordersResponse.json() as Array<{ productName: string }>;
+    const expensesBody = await expensesResponse.json() as Array<{ title: string }>;
+    const summaryBody = await summaryResponse.json() as { orders: number };
+    assert.deepEqual(productsBody.map((item) => item.name), ["Seller A product"]);
+    assert.deepEqual(ordersBody.map((item) => item.productName), ["Seller A product"]);
+    assert.deepEqual(expensesBody.map((item) => item.title), ["Seller A expense"]);
+    assert.equal(summaryBody.orders, 1);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("seller endpoints reject unauthenticated requests while public order links stay open", async () => {
+  const server = createServer(createApp(createSeededDatabase({ products: [], orders: [], expenses: [] })));
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  try {
+    const address = server.address();
+    assert(address && typeof address !== "string");
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const sellerResponse = await fetch(`${baseUrl}/api/products`);
+    const publicResponse = await fetch(`${baseUrl}/api/public/orders/missing-token`);
+    assert.equal(sellerResponse.status, 401);
+    assert.equal(publicResponse.status, 404);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
 
 test.after(async () => {
   await pool.end();
@@ -567,6 +700,7 @@ test("buyer deposit checkout and seller payment preserve the original product co
     const [product] = await database
       .insert(productsTable)
       .values({
+        ownerUserId: "test-user",
         name: "Historical cost deposit fixture",
         category: "Test",
         price: "100.00",
@@ -637,6 +771,7 @@ test("re-opening a paid order cannot replace its historical product cost", async
     const [product] = await database
       .insert(productsTable)
       .values({
+        ownerUserId: "test-user",
         name: "Historical cost reopen fixture",
         category: "Test",
         price: "100.00",
@@ -715,6 +850,7 @@ test("multi-item order links preserve item prices and compound the checkout tota
     const [firstProduct] = await database
       .insert(productsTable)
       .values({
+        ownerUserId: "test-user",
         name: "Multi-item first fixture",
         category: "Test",
         price: "35.00",
@@ -727,6 +863,7 @@ test("multi-item order links preserve item prices and compound the checkout tota
     const [secondProduct] = await database
       .insert(productsTable)
       .values({
+        ownerUserId: "test-user",
         name: "Multi-item second fixture",
         category: "Test",
         price: "65.00",
@@ -814,6 +951,7 @@ test("buyer links expose product metadata and persist buyer quantity through che
     const [product] = await database
       .insert(productsTable)
       .values({
+        ownerUserId: "test-user",
         name: "Gallery product fixture",
         category: "Apparel",
         sku: "GALLERY-001",
@@ -914,6 +1052,7 @@ test("buyer delivery choices use the link snapshot, require an address, and do n
     const [product] = await database
       .insert(productsTable)
       .values({
+        ownerUserId: "test-user",
         name: "Delivery fee fixture",
         category: "Test",
         price: "50.00",

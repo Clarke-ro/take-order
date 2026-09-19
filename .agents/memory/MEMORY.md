@@ -12,3 +12,4 @@
 - [Duka build environment](duka-build-env.md) — Direct Vite builds need the workflow-provided PORT and BASE_PATH values.
 - [Delivery order snapshots](delivery-order-snapshots.md) — Snapshot the flat fee on the buyer link and finalize it only after the buyer selects delivery.
 - [Product media](product-media.md) — Persist optional public image URLs and use generated fallbacks when storage uploads are unavailable.
+- [Clerk seller boundaries](clerk-seller-boundaries.md) — Apply seller auth per seller route so public buyer-token paths remain unauthenticated.

@@ -14,6 +14,7 @@ export type ProductCustomField = {
 
 export const productsTable = pgTable("products", {
   id: serial("id").primaryKey(),
+  ownerUserId: text("owner_user_id"),
   name: text("name").notNull(),
   category: text("category").notNull(),
   sku: text("sku"),

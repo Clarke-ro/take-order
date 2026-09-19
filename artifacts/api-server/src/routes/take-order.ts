@@ -1,5 +1,5 @@
-import { Router, type IRouter } from "express";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { Router, type IRouter, type Response } from "express";
+import { asc, desc, eq, inArray, and } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import {
   expensesTable,
@@ -44,6 +44,7 @@ import {
   stockDeltaForOrderStatusChange,
   type DashboardRange,
 } from "../lib/dashboard-analytics";
+import type { RequestHandler } from "express";
 
 export function preferencesForProduct(
   preferences: ProductPreferenceGroup[] | null | undefined,
@@ -111,8 +112,16 @@ export function isReusableCatalogProduct(product: Pick<typeof productsTable.$inf
   return product.category.trim().toLowerCase() !== "custom order";
 }
 
-export function createTakeOrderRouter(database: typeof db): IRouter {
+export function createTakeOrderRouter(database: typeof db, requireSellerAuth: RequestHandler): IRouter {
   const router: IRouter = Router();
+  const sellerRouter: IRouter = Router();
+  const publicRouter: IRouter = Router();
+
+  const sellerId = (res: Response): string => {
+    const value = res.locals.userId;
+    if (typeof value !== "string") throw new Error("Authenticated seller identity is missing");
+    return value;
+  };
 
 const toNumber = (value: string | number | null): number | null =>
   value == null ? null : Number(value);
@@ -365,12 +374,14 @@ async function productCostForSale(
   return costs.reduce<number>((total, cost) => total + (cost == null ? 0 : Number(cost)), 0).toFixed(2);
 }
 
-router.get("/products", async (_req, res): Promise<void> => {
-  const products = await database.select().from(productsTable).orderBy(productsTable.id);
+sellerRouter.get("/products", requireSellerAuth, async (_req, res): Promise<void> => {
+  const products = await database.select().from(productsTable)
+    .where(eq(productsTable.ownerUserId, sellerId(res)))
+    .orderBy(productsTable.id);
   res.json(ListProductsResponse.parse(products.filter(isReusableCatalogProduct).map(productResponse)));
 });
 
-router.post("/products", async (req, res): Promise<void> => {
+sellerRouter.post("/products", requireSellerAuth, async (req, res): Promise<void> => {
   const parsed = CreateProductBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -379,6 +390,7 @@ router.post("/products", async (req, res): Promise<void> => {
   const [product] = await database
     .insert(productsTable)
     .values({
+      ownerUserId: sellerId(res),
       ...parsed.data,
       sku: parsed.data.sku?.trim() || null,
       description: parsed.data.description?.trim() || null,
@@ -396,7 +408,7 @@ router.post("/products", async (req, res): Promise<void> => {
   res.status(201).json(CreateProductResponse.parse(productResponse(product)));
 });
 
-router.patch("/products/:id", async (req, res): Promise<void> => {
+sellerRouter.patch("/products/:id", requireSellerAuth, async (req, res): Promise<void> => {
   const params = UpdateProductParams.safeParse(req.params);
   const parsed = UpdateProductBody.safeParse(req.body);
   if (!params.success) {
@@ -446,7 +458,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   const [product] = await database
     .update(productsTable)
     .set(update)
-    .where(eq(productsTable.id, params.data.id))
+    .where(and(eq(productsTable.id, params.data.id), eq(productsTable.ownerUserId, sellerId(res))))
     .returning();
   if (!product) {
     res.status(404).json({ error: "Product not found" });
@@ -455,7 +467,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   res.json(UpdateProductResponse.parse(productResponse(product)));
 });
 
-router.delete("/products/:id", async (req, res): Promise<void> => {
+sellerRouter.delete("/products/:id", requireSellerAuth, async (req, res): Promise<void> => {
   const params = DeleteProductParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -463,7 +475,7 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
   }
   const [product] = await database
     .delete(productsTable)
-    .where(eq(productsTable.id, params.data.id))
+    .where(and(eq(productsTable.id, params.data.id), eq(productsTable.ownerUserId, sellerId(res))))
     .returning();
   if (!product) {
     res.status(404).json({ error: "Product not found" });
@@ -472,12 +484,14 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-router.get("/expenses", async (_req, res): Promise<void> => {
-  const expenses = await database.select().from(expensesTable).orderBy(desc(expensesTable.expenseDate), desc(expensesTable.id));
+sellerRouter.get("/expenses", requireSellerAuth, async (_req, res): Promise<void> => {
+  const expenses = await database.select().from(expensesTable)
+    .where(eq(expensesTable.ownerUserId, sellerId(res)))
+    .orderBy(desc(expensesTable.expenseDate), desc(expensesTable.id));
   res.json(ListExpensesResponse.parse(expenses.map(expenseResponse)));
 });
 
-router.post("/expenses", async (req, res): Promise<void> => {
+sellerRouter.post("/expenses", requireSellerAuth, async (req, res): Promise<void> => {
   const parsed = CreateExpenseBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -486,6 +500,7 @@ router.post("/expenses", async (req, res): Promise<void> => {
   const [expense] = await database
     .insert(expensesTable)
     .values({
+      ownerUserId: sellerId(res),
       title: parsed.data.title.trim(),
       category: parsed.data.category,
       amount: parsed.data.amount.toFixed(2),
@@ -496,7 +511,7 @@ router.post("/expenses", async (req, res): Promise<void> => {
   res.status(201).json(CreateExpenseResponse.parse(expenseResponse(expense)));
 });
 
-router.patch("/expenses/:id", async (req, res): Promise<void> => {
+sellerRouter.patch("/expenses/:id", requireSellerAuth, async (req, res): Promise<void> => {
   const params = UpdateExpenseParams.safeParse(req.params);
   const parsed = UpdateExpenseBody.safeParse(req.body);
   if (!params.success) {
@@ -522,7 +537,7 @@ router.patch("/expenses/:id", async (req, res): Promise<void> => {
   const [expense] = await database
     .update(expensesTable)
     .set(update)
-    .where(eq(expensesTable.id, params.data.id))
+    .where(and(eq(expensesTable.id, params.data.id), eq(expensesTable.ownerUserId, sellerId(res))))
     .returning();
   if (!expense) {
     res.status(404).json({ error: "Expense not found" });
@@ -531,7 +546,7 @@ router.patch("/expenses/:id", async (req, res): Promise<void> => {
   res.json(UpdateExpenseResponse.parse(expenseResponse(expense)));
 });
 
-router.delete("/expenses/:id", async (req, res): Promise<void> => {
+sellerRouter.delete("/expenses/:id", requireSellerAuth, async (req, res): Promise<void> => {
   const params = DeleteExpenseParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -539,7 +554,7 @@ router.delete("/expenses/:id", async (req, res): Promise<void> => {
   }
   const [expense] = await database
     .delete(expensesTable)
-    .where(eq(expensesTable.id, params.data.id))
+    .where(and(eq(expensesTable.id, params.data.id), eq(expensesTable.ownerUserId, sellerId(res))))
     .returning();
   if (!expense) {
     res.status(404).json({ error: "Expense not found" });
@@ -548,13 +563,15 @@ router.delete("/expenses/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-router.get("/orders", async (_req, res): Promise<void> => {
-  const orders = await database.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
+sellerRouter.get("/orders", requireSellerAuth, async (_req, res): Promise<void> => {
+  const orders = await database.select().from(ordersTable)
+    .where(eq(ordersTable.ownerUserId, sellerId(res)))
+    .orderBy(desc(ordersTable.createdAt));
   const itemsByOrder = await sellerItemsForOrders(orders);
   res.json(ListOrdersResponse.parse(orders.map((order) => orderResponse(order, itemsByOrder.get(order.id)))));
 });
 
-router.post("/orders", async (req, res): Promise<void> => {
+sellerRouter.post("/orders", requireSellerAuth, async (req, res): Promise<void> => {
   const parsed = CreateOrderBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -573,7 +590,7 @@ router.post("/orders", async (req, res): Promise<void> => {
   const products = await database
     .select()
     .from(productsTable)
-    .where(inArray(productsTable.id, productIds));
+    .where(and(inArray(productsTable.id, productIds), eq(productsTable.ownerUserId, sellerId(res))));
   const productsById = new Map(products.map((product) => [product.id, product]));
   const missingProduct = requestedItems.find((item) => !productsById.has(item.productId));
   if (missingProduct) {
@@ -594,6 +611,7 @@ router.post("/orders", async (req, res): Promise<void> => {
   const [order] = await database
     .insert(ordersTable)
     .values({
+      ownerUserId: sellerId(res),
       token: randomBytes(4).toString("hex"),
       productId: firstProduct.id,
       productName: requestedItems.length === 1
@@ -632,13 +650,14 @@ router.post("/orders", async (req, res): Promise<void> => {
   res.status(201).json(CreateOrderResponse.parse(orderResponse(order, items)));
 });
 
-router.get("/orders/:id", async (req, res): Promise<void> => {
+sellerRouter.get("/orders/:id", requireSellerAuth, async (req, res): Promise<void> => {
   const params = GetOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [order] = await database.select().from(ordersTable).where(eq(ordersTable.id, params.data.id));
+  const [order] = await database.select().from(ordersTable)
+    .where(and(eq(ordersTable.id, params.data.id), eq(ordersTable.ownerUserId, sellerId(res))));
   if (!order) {
     res.status(404).json({ error: "Order not found" });
     return;
@@ -647,7 +666,7 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
   res.json(GetOrderResponse.parse(orderResponse(order, items)));
 });
 
-router.patch("/orders/:id", async (req, res): Promise<void> => {
+sellerRouter.patch("/orders/:id", requireSellerAuth, async (req, res): Promise<void> => {
   const params = UpdateOrderParams.safeParse(req.params);
   const parsed = UpdateOrderBody.safeParse(req.body);
   if (!params.success) {
@@ -658,7 +677,8 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [existing] = await database.select().from(ordersTable).where(eq(ordersTable.id, params.data.id));
+  const [existing] = await database.select().from(ordersTable)
+    .where(and(eq(ordersTable.id, params.data.id), eq(ordersTable.ownerUserId, sellerId(res))));
   if (!existing) {
     res.status(404).json({ error: "Order not found" });
     return;
@@ -672,7 +692,7 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
         ? parsed.data
         : { ...parsed.data, productCost: saleProductCost },
     )
-    .where(eq(ordersTable.id, params.data.id))
+    .where(and(eq(ordersTable.id, params.data.id), eq(ordersTable.ownerUserId, sellerId(res))))
     .returning();
   const stockDelta = stockDeltaForOrderStatusChange(existing.status, parsed.data.status ?? existing.status);
   if (stockDelta) await adjustOrderStock(existing, stockDelta);
@@ -680,7 +700,7 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
   res.json(UpdateOrderResponse.parse(orderResponse(order, items)));
 });
 
-router.get("/public/orders/:token", async (req, res): Promise<void> => {
+publicRouter.get("/public/orders/:token", async (req, res): Promise<void> => {
   const params = GetPublicOrderParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -700,7 +720,7 @@ router.get("/public/orders/:token", async (req, res): Promise<void> => {
   res.json(GetPublicOrderResponse.parse(publicOrderResponse(updated, items)));
 });
 
-router.post("/public/orders/:token", async (req, res): Promise<void> => {
+publicRouter.post("/public/orders/:token", async (req, res): Promise<void> => {
   const params = SubmitPublicOrderParams.safeParse(req.params);
   const parsed = SubmitPublicOrderBody.safeParse(req.body);
   if (!params.success) {
@@ -813,7 +833,7 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
   res.json(SubmitPublicOrderResponse.parse(orderResponse(order, items)));
 });
 
-  router.get("/dashboard/summary", async (req, res): Promise<void> => {
+  sellerRouter.get("/dashboard/summary", requireSellerAuth, async (req, res): Promise<void> => {
    const parseDateQuery = (value: unknown): string | undefined => {
      if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
      const parsed = new Date(`${value}T00:00:00.000Z`);
@@ -833,14 +853,16 @@ router.post("/public/orders/:token", async (req, res): Promise<void> => {
    }
    const range: DashboardRange | undefined = from || to ? { from, to } : undefined;
   const [products, orders, operatingExpenseRows] = await Promise.all([
-    database.select().from(productsTable),
-    database.select().from(ordersTable),
-    database.select().from(expensesTable),
+    database.select().from(productsTable).where(eq(productsTable.ownerUserId, sellerId(res))),
+    database.select().from(ordersTable).where(eq(ordersTable.ownerUserId, sellerId(res))),
+    database.select().from(expensesTable).where(eq(expensesTable.ownerUserId, sellerId(res))),
   ]);
   res.json(GetDashboardSummaryResponse.parse(
     calculateDashboardSummary(products.filter(isReusableCatalogProduct), orders, operatingExpenseRows, new Date(), range),
   ));
 });
 
+  router.use(sellerRouter);
+  router.use(publicRouter);
   return router;
 }

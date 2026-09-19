@@ -11414,6 +11414,7 @@ var createInsertSchema = (entity, refine2) => {
 import { integer as integer2, jsonb, numeric, pgTable, serial, text } from "drizzle-orm/pg-core";
 var productsTable = pgTable("products", {
   id: serial("id").primaryKey(),
+  ownerUserId: text("owner_user_id"),
   name: text("name").notNull(),
   category: text("category").notNull(),
   sku: text("sku"),
@@ -11435,6 +11436,7 @@ var insertProductSchema = createInsertSchema(productsTable).omit({ id: true });
 import { integer as integer3, numeric as numeric2, pgTable as pgTable2, serial as serial2, text as text2, timestamp } from "drizzle-orm/pg-core";
 var ordersTable = pgTable2("orders", {
   id: serial2("id").primaryKey(),
+  ownerUserId: text2("owner_user_id"),
   token: text2("token").notNull().unique(),
   productId: integer3("product_id").notNull(),
   productName: text2("product_name").notNull(),
@@ -11485,6 +11487,7 @@ var insertOrderItemSchema = createInsertSchema(orderItemsTable).omit({ id: true 
 import { date as date5, numeric as numeric4, pgTable as pgTable4, serial as serial4, text as text4, timestamp as timestamp2 } from "drizzle-orm/pg-core";
 var expensesTable = pgTable4("expenses", {
   id: serial4("id").primaryKey(),
+  ownerUserId: text4("owner_user_id"),
   title: text4("title").notNull(),
   category: text4("category").notNull(),
   amount: numeric4("amount", { precision: 12, scale: 2 }).notNull(),
@@ -15871,6 +15874,8 @@ var DeleteExpenseResponse = voidType();
 import express from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import { clerkMiddleware } from "@clerk/express";
+import { publishableKeyFromHost } from "@clerk/shared/keys";
 
 // src/routes/index.ts
 import { Router as Router3 } from "express";
@@ -15886,7 +15891,7 @@ var health_default = router;
 
 // src/routes/take-order.ts
 import { Router as Router2 } from "express";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq, inArray, and } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 
 // src/lib/dashboard-analytics.ts
@@ -16164,8 +16169,15 @@ function preferencesForProduct(preferences, variants = []) {
 function isReusableCatalogProduct(product) {
   return product.category.trim().toLowerCase() !== "custom order";
 }
-function createTakeOrderRouter(database) {
+function createTakeOrderRouter(database, requireSellerAuth) {
   const router2 = Router2();
+  const sellerRouter = Router2();
+  const publicRouter = Router2();
+  const sellerId = (res) => {
+    const value = res.locals.userId;
+    if (typeof value !== "string") throw new Error("Authenticated seller identity is missing");
+    return value;
+  };
   const toNumber = (value) => value == null ? null : Number(value);
   function productResponse(product) {
     const imageUrls = product.imageUrls?.length ? product.imageUrls : product.imageUrl ? [product.imageUrl] : [];
@@ -16323,17 +16335,18 @@ function createTakeOrderRouter(database) {
     if (costs.some((cost) => cost === null)) return null;
     return costs.reduce((total, cost) => total + (cost == null ? 0 : Number(cost)), 0).toFixed(2);
   }
-  router2.get("/products", async (_req, res) => {
-    const products = await database.select().from(productsTable).orderBy(productsTable.id);
+  sellerRouter.get("/products", requireSellerAuth, async (_req, res) => {
+    const products = await database.select().from(productsTable).where(eq(productsTable.ownerUserId, sellerId(res))).orderBy(productsTable.id);
     res.json(ListProductsResponse.parse(products.filter(isReusableCatalogProduct).map(productResponse)));
   });
-  router2.post("/products", async (req, res) => {
+  sellerRouter.post("/products", requireSellerAuth, async (req, res) => {
     const parsed = CreateProductBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
     const [product] = await database.insert(productsTable).values({
+      ownerUserId: sellerId(res),
       ...parsed.data,
       sku: parsed.data.sku?.trim() || null,
       description: parsed.data.description?.trim() || null,
@@ -16349,7 +16362,7 @@ function createTakeOrderRouter(database) {
     }).returning();
     res.status(201).json(CreateProductResponse.parse(productResponse(product)));
   });
-  router2.patch("/products/:id", async (req, res) => {
+  sellerRouter.patch("/products/:id", requireSellerAuth, async (req, res) => {
     const params = UpdateProductParams.safeParse(req.params);
     const parsed = UpdateProductBody.safeParse(req.body);
     if (!params.success) {
@@ -16381,37 +16394,38 @@ function createTakeOrderRouter(database) {
     if (parsed.data.imageUrl !== void 0) update.imageUrl = parsed.data.imageUrl;
     if (parsed.data.imageUrls !== void 0) update.imageUrls = parsed.data.imageUrls;
     if (parsed.data.accent !== void 0) update.accent = parsed.data.accent;
-    const [product] = await database.update(productsTable).set(update).where(eq(productsTable.id, params.data.id)).returning();
+    const [product] = await database.update(productsTable).set(update).where(and(eq(productsTable.id, params.data.id), eq(productsTable.ownerUserId, sellerId(res)))).returning();
     if (!product) {
       res.status(404).json({ error: "Product not found" });
       return;
     }
     res.json(UpdateProductResponse.parse(productResponse(product)));
   });
-  router2.delete("/products/:id", async (req, res) => {
+  sellerRouter.delete("/products/:id", requireSellerAuth, async (req, res) => {
     const params = DeleteProductParams.safeParse(req.params);
     if (!params.success) {
       res.status(400).json({ error: params.error.message });
       return;
     }
-    const [product] = await database.delete(productsTable).where(eq(productsTable.id, params.data.id)).returning();
+    const [product] = await database.delete(productsTable).where(and(eq(productsTable.id, params.data.id), eq(productsTable.ownerUserId, sellerId(res)))).returning();
     if (!product) {
       res.status(404).json({ error: "Product not found" });
       return;
     }
     res.sendStatus(204);
   });
-  router2.get("/expenses", async (_req, res) => {
-    const expenses = await database.select().from(expensesTable).orderBy(desc(expensesTable.expenseDate), desc(expensesTable.id));
+  sellerRouter.get("/expenses", requireSellerAuth, async (_req, res) => {
+    const expenses = await database.select().from(expensesTable).where(eq(expensesTable.ownerUserId, sellerId(res))).orderBy(desc(expensesTable.expenseDate), desc(expensesTable.id));
     res.json(ListExpensesResponse.parse(expenses.map(expenseResponse)));
   });
-  router2.post("/expenses", async (req, res) => {
+  sellerRouter.post("/expenses", requireSellerAuth, async (req, res) => {
     const parsed = CreateExpenseBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
     const [expense] = await database.insert(expensesTable).values({
+      ownerUserId: sellerId(res),
       title: parsed.data.title.trim(),
       category: parsed.data.category,
       amount: parsed.data.amount.toFixed(2),
@@ -16420,7 +16434,7 @@ function createTakeOrderRouter(database) {
     }).returning();
     res.status(201).json(CreateExpenseResponse.parse(expenseResponse(expense)));
   });
-  router2.patch("/expenses/:id", async (req, res) => {
+  sellerRouter.patch("/expenses/:id", requireSellerAuth, async (req, res) => {
     const params = UpdateExpenseParams.safeParse(req.params);
     const parsed = UpdateExpenseBody.safeParse(req.body);
     if (!params.success) {
@@ -16437,32 +16451,32 @@ function createTakeOrderRouter(database) {
     if (parsed.data.amount !== void 0) update.amount = parsed.data.amount.toFixed(2);
     if (parsed.data.date !== void 0) update.expenseDate = parsed.data.date;
     if (parsed.data.note !== void 0) update.note = parsed.data.note?.trim() || null;
-    const [expense] = await database.update(expensesTable).set(update).where(eq(expensesTable.id, params.data.id)).returning();
+    const [expense] = await database.update(expensesTable).set(update).where(and(eq(expensesTable.id, params.data.id), eq(expensesTable.ownerUserId, sellerId(res)))).returning();
     if (!expense) {
       res.status(404).json({ error: "Expense not found" });
       return;
     }
     res.json(UpdateExpenseResponse.parse(expenseResponse(expense)));
   });
-  router2.delete("/expenses/:id", async (req, res) => {
+  sellerRouter.delete("/expenses/:id", requireSellerAuth, async (req, res) => {
     const params = DeleteExpenseParams.safeParse(req.params);
     if (!params.success) {
       res.status(400).json({ error: params.error.message });
       return;
     }
-    const [expense] = await database.delete(expensesTable).where(eq(expensesTable.id, params.data.id)).returning();
+    const [expense] = await database.delete(expensesTable).where(and(eq(expensesTable.id, params.data.id), eq(expensesTable.ownerUserId, sellerId(res)))).returning();
     if (!expense) {
       res.status(404).json({ error: "Expense not found" });
       return;
     }
     res.sendStatus(204);
   });
-  router2.get("/orders", async (_req, res) => {
-    const orders = await database.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
+  sellerRouter.get("/orders", requireSellerAuth, async (_req, res) => {
+    const orders = await database.select().from(ordersTable).where(eq(ordersTable.ownerUserId, sellerId(res))).orderBy(desc(ordersTable.createdAt));
     const itemsByOrder = await sellerItemsForOrders(orders);
     res.json(ListOrdersResponse.parse(orders.map((order) => orderResponse(order, itemsByOrder.get(order.id)))));
   });
-  router2.post("/orders", async (req, res) => {
+  sellerRouter.post("/orders", requireSellerAuth, async (req, res) => {
     const parsed = CreateOrderBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
@@ -16474,7 +16488,7 @@ function createTakeOrderRouter(database) {
       return;
     }
     const productIds = [...new Set(requestedItems.map((item) => item.productId))];
-    const products = await database.select().from(productsTable).where(inArray(productsTable.id, productIds));
+    const products = await database.select().from(productsTable).where(and(inArray(productsTable.id, productIds), eq(productsTable.ownerUserId, sellerId(res))));
     const productsById = new Map(products.map((product) => [product.id, product]));
     const missingProduct = requestedItems.find((item) => !productsById.has(item.productId));
     if (missingProduct) {
@@ -16493,6 +16507,7 @@ function createTakeOrderRouter(database) {
     }
     const firstProduct = productsById.get(requestedItems[0].productId);
     const [order] = await database.insert(ordersTable).values({
+      ownerUserId: sellerId(res),
       token: randomBytes(4).toString("hex"),
       productId: firstProduct.id,
       productName: requestedItems.length === 1 ? firstProduct.name : `${firstProduct.name} + ${requestedItems.length - 1} more`,
@@ -16523,13 +16538,13 @@ function createTakeOrderRouter(database) {
     const items = await sellerItemsForOrder(order);
     res.status(201).json(CreateOrderResponse.parse(orderResponse(order, items)));
   });
-  router2.get("/orders/:id", async (req, res) => {
+  sellerRouter.get("/orders/:id", requireSellerAuth, async (req, res) => {
     const params = GetOrderParams.safeParse(req.params);
     if (!params.success) {
       res.status(400).json({ error: params.error.message });
       return;
     }
-    const [order] = await database.select().from(ordersTable).where(eq(ordersTable.id, params.data.id));
+    const [order] = await database.select().from(ordersTable).where(and(eq(ordersTable.id, params.data.id), eq(ordersTable.ownerUserId, sellerId(res))));
     if (!order) {
       res.status(404).json({ error: "Order not found" });
       return;
@@ -16537,7 +16552,7 @@ function createTakeOrderRouter(database) {
     const items = await sellerItemsForOrder(order);
     res.json(GetOrderResponse.parse(orderResponse(order, items)));
   });
-  router2.patch("/orders/:id", async (req, res) => {
+  sellerRouter.patch("/orders/:id", requireSellerAuth, async (req, res) => {
     const params = UpdateOrderParams.safeParse(req.params);
     const parsed = UpdateOrderBody.safeParse(req.body);
     if (!params.success) {
@@ -16548,7 +16563,7 @@ function createTakeOrderRouter(database) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const [existing] = await database.select().from(ordersTable).where(eq(ordersTable.id, params.data.id));
+    const [existing] = await database.select().from(ordersTable).where(and(eq(ordersTable.id, params.data.id), eq(ordersTable.ownerUserId, sellerId(res))));
     if (!existing) {
       res.status(404).json({ error: "Order not found" });
       return;
@@ -16557,13 +16572,13 @@ function createTakeOrderRouter(database) {
     const saleProductCost = await productCostForSale(existing, nextStatus);
     const [order] = await database.update(ordersTable).set(
       saleProductCost === void 0 ? parsed.data : { ...parsed.data, productCost: saleProductCost }
-    ).where(eq(ordersTable.id, params.data.id)).returning();
+    ).where(and(eq(ordersTable.id, params.data.id), eq(ordersTable.ownerUserId, sellerId(res)))).returning();
     const stockDelta = stockDeltaForOrderStatusChange(existing.status, parsed.data.status ?? existing.status);
     if (stockDelta) await adjustOrderStock(existing, stockDelta);
     const items = await sellerItemsForOrder(order);
     res.json(UpdateOrderResponse.parse(orderResponse(order, items)));
   });
-  router2.get("/public/orders/:token", async (req, res) => {
+  publicRouter.get("/public/orders/:token", async (req, res) => {
     const params = GetPublicOrderParams.safeParse(req.params);
     if (!params.success) {
       res.status(400).json({ error: params.error.message });
@@ -16578,7 +16593,7 @@ function createTakeOrderRouter(database) {
     const items = await publicItemsForOrder(updated);
     res.json(GetPublicOrderResponse.parse(publicOrderResponse(updated, items)));
   });
-  router2.post("/public/orders/:token", async (req, res) => {
+  publicRouter.post("/public/orders/:token", async (req, res) => {
     const params = SubmitPublicOrderParams.safeParse(req.params);
     const parsed = SubmitPublicOrderBody.safeParse(req.body);
     if (!params.success) {
@@ -16666,7 +16681,7 @@ function createTakeOrderRouter(database) {
     const items = await sellerItemsForOrder(order);
     res.json(SubmitPublicOrderResponse.parse(orderResponse(order, items)));
   });
-  router2.get("/dashboard/summary", async (req, res) => {
+  sellerRouter.get("/dashboard/summary", requireSellerAuth, async (req, res) => {
     const parseDateQuery = (value) => {
       if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return void 0;
       const parsed = /* @__PURE__ */ new Date(`${value}T00:00:00.000Z`);
@@ -16686,22 +16701,24 @@ function createTakeOrderRouter(database) {
     }
     const range = from || to ? { from, to } : void 0;
     const [products, orders, operatingExpenseRows] = await Promise.all([
-      database.select().from(productsTable),
-      database.select().from(ordersTable),
-      database.select().from(expensesTable)
+      database.select().from(productsTable).where(eq(productsTable.ownerUserId, sellerId(res))),
+      database.select().from(ordersTable).where(eq(ordersTable.ownerUserId, sellerId(res))),
+      database.select().from(expensesTable).where(eq(expensesTable.ownerUserId, sellerId(res)))
     ]);
     res.json(GetDashboardSummaryResponse.parse(
       calculateDashboardSummary(products.filter(isReusableCatalogProduct), orders, operatingExpenseRows, /* @__PURE__ */ new Date(), range)
     ));
   });
+  router2.use(sellerRouter);
+  router2.use(publicRouter);
   return router2;
 }
 
 // src/routes/index.ts
-function createRouter(database) {
+function createRouter(database, requireSellerAuth) {
   const router2 = Router3();
   router2.use(health_default);
-  router2.use(createTakeOrderRouter(database));
+  router2.use(createTakeOrderRouter(database, requireSellerAuth));
   return router2;
 }
 
@@ -16723,8 +16740,80 @@ var logger = pino({
   }
 });
 
+// src/middlewares/clerkProxyMiddleware.ts
+import { createProxyMiddleware } from "http-proxy-middleware";
+var CLERK_FAPI = "https://frontend-api.clerk.dev";
+var CLERK_PROXY_PATH = "/api/__clerk";
+function getClerkProxyHost(req) {
+  const forwarded = req.headers["x-forwarded-host"];
+  const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  const firstHop = raw?.split(",")[0]?.trim();
+  return firstHop || req.headers.host?.trim() || void 0;
+}
+function clerkProxyMiddleware() {
+  if (process.env.NODE_ENV !== "production") return (_req, _res, next) => next();
+  const secretKey = process.env.CLERK_SECRET_KEY;
+  if (!secretKey) return (_req, _res, next) => next();
+  return createProxyMiddleware({
+    target: CLERK_FAPI,
+    changeOrigin: true,
+    selfHandleResponse: true,
+    pathRewrite: (path) => path.replace(new RegExp(`^${CLERK_PROXY_PATH}`), ""),
+    on: {
+      proxyReq: (proxyReq, req) => {
+        const protocol = req.headers["x-forwarded-proto"] || "https";
+        const host = getClerkProxyHost(req) || "";
+        proxyReq.setHeader("Clerk-Proxy-Url", `${protocol}://${host}${CLERK_PROXY_PATH}`);
+        proxyReq.setHeader("Clerk-Secret-Key", secretKey);
+        const xff = req.headers["x-forwarded-for"];
+        const clientIp = (Array.isArray(xff) ? xff[0] : xff)?.split(",")[0]?.trim() || req.socket?.remoteAddress || "";
+        if (clientIp) proxyReq.setHeader("X-Forwarded-For", clientIp);
+      },
+      proxyRes: (proxyRes, req, res) => {
+        const headers = { ...proxyRes.headers };
+        delete headers["transfer-encoding"];
+        delete headers["connection"];
+        delete headers["keep-alive"];
+        const status = proxyRes.statusCode ?? 502;
+        if (status < 200 || status === 204) delete headers["content-length"];
+        const bodyless = req.method === "HEAD" || status < 200 || status === 204 || status === 304;
+        if (headers["content-length"] !== void 0 || bodyless) {
+          res.writeHead(status, headers);
+          proxyRes.on("error", () => res.destroy());
+          proxyRes.pipe(res);
+          return;
+        }
+        const chunks = [];
+        proxyRes.on("data", (chunk) => chunks.push(chunk));
+        proxyRes.on("end", () => {
+          const body = Buffer.concat(chunks);
+          headers["content-length"] = String(body.length);
+          res.writeHead(status, headers);
+          res.end(body);
+        });
+        proxyRes.on("error", () => {
+          if (!res.headersSent) res.writeHead(502, { "content-length": "0" });
+          res.end();
+        });
+      }
+    }
+  });
+}
+
+// src/middlewares/requireAuth.ts
+import { getAuth } from "@clerk/express";
+var requireAuth = (req, res, next) => {
+  const userId = getAuth(req).userId;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  res.locals.userId = userId;
+  next();
+};
+
 // src/app.ts
-function createApp(database) {
+function createApp(database, options = {}) {
   const app = express();
   app.use(
     pinoHttp({
@@ -16745,10 +16834,19 @@ function createApp(database) {
       }
     })
   );
-  app.use(cors());
+  app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+  app.use(cors({ credentials: true, origin: true }));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
-  app.use("/api", createRouter(database));
+  app.use(
+    clerkMiddleware((req) => ({
+      publishableKey: publishableKeyFromHost(
+        getClerkProxyHost(req) ?? "",
+        process.env.CLERK_PUBLISHABLE_KEY
+      )
+    }))
+  );
+  app.use("/api", createRouter(database, options.authMiddleware ?? requireAuth));
   return app;
 }
 
@@ -16774,28 +16872,43 @@ test("keeps one-off custom order products out of reusable catalog results", () =
   assert2.equal(isReusableCatalogProduct({ category: "Custom order" }), false);
   assert2.equal(isReusableCatalogProduct({ category: " custom ORDER " }), false);
 });
-function createSeededDatabase(seed) {
+function createSeededDatabase(seed, visibleOwnerId = "test-user") {
   return {
     select() {
       return {
         from(table) {
-          if (table === productsTable) return Promise.resolve(seed.products);
-          if (table === ordersTable) return Promise.resolve(seed.orders);
-          if (table === expensesTable) return Promise.resolve(seed.expenses);
-          throw new Error("Unexpected table requested by dashboard route");
+          if (table === orderItemsTable) {
+            return {
+              where: () => ({
+                orderBy: () => Promise.resolve([])
+              })
+            };
+          }
+          const rows = table === productsTable ? seed.products : table === ordersTable ? seed.orders : table === expensesTable ? seed.expenses : null;
+          if (!rows) throw new Error("Unexpected table requested by dashboard route");
+          const visibleRows = rows.filter((row) => row.ownerUserId == null || row.ownerUserId === visibleOwnerId);
+          const query = {
+            orderBy: () => Promise.resolve(visibleRows),
+            then: (resolve) => Promise.resolve(visibleRows).then(resolve)
+          };
+          return {
+            where: () => query
+          };
         }
       };
     }
   };
 }
-function createProductListDatabase(products) {
+function createProductListDatabase(products, visibleOwnerId = "test-user") {
   return {
     select() {
       return {
         from(table) {
           if (table !== productsTable) throw new Error("Unexpected table requested by product route");
           return {
-            orderBy: () => Promise.resolve(products)
+            where: () => ({
+              orderBy: () => Promise.resolve(products.filter((product) => product.ownerUserId == null || product.ownerUserId === visibleOwnerId))
+            })
           };
         }
       };
@@ -16803,11 +16916,16 @@ function createProductListDatabase(products) {
   };
 }
 var transactionRollback = /* @__PURE__ */ Symbol("transaction rollback");
+var authFor = (userId) => (_req, res, next) => {
+  res.locals.userId = userId;
+  next();
+};
+var testAuthMiddleware = authFor("test-user");
 async function withDatabaseTransaction(run) {
   try {
     await db.transaction(async (transaction) => {
       const server = createServer(
-        createApp(transaction)
+        createApp(transaction, { authMiddleware: testAuthMiddleware })
       );
       await new Promise((resolve) => server.listen(0, resolve));
       try {
@@ -16841,7 +16959,7 @@ async function requestJson(baseUrl, path, init) {
   return { status: response.status, body: await response.json() };
 }
 async function requestSummary(seed, query = "") {
-  const server = createServer(createApp(createSeededDatabase(seed)));
+  const server = createServer(createApp(createSeededDatabase(seed), { authMiddleware: testAuthMiddleware }));
   await new Promise((resolve) => server.listen(0, resolve));
   try {
     const address = server.address();
@@ -16860,7 +16978,7 @@ async function requestSummary(seed, query = "") {
   }
 }
 async function requestProducts(products) {
-  const server = createServer(createApp(createProductListDatabase(products)));
+  const server = createServer(createApp(createProductListDatabase(products), { authMiddleware: testAuthMiddleware }));
   await new Promise((resolve) => server.listen(0, resolve));
   try {
     const address = server.address();
@@ -16876,6 +16994,107 @@ async function requestProducts(products) {
     );
   }
 }
+test("seller data requires auth and stays isolated by Clerk user id", async () => {
+  const product = (id, ownerUserId) => ({
+    id,
+    ownerUserId,
+    name: ownerUserId === "seller-a" ? "Seller A product" : "Seller B product",
+    category: "Test",
+    price: "25.00",
+    cost: "10.00",
+    stock: 4,
+    variants: [],
+    preferences: [],
+    customFields: [],
+    imageUrl: null,
+    accent: "#0F6E6B"
+  });
+  const order = (id, ownerUserId) => ({
+    id,
+    ownerUserId,
+    token: `${ownerUserId}-token`,
+    productId: id,
+    productName: ownerUserId === "seller-a" ? "Seller A product" : "Seller B product",
+    customerName: "Buyer",
+    customerPhone: null,
+    channel: "whatsapp",
+    amount: "25.00",
+    deliveryFee: "0.00",
+    deliveryMethod: null,
+    deliveryAddress: null,
+    productCost: "10.00",
+    depositAmount: null,
+    paymentMode: "full",
+    status: "paid",
+    fulfillment: "pending",
+    createdAt: /* @__PURE__ */ new Date("2026-09-19T10:00:00.000Z"),
+    linkOpens: 2,
+    shares: null,
+    likes: null,
+    engagementSource: null,
+    referenceImage: null,
+    buyerDetails: null
+  });
+  const expense = (id, ownerUserId) => ({
+    id,
+    ownerUserId,
+    title: ownerUserId === "seller-a" ? "Seller A expense" : "Seller B expense",
+    category: "other",
+    amount: "5.00",
+    expenseDate: "2026-09-19",
+    note: null,
+    createdAt: /* @__PURE__ */ new Date("2026-09-19T10:00:00.000Z")
+  });
+  const seed = {
+    products: [product(1, "seller-a"), product(2, "seller-b")],
+    orders: [order(1, "seller-a"), order(2, "seller-b")],
+    expenses: [expense(1, "seller-a"), expense(2, "seller-b")]
+  };
+  const server = createServer(createApp(createSeededDatabase(seed, "seller-a"), {
+    authMiddleware: authFor("seller-a")
+  }));
+  await new Promise((resolve) => server.listen(0, resolve));
+  try {
+    const address = server.address();
+    assert2(address && typeof address !== "string");
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const [productsResponse, ordersResponse, expensesResponse, summaryResponse] = await Promise.all([
+      fetch(`${baseUrl}/api/products`),
+      fetch(`${baseUrl}/api/orders`),
+      fetch(`${baseUrl}/api/expenses`),
+      fetch(`${baseUrl}/api/dashboard/summary`)
+    ]);
+    assert2.equal(productsResponse.status, 200);
+    assert2.equal(ordersResponse.status, 200);
+    assert2.equal(expensesResponse.status, 200);
+    assert2.equal(summaryResponse.status, 200);
+    const productsBody = await productsResponse.json();
+    const ordersBody = await ordersResponse.json();
+    const expensesBody = await expensesResponse.json();
+    const summaryBody = await summaryResponse.json();
+    assert2.deepEqual(productsBody.map((item) => item.name), ["Seller A product"]);
+    assert2.deepEqual(ordersBody.map((item) => item.productName), ["Seller A product"]);
+    assert2.deepEqual(expensesBody.map((item) => item.title), ["Seller A expense"]);
+    assert2.equal(summaryBody.orders, 1);
+  } finally {
+    await new Promise((resolve, reject) => server.close((error40) => error40 ? reject(error40) : resolve()));
+  }
+});
+test("seller endpoints reject unauthenticated requests while public order links stay open", async () => {
+  const server = createServer(createApp(createSeededDatabase({ products: [], orders: [], expenses: [] })));
+  await new Promise((resolve) => server.listen(0, resolve));
+  try {
+    const address = server.address();
+    assert2(address && typeof address !== "string");
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const sellerResponse = await fetch(`${baseUrl}/api/products`);
+    const publicResponse = await fetch(`${baseUrl}/api/public/orders/missing-token`);
+    assert2.equal(sellerResponse.status, 401);
+    assert2.equal(publicResponse.status, 404);
+  } finally {
+    await new Promise((resolve, reject) => server.close((error40) => error40 ? reject(error40) : resolve()));
+  }
+});
 test.after(async () => {
   await pool.end();
 });
@@ -17260,6 +17479,7 @@ test("GET /dashboard/summary identifies a legacy sale with no captured cost", as
 test("buyer deposit checkout and seller payment preserve the original product cost", async () => {
   await withDatabaseTransaction(async (database, baseUrl) => {
     const [product] = await database.insert(productsTable).values({
+      ownerUserId: "test-user",
       name: "Historical cost deposit fixture",
       category: "Test",
       price: "100.00",
@@ -17315,6 +17535,7 @@ test("buyer deposit checkout and seller payment preserve the original product co
 test("re-opening a paid order cannot replace its historical product cost", async () => {
   await withDatabaseTransaction(async (database, baseUrl) => {
     const [product] = await database.insert(productsTable).values({
+      ownerUserId: "test-user",
       name: "Historical cost reopen fixture",
       category: "Test",
       price: "100.00",
@@ -17377,6 +17598,7 @@ test("re-opening a paid order cannot replace its historical product cost", async
 test("multi-item order links preserve item prices and compound the checkout total", async () => {
   await withDatabaseTransaction(async (database, baseUrl) => {
     const [firstProduct] = await database.insert(productsTable).values({
+      ownerUserId: "test-user",
       name: "Multi-item first fixture",
       category: "Test",
       price: "35.00",
@@ -17386,6 +17608,7 @@ test("multi-item order links preserve item prices and compound the checkout tota
       accent: "#0F6E6B"
     }).returning();
     const [secondProduct] = await database.insert(productsTable).values({
+      ownerUserId: "test-user",
       name: "Multi-item second fixture",
       category: "Test",
       price: "65.00",
@@ -17458,6 +17681,7 @@ test("multi-item order links preserve item prices and compound the checkout tota
 test("buyer links expose product metadata and persist buyer quantity through checkout", async () => {
   await withDatabaseTransaction(async (database, baseUrl) => {
     const [product] = await database.insert(productsTable).values({
+      ownerUserId: "test-user",
       name: "Gallery product fixture",
       category: "Apparel",
       sku: "GALLERY-001",
@@ -17545,6 +17769,7 @@ test("buyer links expose product metadata and persist buyer quantity through che
 test("buyer delivery choices use the link snapshot, require an address, and do not double-charge", async () => {
   await withDatabaseTransaction(async (database, baseUrl) => {
     const [product] = await database.insert(productsTable).values({
+      ownerUserId: "test-user",
       name: "Delivery fee fixture",
       category: "Test",
       price: "50.00",
