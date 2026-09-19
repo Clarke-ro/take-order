@@ -1265,7 +1265,6 @@ function ReferenceProductEditor({
   updatePreference,
 }: ReferenceProductEditorProps) {
   const [expandedProduct, setExpandedProduct] = useState(false);
-  const [expandedPricing, setExpandedPricing] = useState(false);
   const addOption = () => setForm((current) => ({
     ...current,
     preferences: [...current.preferences, { label: '', options: '' }],
@@ -1340,19 +1339,15 @@ function ReferenceProductEditor({
               <div className="product-currency-input"><span>{currencySymbol()}</span><input id="product-price-reference" data-testid="input-product-price" type="number" min="0" step=".01" required value={form.price} onChange={(event) => change('price', event.target.value)} placeholder="0" /></div>
             </div>
             <div className="product-reference-field">
-              <label htmlFor="product-compare-price-reference">Original price <span className="product-info-mark" title="Optional original price">i</span></label>
-               <div className="product-currency-input"><span>{currencySymbol()}</span><input id="product-compare-price-reference" data-testid="input-product-compare-price" type="number" min="0" step=".01" value={form.compareAtPrice} onChange={(event) => change('compareAtPrice', event.target.value)} placeholder="0" /></div>
+              <label htmlFor="product-cost-reference">Cost price <span className="product-info-mark" title="Your buying price, used for profit estimates">i</span></label>
+              <div className="product-currency-input"><span>{currencySymbol()}</span><input id="product-cost-reference" data-testid="input-product-cost" type="number" min="0" step=".01" value={form.cost} onChange={(event) => change('cost', event.target.value)} placeholder="Not tracked" /></div>
+              <p className="product-reference-help">Your buying price, used for profit estimates.</p>
             </div>
           </div>
-          <button type="button" className="product-more-button" onClick={() => setExpandedPricing(!expandedPricing)} aria-expanded={expandedPricing}>
-            <ChevronRight size={15} className={cn(expandedPricing && 'rotate-90')} aria-hidden="true" />More options
-          </button>
-          {expandedPricing && <div className="product-reference-pricing-more">
-            <label className="product-reference-field">
-              <span>Cost</span>
-              <div className="product-currency-input"><span>{currencySymbol()}</span><input data-testid="input-product-cost" type="number" min="0" step=".01" value={form.cost} onChange={(event) => change('cost', event.target.value)} placeholder="Not tracked" /></div>
-            </label>
-          </div>}
+          <div className="product-reference-field product-compare-price-field">
+            <label htmlFor="product-compare-price-reference">Original price <span className="product-info-mark" title="Optional original price">i</span></label>
+            <div className="product-currency-input"><span>{currencySymbol()}</span><input id="product-compare-price-reference" data-testid="input-product-compare-price" type="number" min="0" step=".01" value={form.compareAtPrice} onChange={(event) => change('compareAtPrice', event.target.value)} placeholder="0" /></div>
+          </div>
         </section>
 
         <section className="product-reference-section">
@@ -1553,6 +1548,25 @@ function CatalogEditorRoute() {
   return <Shell><ProductModal product={product} fullPage onClose={() => setLocation('/catalog')} /></Shell>;
 }
 
+function CatalogGridCard({ product, animationDelay, onEdit, onDelete, deleteDisabled }: {
+  product: Product;
+  animationDelay: string;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleteDisabled: boolean;
+}) {
+  return <div className="catalog-grid-card rise-in" style={{ animationDelay }} data-testid={`card-product-${product.id}`} role="listitem">
+    <div className="catalog-grid-image">
+      <img src={product.imageUrl ?? productImageFor(product.name)} alt={product.name} />
+      <div className="catalog-grid-actions"><CatalogActions productId={product.id} productName={product.name} onEdit={onEdit} onDelete={onDelete} deleteDisabled={deleteDisabled} /></div>
+    </div>
+    <div className="catalog-grid-details">
+      <h3 title={product.name}>{product.name}</h3>
+      <strong>{moneyExact(product.price)}</strong>
+    </div>
+  </div>;
+}
+
 function Catalog() {
   const query = useListProducts(); const deleteProduct = useDeleteProduct(); const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -1603,14 +1617,15 @@ function Catalog() {
       </div>
        {query.isLoading ? <div className="catalog-loading">{[1, 2, 3].map((i) => <div key={i} className="catalog-loading-row"><Skeleton className="h-11 w-11 rounded-[13px]" /><div className="flex-1"><Skeleton className="h-4 w-40" /><Skeleton className="mt-2 h-3 w-24" /></div><Skeleton className="h-8 w-20" /></div>)}</div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : products.length ? <div className={cn(view === 'grid' ? 'catalog-grid' : 'catalog-list')} role="list">
          {view === 'list' && <div className="catalog-list-head" aria-hidden="true"><span>Product</span><span>Options</span><span>Price / cost</span><span>Stock</span><span /></div>}
-         {products.map((product, index) => <div key={product.id} className={cn(view === 'grid' ? 'catalog-grid-card' : 'catalog-product-row', 'rise-in')} style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
-            <div className="catalog-grid-image"><img src={product.imageUrl ?? productImageFor(product.name)} alt={product.name} /><button type="button" className="catalog-card-edit" onClick={() => setLocation(`/catalog/edit/${product.id}`)} aria-label={`Edit ${product.name}`}><Pencil size={14} /></button></div>
-            <div className="catalog-product-main"><div className="catalog-product-mark" style={{ backgroundColor: `${product.accent}42` }}>{initials(product.name)}</div><div className="min-w-0"><h3 className="truncate font-display text-base font-bold tracking-[-.025em]">{product.name}</h3><div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
-           <div className="catalog-variants">{product.preferences.length ? product.preferences.map((preference) => `${preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
-           <div className="catalog-number"><span className="catalog-mobile-label">Price</span><strong>{moneyExact(product.price)}</strong><small>{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
-           <div className="catalog-stock"><span className="catalog-mobile-label">Stock</span><strong className={cn(product.stock < 5 && 'is-alert')}>{product.stock}</strong><span className={cn('catalog-stock-status', product.stock < 5 ? 'is-alert' : 'is-good')}>{product.stock === 0 ? 'Out of stock' : product.stock < 5 ? 'Running low' : 'In stock'}</span></div>
-            <CatalogActions productId={product.id} productName={product.name} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
-         </div>)}
+          {products.map((product, index) => view === 'grid'
+            ? <CatalogGridCard key={product.id} product={product} animationDelay={`${index * 50}ms`} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
+            : <div key={product.id} className="catalog-product-row rise-in" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
+              <div className="catalog-product-main"><div className="catalog-product-mark" style={{ backgroundColor: `${product.accent}42` }}>{initials(product.name)}</div><div className="min-w-0"><h3 className="truncate font-display text-base font-bold tracking-[-.025em]">{product.name}</h3><div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
+              <div className="catalog-variants">{product.preferences.length ? product.preferences.map((preference) => `${preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
+              <div className="catalog-number"><span className="catalog-mobile-label">Price</span><strong>{moneyExact(product.price)}</strong><small>{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
+              <div className="catalog-stock"><span className="catalog-mobile-label">Stock</span><strong className={cn(product.stock < 5 && 'is-alert')}>{product.stock}</strong><span className={cn('catalog-stock-status', product.stock < 5 ? 'is-alert' : 'is-good')}>{product.stock === 0 ? 'Out of stock' : product.stock < 5 ? 'Running low' : 'In stock'}</span></div>
+              <CatalogActions productId={product.id} productName={product.name} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
+            </div>)}
        </div> : <div className="p-6"><EmptyState icon={Package} title={search || categoryFilter !== 'all' || stockFilter !== 'all' ? 'No matching items' : 'Your catalog is waiting'} description="Try another search or filter, or add your first catalog item." action={<Button onClick={() => setLocation('/catalog/new')}><Plus size={15} />Add item</Button>} /></div>}
     </Card>
   </Shell>;
