@@ -2355,8 +2355,9 @@ function MultiItemTakeOrderModern() {
                      <div className="take-order-catalog-section-heading"><h2>{catalogSearch ? 'Products' : 'Catalog products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
                     {catalogItems}
                   </section>}
+                  {items.length > 0 && <div className="take-order-catalog-action-row"><Button type="submit" className="take-order-catalog-continue" disabled={!canContinue || busy || productsQuery.isLoading} data-testid="button-continue-catalog">Continue to checkout <ArrowRight size={15} /></Button></div>}
                </div>
-                 {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />}
+                 {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} showActions={false} />}
               </div>}
                 {step === 1 && itemSource === 'custom' && <div className="take-order-custom-stage">
                   {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}
@@ -2394,8 +2395,7 @@ function MultiItemTakeOrderModern() {
                 </div>}
               {step === 2 && <div className="take-order-checkout-stage">
                 <div className="take-order-checkout-main">
-                  <div className="take-order-checkout-heading"><div className="take-order-section-eyebrow">Step 02 · Confirm checkout</div><h2>Review the client's checkout.</h2></div>
-                  <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => { setItems((current) => current.filter((candidate) => candidate.key !== key)); setFeedback(null); }} onOneOff={() => { setItemSource('custom'); setStep(1); setFeedback(null); }} buttonTestId="button-payment-checkout" disabled={busy} showActions={false} showPayableTotal className="take-order-payment-checkout-card" />
+                   <div className="take-order-checkout-heading"><div className="take-order-section-eyebrow">Step 02 · Confirm checkout</div><h2>Set the checkout terms.</h2></div>
                   <div className="take-order-payment-config-card">
                     <div className="take-order-payment-config-heading"><div className="take-order-section-eyebrow">Payment configuration</div><h3>Set the checkout terms.</h3></div>
                     <div className="take-order-field-group"><div className="field-label">How should they pay?</div><div className="take-order-payment-options">{[['full', 'Pay in full', 'Collect the full total now'], ['deposit', 'Pay a deposit', 'Secure the order with part-payment'], ['reserve', 'Reserve it', 'Confirm the details first']].map(([value, title, note]) => <button type="button" key={value} onClick={() => { setPaymentMode(value as 'full' | 'deposit' | 'reserve'); setFeedback(null); }} data-testid={`button-payment-mode-${value}`} className={cn('take-order-payment-option', paymentMode === value && 'is-selected')}><span className="take-order-radio">{paymentMode === value && <span />}</span><span><strong>{title}</strong><small>{note}</small></span></button>)}</div></div>
