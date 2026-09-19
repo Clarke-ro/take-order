@@ -454,7 +454,7 @@ export function Sidebar() {
       <div className="my-5 h-px bg-[hsl(var(--sidebar-border))]" />
       <div className="px-1 text-[10px] font-semibold uppercase tracking-[.16em] text-[hsl(var(--sidebar-foreground))]/45">Settings</div>
       <Link href="/settings" data-testid="link-settings" aria-current={location === '/settings' ? 'page' : undefined} className={cn('mt-3 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/settings' ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}><UserRound aria-hidden="true" size={17} /><span>Profile & settings</span></Link>
-      <Link href="/connect" data-testid="link-connect" aria-current={location === '/connect' ? 'page' : undefined} className={cn('mt-1 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/connect' ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}><Settings2 aria-hidden="true" size={17} /><span>Connect tools</span><span className="ml-auto h-2 w-2 rounded-full bg-[hsl(var(--accent))]" /></Link>
+      <Link href="/connect" data-testid="link-connect" aria-current={location === '/connect' ? 'page' : undefined} className={cn('mt-1 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/connect' ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}><Settings2 aria-hidden="true" size={17} /><span>Connect tools</span></Link>
     </nav>
       <Link href="/settings" aria-label="Open profile and settings" className="flex items-center gap-3 border-t border-[hsl(var(--sidebar-border))] px-6 py-5 transition-colors hover:bg-[hsl(var(--sidebar-accent))]"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-[11px] font-bold text-white">{initials(seller?.sellerName || 'Amina Mensah')}</div><div className="min-w-0"><div className="truncate text-[12px] font-semibold">{seller?.sellerName || 'Amina Mensah'}</div><div className="truncate text-[10px] text-[hsl(var(--sidebar-foreground))]/55">{seller?.businessName || 'The Sunday Edit'}</div></div><MoreHorizontal aria-hidden="true" className="ml-auto text-[hsl(var(--sidebar-foreground))]/45" size={16} /></Link>
   </aside>;
@@ -537,8 +537,8 @@ const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 're
   status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';
 const paymentLabel = (order: Order) => order.status === 'deposit_paid' ? 'Deposit paid' : order.status === 'paid' ? 'Paid in full' : 'Awaiting payment';
 const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value[0].toUpperCase() + value.slice(1);
-type MetricTrend = { direction: 'up' | 'down'; percentage: number };
-type MetricIndicator = { direction: 'up' | 'down' | 'neutral'; percentage: number };
+type MetricTrend = { direction: 'up' | 'down'; percentage: number | null };
+type MetricIndicator = { direction: 'up' | 'down' | 'neutral'; percentage: number; tone?: 'positive' | 'negative' | 'neutral' };
 type DashboardStatCard = {
   label: string;
   value: ReactNode;
@@ -550,10 +550,16 @@ type DashboardStatCard = {
 function MetricCard({ label, value, valueAccessory, note, period, trend, indicator, loading = false, dataTestId, className = '', style }: { label: string; value: ReactNode; valueAccessory?: ReactNode; note?: ReactNode; period?: string; trend?: MetricTrend; indicator?: MetricIndicator; loading?: boolean; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
   const isUp = trend?.direction === 'up';
   const indicatorDirection = trend?.direction ?? indicator?.direction;
-  const indicatorTone = indicatorDirection === 'up' ? 'metric-trend-up' : indicatorDirection === 'down' ? 'metric-trend-down' : 'metric-trend-neutral';
-  const indicatorLabel = trend ? `${isUp ? '+' : '−'}${trend.percentage}%` : `${indicator?.percentage.toFixed(1)}%`;
-  const indicatorAriaLabel = trend ? `${isUp ? 'Up' : 'Down'} ${trend.percentage}%` : `${indicator?.percentage.toFixed(1)}%`;
-  const IndicatorIcon = indicatorDirection === 'up' ? ArrowUp : indicatorDirection === 'down' ? ArrowDown : null;
+  const indicatorTone = trend?.percentage === null || indicator?.tone === 'neutral'
+    ? 'metric-trend-neutral'
+    : indicator?.tone === 'positive'
+      ? 'metric-trend-up'
+      : indicator?.tone === 'negative'
+        ? 'metric-trend-down'
+        : indicatorDirection === 'up' ? 'metric-trend-up' : indicatorDirection === 'down' ? 'metric-trend-down' : 'metric-trend-neutral';
+  const indicatorLabel = trend ? (trend.percentage === null ? 'New' : `${isUp ? '+' : '−'}${trend.percentage}%`) : `${indicator?.percentage.toFixed(1)}%`;
+  const indicatorAriaLabel = trend ? (trend.percentage === null ? 'New activity' : `${isUp ? 'Up' : 'Down'} ${trend.percentage}%`) : `${indicator?.percentage.toFixed(1)}%`;
+  const IndicatorIcon = trend?.percentage === null || indicator?.tone === 'neutral' ? null : indicatorDirection === 'up' ? ArrowUp : indicatorDirection === 'down' ? ArrowDown : null;
   return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}>
     <div className="flex items-start justify-between gap-3">
       <div className={cn('metric-card-heading', period && 'has-period')}>
@@ -830,26 +836,20 @@ export function Overview() {
   const dateContext = firstDay && lastDay ? `${firstDay} – ${lastDay}` : 'Your latest reporting window';
   const recentDaily = daily.slice(Math.ceil(daily.length / 2));
   const earlierDaily = daily.slice(0, Math.ceil(daily.length / 2));
-  const movement = (key: 'orders' | 'revenue'): MetricTrend => {
+  const movement = (key: 'orders' | 'revenue'): MetricTrend | undefined => {
     const recent = recentDaily.reduce((sum, day) => sum + day[key], 0);
     const earlier = earlierDaily.reduce((sum, day) => sum + day[key], 0);
-    const percentage = earlier > 0 ? Math.round(((recent - earlier) / earlier) * 100) : recent > 0 ? 100 : 0;
+    if (earlier === 0) return recent > 0 ? { direction: 'up', percentage: null } : undefined;
+    const percentage = Math.round(((recent - earlier) / earlier) * 100);
     return { direction: percentage >= 0 && recent > 0 ? 'up' : 'down', percentage: Math.abs(percentage) };
   };
   const salesTrend = movement('orders');
   const revenueTrend = movement('revenue');
-  const engagementValue = (value: number | null | undefined) => value == null ? '—' : number(value);
   const primaryStatCards: DashboardStatCard[] = [
     { label: 'Sales', value: ordersQuery.isLoading ? '—' : periodOrders.length, trend: salesTrend, note: `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` },
-      { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: `Total profit made: ${money(summary?.profit)}` },
-      { label: 'Views', value: ordersQuery.isLoading ? '—' : namedClients, valueAccessory: <SocialChannelStack channels={connectedTools} />, note: 'Total views received' },
-    { label: 'Active users', value: totalOpens, note: 'People viewing your links' },
-  ];
-  const secondaryStatCards: DashboardStatCard[] = [
+    { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: 'Money received from recorded orders' },
     { label: 'Outstanding balances', value: money(summary?.outstanding), note: `${waitingPayments} waiting payments` },
     { label: 'Orders', value: summary?.orders ?? 0, trend: movement('orders'), note: `${shippedOrders} shipped` },
-    { label: 'Shares', value: engagementValue(summary?.shares), valueAccessory: <SocialChannelStack channels={connectedTools} />, note: summary?.shares == null ? 'No recorded share activity for this period' : 'Recorded shares in this period' },
-    { label: 'Likes', value: engagementValue(summary?.likes), valueAccessory: <SocialChannelStack channels={connectedTools} />, note: summary?.likes == null ? 'No recorded like activity for this period' : 'Recorded likes in this period' },
   ];
   const analyticsState = getAnalyticsViewState({
     isLoading: summaryQuery.isLoading && !summaryQuery.data,
@@ -913,11 +913,8 @@ export function Overview() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
          {primaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} valueAccessory={stat.valueAccessory} trend={stat.trend} indicator={stat.indicator} note={stat.note} period={periodLabel} loading={summaryRefreshing} />)}
       </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-         {secondaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="overview-secondary-card rise-in" style={{ animationDelay: `${(index + 4) * 55}ms` }} dataTestId={`card-kpi-secondary-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} valueAccessory={stat.valueAccessory} trend={stat.trend} indicator={stat.indicator} note={stat.note} period={periodLabel} loading={summaryRefreshing} />)}
-      </div>
          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
-          <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and operating expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{periodLabel}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow" aria-busy={summaryRefreshing}>{summaryRefreshing ? <div className="flex h-full flex-col justify-center gap-4"><Skeleton className="h-3 w-28" /><Skeleton className="h-48 w-full" /></div> : daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Operating expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Combined expenses" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
+          <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and shop expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{periodLabel}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow" aria-busy={summaryRefreshing}>{summaryRefreshing ? <div className="flex h-full flex-col justify-center gap-4"><Skeleton className="h-3 w-28" /><Skeleton className="h-48 w-full" /></div> : daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Shop expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Total costs" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
          <AlertsRail outstanding={summary?.outstanding ?? 0} lowStock={lowStock} missingCosts={missingCosts} productLoading={productsQuery.isLoading} productCount={products.length} orderCount={periodOrders.length} loading={summaryRefreshing} />
       </div>
       <div className="mt-8 grid gap-5 xl:gap-12 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)]">
@@ -957,9 +954,9 @@ function Reports() {
     />
     {summaryQuery.isLoading ? <ReportsSkeleton /> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <div className="space-y-5">
       <section className="reports-metric-grid" aria-label="Profitability summary">
-         <MetricCard className="rise-in" dataTestId="card-report-tracked-profit" label="Reported profit" value={<span data-testid="text-report-profit">{money(summary?.profit)}</span>} indicator={{ direction: (summary?.profit ?? 0) >= 0 ? 'up' : 'down', percentage: summary?.revenue ? Math.abs((summary.profit / summary.revenue) * 100) : 0 }} note={summary?.legacyOrders ? `${summary.legacyOrders} legacy ${summary.legacyOrders === 1 ? 'sale uses' : 'sales use'} estimated costs.` : 'Revenue less recorded product and operating costs.'} />
-         <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-report-cash-balance" label="Cash balance" value={<span data-testid="text-report-cash-balance">{money(summary?.cashBalance)}</span>} indicator={{ direction: (summary?.cashBalance ?? 0) >= 0 ? 'up' : 'down', percentage: summary?.revenue ? Math.abs(((summary.cashBalance ?? 0) / summary.revenue) * 100) : 0 }} note="Available after recorded payments and expenses." />
-        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-report-context" label="Snapshot context" value={money(summary?.revenue)} note={`${summary?.orders ?? 0} recorded orders${summary?.bestSeller ? ` · ${summary.bestSeller} leads` : ''}`} />
+         <MetricCard className="rise-in" dataTestId="card-report-tracked-profit" label="Reported profit" value={<span data-testid="text-report-profit">{money(summary?.profit)}</span>} note={summary?.legacyOrders ? `${summary.legacyOrders} older ${summary.legacyOrders === 1 ? 'sale uses' : 'sales use'} an estimated cost instead of the exact cost at the time.` : 'Revenue less product costs and shop expenses.'} />
+         <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-report-cash-balance" label="Cash balance" value={<span data-testid="text-report-cash-balance">{money(summary?.cashBalance)}</span>} note="Money left after recorded payments and shop expenses." />
+        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-report-context" label="Reporting window" value={money(summary?.revenue)} note={`${summary?.orders ?? 0} recorded orders${summary?.bestSeller ? ` · ${summary.bestSeller} leads` : ''}`} />
       </section>
 
       <section className="grid gap-5 xl:gap-12 xl:grid-cols-[minmax(0,.88fr)_minmax(0,1.12fr)]">
@@ -1074,6 +1071,16 @@ export function getChannelConversionView(channels: ChannelPerformanceRow[], sele
   };
 }
 
+function ChannelConversionStats({ channel }: { channel: ChannelPerformanceRow }) {
+  const offline = channel.channel === 'in_person';
+  return <>
+    <div className="channel-conversion-stat"><span>Orders</span><strong className="data-value">{number(channel.paidOrders)}</strong></div>
+    <div className="channel-conversion-stat"><span>Revenue</span><strong className="data-value">{money(channel.revenue)}</strong></div>
+    {!offline && <div className="channel-conversion-stat"><span>Views</span><strong className="data-value">{number(channel.opens)}</strong></div>}
+    {!offline && <div className="channel-conversion-rate"><span>Conversion</span><strong className="data-value">{channel.conversionRate.toFixed(1)}%</strong></div>}
+  </>;
+}
+
 function ChannelPerformance({ channels, loading = false }: { channels: ChannelPerformanceRow[]; loading?: boolean }) {
   return <section className="overview-stat-section overview-channel-card channel-conversion-card" aria-labelledby="channel-performance-title">
     <div className="channel-conversion-toolbar">
@@ -1089,18 +1096,12 @@ function ChannelPerformance({ channels, loading = false }: { channels: ChannelPe
     </div>
     {loading ? <div className="space-y-4 p-5"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : channels.length ? <div className="channel-conversion-list">
       {channels.slice(0, 4).map((channel) => <article key={channel.channel} className="channel-conversion-row" data-testid={`row-channel-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.opens)} views, ${number(channel.paidOrders)} sales, ${channel.conversionRate.toFixed(1)}% conversion`}>
-        <div className="channel-conversion-row-top">
+        <div className={cn('channel-conversion-row-top', channel.channel === 'in_person' && 'is-offline')}>
           <div className="channel-conversion-identity">
             <span className="channel-conversion-mark"><ChannelMark value={channel.channel} size={18} /></span>
             <ChannelLabel value={channel.channel} className="channel-conversion-name" />
           </div>
-           <div className="channel-conversion-stat"><span>Views</span><strong className="data-value">{number(channel.opens)}</strong></div>
-           <div className="channel-conversion-stat"><span>Sales</span><strong className="data-value">{number(channel.paidOrders)}</strong></div>
-           <div className="channel-conversion-stat"><span>Revenue</span><strong className="data-value">{money(channel.revenue)}</strong></div>
-          <div className="channel-conversion-rate">
-            <span>Conversion</span>
-             <strong className="data-value">{channel.conversionRate.toFixed(1)}%</strong>
-          </div>
+          <ChannelConversionStats channel={channel} />
         </div>
       </article>)}
     </div> : <div className="channel-conversion-empty"><ChartEmpty message="Channel conversion will appear after you share a link." /></div>}
@@ -1149,13 +1150,12 @@ export function ChannelConversionInsight() {
           </div>
         </div>
         {visibleChannels.length ? <div className="channel-insight-list">
-          <div className="channel-insight-list-head" aria-hidden="true"><span>Channel</span><span>Views</span><span>Sales</span><span>Revenue</span><span>Conversion</span></div>
-          {visibleChannels.map((channel) => <article key={channel.channel} className="channel-insight-row" data-testid={`row-channel-insight-${channel.channel}`} aria-label={`${channelName(channel.channel)}: ${number(channel.opens)} views, ${number(channel.paidOrders)} sales, ${money(channel.revenue)}, ${channel.conversionRate.toFixed(1)}% conversion`}>
+          <div className="channel-insight-list-head" aria-hidden="true"><span>Channel</span><span>Orders</span><span>Revenue</span><span>Views</span><span>Conversion</span></div>
+          {visibleChannels.map((channel) => <article key={channel.channel} className="channel-insight-row" data-testid={`row-channel-insight-${channel.channel}`} aria-label={channel.channel === 'in_person' ? `${channelName(channel.channel)}: ${number(channel.paidOrders)} orders, ${money(channel.revenue)}` : `${channelName(channel.channel)}: ${number(channel.opens)} views, ${number(channel.paidOrders)} orders, ${money(channel.revenue)}, ${channel.conversionRate.toFixed(1)}% conversion`}>
             <div className="channel-insight-identity"><span className="channel-conversion-mark"><ChannelMark value={channel.channel} size={19} /></span><ChannelLabel value={channel.channel} className="channel-conversion-name" /></div>
-             <strong className="channel-insight-number data-value" data-label="Views">{number(channel.opens)}</strong>
-             <strong className="channel-insight-number data-value" data-label="Sales">{number(channel.paidOrders)}</strong>
+             <strong className="channel-insight-number data-value" data-label="Orders">{number(channel.paidOrders)}</strong>
              <strong className="channel-insight-number data-value" data-label="Revenue">{money(channel.revenue)}</strong>
-             <div className="channel-insight-conversion"><strong className="data-value" data-label="Conversion">{channel.conversionRate.toFixed(1)}%</strong><span className="channel-insight-progress"><span style={{ width: `${Math.min(100, Math.max(0, channel.conversionRate))}%` }} /></span></div>
+             {channel.channel === 'in_person' ? <><span aria-hidden="true" /><span aria-hidden="true" /></> : <><strong className="channel-insight-number data-value" data-label="Views">{number(channel.opens)}</strong><div className="channel-insight-conversion"><strong className="data-value" data-label="Conversion">{channel.conversionRate.toFixed(1)}%</strong><span className="channel-insight-progress"><span style={{ width: `${Math.min(100, Math.max(0, channel.conversionRate))}%` }} /></span></div></>}
           </article>)}
         </div> : <div className="p-6"><EmptyState icon={BarChart3} title="No channel activity yet" description="Share a buyer link to start building channel conversion insight." /></div>}
       </Card>
@@ -1450,7 +1450,7 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
     preferences: product.preferences.length
       ? product.preferences.map((group) => ({ label: group.label, options: group.options.join(', ') }))
       : product.variants.length
-        ? [{ label: 'Choose an option', options: product.variants.join(', ') }]
+        ? [{ label: 'Option', options: product.variants.join(', ') }]
         : [],
     customFields: [...productMetadataFields(product), ...product.customFields.filter((field) => !productMetadataFieldLabels.some((label) => label.toLowerCase() === field.label.trim().toLowerCase())).map((field) => ({ label: field.label, value: field.value }))],
     imageUrl: product.imageUrl ?? '',
@@ -1634,7 +1634,7 @@ function Catalog() {
     <section className="catalog-summary" aria-label="Catalog summary">
        <MetricCard className="rise-in" dataTestId="card-catalog-inventory-value" label="Inventory value" value={money(inventoryValue)} note={`${query.data?.length ?? 0} catalog items priced`} />
         <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-catalog-items" label="Items" value={query.data?.length ?? 0} note={`${categories} ${categories === 1 ? 'category' : 'categories'} in the catalog`} />
-       <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-catalog-low-stock" label="Low stock" value={<span className={cn(lowStock > 0 && 'text-[hsl(var(--destructive))]')}>{lowStock}</span>} indicator={(query.data?.length ?? 0) > 0 ? { direction: lowStock > 0 ? 'down' : 'up', percentage: (lowStock / query.data!.length) * 100 } : undefined} note={lowStock ? `${lowStock} ${lowStock === 1 ? 'item needs' : 'items need'} a restock` : 'All levels look good'} />
+       <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-catalog-low-stock" label="Low stock" value={<span className={cn(lowStock > 0 && 'text-[hsl(var(--destructive))]')}>{lowStock}</span>} indicator={(query.data?.length ?? 0) > 0 ? { direction: lowStock > 0 ? 'down' : 'neutral', percentage: (lowStock / query.data!.length) * 100, tone: lowStock > 0 ? 'negative' : 'positive' } : undefined} note={lowStock ? `${lowStock} ${lowStock === 1 ? 'item needs' : 'items need'} a restock` : 'All levels look good'} />
        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-catalog-categories" label="Categories" value={categories} note={`${query.data?.length ?? 0} items grouped for buyers`} />
     </section>
       {actionError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-catalog-action-error">{actionError}</div>}<Card className="catalog-workspace list-card mt-5 overflow-hidden">
@@ -1650,7 +1650,7 @@ function Catalog() {
        {query.isLoading ? <div className="catalog-loading">{[1, 2, 3].map((i) => <div key={i} className="catalog-loading-row"><Skeleton className="h-11 w-11 rounded-[13px]" /><div className="flex-1"><Skeleton className="h-4 w-40" /><Skeleton className="mt-2 h-3 w-24" /></div><Skeleton className="h-8 w-20" /></div>)}</div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : products.length ? <div className={cn(view === 'grid' ? 'catalog-grid' : 'catalog-list')} role="list">
          {view === 'list' && <div className="catalog-list-head" aria-hidden="true"><span>Product</span><span>Options</span><span>Price / cost</span><span>Stock</span><span /></div>}
          {products.map((product, index) => <div key={product.id} className={cn(view === 'grid' ? 'catalog-grid-card' : 'catalog-product-row', 'rise-in')} style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
-            <div className="catalog-grid-image"><img src={product.imageUrl ?? productImageFor(product.name)} alt="" /><span className="catalog-stock-badge">{product.stock} in stock</span><button type="button" className="catalog-card-edit" onClick={() => setLocation(`/catalog/edit/${product.id}`)} aria-label={`Edit ${product.name}`}><Pencil size={14} /></button></div>
+            <div className="catalog-grid-image"><img src={product.imageUrl ?? productImageFor(product.name)} alt={product.name} /><button type="button" className="catalog-card-edit" onClick={() => setLocation(`/catalog/edit/${product.id}`)} aria-label={`Edit ${product.name}`}><Pencil size={14} /></button></div>
             <div className="catalog-product-main"><div className="catalog-product-mark" style={{ backgroundColor: `${product.accent}42` }}>{initials(product.name)}</div><div className="min-w-0"><h3 className="truncate font-display text-base font-bold tracking-[-.025em]">{product.name}</h3><div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
            <div className="catalog-variants">{product.preferences.length ? product.preferences.map((preference) => `${preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
            <div className="catalog-number"><span className="catalog-mobile-label">Price</span><strong>{moneyExact(product.price)}</strong><small>{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
@@ -1675,7 +1675,8 @@ function Orders() {
   const query = useListOrders();
   const update = useUpdateOrder();
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
+  const [fulfillmentFilter, setFulfillmentFilter] = useState('all');
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('customer') ?? '');
   const [mutationError, setMutationError] = useState('');
   useEffect(() => {
@@ -1683,10 +1684,11 @@ function Orders() {
   }, [location]);
   const allOrders = query.data ?? [];
   const orders = useMemo(() => allOrders.filter((order) => {
-    const matchesFilter = filter === 'all' || order.status === filter || order.fulfillment === filter;
+    const matchesPayment = paymentFilter === 'all' || order.status === paymentFilter;
+    const matchesFulfillment = fulfillmentFilter === 'all' || order.fulfillment === fulfillmentFilter;
     const haystack = `${order.customerName} ${order.productName} ${order.token} ${order.customerPhone ?? ''}`.toLowerCase();
-    return matchesFilter && haystack.includes(search.trim().toLowerCase());
-  }), [allOrders, filter, search]);
+    return matchesPayment && matchesFulfillment && haystack.includes(search.trim().toLowerCase());
+  }), [allOrders, paymentFilter, fulfillmentFilter, search]);
   const collectedFor = (order: Order) => order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0;
   const metrics = useMemo(() => {
     const orderValue = allOrders.reduce((sum, order) => sum + order.amount, 0);
@@ -1701,15 +1703,19 @@ function Orders() {
       onError: (error) => setMutationError(error instanceof Error && error.message ? error.message : 'That order update could not be saved. Try again.'),
     });
   };
-  const filterOptions = [
-    { value: 'all', label: 'All orders' },
+  const paymentFilterOptions = [
+    { value: 'all', label: 'All payments' },
     { value: 'reserved', label: 'Reserved' },
     { value: 'deposit_paid', label: 'Deposit paid' },
     { value: 'paid', label: 'Paid' },
+  ];
+  const fulfillmentFilterOptions = [
+    { value: 'all', label: 'All fulfilment' },
     { value: 'pending', label: 'To ship' },
     { value: 'shipped', label: 'Shipped' },
     { value: 'delivered', label: 'Delivered' },
   ];
+  const filter = paymentFilter !== 'all' || fulfillmentFilter !== 'all' ? 'filtered' : 'all';
   const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value;
 
   return <Shell>
@@ -1718,12 +1724,18 @@ function Orders() {
        <MetricCard className="rise-in" dataTestId="card-orders-live-value" label="Live order value" value={<span data-testid="text-live-order-value">{money(metrics.orderValue)}</span>} indicator={metrics.orderValue ? { direction: metrics.outstanding > 0 ? 'down' : 'up', percentage: (metrics.collected / metrics.orderValue) * 100 } : undefined} note={`${money(metrics.collected)} collected · ${money(metrics.outstanding)} outstanding`} />
        <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-orders-total" label="Total orders" value={<span data-testid="text-total-orders">{allOrders.length}</span>} indicator={allOrders.length ? { direction: metrics.paidOrders > 0 ? 'up' : 'down', percentage: (metrics.paidOrders / allOrders.length) * 100 } : undefined} note={`${metrics.paidOrders} paid in full`} />
        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-orders-average" label="Average order value" value={<span data-testid="text-average-order-value">{money(metrics.average)}</span>} note="Based on live order value" />
-       <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-orders-collection-rate" label="Collection rate" value={<span data-testid="text-collection-rate">{metrics.collectionRate.toFixed(1)}%</span>} indicator={metrics.orderValue ? { direction: metrics.collectionRate >= 70 ? 'up' : 'down', percentage: metrics.collectionRate } : undefined} note="Paid amount against order value" />
+       <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-orders-collection-rate" label="Collection rate" value={<span data-testid="text-collection-rate">{metrics.collectionRate.toFixed(1)}%</span>} note="Paid amount against order value" />
     </section>
     <section className="mt-5">
        {mutationError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}<Card className="overflow-hidden">
         <h2 className="orders-list-heading">Orders</h2>
-        <div className="orders-controls filter-surface"><div className="orders-filter-scroll" role="group" aria-label="Order filters">{filterOptions.map((option) => <button type="button" key={option.value} onClick={() => setFilter(option.value)} aria-pressed={filter === option.value} data-testid={`button-filter-${option.value}`} className={cn('orders-filter-button', filter === option.value && 'is-active')}>{option.label}</button>)}</div><div className="list-search-shell"><Search className="pointer-events-none absolute left-2.5 top-2.5 text-[hsl(var(--muted-foreground))]" size={14} /><input aria-label="Search orders" data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" className="list-search-input" /></div></div>
+        <div className="orders-controls filter-surface">
+          <div className="orders-filter-groups">
+            <div className="orders-filter-group" role="group" aria-label="Payment status filters"><span>Payment</span><div className="orders-filter-scroll">{paymentFilterOptions.map((option) => <button type="button" key={option.value} onClick={() => setPaymentFilter(option.value)} aria-pressed={paymentFilter === option.value} data-testid={`button-filter-payment-${option.value}`} className={cn('orders-filter-button', paymentFilter === option.value && 'is-active')}>{option.label}</button>)}</div></div>
+            <div className="orders-filter-group" role="group" aria-label="Fulfillment status filters"><span>Fulfilment</span><div className="orders-filter-scroll">{fulfillmentFilterOptions.map((option) => <button type="button" key={option.value} onClick={() => setFulfillmentFilter(option.value)} aria-pressed={fulfillmentFilter === option.value} data-testid={`button-filter-fulfillment-${option.value}`} className={cn('orders-filter-button', fulfillmentFilter === option.value && 'is-active')}>{option.label}</button>)}</div></div>
+          </div>
+          <div className="list-search-shell"><Search className="pointer-events-none absolute left-2.5 top-2.5 text-[hsl(var(--muted-foreground))]" size={14} /><input aria-label="Search orders" data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" className="list-search-input" /></div>
+        </div>
           {query.isLoading ? <div className="space-y-4 p-5 sm:p-6" aria-label="Loading orders"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div> : query.isError ? <div className="p-5 sm:p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="orders-table-wrap"><div className="orders-table-head"><span>Order ID</span><span>Buyer / item</span><span>Traffic</span><span>Order value</span><span>Placed</span><span>Payment</span><span>Fulfillment</span></div>{orders.map((order) => <div key={order.id} className="orders-table-row" data-testid={`row-orders-order-${order.id}`}><div className="orders-order-id-cell"><span className="orders-mobile-label">Order ID</span><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></div><div className="orders-buyer-cell"><div className="orders-avatar">{initials(order.customerName || order.productName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 truncate text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName}</div>{order.deliveryMethod && <div className="mt-1 truncate text-[10px] text-[hsl(var(--muted-foreground))]" title={order.deliveryAddress ?? undefined}>{order.deliveryMethod === 'delivery' ? `Delivery · ${moneyExact(order.deliveryFee)}` : 'Pickup'}{order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}</div>}</div></div><div className="orders-traffic-cell"><span className="orders-mobile-label">Traffic</span><span className="orders-traffic-icon" data-testid={`text-order-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div><div className="orders-value-cell"><span className="orders-mobile-label">Order value</span><div className="font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{moneyExact(collectedFor(order))} collected</div></div><div className="orders-date-cell"><span className="orders-mobile-label">Placed</span><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</span></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Payment</span><button type="button" disabled={update.isPending} aria-label={`Advance payment status for ${order.customerName || order.productName}`} title="Advance payment status" data-testid={`button-payment-${order.id}`} onClick={() => { const status: 'reserved' | 'deposit_paid' | 'paid' = order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved'; updateOrder(order, { status }); }}><StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>{paymentLabel(order)}</StatusPill></button></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Fulfillment</span><button type="button" disabled={update.isPending} aria-label={`Advance fulfillment status for ${order.customerName || order.productName}`} title="Advance fulfillment status" data-testid={`button-fulfillment-${order.id}`} onClick={() => { const fulfillment: 'pending' | 'shipped' | 'delivered' = order.fulfillment === 'pending' ? 'shipped' : order.fulfillment === 'shipped' ? 'delivered' : 'pending'; updateOrder(order, { fulfillment }); }}><StatusPill tone={order.fulfillment === 'delivered' ? 'mint' : order.fulfillment === 'shipped' ? 'blue' : 'neutral'}>{fulfillmentLabel(order.fulfillment)}</StatusPill></button></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} action={!search && filter === 'all' ? <Link href="/take-order" data-testid="link-create-first-order"><Button><Plus size={15} />Create a link</Button></Link> : undefined} /></div>}
       </Card>
     </section>
@@ -1753,7 +1765,8 @@ function Clients() {
       const phone = order.customerPhone?.trim() ?? '';
       const name = order.customerName?.trim() ?? '';
       const identity = phone || name;
-      const key = identity ? `${phone ? 'phone' : 'name'}:${identity.toLowerCase()}` : `pending:${order.id}`;
+      if (!identity) return;
+      const key = `${phone ? 'phone' : 'name'}:${identity.toLowerCase()}`;
       const collected = order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0;
       const existing = grouped.get(key);
       if (existing) {
@@ -1769,7 +1782,7 @@ function Clients() {
       } else {
         grouped.set(key, {
           key,
-          displayName: name || 'Buyer pending',
+          displayName: name,
           phone,
           orders: [order],
           orderCount: 1,
@@ -1818,8 +1831,8 @@ function Clients() {
       <section className="clients-overview" aria-label="Client summary">
         <MetricCard className="rise-in" dataTestId="card-clients-return-visits" label="Return visits" value={<span data-testid="text-client-return-visits">{repeatClients}</span>} indicator={clients.length ? { direction: repeatClients ? 'up' : 'neutral', percentage: repeatRate } : undefined} note={`${repeatClients} ${repeatClients === 1 ? 'client has' : 'clients have'} ordered more than once`} />
         <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-clients-total" label="Total clients" value={<span data-testid="text-total-clients">{clients.length}</span>} indicator={clients.length ? { direction: settledRate >= 50 ? 'up' : 'down', percentage: settledRate } : undefined} note={`${clients.length - balanceDueClients} without an outstanding balance`} />
-        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-clients-balance-due" label="Owing clients" value={<span data-testid="text-clients-balance-due">{balanceDueClients}</span>} indicator={clients.length ? { direction: balanceDueClients ? 'down' : 'neutral', percentage: balanceRate } : undefined} note={`${money(totalBalanceDue)} outstanding across ${balanceDueClients} ${balanceDueClients === 1 ? 'client' : 'clients'}`} />
-        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-clients-to-serve" label="To serve" value={<span data-testid="text-clients-to-serve">{clientsToServe}</span>} indicator={clients.length ? { direction: clientsToServe ? 'down' : 'neutral', percentage: serviceRate } : undefined} note={`${clientsToServe} ${clientsToServe === 1 ? 'client has' : 'clients have'} orders to fulfil`} />
+        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-clients-balance-due" label="Owing clients" value={<span data-testid="text-clients-balance-due">{balanceDueClients}</span>} indicator={clients.length ? { direction: balanceDueClients ? 'down' : 'neutral', percentage: balanceRate, tone: balanceDueClients ? 'positive' : 'neutral' } : undefined} note={`${money(totalBalanceDue)} outstanding across ${balanceDueClients} ${balanceDueClients === 1 ? 'client' : 'clients'}`} />
+        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-clients-to-serve" label="To serve" value={<span data-testid="text-clients-to-serve">{clientsToServe}</span>} indicator={clients.length ? { direction: clientsToServe ? 'down' : 'neutral', percentage: serviceRate, tone: clientsToServe ? 'positive' : 'neutral' } : undefined} note={`${clientsToServe} ${clientsToServe === 1 ? 'client has' : 'clients have'} orders to fulfil`} />
       </section>
        <section className="clients-list-section mt-5">
          <div className="clients-workspace-heading">
@@ -2028,7 +2041,7 @@ function TakeOrderChoiceCards({ selected, onSelect }: { selected: TakeOrderItemS
       <ChevronRight size={16} aria-hidden="true" />
     </button>
     <button type="button" aria-pressed={selected === 'custom'} className={cn('take-order-choice-card', selected === 'custom' && 'is-active')} onClick={() => onSelect('custom')}>
-      <span className="take-order-choice-mark is-custom"><Sparkles size={17} /></span>
+      <span className="take-order-choice-mark is-custom"><Plus size={17} /></span>
       <span className="take-order-choice-copy"><strong>Not from catalog</strong><small>Add a one-off item from your conversation.</small></span>
       <ChevronRight size={16} aria-hidden="true" />
     </button>
@@ -2458,7 +2471,7 @@ export function BuyerOrderSurface({ businessName, description, logoDataUrl, prod
   const activeIndex = Math.min(controlledIndex ?? internalIndex, displayItems.length - 1);
   const activeItem = displayItems[activeIndex]!;
   const total = totalAmount ?? displayItems.reduce((sum, item) => sum + item.amount * (item.quantity ?? 1), 0);
-  const sellerDescription = description?.trim() || `Shop directly from ${businessName}.`;
+  const sellerDescription = description?.trim();
   useEffect(() => setInternalIndex(0), [displayItems.length]);
   const move = (direction: -1 | 1) => {
     const nextIndex = (activeIndex + direction + displayItems.length) % displayItems.length;
@@ -2479,7 +2492,7 @@ export function BuyerOrderSurface({ businessName, description, logoDataUrl, prod
           <SellerLogo businessName={businessName} logoDataUrl={logoDataUrl ?? undefined} className="buyer-seller-logo buyer-app-seller-mark" />
           <div className="buyer-seller-copy">
             <strong>{businessName}</strong>
-            <p>{sellerDescription}</p>
+            {sellerDescription && <p>{sellerDescription}</p>}
           </div>
         </div>
       </header>
@@ -3264,7 +3277,7 @@ export function BuyerOrderForm({
   const galleryImages = useMemo(() => {
     if (item.imageUrls?.length) return item.imageUrls;
     if (item.imageUrl) return [item.imageUrl];
-    return ['hero', 'detail', 'close-up', 'back'].map((view) => productImageFor(`${item.productName} ${view}`));
+    return [productImageFor(item.productName)];
   }, [item.imageUrl, item.imageUrls, item.productName]);
   const activeGalleryImage = galleryImages[Math.min(activeGalleryIndex, galleryImages.length - 1)] ?? productImageFor(item.productName);
   const itemRequirementsMet = item.preferences.every((preference) => Boolean(itemForm.preferences[preference.label]))

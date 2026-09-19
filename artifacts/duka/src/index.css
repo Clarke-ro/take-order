@@ -778,6 +778,7 @@ button { cursor: pointer; }
 .reports-cost-status { display: inline-flex; white-space: nowrap; border-radius: 999px; padding: .35rem .5rem; font-size: .6rem; font-weight: 500; }
 .reports-cost-tracked { background: hsl(157 42% 45% / .14); color: hsl(165 34% 28%); }
 .reports-cost-missing { background: hsl(345 39% 58% / .14); color: hsl(345 39% 40%); }
+.reports-cost-missing:not([title]) { background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
 .catalog-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
 .catalog-summary-lead { border-color: hsl(220 23% 26%); background: hsl(220 25% 18%); color: hsl(45 33% 96%); box-shadow: none; }
 .catalog-summary-kicker, .catalog-toolbar-kicker { color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .58rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
@@ -2873,4 +2874,34 @@ button[data-testid^="button-fulfillment-"]:focus-visible,
 button[data-testid^="button-filter-"]:focus-visible {
   outline: 3px solid hsl(var(--ring));
   outline-offset: 3px;
+}
+
+/* Keep order filters readable by separating payment from fulfilment. */
+.orders-filter-groups { display: grid; gap: .55rem; min-width: 0; }
+.orders-filter-group { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+.orders-filter-group > span { flex: 0 0 4.4rem; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .56rem; letter-spacing: .08em; text-transform: uppercase; }
+.orders-filter-group .orders-filter-scroll { flex: 1 1 auto; }
+
+/* The list view is for scanning, so product art stays a small identifier. */
+.catalog-product-row > .catalog-product-main { min-width: 0; }
+.catalog-product-row .catalog-product-mark { height: 3rem; width: 3rem; flex: 0 0 3rem; }
+.catalog-product-row > .catalog-grid-image { width: 3.5rem; height: 3.5rem; }
+.catalog-product-row > .catalog-grid-image img { width: 3.5rem; height: 3.5rem; object-fit: cover; }
+.catalog-grid-card .catalog-stock-badge { display: none; }
+
+/* Reports defaults to the decision-making columns; detail stays available in the row markup
+   without forcing a horizontal scrollbar into the main card. */
+.reports-table { min-width: 0; }
+.reports-table th:nth-child(2),
+.reports-table td:nth-child(2),
+.reports-table th:nth-child(6),
+.reports-table td:nth-child(6),
+.reports-table th:nth-child(7),
+.reports-table td:nth-child(7) { display: none; }
+
+@media (max-width: 760px) {
+  .orders-filter-group { align-items: flex-start; flex-direction: column; gap: .3rem; }
+  .orders-filter-group > span { flex-basis: auto; }
+  .orders-filter-group .orders-filter-scroll { width: 100%; }
+  .catalog-grid { grid-template-columns: minmax(0, 1fr); }
 }
