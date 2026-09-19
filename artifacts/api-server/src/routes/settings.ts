@@ -14,6 +14,7 @@ export const defaultSellerSettings = {
   description: "",
   logoDataUrl: null,
   channels: [] as string[],
+  currency: "GHS" as const,
   paymentMode: "reserve" as const,
   checkoutAskForDetails: true,
   checkoutAllowReferenceImages: true,

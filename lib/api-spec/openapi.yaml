@@ -496,7 +496,7 @@ components:
         fulfillment: { type: string, enum: [pending, shipped, delivered] }
     PublicOrder:
       type: object
-      required: [token, productName, amount, subtotal, deliveryFee, paymentMode, status, variants, items, businessName, businessDescription, logoDataUrl, deliveryDefault, checkoutAskForDetails, checkoutAllowReferenceImages]
+      required: [token, productName, amount, subtotal, deliveryFee, paymentMode, status, variants, items, businessName, businessDescription, logoDataUrl, currency, deliveryDefault, checkoutAskForDetails, checkoutAllowReferenceImages]
       properties:
         token: { type: string }
         productName: { type: string }
@@ -510,6 +510,7 @@ components:
         businessName: { type: string }
         businessDescription: { type: string }
         logoDataUrl: { type: ["string", "null"] }
+        currency: { type: string, enum: [AED, AOA, AUD, BRL, CAD, CHF, CNY, CVE, EGP, EUR, ETB, GBP, GHS, INR, JPY, KES, MZN, NGN, NZD, RWF, STN, TZS, UGX, USD, ZAR, ZMW, ZWL] }
         deliveryDefault: { type: string, enum: [pickup, delivery, both] }
         checkoutAskForDetails: { type: boolean }
         checkoutAllowReferenceImages: { type: boolean }
@@ -668,7 +669,7 @@ components:
         note: { type: ["string", "null"] }
     SellerSettings:
       type: object
-      required: [sellerName, businessName, description, logoDataUrl, channels, paymentMode, checkoutAskForDetails, checkoutAllowReferenceImages, deliveryDefault, deliveryFee, customDomain, seoTitle, seoDescription, trackingId, organizationName, organizationEmail, organizationPhone, organizationCountry, organizationAddress, orderUpdates, stockAlerts, compactTables, connectedTools]
+      required: [sellerName, businessName, description, logoDataUrl, channels, currency, paymentMode, checkoutAskForDetails, checkoutAllowReferenceImages, deliveryDefault, deliveryFee, customDomain, seoTitle, seoDescription, trackingId, organizationName, organizationEmail, organizationPhone, organizationCountry, organizationAddress, orderUpdates, stockAlerts, compactTables, connectedTools]
       properties:
         sellerName: { type: string }
         businessName: { type: string }
@@ -677,6 +678,7 @@ components:
         channels:
           type: array
           items: { type: string }
+        currency: { type: string, enum: [AED, AOA, AUD, BRL, CAD, CHF, CNY, CVE, EGP, EUR, ETB, GBP, GHS, INR, JPY, KES, MZN, NGN, NZD, RWF, STN, TZS, UGX, USD, ZAR, ZMW, ZWL] }
         paymentMode: { type: string, enum: [full, deposit, reserve] }
         checkoutAskForDetails: { type: boolean }
         checkoutAllowReferenceImages: { type: boolean }

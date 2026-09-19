@@ -4,6 +4,36 @@ export type CurrencyConfig = {
   symbol: string;
 };
 
+export const storeCurrencyOptions = [
+  { currency: 'AED', label: 'United Arab Emirates dirham' },
+  { currency: 'AOA', label: 'Angolan kwanza' },
+  { currency: 'AUD', label: 'Australian dollar' },
+  { currency: 'BRL', label: 'Brazilian real' },
+  { currency: 'CAD', label: 'Canadian dollar' },
+  { currency: 'CHF', label: 'Swiss franc' },
+  { currency: 'CNY', label: 'Chinese yuan' },
+  { currency: 'CVE', label: 'Cape Verdean escudo' },
+  { currency: 'EGP', label: 'Egyptian pound' },
+  { currency: 'ETB', label: 'Ethiopian birr' },
+  { currency: 'EUR', label: 'Euro' },
+  { currency: 'GBP', label: 'British pound' },
+  { currency: 'GHS', label: 'Ghanaian cedi' },
+  { currency: 'INR', label: 'Indian rupee' },
+  { currency: 'JPY', label: 'Japanese yen' },
+  { currency: 'KES', label: 'Kenyan shilling' },
+  { currency: 'MZN', label: 'Mozambican metical' },
+  { currency: 'NGN', label: 'Nigerian naira' },
+  { currency: 'NZD', label: 'New Zealand dollar' },
+  { currency: 'RWF', label: 'Rwandan franc' },
+  { currency: 'STN', label: 'São Tomé and Príncipe dobra' },
+  { currency: 'TZS', label: 'Tanzanian shilling' },
+  { currency: 'UGX', label: 'Ugandan shilling' },
+  { currency: 'USD', label: 'US dollar' },
+  { currency: 'ZAR', label: 'South African rand' },
+  { currency: 'ZMW', label: 'Zambian kwacha' },
+  { currency: 'ZWL', label: 'Zimbabwean dollar' },
+] as const;
+
 type LocationHints = {
   language?: string;
   timeZone?: string;
@@ -41,6 +71,10 @@ const currencyByRegion: Record<string, { currency: string; locale: string }> = {
   ZM: { currency: 'ZMW', locale: 'en-ZM' },
   ZW: { currency: 'ZWL', locale: 'en-ZW' },
 };
+
+const currencyByCode = Object.fromEntries(
+  Object.values(currencyByRegion).map((selected) => [selected.currency, selected]),
+) as Record<string, { currency: string; locale: string }>;
 
 const regionByTimeZone: Record<string, string> = {
   'Africa/Accra': 'GH',
@@ -96,6 +130,18 @@ export function currencyForLocation({ language, timeZone }: LocationHints = {}):
   };
 }
 
+function toCurrencyConfig(selected: { currency: string; locale: string }): CurrencyConfig {
+  return {
+    locale: selected.locale,
+    currency: selected.currency,
+    symbol: currencySymbol(selected.locale, selected.currency),
+  };
+}
+
+export function currencyForCode(currency: string | null | undefined): CurrencyConfig {
+  return toCurrencyConfig(currencyByCode[currency?.toUpperCase() ?? ''] ?? currencyByCode.GHS);
+}
+
 const browserLocation: LocationHints = typeof navigator === 'undefined'
   ? {}
   : {
@@ -104,21 +150,27 @@ const browserLocation: LocationHints = typeof navigator === 'undefined'
   };
 
 export const appCurrency = currencyForLocation(browserLocation);
+let activeCurrency = appCurrency;
 
-const exactFormatter = new Intl.NumberFormat(appCurrency.locale, {
-  style: 'currency',
-  currency: appCurrency.currency,
-});
-const compactFormatter = new Intl.NumberFormat(appCurrency.locale, {
-  style: 'currency',
-  currency: appCurrency.currency,
-  maximumFractionDigits: 0,
-});
+export function setActiveCurrency(currency: string | CurrencyConfig): void {
+  activeCurrency = typeof currency === 'string' ? currencyForCode(currency) : currency;
+}
+
+export function currentCurrency(): CurrencyConfig {
+  return activeCurrency;
+}
 
 export function formatMoney(value: number | null | undefined): string {
-  return exactFormatter.format(value ?? 0);
+  return new Intl.NumberFormat(activeCurrency.locale, {
+    style: 'currency',
+    currency: activeCurrency.currency,
+  }).format(value ?? 0);
 }
 
 export function formatCompactMoney(value: number | null | undefined): string {
-  return compactFormatter.format(value ?? 0);
+  return new Intl.NumberFormat(activeCurrency.locale, {
+    style: 'currency',
+    currency: activeCurrency.currency,
+    maximumFractionDigits: 0,
+  }).format(value ?? 0);
 }

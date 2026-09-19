@@ -1,0 +1,54 @@
+Fix currency detection — the current implementation using device timezone 
+(and separately, browser/device GPS geolocation) is unreliable and has 
+produced wrong currencies for real users. Replace it entirely with this 
+approach:
+
+1. Remove any logic that infers currency from the device's timezone 
+   (Intl.DateTimeFormat resolvedOptions().timeZone) — this is not a 
+   reliable signal for currency and should not be used at all.
+
+2. Remove any dependency on navigator.geolocation (browser GPS) for this 
+   purpose — it requires a permission prompt, can be denied, and is more 
+   precision than this needs.
+
+3. Implement server-side IP geolocation instead: when a new seller signs 
+   up, look up their request's IP address against a geo-IP service or 
+   database to determine their country. If the app is deployed behind 
+   Cloudflare, use the CF-IPCountry header it already provides for free 
+   instead of adding a separate geo-IP API. If not behind Cloudflare, use 
+   a geo-IP lookup service or library (e.g. a MaxMind GeoLite2 database, 
+   or a geo-IP API) server-side.
+
+4. Map the detected country to its currency using a standard ISO 3166 
+   (country) to ISO 4217 (currency) mapping — do not hardcode a small 
+   list of countries; use a complete mapping table or library so this 
+   works for any country, not just Ghana/UK.
+
+5. During onboarding, show the detected currency as a pre-filled 
+   suggestion (e.g. "We think you're in Ghana — use Ghanaian Cedi (GHS) 
+   as your base currency?") with a clear, easy way to change it to any 
+   other currency from a full list, before the seller confirms setup. 
+   Never lock in the detected value silently without the seller seeing 
+   and being able to override it.
+
+6. Once the seller confirms (or changes) their base currency, store it 
+   explicitly on their seller/account record. After this initial setup, 
+   never re-run automatic detection again — the stored value is the 
+   source of truth from then on, regardless of where they log in from 
+   later (a seller traveling abroad shouldn't have their currency change 
+   automatically).
+
+7. Add a way to change the base currency later from Settings at any time, 
+   using the same full currency list.
+
+8. If IP geolocation fails or returns no result (rare, but should be 
+   handled), fall back to guessing from the browser's Accept-Language / 
+   navigator.language header as a secondary signal, and if that also 
+   fails, default to showing the full currency picker with nothing 
+   pre-selected rather than guessing wrong silently.
+
+9. Once a currency code (e.g. GHS, GBP, USD) is set, use it consistently 
+   everywhere money is displayed — via Intl.NumberFormat(locale, { style: 
+   'currency', currency: code }) rather than hardcoded currency symbols, 
+   so formatting (symbol placement, decimal places, thousands separators) 
+   is correct for that currency automatically.

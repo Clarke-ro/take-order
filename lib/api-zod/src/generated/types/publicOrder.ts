@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PublicOrderCurrency } from './publicOrderCurrency';
 import type { PublicOrderDeliveryDefault } from './publicOrderDeliveryDefault';
 import type { PublicOrderDeliveryMethod } from './publicOrderDeliveryMethod';
 import type { PublicOrderItem } from './publicOrderItem';
@@ -27,6 +28,7 @@ export interface PublicOrder {
   businessDescription: string;
   /** @nullable */
   logoDataUrl: string | null;
+  currency: PublicOrderCurrency;
   deliveryDefault: PublicOrderDeliveryDefault;
   checkoutAskForDetails: boolean;
   checkoutAllowReferenceImages: boolean;

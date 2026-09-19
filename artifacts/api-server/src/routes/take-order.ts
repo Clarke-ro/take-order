@@ -251,6 +251,7 @@ function publicOrderResponse(
     businessName: sellerSettings.businessName || "The Sunday Edit",
     businessDescription: sellerSettings.description,
      logoDataUrl: sellerSettings.logoDataUrl,
+     currency: sellerSettings.currency,
     deliveryDefault: sellerSettings.deliveryDefault,
     checkoutAskForDetails: sellerSettings.checkoutAskForDetails,
     checkoutAllowReferenceImages: sellerSettings.checkoutAllowReferenceImages,

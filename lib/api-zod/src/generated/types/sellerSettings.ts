@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SellerSettingsCurrency } from './sellerSettingsCurrency';
 import type { SellerSettingsDeliveryDefault } from './sellerSettingsDeliveryDefault';
 import type { SellerSettingsPaymentMode } from './sellerSettingsPaymentMode';
 
@@ -15,6 +16,7 @@ export interface SellerSettings {
   /** @nullable */
   logoDataUrl: string | null;
   channels: string[];
+  currency: SellerSettingsCurrency;
   paymentMode: SellerSettingsPaymentMode;
   checkoutAskForDetails: boolean;
   checkoutAllowReferenceImages: boolean;

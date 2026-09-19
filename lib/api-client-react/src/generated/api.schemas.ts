@@ -310,6 +310,39 @@ export const PublicOrderStatus = {
   paid: 'paid',
 } as const;
 
+export type PublicOrderCurrency = typeof PublicOrderCurrency[keyof typeof PublicOrderCurrency];
+
+
+export const PublicOrderCurrency = {
+  AED: 'AED',
+  AOA: 'AOA',
+  AUD: 'AUD',
+  BRL: 'BRL',
+  CAD: 'CAD',
+  CHF: 'CHF',
+  CNY: 'CNY',
+  CVE: 'CVE',
+  EGP: 'EGP',
+  EUR: 'EUR',
+  ETB: 'ETB',
+  GBP: 'GBP',
+  GHS: 'GHS',
+  INR: 'INR',
+  JPY: 'JPY',
+  KES: 'KES',
+  MZN: 'MZN',
+  NGN: 'NGN',
+  NZD: 'NZD',
+  RWF: 'RWF',
+  STN: 'STN',
+  TZS: 'TZS',
+  UGX: 'UGX',
+  USD: 'USD',
+  ZAR: 'ZAR',
+  ZMW: 'ZMW',
+  ZWL: 'ZWL',
+} as const;
+
 export type PublicOrderDeliveryDefault = typeof PublicOrderDeliveryDefault[keyof typeof PublicOrderDeliveryDefault];
 
 
@@ -364,6 +397,7 @@ export interface PublicOrder {
   businessDescription: string;
   /** @nullable */
   logoDataUrl: string | null;
+  currency: PublicOrderCurrency;
   deliveryDefault: PublicOrderDeliveryDefault;
   checkoutAskForDetails: boolean;
   checkoutAllowReferenceImages: boolean;
@@ -560,6 +594,39 @@ export interface ExpenseUpdate {
   note?: string | null;
 }
 
+export type SellerSettingsCurrency = typeof SellerSettingsCurrency[keyof typeof SellerSettingsCurrency];
+
+
+export const SellerSettingsCurrency = {
+  AED: 'AED',
+  AOA: 'AOA',
+  AUD: 'AUD',
+  BRL: 'BRL',
+  CAD: 'CAD',
+  CHF: 'CHF',
+  CNY: 'CNY',
+  CVE: 'CVE',
+  EGP: 'EGP',
+  EUR: 'EUR',
+  ETB: 'ETB',
+  GBP: 'GBP',
+  GHS: 'GHS',
+  INR: 'INR',
+  JPY: 'JPY',
+  KES: 'KES',
+  MZN: 'MZN',
+  NGN: 'NGN',
+  NZD: 'NZD',
+  RWF: 'RWF',
+  STN: 'STN',
+  TZS: 'TZS',
+  UGX: 'UGX',
+  USD: 'USD',
+  ZAR: 'ZAR',
+  ZMW: 'ZMW',
+  ZWL: 'ZWL',
+} as const;
+
 export type SellerSettingsPaymentMode = typeof SellerSettingsPaymentMode[keyof typeof SellerSettingsPaymentMode];
 
 
@@ -585,6 +652,7 @@ export interface SellerSettings {
   /** @nullable */
   logoDataUrl: string | null;
   channels: string[];
+  currency: SellerSettingsCurrency;
   paymentMode: SellerSettingsPaymentMode;
   checkoutAskForDetails: boolean;
   checkoutAllowReferenceImages: boolean;
