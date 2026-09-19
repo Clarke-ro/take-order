@@ -3135,3 +3135,11 @@ button[data-testid^="button-filter-"]:focus-visible {
   .take-order-checkout-main .take-order-catalog-selection-row > button { grid-column: 2 / -1; justify-self: start; }
   .take-order-checkout-summary-body { padding: 1.15rem 1rem; }
 }
+
+.take-order-choice-stage { max-width: 56rem; margin: 0 auto; }
+.take-order-choice-stage-heading { max-width: 34rem; margin: 0 auto 1.25rem; text-align: center; }
+.take-order-choice-stage-heading h2 { margin-top: .45rem; color: hsl(var(--foreground)); font-family: var(--app-font-display); font-size: clamp(1.5rem, 3vw, 2.15rem); font-weight: 800; letter-spacing: -.06em; line-height: 1; }
+.take-order-choice-stage-heading p { margin-top: .65rem; color: hsl(var(--muted-foreground)); font-size: .78rem; line-height: 1.5; }
+.take-order-stage-back { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: .9rem; color: hsl(var(--muted-foreground)); font-size: .66rem; font-weight: 700; }
+.take-order-stage-back:hover, .take-order-stage-back:focus-visible { color: hsl(var(--foreground)); text-decoration: underline; text-underline-offset: 3px; }
+.take-order-stage-back:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
