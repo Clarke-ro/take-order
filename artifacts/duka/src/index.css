@@ -3070,6 +3070,8 @@ button[data-testid^="button-filter-"]:focus-visible {
 
 /* Checkout step: payment configuration beside a persistent basket summary. */
 .take-order-checkout-stage { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(18rem, .9fr); align-items: start; gap: 1.25rem; max-width: 58rem; margin: 0 auto; }
+.take-order-checkout-stage.is-summary-only { display: flex; justify-content: center; max-width: 36rem; }
+.take-order-checkout-stage.is-summary-only .take-order-checkout-summary { width: 100%; max-width: 31rem; }
 .take-order-checkout-main { min-width: 0; border: 1px solid hsl(var(--border)); border-radius: 17px; background: hsl(var(--card)); padding: 1.35rem; box-shadow: 0 8px 22px hsl(var(--foreground) / .06); }
 .take-order-checkout-heading { margin-bottom: 1.25rem; }
 .take-order-checkout-heading h2 { margin-top: .35rem; color: hsl(var(--foreground)); font-family: var(--app-font-display); font-size: clamp(1.55rem, 3vw, 2.15rem); font-weight: 800; letter-spacing: -.06em; line-height: 1; }
