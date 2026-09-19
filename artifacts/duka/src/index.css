@@ -687,6 +687,8 @@ button { cursor: pointer; }
 .orders-table-row { border-bottom: 1px solid hsl(var(--border)); padding: 1.05rem 1.5rem; transition: background-color .18s; }
 .orders-table-row:last-child { border-bottom: 0; }
 .orders-table-row:hover { background: hsl(var(--muted) / .42); }
+.orders-table-row.is-clickable { cursor: pointer; }
+.orders-table-row.is-clickable:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -2px; }
 .orders-order-id-cell { min-width: 0; }
 .orders-buyer-cell { display: flex; min-width: 0; align-items: center; gap: .75rem; }
 .orders-table-row .font-semibold, .orders-table-row .font-bold { font-weight: 500; }
