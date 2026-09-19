@@ -2332,31 +2332,39 @@ function MultiItemTakeOrderModern() {
                </div>
                 {items.length > 0 && <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} />}
               </div>}
-               {step === 1 && itemSource === 'custom' && <TakeOrderSection className="take-order-one-off-section" eyebrow="Step 01 · New item" title="Build this item for the buyer." description="Name the item, set the price, and add any choices the buyer should select.">
-               <div className="take-order-choice-form">
-                 <div className="take-order-custom-builder">
-                   <div className="take-order-custom-fields">
-                     <div><label className="field-label" htmlFor="input-custom-order-name">What are they buying?</label><input id="input-custom-order-name" data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. White leather sneakers" className="field-input" /></div>
-                     <div><label className="field-label" htmlFor="input-custom-order-price">Price</label><div className="relative"><span className="take-order-currency">{currencySymbol()}</span><input id="input-custom-order-price" data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" className="field-input pl-7" /></div></div>
-                   </div>
-                   <div className="take-order-custom-preferences">
-                     <div className="flex items-start justify-between gap-3"><div><div className="field-label">Buyer options <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></div><p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Add choices like Size, Color, or Sneaker type.</p></div><button type="button" className="shrink-0 rounded-full border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold" onClick={() => setCustomDraft((current) => ({ ...current, preferences: [...current.preferences, { label: '', options: '' }] }))}><Plus size={12} />Add group</button></div>
-                     {customDraft.preferences.length > 0 && <div className="mt-3 space-y-2">{customDraft.preferences.map((preference, index) => <div key={index} className="catalog-preference-row"><input aria-label={`Custom option group ${index + 1} name`} value={preference.label} onChange={(event) => updateCustomPreference(index, 'label', event.target.value)} placeholder="Group name, e.g. Size" className="field-input" /><input aria-label={`Choices for custom option group ${index + 1}`} value={preference.options} onChange={(event) => updateCustomPreference(index, 'options', event.target.value)} placeholder="Choices separated by commas" className="field-input" /><button type="button" aria-label={`Remove custom option group ${index + 1}`} className="catalog-preference-remove" onClick={() => setCustomDraft((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))}><X size={14} /></button></div>)}</div>}
-                   </div>
-                   <Button type="button" variant="outline" disabled={!customDraft.name.trim() || !customDraft.amount} onClick={addCustomItem}><Plus size={15} />Add item</Button>
-                 </div>
-               </div>
-              <div className="take-order-items-heading"><div><div className="take-order-section-eyebrow">This order</div><h3>{items.length ? `${items.length} item${items.length === 1 ? '' : 's'} added` : 'Nothing added yet'}</h3></div>{items.length > 0 && <span className="take-order-total-chip">{moneyExact(total)}</span>}</div>
-              <div className="take-order-item-list">
-                 {items.length ? items.map((item, index) => <div key={item.key} className="take-order-item-row">
-                  <div className="take-order-item-number">{String(index + 1).padStart(2, '0')}</div>
-                  <div className="take-order-item-mark" style={{ color: item.accent }}><Package size={17} /></div>
-                   <div className="take-order-item-copy"><strong>{item.name}</strong><span>{item.source === 'custom' ? `${item.preferences.length} buyer option${item.preferences.length === 1 ? '' : 's'}` : item.variants.length ? `${item.variants.length} variant${item.variants.length === 1 ? '' : 's'} · Catalog` : 'Catalog item'}</span></div>
-                  <div className="take-order-item-price"><span className="take-order-currency">{currencySymbol()}</span><input aria-label={`Price for ${item.name}`} type="number" min="0" step=".01" value={item.amount} onChange={(event) => updateAmount(item.key, event.target.value)} className="field-input" /></div>
-                  <button type="button" aria-label={`Remove ${item.name}`} onClick={() => setItems((current) => current.filter((candidate) => candidate.key !== item.key))} className="take-order-remove"><Trash2 size={15} /></button>
-                 </div>) : <div className="take-order-empty-items"><PackageSearch size={22} /><strong>Your order starts here</strong><span>Choose how you want to add the first item.</span></div>}
-              </div>
-             </TakeOrderSection>}
+                {step === 1 && itemSource === 'custom' && <div className="take-order-custom-stage">
+                  <TakeOrderFeedback message={feedback} />
+                  <div className="take-order-custom-columns">
+                    <section className="take-order-custom-form-panel" aria-label="Custom item details">
+                      <div className="take-order-custom-field">
+                        <label className="field-label" htmlFor="input-custom-order-name">What are they buying?</label>
+                        <input id="input-custom-order-name" data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="White leather sneakers size 42" className="field-input" />
+                      </div>
+                      <div className="take-order-custom-field">
+                        <label className="field-label" htmlFor="input-custom-order-price">Price</label>
+                        <div className="take-order-custom-price-input"><span>{currencySymbol()}</span><input id="input-custom-order-price" data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" /></div>
+                      </div>
+                      <div className="take-order-custom-options">
+                        <div className="take-order-custom-options-heading">
+                          <div className="field-label">Buyer options <span>(optional)</span></div>
+                          <button type="button" className="take-order-custom-add-group" onClick={() => setCustomDraft((current) => ({ ...current, preferences: [...current.preferences, { label: '', options: '' }] }))}><Plus size={16} />Add group</button>
+                        </div>
+                        <div className="take-order-custom-variant-label">Variant options area</div>
+                        <div className="take-order-custom-option-chips" aria-label="Custom variant options">
+                          {customDraft.preferences.flatMap((preference) => preference.options.split(',').map((option) => option.trim()).filter(Boolean)).map((option, index) => <span key={`${option}-${index}`} className="take-order-custom-option-chip">{option}<X size={12} aria-hidden="true" /></span>)}
+                          {!customDraft.preferences.some((preference) => preference.options.split(',').some((option) => option.trim())) && <span className="take-order-custom-option-placeholder">Add a group to define options</span>}
+                        </div>
+                        {customDraft.preferences.length > 0 && <div className="take-order-custom-preference-list">{customDraft.preferences.map((preference, index) => <div key={index} className="take-order-custom-preference-row">
+                          <input aria-label={`Custom option group ${index + 1} name`} value={preference.label} onChange={(event) => updateCustomPreference(index, 'label', event.target.value)} placeholder="Group name, e.g. Size" className="field-input" />
+                          <input aria-label={`Choices for custom option group ${index + 1}`} value={preference.options} onChange={(event) => updateCustomPreference(index, 'options', event.target.value)} placeholder="Choices separated by commas" className="field-input" />
+                          <button type="button" aria-label={`Remove custom option group ${index + 1}`} className="take-order-custom-preference-remove" onClick={() => setCustomDraft((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))}><X size={14} /></button>
+                        </div>)}</div>}
+                      </div>
+                      <Button type="button" className="take-order-custom-add-item" variant="outline" disabled={!customDraft.name.trim() || !customDraft.amount} onClick={addCustomItem}><Plus size={15} />Add item</Button>
+                    </section>
+                    <TakeOrderCustomOrderPanel items={items} total={total} canContinue={canContinue} busy={busy} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onUpdateAmount={updateAmount} />
+                  </div>
+                </div>}
               {step === 2 && <TakeOrderSection eyebrow="Step 02 · Confirm checkout" title="Review the client's checkout.">
                <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => { setItems((current) => current.filter((candidate) => candidate.key !== key)); setFeedback(null); }} onOneOff={() => { setItemSource('custom'); setStep(1); setFeedback(null); }} buttonTestId="button-payment-checkout" disabled={busy} showActions={false} showPayableTotal className="take-order-payment-checkout-card" />
                <div className="take-order-payment-config-card">
@@ -2372,7 +2380,7 @@ function MultiItemTakeOrderModern() {
               <div className="take-order-review-details"><div><span>Payment</span><strong>{paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'full' ? 'Pay in full' : 'Reserve for later'}</strong></div><div><span>Conversation</span><strong><ChannelInline value={channel} /></strong></div></div>
               <div className="take-order-review-note"><CheckCircle2 size={17} /><div><strong>Buyer details stay with the order.</strong><span>They can add their name, phone number, notes, and an optional reference image on the next page.</span></div></div>
             </TakeOrderSection>}
-              {!catalogStage && !choiceOnly && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step === 2 ? 'Confirm checkout' : step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
+              {!catalogStage && !choiceOnly && itemSource !== 'custom' && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step === 2 ? 'Confirm checkout' : step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
           </form>
          </div>
          {showPreview && <aside className="take-order-preview-column">

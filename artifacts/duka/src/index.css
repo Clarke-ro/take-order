@@ -2918,6 +2918,77 @@ button[data-testid^="button-filter-"]:focus-visible {
   .orders-filter-groups { width: 100%; }
 }
 
+/* Custom item builder follows the compact two-panel reference layout. */
+.take-order-custom-stage { max-width: 56rem; margin: 0 auto; }
+.take-order-custom-stage > .take-order-feedback { margin: 0 0 1rem; }
+.take-order-custom-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; gap: 1.5rem; }
+.take-order-custom-form-panel { display: flex; min-width: 0; flex-direction: column; gap: 1rem; border: 1px solid hsl(var(--border)); border-radius: 17px; background: hsl(var(--card)); padding: 1.35rem; box-shadow: 0 8px 22px hsl(var(--foreground) / .06); }
+.take-order-custom-field { display: grid; gap: .45rem; }
+.take-order-custom-field .field-label, .take-order-custom-options .field-label { color: hsl(var(--foreground)); font-size: .78rem; font-weight: 750; }
+.take-order-custom-field .field-input { min-height: 3rem; border-color: hsl(var(--foreground) / .28); border-radius: 10px; background: hsl(var(--background)); padding-inline: .85rem; font-size: .8rem; }
+.take-order-custom-field .field-input::placeholder { color: hsl(var(--muted-foreground) / .78); }
+.take-order-custom-price-input { display: flex; align-items: center; min-height: 3rem; overflow: hidden; border: 1px solid hsl(var(--foreground) / .28); border-radius: 10px; background: hsl(var(--background)); }
+.take-order-custom-price-input > span { margin-left: .7rem; border-radius: 5px; background: hsl(var(--muted)); padding: .23rem .38rem; color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .68rem; font-weight: 700; white-space: nowrap; }
+.take-order-custom-price-input input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; padding: .7rem .8rem; color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .8rem; text-align: right; }
+.take-order-custom-price-input input::placeholder { color: hsl(var(--muted-foreground) / .72); }
+.take-order-custom-options { display: grid; gap: .65rem; margin-top: .2rem; }
+.take-order-custom-options-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.take-order-custom-options-heading .field-label span { color: hsl(var(--muted-foreground)); font-weight: 500; }
+.take-order-custom-add-group { display: inline-flex; align-items: center; gap: .3rem; color: hsl(var(--foreground)); font-size: .68rem; font-weight: 700; white-space: nowrap; }
+.take-order-custom-add-group:hover, .take-order-custom-add-group:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.take-order-custom-add-group:focus-visible, .take-order-custom-preference-remove:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.take-order-custom-variant-label { color: hsl(var(--foreground)); font-size: .76rem; font-weight: 750; }
+.take-order-custom-option-chips { display: flex; min-height: 1.85rem; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.take-order-custom-option-chip { display: inline-flex; align-items: center; gap: .3rem; border: 1px solid hsl(var(--foreground) / .45); border-radius: 999px; background: hsl(var(--background)); padding: .34rem .55rem; color: hsl(var(--foreground)); font-size: .65rem; font-weight: 700; }
+.take-order-custom-option-placeholder { color: hsl(var(--muted-foreground)); font-size: .66rem; }
+.take-order-custom-preference-list { display: grid; gap: .5rem; }
+.take-order-custom-preference-row { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr) auto; gap: .45rem; align-items: center; }
+.take-order-custom-preference-row .field-input { min-height: 2.35rem; border-radius: 8px; font-size: .68rem; }
+.take-order-custom-preference-remove { display: inline-flex; height: 2rem; width: 2rem; align-items: center; justify-content: center; border-radius: 7px; color: hsl(var(--muted-foreground)); }
+.take-order-custom-preference-remove:hover { background: hsl(var(--muted)); color: hsl(var(--destructive)); }
+.take-order-custom-add-item { width: 100%; min-height: 2.8rem; justify-content: center; border-style: dashed; border-color: hsl(var(--foreground) / .45); border-radius: 10px; font-size: .75rem; }
+.take-order-custom-add-item:disabled { opacity: .52; }
+.take-order-custom-order-panel { display: flex; min-width: 0; min-height: 30rem; flex-direction: column; overflow: hidden; border: 1px solid hsl(var(--foreground)); border-radius: 17px; background: hsl(var(--foreground)); color: hsl(var(--background)); box-shadow: 0 8px 22px hsl(var(--foreground) / .12); }
+.take-order-custom-order-body { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; padding: 1.35rem; }
+.take-order-custom-order-label { color: hsl(var(--background) / .9); font-family: var(--app-font-mono); font-size: .62rem; font-weight: 700; letter-spacing: .18em; text-align: center; text-transform: uppercase; }
+.take-order-custom-order-empty { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; color: hsl(var(--background) / .9); text-align: center; }
+.take-order-custom-order-empty svg { margin-bottom: .7rem; color: hsl(var(--background) / .9); }
+.take-order-custom-order-empty strong { font-size: 1.2rem; letter-spacing: -.035em; }
+.take-order-custom-order-empty span { color: hsl(var(--background) / .55); font-size: .72rem; }
+.take-order-custom-order-items { display: grid; align-content: start; margin-top: 1.15rem; }
+.take-order-custom-order-row { display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto auto; align-items: center; gap: .55rem; border-bottom: 1px solid hsl(var(--background) / .17); padding: .7rem 0; }
+.take-order-custom-order-mark { display: inline-flex; height: 1.85rem; width: 1.85rem; align-items: center; justify-content: center; border-radius: 8px; background: hsl(var(--background) / .12); }
+.take-order-custom-order-copy { min-width: 0; }
+.take-order-custom-order-copy strong, .take-order-custom-order-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.take-order-custom-order-copy strong { color: hsl(var(--background)); font-size: .72rem; }
+.take-order-custom-order-copy span { margin-top: .2rem; color: hsl(var(--background) / .58); font-family: var(--app-font-mono); font-size: .52rem; letter-spacing: .05em; text-transform: uppercase; }
+.take-order-custom-order-price { display: flex; align-items: center; gap: .15rem; color: hsl(var(--background) / .72); font-family: var(--app-font-mono); font-size: .65rem; }
+.take-order-custom-order-price input { width: 4.5rem; border: 0; border-bottom: 1px solid hsl(var(--background) / .25); outline: 0; background: transparent; padding: .25rem 0; color: hsl(var(--background)); font-family: inherit; font-size: .68rem; text-align: right; }
+.take-order-custom-order-price input:focus { border-bottom-color: hsl(var(--background)); }
+.take-order-custom-order-row > button { display: inline-flex; height: 1.8rem; width: 1.8rem; align-items: center; justify-content: center; border-radius: 7px; color: hsl(var(--background) / .62); }
+.take-order-custom-order-row > button:hover, .take-order-custom-order-row > button:focus-visible { background: hsl(var(--background) / .12); color: hsl(var(--background)); }
+.take-order-custom-order-total { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: 1rem; color: hsl(var(--background) / .68); font-size: .7rem; }
+.take-order-custom-order-total strong { color: hsl(var(--background)); font-family: var(--app-font-mono); font-size: .9rem; }
+.take-order-custom-order-footer { display: flex; min-height: 4rem; align-items: center; justify-content: space-between; gap: .75rem; border-top: 1px solid hsl(var(--border)); background: hsl(var(--card)); padding: .75rem 1rem; color: hsl(var(--foreground)); }
+.take-order-custom-order-hint { display: inline-flex; align-items: center; gap: .35rem; color: hsl(var(--muted-foreground)); font-size: .62rem; white-space: nowrap; }
+.take-order-custom-order-hint svg { height: 13px; width: 13px; }
+.take-order-custom-continue { min-height: 2.5rem; border-radius: 9px; background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); font-size: .7rem; font-weight: 750; }
+.take-order-custom-continue:disabled { opacity: 1; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+
+@media (max-width: 760px) {
+  .take-order-custom-columns { grid-template-columns: 1fr; gap: 1rem; }
+  .take-order-custom-order-panel { min-height: 23rem; }
+}
+
+@media (max-width: 480px) {
+  .take-order-custom-form-panel { padding: 1rem; }
+  .take-order-custom-preference-row { grid-template-columns: 1fr auto; }
+  .take-order-custom-preference-row .field-input:nth-child(2) { grid-column: 1 / -1; }
+  .take-order-custom-order-footer { align-items: stretch; flex-direction: column; }
+  .take-order-custom-order-hint { justify-content: center; }
+  .take-order-custom-continue { width: 100%; justify-content: center; }
+}
+
 /* Take Order catalog surface. The browser stays light and open until a buyer
    item exists; the dark basket is intentionally mounted only in that state. */
 .take-order-catalog-stage { display: block; }
