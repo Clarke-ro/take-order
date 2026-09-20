@@ -808,6 +808,8 @@ button { cursor: pointer; }
 .catalog-product-row:hover { background: hsl(var(--muted) / .42); }
 .catalog-product-row .font-semibold, .catalog-product-row .font-bold, .catalog-product-row strong { font-weight: 500; }
 .catalog-product-main { display: flex; min-width: 0; align-items: center; gap: .75rem; }
+.catalog-product-thumb { display: flex; height: 42px; width: 42px; flex: 0 0 42px; align-items: center; justify-content: center; overflow: hidden; border-radius: 13px; background: hsl(var(--muted)); }
+.catalog-product-thumb img { display: block; height: 100%; width: 100%; object-fit: cover; }
 .catalog-product-mark { display: flex; height: 42px; width: 42px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 13px; color: hsl(var(--foreground)); font-family: var(--app-font-serif); font-size: .88rem; font-weight: 700; letter-spacing: -.04em; }
 .catalog-category { color: hsl(var(--foreground)); font-size: .59rem; font-weight: 400; }
 .catalog-variants { min-width: 0; overflow: hidden; color: hsl(var(--muted-foreground)); font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
@@ -2384,6 +2386,8 @@ button[data-testid="button-buyer-reserve"].text-white {
 .take-order-catalog-selection-row > b { font-family: var(--app-font-sans); font-size: .68rem; font-variant-numeric: tabular-nums lining-nums; font-weight: 600; white-space: nowrap; }
 .take-order-catalog-selection-row > button { display: inline-flex; height: 1.35rem; width: 1.35rem; align-items: center; justify-content: center; border-radius: 5px; color: hsl(var(--foreground)); }
 .take-order-catalog-selection-row > button:hover, .take-order-catalog-selection-row > button:focus-visible { background: hsl(var(--muted)); color: hsl(var(--destructive)); }
+.take-order-item-mark { overflow: hidden; }
+.take-order-item-mark img, .take-order-custom-order-mark img { display: block; height: 100%; width: 100%; object-fit: cover; }
 .take-order-catalog-selection-empty { border: 1px dashed hsl(var(--border)); border-radius: 9px; padding: .8rem .6rem; color: hsl(var(--muted-foreground)); font-size: .62rem; line-height: 1.4; text-align: center; }
 .take-order-catalog-selection .take-order-feedback { margin: .75rem 0 0; }
 .take-order-review-checkout-card, .take-order-payment-checkout-card { position: static; width: 100%; max-width: none; margin-bottom: 1.2rem; border: 0; border-radius: 0; background: transparent; padding: 0; box-shadow: none; }
@@ -3130,6 +3134,8 @@ button[data-testid^="button-filter-"]:focus-visible {
 .take-order-checkout-summary-items span, .take-order-checkout-summary-items strong { font-size: .73rem; }
 .take-order-checkout-summary-items span { color: hsl(var(--background) / .9); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .take-order-checkout-summary-items strong { font-family: var(--app-font-mono); white-space: nowrap; }
+.take-order-summary-item-copy { display: inline-flex; min-width: 0; align-items: center; gap: .5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.take-order-summary-item-copy img { height: 1.8rem; width: 1.8rem; flex: 0 0 1.8rem; border-radius: 6px; object-fit: cover; background: hsl(var(--muted)); }
 .take-order-checkout-summary-divider { height: 1px; margin: 1.35rem 0 1.1rem; background: hsl(var(--background) / .18); }
 .take-order-checkout-summary-line { margin-top: .95rem; color: hsl(var(--background) / .62); font-size: .68rem; }
 .take-order-checkout-summary-line strong { color: hsl(var(--background) / .86); font-family: var(--app-font-mono); font-size: .68rem; text-align: right; }

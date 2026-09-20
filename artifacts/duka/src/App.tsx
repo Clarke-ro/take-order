@@ -343,6 +343,19 @@ const getPreferenceStorage = (): Storage | null => {
   try { return window.localStorage; } catch { return null; }
 };
 
+type CatalogView = 'grid' | 'list';
+const CATALOG_VIEW_KEY = 'duka-catalog-view';
+const readCatalogView = (storage: Pick<Storage, 'getItem'> | null = getPreferenceStorage()): CatalogView => {
+  try {
+    return storage?.getItem(CATALOG_VIEW_KEY) === 'list' ? 'list' : 'grid';
+  } catch {
+    return 'grid';
+  }
+};
+const writeCatalogView = (view: CatalogView, storage: Pick<Storage, 'setItem'> | null = getPreferenceStorage()) => {
+  try { storage?.setItem(CATALOG_VIEW_KEY, view); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+};
+
 const dashboardPeriods = new Set<DashboardPeriod>(['day', 'week', 'month', 'year', 'custom']);
 const normalizeConnectedTools = (tools: readonly string[]) =>
   [...new Set(tools.filter((tool) => connectedToolNames.has(tool)))];
@@ -1589,7 +1602,7 @@ function CatalogGridCard({ product, animationDelay, onEdit, onDelete, deleteDisa
 }) {
   return <div className="catalog-grid-card rise-in" style={{ animationDelay }} data-testid={`card-product-${product.id}`} role="listitem">
     <div className="catalog-grid-image">
-      <img src={product.imageUrl ?? productImageFor(product.name)} alt={product.name} />
+      <img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt={product.name} />
       <div className="catalog-grid-actions"><CatalogActions productId={product.id} productName={product.name} onEdit={onEdit} onDelete={onDelete} deleteDisabled={deleteDisabled} /></div>
     </div>
     <div className="catalog-grid-details">
@@ -1605,7 +1618,7 @@ function Catalog() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
-  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [view, setView] = useState<CatalogView>(readCatalogView);
   const [actionError, setActionError] = useState('');
   const allProducts = query.data ?? [];
   const products = useMemo(() => allProducts.filter((product) => {
@@ -1629,6 +1642,7 @@ function Catalog() {
   const inventoryValue = catalogValue(query.data ?? []);
   const lowStock = (query.data ?? []).filter((product) => product.stock < 5).length;
   const categories = new Set((query.data ?? []).map((product) => product.category)).size;
+   useEffect(() => { writeCatalogView(view); }, [view]);
    return <Shell>
       <PageHeading title="Catalog" description="Keep the products, prices, stock, and buyer choices you reuse most in one place." action={<Button onClick={() => setLocation('/catalog/new')} data-testid="button-new-product"><Plus size={16} />Add item</Button>} />
     <section className="catalog-summary" aria-label="Catalog summary">
@@ -1651,8 +1665,8 @@ function Catalog() {
          {view === 'list' && <div className="catalog-list-head" aria-hidden="true"><span>Product</span><span>Options</span><span>Price / cost</span><span>Stock</span><span /></div>}
           {products.map((product, index) => view === 'grid'
             ? <CatalogGridCard key={product.id} product={product} animationDelay={`${index * 50}ms`} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
-            : <div key={product.id} className="catalog-product-row rise-in" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
-              <div className="catalog-product-main"><div className="catalog-product-mark" style={{ backgroundColor: `${product.accent}42` }}>{initials(product.name)}</div><div className="min-w-0"><h3 className="truncate font-display text-base font-bold tracking-[-.025em]">{product.name}</h3><div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
+             : <div key={product.id} className="catalog-product-row rise-in" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
+               <div className="catalog-product-main"><div className="catalog-product-thumb"><img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt="" /></div><div className="min-w-0"><h3 className="truncate font-display text-base font-bold tracking-[-.025em]">{product.name}</h3><div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
               <div className="catalog-variants">{product.preferences.length ? product.preferences.map((preference) => `${preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
               <div className="catalog-number"><span className="catalog-mobile-label">Price</span><strong>{moneyExact(product.price)}</strong><small>{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
               <div className="catalog-stock"><span className="catalog-mobile-label">Stock</span><strong className={cn(product.stock < 5 && 'is-alert')}>{product.stock}</strong><span className={cn('catalog-stock-status', product.stock < 5 ? 'is-alert' : 'is-good')}>{product.stock === 0 ? 'Out of stock' : product.stock < 5 ? 'Running low' : 'In stock'}</span></div>
@@ -1987,6 +2001,13 @@ type DraftOrderItem = {
   variants: string[];
   preferences: ProductPreferenceGroup[];
   accent: string;
+  imageUrl?: string;
+  imageUrls?: string[];
+  description?: string | null;
+  sku?: string | null;
+  compareAtPrice?: number | null;
+  stock?: number;
+  available?: boolean;
 };
 
 const takeOrderStepMeta: Array<{ step: TakeOrderStep; label: string; detail: string }> = [
@@ -2059,7 +2080,7 @@ function TakeOrderCheckoutCard({ items, total, feedback, onRemove, onOneOff, but
     <div className="take-order-section-eyebrow">Client checkout</div>
     <div className="take-order-catalog-selection-heading"><h2>{items.length ? `${items.length} items selected` : 'No items selected'}</h2>{items.length > 0 && <strong>{moneyExact(total)}</strong>}</div>
     <div className="take-order-catalog-selection-list">
-      {items.length ? items.map((item) => <div key={item.key} className="take-order-catalog-selection-row"><div className="take-order-item-mark" style={{ color: item.accent }}><Package size={15} /></div><span>{item.name}</span><b>{moneyExact(item.amount)}</b><button type="button" aria-label={`Remove ${item.name}`} onClick={() => onRemove(item.key)}><X size={14} /></button></div>) : <div className="take-order-catalog-selection-empty">Your selected products will appear here.</div>}
+       {items.length ? items.map((item) => <div key={item.key} className="take-order-catalog-selection-row"><div className="take-order-item-mark"><img src={item.imageUrls?.[0] ?? item.imageUrl ?? productImageFor(item.name)} alt="" /></div><span>{item.name}</span><b>{moneyExact(item.amount)}</b><button type="button" aria-label={`Remove ${item.name}`} onClick={() => onRemove(item.key)}><X size={14} /></button></div>) : <div className="take-order-catalog-selection-empty">Your selected products will appear here.</div>}
     </div>
     {showPayableTotal && <div className="take-order-checkout-payable"><span>Total payable amount</span><strong>{moneyExact(total)}</strong></div>}
     {feedback && <TakeOrderFeedback message={feedback} />}
@@ -2072,8 +2093,8 @@ function TakeOrderCustomOrderPanel({ items, total, canContinue, busy, onRemove, 
     <div className="take-order-custom-order-body">
       <div className="take-order-custom-order-label">This order</div>
       {items.length ? <div className="take-order-custom-order-items">
-        {items.map((item) => <div key={item.key} className="take-order-custom-order-row">
-          <div className="take-order-custom-order-mark" style={{ color: item.accent }}><Package size={16} /></div>
+         {items.map((item) => <div key={item.key} className="take-order-custom-order-row">
+           <div className="take-order-custom-order-mark"><img src={item.imageUrls?.[0] ?? item.imageUrl ?? productImageFor(item.name)} alt="" /></div>
           <div className="take-order-custom-order-copy"><strong>{item.name}</strong><span>{item.preferences.length ? `${item.preferences.length} option group${item.preferences.length === 1 ? '' : 's'}` : 'Custom item'}</span></div>
           <div className="take-order-custom-order-price"><span>{currencySymbol()}</span><input aria-label={`Price for ${item.name}`} type="number" min="0" step=".01" value={item.amount} onChange={(event) => onUpdateAmount(item.key, event.target.value)} /></div>
           <button type="button" aria-label={`Remove ${item.name}`} onClick={() => onRemove(item.key)}><X size={14} /></button>
@@ -2101,7 +2122,7 @@ function TakeOrderCheckoutSummary({ items, total, paymentMode, deposit }: { item
       <div className="take-order-checkout-summary-heading"><ShoppingBag size={22} /><div><strong>Basket</strong><span>Order summary</span></div></div>
       <div className="take-order-checkout-summary-section">
         <div className="take-order-checkout-summary-label">Items</div>
-        <div className="take-order-checkout-summary-items">{items.map((item) => <div key={item.key}><span>{item.name} × 1</span><strong>{moneyExact(item.amount)}</strong></div>)}</div>
+         <div className="take-order-checkout-summary-items">{items.map((item) => <div key={item.key}><span className="take-order-summary-item-copy"><img src={item.imageUrls?.[0] ?? item.imageUrl ?? productImageFor(item.name)} alt="" />{item.name} × 1</span><strong>{moneyExact(item.amount)}</strong></div>)}</div>
       </div>
       <div className="take-order-checkout-summary-divider" />
       <div className="take-order-checkout-summary-line"><span>Subtotal</span><strong>{moneyExact(total)}</strong></div>
@@ -2207,7 +2228,7 @@ function MultiItemTakeOrderModern() {
     setItems((current) => {
       const existing = current.some((item) => item.productId === product.id);
       if (existing) return current.filter((item) => item.productId !== product.id);
-      return [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, preferences: product.preferences, accent: product.accent }];
+       return [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, preferences: product.preferences, accent: product.accent, imageUrl: product.imageUrl ?? undefined, imageUrls: product.imageUrls, description: product.description, sku: product.sku, compareAtPrice: product.compareAtPrice, stock: product.stock, available: product.stock > 0 }];
     });
     setNextKey((current) => current + 1);
     setFeedback(null);
@@ -2470,7 +2491,7 @@ function MultiItemTakeOrder() {
   const [copied, setCopied] = useState(false);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
   const previewItems: BuyerOrderItem[] = items.length
-    ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants, preferences: item.preferences, source: item.source }))
+     ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants, preferences: item.preferences, imageUrl: item.imageUrl, imageUrls: item.imageUrls, description: item.description, sku: item.sku, compareAtPrice: item.compareAtPrice, stock: item.stock, available: item.available, source: item.source }))
     : [{ productId: 0, productName: 'Your item', amount: 0, variants: [], preferences: [], source: 'catalog' }];
   const busy = createOrder.isPending || createProduct.isPending;
   const canContinue = step === 1
@@ -2480,7 +2501,7 @@ function MultiItemTakeOrder() {
   const addCatalogItem = () => {
     const product = (productsQuery.data ?? []).find((item) => item.id === Number(catalogChoice));
     if (!product) return;
-    setItems((current) => [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, preferences: product.preferences, accent: product.accent }]);
+     setItems((current) => [...current, { key: nextKey, source: 'catalog', productId: product.id, name: product.name, amount: product.price, variants: product.variants, preferences: product.preferences, accent: product.accent, imageUrl: product.imageUrl ?? undefined, imageUrls: product.imageUrls, description: product.description, sku: product.sku, compareAtPrice: product.compareAtPrice, stock: product.stock, available: product.stock > 0 }]);
     setNextKey((current) => current + 1);
     setCatalogChoice('');
   };
