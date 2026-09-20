@@ -554,7 +554,7 @@ components:
         compareAtPrice: { type: ["number", "null"] }
         imageUrls:
           type: array
-          items: { type: string, format: uri }
+          items: { type: string, maxLength: 4000000, pattern: "^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)" }
         stock: { type: integer, minimum: 0 }
         available: { type: boolean }
     PublicOrderItemDetails:

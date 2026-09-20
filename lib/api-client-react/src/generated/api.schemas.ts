@@ -526,6 +526,10 @@ export interface PublicOrderItem {
   description: string | null;
   /** @nullable */
   compareAtPrice: number | null;
+  /**
+     * @items.maxLength 4000000
+     * @items.pattern ^(https?:\/\/|data:image\/(png|jpeg|webp|gif);base64,)
+     */
   imageUrls: string[];
   /** @minimum 0 */
   stock: number;

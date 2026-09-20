@@ -457,6 +457,10 @@ export const GetPublicOrderParams = zod.object({
 
 
 
+export const getPublicOrderResponseItemsItemImageUrlsItemMax = 4000000;
+
+
+export const getPublicOrderResponseItemsItemImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
 export const getPublicOrderResponseItemsItemStockMin = 0;
 
 
@@ -493,7 +497,7 @@ export const GetPublicOrderResponse = zod.object({
   "sku": zod.string().nullable(),
   "description": zod.string().nullable(),
   "compareAtPrice": zod.number().nullable(),
-  "imageUrls": zod.array(zod.string().url()),
+  "imageUrls": zod.array(zod.string().max(getPublicOrderResponseItemsItemImageUrlsItemMax).regex(getPublicOrderResponseItemsItemImageUrlsItemRegExp)),
   "stock": zod.number().int().min(getPublicOrderResponseItemsItemStockMin),
   "available": zod.boolean()
 }))
