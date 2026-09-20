@@ -2112,6 +2112,33 @@ function TakeOrderCheckoutSummary({ items, total, paymentMode, deposit }: { item
   </aside>;
 }
 
+function TakeOrderBuyerPreviewForm({ item, items, paymentMode, total, deposit }: { item: BuyerOrderItem; items: BuyerOrderItem[]; paymentMode: 'full' | 'deposit' | 'reserve'; total: number; deposit: number }) {
+  const previewForm: BuyerOrderFormValues = { name: '', phone: '', deliveryMethod: 'pickup', address: '', orderDetails: '' };
+  const previewItemForm = emptyBuyerItemForm();
+  return <BuyerOrderForm
+    paymentMode={paymentMode}
+    amount={total}
+    depositAmount={paymentMode === 'deposit' ? deposit : null}
+    item={item}
+    itemIndex={0}
+    itemCount={items.length}
+    items={items}
+    itemForm={previewItemForm}
+    form={previewForm}
+    mockPayment={{ cardNumber: '', expiry: '', cvc: '' }}
+    showMockPayment={false}
+    submitPending={false}
+    onSubmit={(event) => event.preventDefault()}
+    onChange={() => undefined}
+    onItemChange={() => undefined}
+    onQuantityChange={() => undefined}
+    onPreferenceChange={() => undefined}
+    onMockPaymentChange={() => undefined}
+    onReferenceImageChange={() => undefined}
+    onPaymentAction={() => undefined}
+  />;
+}
+
 function MultiItemTakeOrderModern() {
   const productsQuery = useListProducts();
   const settingsQuery = useGetSellerSettings();
@@ -2419,7 +2446,7 @@ function MultiItemTakeOrderModern() {
           </form>
          </div>
           {showPreview && <aside className="take-order-preview-column">
-           <div className="take-order-preview-frame"><BuyerOrderSurface businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'} description={settingsQuery.data?.description || seller?.description} logoDataUrl={settingsQuery.data?.logoDataUrl} items={previewItems} paymentMode={paymentMode} depositAmount={paymentMode === 'deposit' ? deposit : null}>{(activeItem) => <div className="space-y-5"><div><label className="field-label">Your name</label><input disabled placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input disabled placeholder="Best number to reach you" className="field-input" /></div>{activeItem.preferences.length > 0 && <div><label className="field-label">Choose your options</label><div className="space-y-3">{activeItem.preferences.map((preference) => <div key={preference.label}><span className="text-xs font-semibold">{preference.label}</span><div className="mt-2 flex flex-wrap gap-2">{preference.options.map((option) => <span key={option} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{option}</span>)}</div></div>)}</div></div>}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea disabled placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>{paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] p-3 text-left text-xs font-bold text-white">{paymentMode === 'deposit' ? `Pay deposit · ${depositAmount ? moneyExact(deposit) : '—'}` : `Pay ${moneyExact(total)}`}</div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 text-left text-xs font-bold">Reserve for later</div></div>}<button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-70">{paymentMode === 'reserve' ? 'Reserve these items' : 'Continue to mock payment'} <ArrowUpRight size={15} /></button></div>}</BuyerOrderSurface></div>
+           <div className="take-order-preview-frame"><BuyerOrderSurface businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'} description={settingsQuery.data?.description || seller?.description} logoDataUrl={settingsQuery.data?.logoDataUrl} items={previewItems} paymentMode={paymentMode} depositAmount={paymentMode === 'deposit' ? deposit : null}>{(activeItem) => <TakeOrderBuyerPreviewForm item={activeItem} items={previewItems} paymentMode={paymentMode} total={total} deposit={deposit} />}</BuyerOrderSurface></div>
           </aside>}
       </div>
     </div>
