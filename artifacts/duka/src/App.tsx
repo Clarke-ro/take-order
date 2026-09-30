@@ -2,7 +2,6 @@ import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'rea
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Redirect, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import { ClerkProvider, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
-import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import {
   AlertCircle, AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
@@ -97,8 +96,8 @@ const runtimeEnv = (import.meta as ImportMeta & { env?: Record<string, string | 
 const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
 const browserHostname = typeof window === 'undefined' ? 'localhost' : window.location.hostname;
 const browserOrigin = typeof window === 'undefined' ? '' : window.location.origin;
-const rawClerkKey = runtimeEnv.VITE_CLERK_PUBLISHABLE_KEY || runtimeEnv.CLERK_PUBLISHABLE_KEY || '';
-const clerkPubKey = rawClerkKey ? publishableKeyFromHost(browserHostname, rawClerkKey) : '';
+const rawClerkKey = (runtimeEnv.VITE_CLERK_PUBLISHABLE_KEY || runtimeEnv.CLERK_PUBLISHABLE_KEY || '').trim();
+const clerkPubKey = rawClerkKey;
 const clerkProxyUrl = runtimeEnv.VITE_CLERK_PROXY_URL || runtimeEnv.CLERK_PROXY_URL || '';
 
 type PaywallContextValue = {
