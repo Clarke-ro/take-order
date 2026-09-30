@@ -29,6 +29,7 @@ import NotFound from '@/pages/not-found';
 import { TermsPage } from '@/pages/terms';
 import { PrivacyPage } from '@/pages/privacy';
 import { RefundPolicyPage } from '@/pages/refund-policy';
+import { LandingPage } from '@/pages/landing';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -2483,10 +2484,6 @@ function SignUpPage() {
       )}
     </AuthSplitLayout>
   );
-}
-
-function LandingPage() {
-  return <SignInPage />;
 }
 
 function SellerRoute({ children }: { children: ReactNode }) {
