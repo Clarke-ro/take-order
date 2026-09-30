@@ -17,6 +17,9 @@ export default defineConfig({
     'import.meta.env.VITE_RC_API_KEY': JSON.stringify(
       process.env.VITE_RC_API_KEY || process.env.RC_API_KEY || process.env.REVENUECAT_API_KEY || 'pdl_vcGFFumhSZjAmNqTiDIbNlenSEvU'
     ),
+    'import.meta.env.VITE_CLERK_PUBLISHABLE_KEY': JSON.stringify(
+      process.env.VITE_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY || 'pk_live_Y2xlcmsudXNldGFrZW9yZGVyLmFwcCQ'
+    ),
   },
   plugins: [
     react(),
