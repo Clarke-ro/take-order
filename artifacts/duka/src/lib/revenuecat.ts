@@ -17,8 +17,10 @@ export const REVENUECAT_API_KEY =
   runtimeEnv.REVENUECAT_API_KEY ||
   'pdl_vcGFFumhSZjAmNqTiDIbNlenSEvU';
 
-export const PRO_ENTITLEMENT_ID = 'take_order_app_pro';
-export const PRO_PLUS_ENTITLEMENT_ID = 'take_order_app_pro_plus';
+export const PRO_ENTITLEMENT_ID =
+  runtimeEnv.VITE_RC_ENTITLEMENT_PRO || 'take_order_app_pro';
+export const PRO_PLUS_ENTITLEMENT_ID =
+  runtimeEnv.VITE_RC_ENTITLEMENT_PRO_PLUS || 'take_order_app_pro_plus';
 
 export const PACKAGE_ID_PRO_MONTHLY = '$rc_monthly';
 export const PACKAGE_ID_PRO_ANNUAL = '$rc_annual';
