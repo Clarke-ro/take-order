@@ -28,6 +28,16 @@ export function createApp(database: typeof db, options: { authMiddleware?: expre
   // Trust first proxy hop (Heroku reverse proxy routing layer)
   app.set("trust proxy", 1);
 
+  // Root index endpoint
+  app.get("/", (_req, res) => {
+    res.status(200).json({
+      status: "ok",
+      service: "Take Order API",
+      health: "/health",
+      version: "1.0.0",
+    });
+  });
+
   // Platform health check (returns 200 without auth, leaking zero secrets or db details)
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
