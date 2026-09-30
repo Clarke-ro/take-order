@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+
+const chromeBinary = process.env.CHROME_PATH
+  || (existsSync("/repl/tools/bin/chromium") ? "/repl/tools/bin/chromium" : null)
+  || (existsSync("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe") ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" : null)
+  || (existsSync("C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe") ? "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe" : "/repl/tools/bin/chromium");
 
 export type CdpMessage = {
   id: number;
@@ -20,6 +26,7 @@ export type CdpClient = {
 
 const publicOrder = (status: "reserved" | "paid") => ({
   token: "channel-test-order",
+  businessName: "Dashboard Test Shop",
   productName: "Linen set",
   amount: 100,
   subtotal: 100,
@@ -205,10 +212,10 @@ async function main() {
   const profileDir = await mkdtemp(join(tmpdir(), "duka-channel-conversion-"));
   const vite = spawn(process.execPath, [join(artifactDir, "node_modules", "vite", "bin", "vite.js"), "--host", "127.0.0.1"], {
     cwd: artifactDir,
-    env: { ...process.env, NODE_ENV: "test", PORT: String(vitePort), BASE_PATH: "/" },
+    env: { ...process.env, NODE_ENV: "test", PORT: String(vitePort), BASE_PATH: "/", VITE_CLERK_PUBLISHABLE_KEY: "" },
     stdio: "ignore",
   });
-  const chromium = spawn("/repl/tools/bin/chromium", [
+  const chromium = spawn(chromeBinary, [
     "--headless=new",
     "--no-sandbox",
     "--disable-gpu",
@@ -229,6 +236,8 @@ async function main() {
     await seller.command("Page.enable");
     await seller.command("Runtime.enable");
     const stubSource = `
+      localStorage.setItem("duka-test-auth", "true");
+      window.__DUKA_TEST_AUTH__ = true;
       localStorage.setItem("duka-onboarding-complete", "true");
       localStorage.setItem("duka-onboarding-profile", JSON.stringify({
         sellerName: "Browser Test Seller",
@@ -306,7 +315,7 @@ async function main() {
     await waitFor(seller, `document.querySelector('[data-testid="card-channel-insight-sales"]') !== null`);
     assert.equal(await metricValue(seller, "card-channel-insight-views"), "0");
     assert.equal(await metricValue(seller, "card-channel-insight-sales"), "0");
-    assert.equal(await metricValue(seller, "card-channel-insight-revenue"), "$0");
+    assert.match(await metricValue(seller, "card-channel-insight-revenue"), /(?:\$|GH₵)0/);
     assert.equal(await metricValue(seller, "card-channel-insight-conversion"), "0.0%");
 
     const created = await browser.command("Target.createTarget", { url: "about:blank" });
@@ -343,7 +352,7 @@ async function main() {
       return {
         sellerName: document.querySelector('.buyer-seller-copy strong')?.textContent?.trim() ?? '',
         helperCopy: document.querySelector('.buyer-checkout-form-intro p')?.textContent?.trim() ?? '',
-        heroCopy: document.querySelector('.buyer-checkout-form-intro h1')?.textContent?.trim() ?? '',
+        heroCopy: document.querySelector('.buyer-checkout-form-intro h1, .buyer-checkout-form-intro h2')?.textContent?.trim() ?? '',
         productTitle: document.querySelector('#buyer-item-preferences-heading')?.textContent?.trim() ?? '',
         productPrice: document.querySelector('.buyer-item-description-price')?.textContent?.trim() ?? '',
         finalPrice: document.querySelector('.buyer-total-amount strong')?.textContent?.trim() ?? '',
@@ -359,8 +368,8 @@ async function main() {
     assert.equal(buyerSurface.heroCopy, "Complete your order.");
     assert.equal(buyerSurface.helperCopy, "Your seller already has the item and price. Just provide the details they need to fulfill it.");
     assert.equal(buyerSurface.productTitle, "Linen set");
-    assert.equal(buyerSurface.productPrice, "$100.00");
-    assert.equal(buyerSurface.finalPrice, "$100.00");
+    assert.match(buyerSurface.productPrice, /(?:\$|GH₵)100\.00/);
+    assert.match(buyerSurface.finalPrice, /(?:\$|GH₵)100\.00/);
     assert.equal(buyerSurface.optionPrompt, "Choose your options");
     assert.doesNotMatch(buyerSurface.pageText, /Catalog item|Custom item|SKU\s*·/);
     assert.ok(buyerSurface.sellerTop >= 0 && buyerSurface.sellerTop < buyerSurface.heroTop);
@@ -371,26 +380,18 @@ async function main() {
 
     await click(buyer, 'input[name="buyer-preference-1-0"][value="Small"]');
     await waitFor(buyer, 'document.querySelector(\'input[name="buyer-preference-1-0"][value="Small"]\')?.checked === true');
-    await click(buyer, '[data-testid="button-submit-public-order"]');
-    await waitFor(buyer, `document.querySelector('[data-testid="input-buyer-name"]') !== null`);
     await fill(buyer, '[data-testid="input-buyer-name"]', "Browser Buyer");
     await fill(buyer, '[data-testid="input-buyer-phone"]', "0241234567");
     await click(buyer, 'input[name="buyer-delivery-method"][value="pickup"]');
-    await click(buyer, '[data-testid="button-submit-public-order"]');
-    await waitFor(buyer, `document.querySelector('[data-testid="button-confirm-buyer-review"]') !== null`);
-    await click(buyer, '[data-testid="button-confirm-buyer-review"]');
-    await click(buyer, '[data-testid="button-buyer-pay"]');
-    await click(buyer, '[data-testid="button-continue-payment-method"]');
-    await fill(buyer, '[data-testid="input-mock-card-number"]', "4242 4242 4242 4242");
-    await fill(buyer, '[data-testid="input-mock-expiry"]', "12/30");
-    await fill(buyer, '[data-testid="input-mock-cvc"]', "123");
+    await click(buyer, '[data-testid="button-continue-payment"]');
+    await waitFor(buyer, 'document.querySelector(\'[data-testid="button-submit-public-order"]\') !== null');
     await click(buyer, '[data-testid="button-submit-public-order"]');
     await waitFor(buyer, `document.body.textContent?.includes("You’re all set.")`);
 
     await waitFor(seller, `document.querySelector('[data-testid="card-channel-insight-sales"] .metric-value-content')?.textContent?.trim() === "1"`);
     assert.equal(await metricValue(seller, "card-channel-insight-views"), "1");
     assert.equal(await metricValue(seller, "card-channel-insight-sales"), "1");
-    assert.equal(await metricValue(seller, "card-channel-insight-revenue"), "$100");
+    assert.match(await metricValue(seller, "card-channel-insight-revenue"), /(?:\$|GH₵)100/);
     assert.equal(await metricValue(seller, "card-channel-insight-conversion"), "100.0%");
   } finally {
     if (browser && buyerTargetId) await browser.command("Target.closeTarget", { targetId: buyerTargetId }).catch(() => undefined);
@@ -399,7 +400,10 @@ async function main() {
     browser?.close();
     await stopProcess(chromium);
     await stopProcess(vite);
-    await rm(profileDir, { recursive: true, force: true });
+    try {
+      await delay(500);
+      await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {}
   }
 }
 

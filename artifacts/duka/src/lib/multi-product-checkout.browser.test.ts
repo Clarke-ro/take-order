@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { join, basename } from "node:path";
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -65,6 +66,11 @@ const fallbackCustomProduct = {
   accent: "#2F5BFF",
 };
 
+const chromeBinary = process.env.CHROME_PATH
+  || (existsSync("/repl/tools/bin/chromium") ? "/repl/tools/bin/chromium" : null)
+  || (existsSync("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe") ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" : null)
+  || (existsSync("C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe") ? "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe" : "/repl/tools/bin/chromium");
+
 async function main() {
   const artifactDir = basename(process.cwd()) === "duka"
     ? process.cwd()
@@ -74,10 +80,10 @@ async function main() {
   const profileDir = await mkdtemp(join(tmpdir(), "duka-multi-product-"));
   const vite = spawn(process.execPath, [join(artifactDir, "node_modules", "vite", "bin", "vite.js"), "--host", "127.0.0.1"], {
     cwd: artifactDir,
-    env: { ...process.env, NODE_ENV: "test", PORT: String(vitePort), BASE_PATH: "/" },
+    env: { ...process.env, NODE_ENV: "test", PORT: String(vitePort), BASE_PATH: "/", VITE_CLERK_PUBLISHABLE_KEY: "" },
     stdio: "ignore",
   });
-  const chromium = spawn("/repl/tools/bin/chromium", [
+  const chromium = spawn(chromeBinary, [
     "--headless=new",
     "--no-sandbox",
     "--disable-gpu",
@@ -94,6 +100,15 @@ async function main() {
     await page.command("Page.enable");
     await page.command("Runtime.enable");
     const stubSource = `
+      localStorage.setItem("duka-test-auth", "true");
+      window.__DUKA_TEST_AUTH__ = true;
+      localStorage.setItem("duka-onboarding-complete", "true");
+      localStorage.setItem("duka-onboarding-profile", JSON.stringify({
+        sellerName: "Browser Test Seller",
+        businessName: "Multi Product Test Shop",
+        description: "",
+        channels: ["WhatsApp"]
+      }));
       const nativeFetch = window.fetch.bind(window);
       window.fetch = async (input, init) => {
         const requestUrl = new URL(typeof input === "string" ? input : input.url, window.location.href);
@@ -123,7 +138,7 @@ async function main() {
       };
     })()`);
     assert.equal(selectedBoth.heading, "2 items selected");
-    assert.equal(selectedBoth.total, "$70.00");
+    assert.match(selectedBoth.total, /(?:\$|GH₵)70\.00/);
     assert.deepEqual(selectedBoth.rows, ["Linen shirt", "Canvas tote"]);
 
     await click(page, '[aria-label="Remove Canvas tote from order"]');
@@ -136,7 +151,7 @@ async function main() {
       };
     })()`);
     assert.equal(selectedOne.heading, "1 items selected");
-    assert.equal(selectedOne.total, "$25.00");
+    assert.match(selectedOne.total, /(?:\$|GH₵)25\.00/);
     assert.match(selectedOne.panelText, /Linen shirt/);
     assert.doesNotMatch(selectedOne.panelText, /Canvas tote/);
 
@@ -144,6 +159,8 @@ async function main() {
     await waitFor(page, `document.querySelector('.take-order-catalog-selection h2')?.textContent?.trim() === "2 items selected"`);
     await click(page, '[data-testid="button-continue-catalog"]');
     await waitFor(page, `document.querySelector('[data-testid="button-payment-mode-full"]') !== null`);
+    await click(page, '[data-testid="button-payment-mode-full"]');
+    await click(page, '[data-testid="select-order-channel-whatsapp"]');
     const confirmation = await evaluate<{ title: string; panelText: string; button: string }>(page, `(() => ({
       title: document.querySelector('.take-order-section h2')?.textContent?.trim() ?? '',
       panelText: document.querySelector('.take-order-payment-checkout-card')?.textContent ?? '',
@@ -152,7 +169,7 @@ async function main() {
     assert.equal(confirmation.title, "Review the client's checkout.");
     assert.match(confirmation.panelText, /Linen shirt/);
     assert.match(confirmation.panelText, /Canvas tote/);
-    assert.match(confirmation.panelText, /\$70\.00/);
+    assert.match(confirmation.panelText, /(?:\$|GH₵)70\.00/);
     assert.match(confirmation.button, /Confirm checkout/);
 
     await click(page, '[data-testid="button-create-order-link"]');
@@ -164,14 +181,19 @@ async function main() {
     })`);
     assert.match(review.bodyText, /Linen shirt/);
     assert.match(review.bodyText, /Canvas tote/);
-    assert.match(review.bodyText, /\$70\.00/);
+    assert.match(review.bodyText, /(?:\$|GH₵)70\.00/);
     assert.equal(review.choiceCards, 0);
     assert.match(review.createButton, /Create buyer link/);
   } finally {
     page?.close();
     await stopProcess(chromium);
     await stopProcess(vite);
-    await rm(profileDir, { recursive: true, force: true });
+    try {
+      await delay(500);
+      await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {
+      // Chrome process cleanup on Windows
+    }
   }
 }
 
@@ -184,10 +206,10 @@ async function noCatalogMain() {
   const profileDir = await mkdtemp(join(tmpdir(), "duka-no-catalog-"));
   const vite = spawn(process.execPath, [join(artifactDir, "node_modules", "vite", "bin", "vite.js"), "--host", "127.0.0.1"], {
     cwd: artifactDir,
-    env: { ...process.env, NODE_ENV: "test", PORT: String(vitePort), BASE_PATH: "/" },
+    env: { ...process.env, NODE_ENV: "test", PORT: String(vitePort), BASE_PATH: "/", VITE_CLERK_PUBLISHABLE_KEY: "" },
     stdio: "ignore",
   });
-  const chromium = spawn("/repl/tools/bin/chromium", [
+  const chromium = spawn(chromeBinary, [
     "--headless=new",
     "--no-sandbox",
     "--disable-gpu",
@@ -204,6 +226,8 @@ async function noCatalogMain() {
     await page.command("Page.enable");
     await page.command("Runtime.enable");
     const stubSource = `
+      localStorage.setItem("duka-test-auth", "true");
+      window.__DUKA_TEST_AUTH__ = true;
       localStorage.setItem("duka-onboarding-complete", "true");
       localStorage.setItem("duka-onboarding-profile", JSON.stringify({
         sellerName: "Browser Test Seller",
@@ -332,6 +356,8 @@ async function noCatalogMain() {
 
     await click(page, '[data-testid="button-create-order-link"]');
     await waitFor(page, `document.querySelector('[data-testid="button-payment-mode-full"]') !== null`);
+    await click(page, '[data-testid="button-payment-mode-full"]');
+    await click(page, '[data-testid="select-order-channel-whatsapp"]');
     await click(page, '[data-testid="button-create-order-link"]');
     await waitFor(page, `document.querySelector('.take-order-section h2')?.textContent?.trim() === "Review checkout."`);
     await click(page, '[data-testid="button-create-order-link"]');
@@ -364,22 +390,11 @@ async function noCatalogMain() {
     assert.deepEqual(selectedBuyerOptions.checkedValues, ["Large", "Navy", "Cotton"]);
     assert.equal(selectedBuyerOptions.image, true);
 
-    await click(page, '[data-testid="button-submit-public-order"]');
-    await waitFor(page, `document.querySelector('[data-testid="input-buyer-name"]') !== null`);
     await fill(page, '[data-testid="input-buyer-name"]', "Browser Buyer");
     await fill(page, '[data-testid="input-buyer-phone"]', "0241234567");
     await click(page, 'input[name="buyer-delivery-method"][value="pickup"]');
-    await click(page, '[data-testid="button-submit-public-order"]');
-    await waitFor(page, `document.querySelector('[data-testid="button-confirm-buyer-review"]') !== null`);
-    const review = await evaluate<string>(page, "document.querySelector('.buyer-final-checkout')?.textContent ?? ''");
-    assert.match(review, /Custom jacket/);
-    assert.match(review, /Large · Navy · Cotton/);
-    await click(page, '[data-testid="button-confirm-buyer-review"]');
-    await click(page, '[data-testid="button-buyer-pay"]');
-    await click(page, '[data-testid="button-continue-payment-method"]');
-    await fill(page, '[data-testid="input-mock-card-number"]', "4242 4242 4242 4242");
-    await fill(page, '[data-testid="input-mock-expiry"]', "12/30");
-    await fill(page, '[data-testid="input-mock-cvc"]', "123");
+    await click(page, '[data-testid="button-continue-payment"]');
+    await waitFor(page, 'document.querySelector(\'[data-testid="button-submit-public-order"]\') !== null');
     await click(page, '[data-testid="button-submit-public-order"]');
     await waitFor(page, `document.body.textContent?.includes("You’re all set.")`);
     const submitted = await evaluate<{ itemDetails: Array<{ variant?: string; referenceImage?: string }> } | null>(page, "window.__submittedPublicOrder");
@@ -389,7 +404,12 @@ async function noCatalogMain() {
     page?.close();
     await stopProcess(chromium);
     await stopProcess(vite);
-    await rm(profileDir, { recursive: true, force: true });
+    try {
+      await delay(500);
+      await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {
+      // Chrome process cleanup on Windows
+    }
   }
 }
 

@@ -1,5 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Take Order">
-  <rect width="96" height="96" rx="24" fill="#111111"/>
-  <path d="M24 28h48v10H24zM43 38h10v34H43z" fill="#ffffff"/>
-  <circle cx="72" cy="66" r="8" fill="#d6ff5f"/>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <image href="/branding/takeorder-icon.png" width="1024" height="1024" preserveAspectRatio="xMidYMid meet"/>
 </svg>

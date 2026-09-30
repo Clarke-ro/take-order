@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
+
+const chromeBinary = process.env.CHROME_PATH
+  || (existsSync("/repl/tools/bin/chromium") ? "/repl/tools/bin/chromium" : null)
+  || (existsSync("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe") ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" : null)
+  || (existsSync("C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe") ? "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe" : "/repl/tools/bin/chromium");
 
 type CdpResponse = {
   id: number;
@@ -120,10 +126,10 @@ async function launchViteAndChromium({ production = false } = {}) {
     : [join(artifactDir, "node_modules", "vite", "bin", "vite.js"), "--host", "127.0.0.1"];
   const vite = spawn(process.execPath, viteArgs, {
     cwd: artifactDir,
-    env: { ...process.env, NODE_ENV: production ? "production" : "test", PORT: String(vitePort), BASE_PATH: "/" },
+    env: { ...process.env, NODE_ENV: production ? "production" : "test", PORT: String(vitePort), BASE_PATH: "/", VITE_CLERK_PUBLISHABLE_KEY: "" },
     stdio: "ignore",
   });
-  const chromium = spawn("/repl/tools/bin/chromium", [
+  const chromium = spawn(chromeBinary, [
     "--headless=new",
     "--no-sandbox",
     "--disable-gpu",
@@ -143,13 +149,19 @@ async function launchViteAndChromium({ production = false } = {}) {
         cdp.close();
         await stopProcess(chromium);
         await stopProcess(vite);
-        await rm(profileDir, { recursive: true, force: true });
+        try {
+          await delay(500);
+          await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+        } catch {}
       },
     };
   } catch (error) {
     await stopProcess(chromium);
     await stopProcess(vite);
-    await rm(profileDir, { recursive: true, force: true });
+    try {
+      await delay(500);
+      await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {}
     throw error;
   }
 }
@@ -205,6 +217,8 @@ async function main() {
     await app.cdp.command("Runtime.enable");
     await app.cdp.command("Page.addScriptToEvaluateOnNewDocument", {
       source: `
+        localStorage.setItem("duka-test-auth", "true");
+        window.__DUKA_TEST_AUTH__ = true;
         localStorage.setItem("duka-mock-authenticated", "true");
         localStorage.setItem("duka-onboarding-complete", "true");
         localStorage.setItem("duka-onboarding-profile", JSON.stringify({
@@ -272,6 +286,8 @@ async function blockedStorageMain() {
     await app.cdp.command("Runtime.enable");
     await app.cdp.command("Page.addScriptToEvaluateOnNewDocument", {
       source: `
+        localStorage.setItem("duka-test-auth", "true");
+        window.__DUKA_TEST_AUTH__ = true;
         localStorage.setItem("duka-mock-authenticated", "true");
         localStorage.setItem("duka-onboarding-complete", "true");
         localStorage.setItem("duka-onboarding-profile", JSON.stringify({
@@ -341,6 +357,8 @@ async function productionMain() {
     await app.cdp.command("Runtime.enable");
     await app.cdp.command("Page.addScriptToEvaluateOnNewDocument", {
       source: `
+        localStorage.setItem("duka-test-auth", "true");
+        window.__DUKA_TEST_AUTH__ = true;
         localStorage.setItem("duka-mock-authenticated", "true");
         localStorage.setItem("duka-onboarding-complete", "true");
         localStorage.setItem("duka-onboarding-profile", JSON.stringify({

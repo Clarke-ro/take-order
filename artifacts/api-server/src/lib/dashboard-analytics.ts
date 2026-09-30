@@ -183,10 +183,10 @@ export function calculateDashboardSummary(
       const count = paidOrders.filter(
         (item) => item.productId === order.productId,
       ).length;
-      return count > best.count ? { name: order.productName, count } : best;
+      return count > best.count ? { name: order.productName || "No sales yet", count } : best;
     },
     { name: "No sales yet", count: 0 },
-  ).name;
+  ).name || "No sales yet";
   const channelPerformance = Object.entries(channelLabels)
     .map(([channel, label]) => {
       const matching = scopedOrders.filter((order) => order.channel === channel);

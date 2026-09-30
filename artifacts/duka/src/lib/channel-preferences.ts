@@ -3,7 +3,6 @@ export const orderChannels = [
   { value: 'instagram', label: 'Instagram' },
   { value: 'tiktok', label: 'TikTok' },
   { value: 'snapchat', label: 'Snapchat' },
-  { value: 'in_person', label: 'In person' },
 ] as const;
 
 export const onboardingChannels = [

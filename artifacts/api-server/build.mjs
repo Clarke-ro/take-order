@@ -118,6 +118,15 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  const publicDir = path.resolve(artifactDir, "public");
+  const distPublicDir = path.resolve(distDir, "public");
+  try {
+    const { cp } = await import("node:fs/promises");
+    await cp(publicDir, distPublicDir, { recursive: true });
+  } catch (err) {
+    // public dir optional
+  }
 }
 
 buildAll().catch((err) => {

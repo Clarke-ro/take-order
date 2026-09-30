@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Response } from "express";
-import { asc, desc, eq, inArray, and } from "drizzle-orm";
+import { asc, desc, eq, inArray, and, gte, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import {
   expensesTable,
@@ -46,6 +46,8 @@ import {
 } from "../lib/dashboard-analytics";
 import type { RequestHandler } from "express";
 import { readSellerSettings } from "./settings";
+import { resolveSellerEntitlement } from "../lib/entitlements.js";
+import { logger } from "../lib/logger";
 
 export function preferencesForProduct(
   preferences: ProductPreferenceGroup[] | null | undefined,
@@ -106,7 +108,7 @@ export function preferencesForProduct(
       { label: "Size", options: sizeOptions },
     ]);
   }
-  return [{ label: "Choose an option", options: variants }];
+  return [{ label: "Option", options: variants }];
 }
 
 export function isReusableCatalogProduct(product: Pick<typeof productsTable.$inferSelect, "category">) {
@@ -132,6 +134,11 @@ type SellerOrderItem = {
   productName: string;
   amount: number;
   quantity: number;
+  buyerVariant?: string | null;
+  source?: string | null;
+  sku?: string | null;
+  buyerDetails?: string | null;
+  imageUrls?: string[] | null;
 };
 
 function productResponse(product: typeof productsTable.$inferSelect) {
@@ -165,6 +172,10 @@ function orderResponse(order: typeof ordersTable.$inferSelect, items: SellerOrde
     productCost: toNumber(order.productCost),
     depositAmount: toNumber(order.depositAmount),
     createdAt: order.createdAt.toISOString(),
+    linkOpens: order.linkOpens ?? 0,
+    shares: order.shares ?? 0,
+    likes: order.likes ?? 0,
+    engagementSource: order.engagementSource ?? null,
     items: items.length > 0 ? items : [{
       productId: order.productId,
       productName: order.productName,
@@ -183,18 +194,26 @@ function expenseResponse(expense: typeof expensesTable.$inferSelect) {
   };
 }
 
-async function sellerItemsForOrder(order: typeof ordersTable.$inferSelect): Promise<SellerOrderItem[]> {
-  const storedItems = await database
+async function sellerItemsForOrder(
+  order: typeof ordersTable.$inferSelect,
+  dbInstance: any = database,
+): Promise<SellerOrderItem[]> {
+  const storedItems = await dbInstance
     .select()
     .from(orderItemsTable)
     .where(eq(orderItemsTable.orderId, order.id))
     .orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
 
-  return storedItems.map((item) => ({
+  return (storedItems as Array<typeof orderItemsTable.$inferSelect>).map((item) => ({
     productId: item.productId,
     productName: item.productName,
     amount: Number(item.amount),
     quantity: item.quantity,
+    buyerVariant: item.buyerVariant ?? null,
+    source: item.source ?? "catalog",
+    sku: item.sku ?? null,
+    buyerDetails: item.buyerDetails ?? null,
+    imageUrls: item.imageUrls ?? [],
   }));
 }
 
@@ -213,6 +232,11 @@ async function sellerItemsForOrders(orders: Array<typeof ordersTable.$inferSelec
       productName: item.productName,
       amount: Number(item.amount),
       quantity: item.quantity ?? 1,
+      buyerVariant: item.buyerVariant ?? null,
+      source: item.source ?? "catalog",
+      sku: item.sku ?? null,
+      buyerDetails: item.buyerDetails ?? null,
+      imageUrls: item.imageUrls ?? [],
     });
     byOrder.set(item.orderId, current);
   }
@@ -318,33 +342,46 @@ async function publicItemsForOrder(order: typeof ordersTable.$inferSelect) {
   });
 }
 
-async function adjustStock(productId: number, direction: number) {
-  const [product] = await database
-    .select()
-    .from(productsTable)
-    .where(eq(productsTable.id, productId));
-  if (!product) return;
-  await database
-    .update(productsTable)
-    .set({ stock: Math.max(0, product.stock + direction) })
-    .where(eq(productsTable.id, productId));
+async function adjustStock(productId: number, direction: number, dbInstance: any = database): Promise<boolean> {
+  if (direction < 0) {
+    const deductQty = Math.abs(direction);
+    const updated = await dbInstance
+      .update(productsTable)
+      .set({ stock: sql`GREATEST(0, ${productsTable.stock} - ${deductQty})` })
+      .where(and(eq(productsTable.id, productId), gte(productsTable.stock, deductQty)))
+      .returning({ id: productsTable.id });
+    return updated.length > 0;
+  } else if (direction > 0) {
+    await dbInstance
+      .update(productsTable)
+      .set({ stock: sql`${productsTable.stock} + ${direction}` })
+      .where(eq(productsTable.id, productId));
+    return true;
+  }
+  return true;
 }
 
-async function adjustOrderStock(order: typeof ordersTable.$inferSelect, direction: number) {
-  const items = await database
+async function adjustOrderStock(
+  order: typeof ordersTable.$inferSelect,
+  direction: number,
+  dbInstance: any = database,
+): Promise<boolean> {
+  const items = await dbInstance
     .select({ productId: orderItemsTable.productId, quantity: orderItemsTable.quantity })
     .from(orderItemsTable)
     .where(eq(orderItemsTable.orderId, order.id))
     .orderBy(asc(orderItemsTable.position), asc(orderItemsTable.id));
 
   if (items.length === 0) {
-    await adjustStock(order.productId, direction);
-    return;
+    return await adjustStock(order.productId, direction, dbInstance);
   }
 
+  let allSuccess = true;
   for (const item of items) {
-    await adjustStock(item.productId, direction * item.quantity);
+    const ok = await adjustStock(item.productId, direction * item.quantity, dbInstance);
+    if (!ok) allSuccess = false;
   }
+  return allSuccess;
 }
 
 const isSaleStatus = (status: string) =>
@@ -396,10 +433,11 @@ sellerRouter.post("/products", requireSellerAuth, async (req, res): Promise<void
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const ownerUserId = sellerId(res);
   const [product] = await database
     .insert(productsTable)
     .values({
-      ownerUserId: sellerId(res),
+      ownerUserId,
       ...parsed.data,
       sku: parsed.data.sku?.trim() || null,
       description: parsed.data.description?.trim() || null,
@@ -586,6 +624,23 @@ sellerRouter.post("/orders", requireSellerAuth, async (req, res): Promise<void> 
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const ownerUserId = sellerId(res);
+  const entitlement = await resolveSellerEntitlement(database, ownerUserId);
+  if (entitlement.limits.activeLinkLimitReached) {
+    res.status(403).json({
+      error: "Active Take Order link limit reached",
+      code: "LINK_LIMIT_REACHED",
+      limit: entitlement.limits.activeLinkLimit.limit,
+      current: entitlement.usage.activeLinkCount,
+      tier: entitlement.tier,
+      message: `You have reached your ${entitlement.limits.activeLinkLimit.limit} active Take Order link limit. Existing links continue working. ${
+        entitlement.tier === "pro"
+          ? "Upgrade to Pro+ to remove the active-link limit."
+          : "Upgrade to Pro to create up to 500 active links."
+      }`,
+    });
+    return;
+  }
   const requestedItems = (parsed.data.items?.length
     ? parsed.data.items
     : parsed.data.productId != null && parsed.data.amount != null
@@ -599,7 +654,7 @@ sellerRouter.post("/orders", requireSellerAuth, async (req, res): Promise<void> 
   const products = await database
     .select()
     .from(productsTable)
-    .where(and(inArray(productsTable.id, productIds), eq(productsTable.ownerUserId, sellerId(res))));
+    .where(and(inArray(productsTable.id, productIds), eq(productsTable.ownerUserId, ownerUserId)));
   const productsById = new Map(products.map((product) => [product.id, product]));
   const missingProduct = requestedItems.find((item) => !productsById.has(item.productId));
   if (missingProduct) {
@@ -633,7 +688,7 @@ sellerRouter.post("/orders", requireSellerAuth, async (req, res): Promise<void> 
       paymentMode: parsed.data.paymentMode,
       status: "reserved",
       fulfillment: "pending",
-      customerName: "Waiting for buyer",
+      customerName: "",
     })
     .returning();
   await database.insert(orderItemsTable).values(
@@ -720,14 +775,19 @@ publicRouter.get("/public/orders/:token", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Order link not found" });
     return;
   }
-  const [updated] = await database
+  const updatedOpens = (order.linkOpens ?? 0) + 1;
+  database
     .update(ordersTable)
-    .set({ linkOpens: order.linkOpens + 1 })
+    .set({ linkOpens: sql`${ordersTable.linkOpens} + 1` })
     .where(eq(ordersTable.id, order.id))
-    .returning();
-  const items = await publicItemsForOrder(updated);
-  const sellerSettings = await readSellerSettings(database, updated.ownerUserId ?? "");
-  res.json(GetPublicOrderResponse.parse(publicOrderResponse(updated, sellerSettings, items)));
+    .catch((err) => {
+      logger.warn({ error: err, orderId: order.id }, "Failed to increment linkOpens");
+    });
+
+  const updatedOrder = { ...order, linkOpens: updatedOpens };
+  const items = await publicItemsForOrder(updatedOrder);
+  const sellerSettings = await readSellerSettings(database, updatedOrder.ownerUserId ?? "");
+  res.json(GetPublicOrderResponse.parse(publicOrderResponse(updatedOrder, sellerSettings, items)));
 });
 
 publicRouter.post("/public/orders/:token", async (req, res): Promise<void> => {
@@ -801,46 +861,70 @@ publicRouter.post("/public/orders/:token", async (req, res): Promise<void> => {
     .filter(Boolean)
     .join("\n");
   const firstReferenceImage = itemDetails.find((detail) => detail.referenceImage?.trim())?.referenceImage?.trim();
-  const [order] = await database
-    .update(ordersTable)
-    .set({
-      customerName: parsed.data.customerName,
-      customerPhone: parsed.data.customerPhone,
-      amount: finalAmount.toFixed(2),
-      deliveryMethod,
-      deliveryAddress: deliveryMethod === "delivery" ? deliveryAddress : null,
-      buyerDetails: combinedOrderDetails || null,
-      referenceImage: parsed.data.referenceImage ?? firstReferenceImage ?? null,
-      status: nextStatus,
-      ...(saleProductCost === undefined ? {} : { productCost: saleProductCost }),
-    })
-    .where(eq(ordersTable.id, existing.id))
-    .returning();
-  await Promise.all(storedItems.map((item, index) => {
-    const detail = itemDetailsByIndex.get(index);
-    if (!detail && requestedQuantities[index] === item.quantity) return Promise.resolve();
-    return database
-      .update(orderItemsTable)
-      .set({
-        quantity: requestedQuantities[index]!,
-        ...(detail ? {
-          buyerVariant: detail.variant?.trim() || null,
-          buyerDetails: detail.details?.trim() || null,
-          referenceImage: detail.referenceImage?.trim() || null,
-        } : {}),
-      })
-      .where(eq(orderItemsTable.id, item.id));
-  }));
-  if (nextStatus === "paid" && !isSaleStatus(existing.status)) {
-    await adjustOrderStock(order, -1);
-  } else if (nextStatus === "paid" && isSaleStatus(existing.status)) {
-    await Promise.all(storedItems.map((item, index) => {
-      const delta = item.quantity - requestedQuantities[index]!;
-      return delta ? adjustStock(item.productId, delta) : Promise.resolve();
-    }));
+  const runTransaction = typeof (database as any).transaction === "function"
+    ? (cb: (tx: any) => Promise<any>) => (database as any).transaction(cb)
+    : (cb: (tx: any) => Promise<any>) => cb(database);
+
+  try {
+    const [order, items] = await runTransaction(async (tx: any) => {
+      const [updatedOrder] = await tx
+        .update(ordersTable)
+        .set({
+          customerName: parsed.data.customerName,
+          customerPhone: parsed.data.customerPhone,
+          amount: finalAmount.toFixed(2),
+          deliveryMethod,
+          deliveryAddress: deliveryMethod === "delivery" ? deliveryAddress : null,
+          buyerDetails: combinedOrderDetails || null,
+          referenceImage: parsed.data.referenceImage ?? firstReferenceImage ?? null,
+          status: nextStatus,
+          ...(saleProductCost === undefined ? {} : { productCost: saleProductCost }),
+        })
+        .where(eq(ordersTable.id, existing.id))
+        .returning();
+
+      for (const [index, item] of storedItems.entries()) {
+        const detail = itemDetailsByIndex.get(index);
+        if (!detail && requestedQuantities[index] === item.quantity) continue;
+        await tx
+          .update(orderItemsTable)
+          .set({
+            quantity: requestedQuantities[index]!,
+            ...(detail ? {
+              buyerVariant: detail.variant?.trim() || null,
+              buyerDetails: detail.details?.trim() || null,
+              referenceImage: detail.referenceImage?.trim() || null,
+            } : {}),
+          })
+          .where(eq(orderItemsTable.id, item.id));
+      }
+
+      if (nextStatus === "paid" && !isSaleStatus(existing.status)) {
+        const ok = await adjustOrderStock(updatedOrder, -1, tx);
+        if (!ok) {
+          throw new Error("One or more products do not have sufficient stock to complete this purchase");
+        }
+      } else if (nextStatus === "paid" && isSaleStatus(existing.status)) {
+        for (const [index, item] of storedItems.entries()) {
+          const delta = item.quantity - requestedQuantities[index]!;
+          if (delta) {
+            const ok = await adjustStock(item.productId, delta, tx);
+            if (!ok && delta < 0) {
+              throw new Error(`${item.productName} does not have sufficient stock`);
+            }
+          }
+        }
+      }
+
+      const txItems = await sellerItemsForOrder(updatedOrder, tx);
+      return [updatedOrder, txItems];
+    });
+
+    res.json(SubmitPublicOrderResponse.parse(orderResponse(order, items)));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to submit order";
+    res.status(400).json({ error: message });
   }
-  const items = await sellerItemsForOrder(order);
-  res.json(SubmitPublicOrderResponse.parse(orderResponse(order, items)));
 });
 
   sellerRouter.get("/dashboard/summary", requireSellerAuth, async (req, res): Promise<void> => {
@@ -871,6 +955,71 @@ publicRouter.post("/public/orders/:token", async (req, res): Promise<void> => {
     calculateDashboardSummary(products.filter(isReusableCatalogProduct), orders, operatingExpenseRows, new Date(), range),
   ));
 });
+
+  sellerRouter.get("/reports/summary", requireSellerAuth, async (_req, res): Promise<void> => {
+    const ownerUserId = sellerId(res);
+    const entitlement = await resolveSellerEntitlement(database, ownerUserId);
+    if (!entitlement.capabilities.canAccessReports) {
+      res.status(403).json({
+        error: "Reports require Pro",
+        code: "PRO_FEATURE_REQUIRED",
+        tier: entitlement.tier,
+        message: "Business reports and profitability analytics require Pro or Pro+.",
+      });
+      return;
+    }
+    const [products, orders, operatingExpenseRows] = await Promise.all([
+      database.select().from(productsTable).where(eq(productsTable.ownerUserId, ownerUserId)),
+      database.select().from(ordersTable).where(eq(ordersTable.ownerUserId, ownerUserId)),
+      database.select().from(expensesTable).where(eq(expensesTable.ownerUserId, ownerUserId)),
+    ]);
+    res.json(GetDashboardSummaryResponse.parse(
+      calculateDashboardSummary(products.filter(isReusableCatalogProduct), orders, operatingExpenseRows, new Date()),
+    ));
+  });
+
+  sellerRouter.get("/subscription/entitlements", requireSellerAuth, async (_req, res): Promise<void> => {
+    const ownerUserId = sellerId(res);
+    const entitlement = await resolveSellerEntitlement(database, ownerUserId);
+    res.json(entitlement);
+  });
+
+  sellerRouter.get("/dashboard/export", requireSellerAuth, async (_req, res): Promise<void> => {
+    const ownerUserId = sellerId(res);
+    const entitlement = await resolveSellerEntitlement(database, ownerUserId);
+    if (!entitlement.capabilities.canExportAnalytics) {
+      res.status(403).json({
+        error: "Analytics export requires Pro",
+        code: "PRO_FEATURE_REQUIRED",
+        tier: entitlement.tier,
+        message: "Upgrade to Pro to export your sales and analytics data.",
+      });
+      return;
+    }
+    const orders = await database
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.ownerUserId, ownerUserId))
+      .orderBy(desc(ordersTable.createdAt));
+
+    const headers = ["Order ID", "Order Token", "Product", "Buyer", "Phone", "Channel", "Status", "Fulfillment", "Amount", "Created At"];
+    const rows = orders.map((o) => [
+      o.id,
+      o.token,
+      `"${(o.productName || "").replace(/"/g, '""')}"`,
+      `"${(o.customerName || "").replace(/"/g, '""')}"`,
+      `"${(o.customerPhone || "").replace(/"/g, '""')}"`,
+      o.channel,
+      o.status,
+      o.fulfillment,
+      Number(o.amount).toFixed(2),
+      o.createdAt ? new Date(o.createdAt).toISOString() : "",
+    ]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="take-order-export.csv"');
+    res.send(csvContent);
+  });
 
   router.use(sellerRouter);
   router.use(publicRouter);

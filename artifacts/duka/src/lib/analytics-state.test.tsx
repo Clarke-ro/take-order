@@ -119,7 +119,6 @@ test("keeps supported order and onboarding channel values stable", () => {
     "instagram",
     "tiktok",
     "snapchat",
-    "in_person",
   ]);
   assert.ok(onboardingChannels.length >= 5);
 

@@ -1,14 +1,15 @@
 import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Redirect, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
-import { ClerkProvider, SignIn, SignUp, useAuth } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import {
-  AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
-  CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, ExternalLink, Eye, FileText, Globe2, LayoutDashboard, Link2, Loader2, Menu, MoreHorizontal,
-  ImagePlus, MessageSquare, Package, PackageSearch, Pencil, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
-  Trash2, TrendingUp, Truck, UserRound, Users, UsersRound, WalletCards, Workflow, Wrench, X
+  AlertCircle, AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
+  CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, Crown, Download, ExternalLink, Eye, FileText, Globe2, Info, LayoutDashboard, LayoutGrid, Link2, List, Loader2, Menu, Minus, MoreHorizontal,
+  ImagePlus, MessageSquare, Package, PackageSearch, PackageX, Pencil, Percent, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
+  Trash2, TrendingUp, Truck, UserRound, Users, UsersRound, WalletCards, Workflow, Wrench, X,
+  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound
 } from 'lucide-react';
 import { SiFacebook, SiInstagram, SiSnapchat, SiTiktok, SiWhatsapp, SiX } from 'react-icons/si';
 import {
@@ -22,16 +23,45 @@ import {
   useCreateExpense, useCreateOrder, useCreateProduct, useDeleteExpense, useDeleteProduct,
   useGetDashboardSummary, useGetOrder, useGetPublicOrder, useHealthCheck, useListOrders, useListProducts,
   useListExpenses, useGetSellerSettings, useSubmitPublicOrder, useUpdateExpense, useUpdateOrder, useUpdateProduct,
-  useUpdateSellerSettings
+  useUpdateSellerSettings, customFetch, setAuthTokenGetter
 } from '@workspace/api-client-react';
 import type { Expense, ExpenseInput, ExpenseUpdate, Order, OrderInput, Product, ProductInput, ProductPreferenceGroup, PublicOrderInput, SellerSettings } from '@workspace/api-client-react';
 import NotFound from '@/pages/not-found';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AnalyticsStateMarker, getAnalyticsViewState } from '@/lib/analytics-state';
 import { catalogValue } from '@/lib/catalog-metrics';
-import { countryNameForCode, currencyForLanguage, currentCurrency, formatCompactMoney, formatMoney, setActiveCurrency, storeCurrencyOptions } from '@/lib/currency';
+import {
+  type SellerProfile,
+  type SellerSettingsPreferences,
+  defaultSellerProfile,
+  defaultSellerPreferences,
+  getScopedKey,
+  readSellerProfile,
+  writeSellerProfile,
+  readSellerSettings,
+  writeSellerSettings,
+  readOnboardingStep,
+  writeOnboardingStep,
+  readOnboardingComplete,
+  finishOnboarding,
+  readConnectedTools,
+  writeConnectedTools,
+  clearConnectedTools,
+  readChecklistDismissed,
+  writeChecklistDismissed,
+  clearAllSellerStorage,
+  setActiveSellerUserId,
+} from '@/lib/seller-storage';
+
+export { readConnectedTools, writeConnectedTools, clearConnectedTools };
+import {
+  ProUpgradeFeatureCard,
+  EmptyStateOnboardingCard,
+} from '@/components/pro-upgrade-card';
+import { countryNameForCode, currencyForCode, currencyForLanguage, currentCurrency, formatCompactMoney, formatMoney, setActiveCurrency, storeCurrencyOptions } from '@/lib/currency';
 import {
   clearPreferences,
   connectPreferenceAriaLabel,
@@ -41,14 +71,142 @@ import {
   subscribeToPreferenceChanges,
   togglePreference,
 } from '@/lib/channel-preferences';
+import { formatUserFacingError } from '@/lib/user-facing-errors';
+import {
+  buildClientBalanceReminderMessage,
+  buildDeliveryDispatchMessage,
+  buildOrderConfirmationMessage,
+  buildPaymentReminderMessage,
+  buildRiderDispatchSlip,
+  buildTextReceipt,
+  openWhatsApp,
+} from '@/lib/social-messaging';
+import { buildPublicOrderLink } from '@/lib/order-links';
+import { configureRevenueCat, isProActive, useEntitlement } from '@/lib/revenuecat';
+import { useEntitlements, FREE_CATALOG_LIMIT, FREE_ACTIVE_LINK_LIMIT, PRO_ACTIVE_LINK_LIMIT } from '@/lib/entitlements';
+import { ContextualUpgradeDialog, type UpgradeReason } from '@/components/contextual-upgrade-dialog';
+import { AuthContext, useAppAuth, type AuthContextValue } from '@/lib/auth-context';
+import { SubscribePage } from '@/pages/subscribe';
+import { BillingPage } from '@/pages/billing';
 
 const queryClient = new QueryClient();
 const runtimeEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {};
+const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
+const browserHostname = typeof window === 'undefined' ? 'localhost' : window.location.hostname;
+const browserOrigin = typeof window === 'undefined' ? '' : window.location.origin;
+const rawClerkKey = runtimeEnv.VITE_CLERK_PUBLISHABLE_KEY || runtimeEnv.CLERK_PUBLISHABLE_KEY || '';
+const clerkPubKey = rawClerkKey ? publishableKeyFromHost(browserHostname, rawClerkKey) : '';
+const clerkProxyUrl = runtimeEnv.VITE_CLERK_PROXY_URL || runtimeEnv.CLERK_PROXY_URL || '';
+
+type PaywallContextValue = {
+  isPaywallOpen: boolean;
+  openPaywall: () => void;
+  closePaywall: () => void;
+};
+
+const PaywallContext = React.createContext<PaywallContextValue>({
+  isPaywallOpen: false,
+  openPaywall: () => {},
+  closePaywall: () => {},
+});
+
+export function usePaywall(): PaywallContextValue {
+  return React.useContext(PaywallContext);
+}
+
+function PaywallProvider({ children }: { children: ReactNode }) {
+  const [, setLocation] = useLocation();
+  const value = useMemo(
+    () => ({
+      isPaywallOpen: false,
+      openPaywall: () => setLocation('/subscribe'),
+      closePaywall: () => {},
+    }),
+    [setLocation]
+  );
+
+  return (
+    <PaywallContext.Provider value={value}>
+      {children}
+    </PaywallContext.Provider>
+  );
+}
+
+function ClerkAuthBridge({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  const clerk = useClerk();
+  const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
+  const testUserId = typeof window !== 'undefined' ? ((window as any).__DUKA_TEST_USER_ID__ || localStorage.getItem('duka-test-user-id') || null) : null;
+  const effectiveUserId = auth.userId || (isTestAuth ? testUserId : null);
+
+  const prevUserIdRef = useRef<string | null>(effectiveUserId);
+
+  useEffect(() => {
+    setActiveSellerUserId(effectiveUserId);
+    // When active seller identity changes (sign in, sign out, switch account), clear query cache immediately
+    if (prevUserIdRef.current && prevUserIdRef.current !== effectiveUserId) {
+      queryClient.clear();
+    }
+    prevUserIdRef.current = effectiveUserId;
+  }, [effectiveUserId]);
+
+  useEffect(() => {
+    if (auth.isSignedIn && auth.getToken) {
+      setAuthTokenGetter(async () => {
+        try {
+          return await auth.getToken();
+        } catch {
+          return null;
+        }
+      });
+    } else if (isTestAuth && effectiveUserId) {
+      setAuthTokenGetter(() => `test-${effectiveUserId}`);
+    } else {
+      setAuthTokenGetter(null);
+    }
+  }, [auth.isSignedIn, auth.getToken, isTestAuth, effectiveUserId]);
+
+  useEffect(() => {
+    if (effectiveUserId) {
+      void configureRevenueCat(effectiveUserId);
+    }
+  }, [effectiveUserId]);
+
+  const signOut = async () => {
+    setActiveSellerUserId(null);
+    queryClient.clear();
+    clearAllSellerStorage();
+    try {
+      if (clerk?.signOut) {
+        await clerk.signOut();
+      }
+    } catch (e) {
+      console.warn('Clerk sign out error', e);
+    }
+    window.location.href = '/sign-in';
+  };
+
+  const value = useMemo(
+    () => ({
+      isLoaded: auth.isLoaded || isTestAuth,
+      isSignedIn: Boolean(auth.isSignedIn || (isTestAuth && Boolean(testUserId))),
+      userId: effectiveUserId,
+      signOut,
+    }),
+    [auth.isLoaded, auth.isSignedIn, isTestAuth, testUserId, effectiveUserId]
+  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
 
 export const CHANNEL_CONVERSION_REFRESH_INTERVAL_MS = 5_000;
 const money = (value: number | null | undefined) => formatCompactMoney(value);
 const moneyExact = (value: number | null | undefined) => formatMoney(value);
-const currencySymbol = () => currentCurrency().symbol;
+const currencySymbol = (code?: string | null) => {
+  if (code) {
+    return currencyForCode(code).symbol;
+  }
+  return currentCurrency().symbol;
+};
 const number = (value: number | null | undefined) => new Intl.NumberFormat('en-US').format(value || 0);
 const dateShort = (value: string | null | undefined) => {
   if (!value) return '—';
@@ -220,19 +378,28 @@ const brandAssets = {
   icon: '/branding/takeorder-icon.png',
   inverted: '/branding/mono-inverted.png',
   app: '/branding/mono-app.png',
-  wordmark: '/branding/takeorder-wordmark.png',
+  wave: '/branding/takeorder-wave.png',
 } as const;
 
 function BrandMark({ variant = 'app', className = '' }: { variant?: keyof typeof brandAssets; className?: string }) {
-  return <img src={brandAssets[variant]} alt="" aria-hidden="true" className={cn('object-contain', className)} />;
+  return <img src={brandAssets[variant]} alt="Take Order" aria-hidden="true" className={cn('object-contain', className)} />;
 }
 
 function BrandWordmark({ inverted = false, className = '' }: { inverted?: boolean; className?: string }) {
-  return <img src={brandAssets.wordmark} alt="Take Order" className={cn('object-contain', inverted && 'brightness-0 invert', className)} />;
+  return (
+    <span className={cn('inline-flex items-center font-black tracking-tight leading-none select-none text-[1.1em]', inverted ? 'text-white' : 'text-neutral-900', className)}>
+      Take<span className="text-[#F5B418]">Order</span>
+    </span>
+  );
 }
 
-function BrandLockup({ inverted = false, className = '' }: { inverted?: boolean; className?: string }) {
-  return <div className={cn('flex items-center', className)} aria-label="Take Order"><BrandWordmark inverted={inverted} className="h-8 w-auto max-w-[132px]" /></div>;
+function BrandLockup({ inverted = false, className = '', iconClassName = 'h-7 w-7' }: { inverted?: boolean; className?: string; iconClassName?: string }) {
+  return (
+    <div className={cn('flex items-center gap-2.5', className)} aria-label="Take Order">
+      <img src={brandAssets.icon} alt="" className={cn('rounded-lg object-contain shadow-2xs shrink-0', iconClassName)} />
+      <BrandWordmark inverted={inverted} className="text-lg" />
+    </div>
+  );
 }
 
 function SellerLogo({ businessName, logoDataUrl, className = '' }: { businessName: string; logoDataUrl?: string; className?: string }) {
@@ -241,7 +408,15 @@ function SellerLogo({ businessName, logoDataUrl, className = '' }: { businessNam
 }
 
 function PoweredByTakeOrder({ className = '' }: { className?: string }) {
-  return <div className={cn('flex items-center justify-center gap-2 text-[10px] text-[hsl(var(--muted-foreground))]', className)}><span>Powered by</span><BrandWordmark className="h-4 w-auto opacity-70" /></div>;
+  return (
+    <div className={cn('flex items-center justify-center gap-1.5 text-[11px] text-[hsl(var(--muted-foreground))]', className)}>
+      <span>Powered by</span>
+      <div className="inline-flex items-center gap-1 font-bold text-neutral-800 dark:text-neutral-200">
+        <img src={brandAssets.icon} alt="" className="h-3.5 w-3.5 rounded-[4px] object-contain shadow-2xs" />
+        <span>Take<span className="text-[#F5B418]">Order</span></span>
+      </div>
+    </div>
+  );
 }
 
 type MarkKey = 'whatsapp' | 'instagram' | 'tiktok' | 'snapchat' | 'facebook_ads' | 'paystack' | 'mobile_money' | 'x' | 'in_person' | 'other';
@@ -289,12 +464,12 @@ function ChannelInline({ value }: { value: string }) {
 }
 
 export function ChannelPicker({ value, onChange, testId }: { value: OrderInput['channel'] | ''; onChange: (value: OrderInput['channel']) => void; testId: string }) {
-  return <div data-testid={testId} className="take-order-channel-picker grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Conversation channel">
+  return <div data-testid={testId} className="take-order-channel-picker grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Conversation channel">
     {orderChannels.map((channel) => {
       const selected = value === channel.value;
-       return <button key={channel.value} type="button" role="radio" aria-label={channel.label} aria-checked={selected} data-testid={`${testId}-${channel.value}`} onClick={() => onChange(channel.value)} className={cn('take-order-channel-option flex items-center gap-2 rounded-[10px] border px-3 py-2.5 text-left text-xs font-semibold transition-colors', selected ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))]')}>
-         <ChannelMark value={channel.value} size={15} colorful={!selected} className={selected ? 'text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--foreground))]'} />
-        <span>{channel.label}</span>
+      return <button key={channel.value} type="button" role="radio" aria-label={channel.label} aria-checked={selected} data-testid={`${testId}-${channel.value}`} onClick={() => onChange(channel.value)} className={cn('take-order-channel-option flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-center text-xs font-semibold transition-all', selected ? 'border-[hsl(var(--foreground))] bg-[hsl(var(--foreground))] text-[hsl(var(--background))] shadow-sm' : 'border-[hsl(var(--border))] bg-white dark:bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]')}>
+        <ChannelMark value={channel.value} size={15} colorful={!selected} className={selected ? 'text-[hsl(var(--background))]' : 'text-[hsl(var(--foreground))]'} />
+        <span className="truncate">{channel.label}</span>
       </button>;
     })}
   </div>;
@@ -319,13 +494,9 @@ export function OnboardingChannelPicker({
   </div>;
 }
 
-type SellerProfile = { sellerName: string; businessName: string; description: string; channels: string[]; logoDataUrl?: string; currency?: SellerSettings['currency'] | null };
-type SellerSettingsPreferences = { orderUpdates: boolean; stockAlerts: boolean; compactTables: boolean };
-const ONBOARDING_KEY = 'duka-onboarding-profile';
-const ONBOARDING_STEP_KEY = 'duka-onboarding-step';
-const ONBOARDING_DONE_KEY = 'duka-onboarding-complete';
 export const CONNECTED_TOOLS_KEY = 'duka-connected-tools';
-const SELLER_SETTINGS_KEY = 'duka-seller-settings';
+const PENDING_SETTINGS_SYNC_KEY = 'duka-pending-settings-sync';
+const DRAFT_AUTH_KEY = 'duka-draft-auth';
 
 export const DASHBOARD_PERIOD_KEY = 'duka-dashboard-period';
 export const CONNECTED_TOOL_NAMES = [
@@ -357,50 +528,64 @@ const writeCatalogView = (view: CatalogView, storage: Pick<Storage, 'setItem'> |
 };
 
 const dashboardPeriods = new Set<DashboardPeriod>(['day', 'week', 'month', 'year', 'custom']);
-const normalizeConnectedTools = (tools: readonly string[]) =>
-  [...new Set(tools.filter((tool) => connectedToolNames.has(tool)))];
-export const readConnectedTools = (storage: PreferenceStorage | null = getPreferenceStorage()): string[] => {
-  if (!storage) return [];
+type DraftAuth = {
+  signInEmail?: string;
+  signUpFullName?: string;
+  signUpEmail?: string;
+};
+
+const readDraftAuth = (): DraftAuth => {
   try {
-    const value = storage.getItem(CONNECTED_TOOLS_KEY);
-    const parsed: unknown = value ? JSON.parse(value) : [];
-    return Array.isArray(parsed) && parsed.every((item): item is string => typeof item === 'string')
-      ? normalizeConnectedTools(parsed)
-      : [];
-  } catch { return []; }
+    const val = window.sessionStorage.getItem(DRAFT_AUTH_KEY) || window.localStorage.getItem(DRAFT_AUTH_KEY);
+    return val ? (JSON.parse(val) as DraftAuth) : {};
+  } catch { return {}; }
 };
-export const writeConnectedTools = (tools: readonly string[], storage: PreferenceStorage | null = getPreferenceStorage()) => {
-  if (!storage) return;
-  try { storage.setItem(CONNECTED_TOOLS_KEY, JSON.stringify(normalizeConnectedTools(tools))); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
-};
-export const clearConnectedTools = (storage: Pick<Storage, 'removeItem'> | null = getPreferenceStorage()) => {
-  if (!storage) return;
-  try { storage.removeItem(CONNECTED_TOOLS_KEY); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
-};
-const readSellerProfile = (): SellerProfile | null => {
+
+const writeDraftAuth = (patch: Partial<DraftAuth>) => {
   try {
-    const value = window.localStorage.getItem(ONBOARDING_KEY);
-    return value ? JSON.parse(value) as SellerProfile : null;
+    const current = readDraftAuth();
+    const next = { ...current, ...patch };
+    const serialized = JSON.stringify(next);
+    window.sessionStorage.setItem(DRAFT_AUTH_KEY, serialized);
+    window.localStorage.setItem(DRAFT_AUTH_KEY, serialized);
+  } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+};
+
+const clearDraftAuth = (keys?: (keyof DraftAuth)[]) => {
+  try {
+    if (!keys) {
+      window.sessionStorage.removeItem(DRAFT_AUTH_KEY);
+      window.localStorage.removeItem(DRAFT_AUTH_KEY);
+      return;
+    }
+    const current = readDraftAuth();
+    keys.forEach((k) => delete current[k]);
+    const serialized = JSON.stringify(current);
+    window.sessionStorage.setItem(DRAFT_AUTH_KEY, serialized);
+    window.localStorage.setItem(DRAFT_AUTH_KEY, serialized);
+  } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+};
+
+const readPendingSettingsSync = (): SellerSettings | null => {
+  try {
+    const val = window.localStorage.getItem(PENDING_SETTINGS_SYNC_KEY);
+    return val ? (JSON.parse(val) as SellerSettings) : null;
   } catch { return null; }
 };
-const writeSellerProfile = (profile: SellerProfile) => {
-  try { window.localStorage.setItem(ONBOARDING_KEY, JSON.stringify(profile)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
-};
-const defaultSellerPreferences: SellerSettingsPreferences = { orderUpdates: true, stockAlerts: true, compactTables: false };
-const readSellerSettings = (): SellerSettingsPreferences => {
+
+const writePendingSettingsSync = (settings: SellerSettings) => {
   try {
-    const value = window.localStorage.getItem(SELLER_SETTINGS_KEY);
-    const parsed = value ? JSON.parse(value) as Partial<SellerSettingsPreferences> : {};
-    return {
-      orderUpdates: parsed.orderUpdates !== false,
-      stockAlerts: parsed.stockAlerts !== false,
-      compactTables: parsed.compactTables === true,
-    };
-  } catch { return defaultSellerPreferences; }
+    window.localStorage.setItem(PENDING_SETTINGS_SYNC_KEY, JSON.stringify(settings));
+  } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
 };
-const writeSellerSettings = (settings: SellerSettingsPreferences) => {
-  try { window.localStorage.setItem(SELLER_SETTINGS_KEY, JSON.stringify(settings)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
+
+const clearPendingSettingsSync = () => {
+  try {
+    window.localStorage.removeItem(PENDING_SETTINGS_SYNC_KEY);
+  } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
 };
+
+
 const emptySellerSettings: SellerSettings = {
   sellerName: '',
   businessName: '',
@@ -427,27 +612,35 @@ const emptySellerSettings: SellerSettings = {
   compactTables: false,
   connectedTools: [],
 };
-const readOnboardingStep = (): number => {
-  try {
-    const value = window.localStorage.getItem(ONBOARDING_STEP_KEY);
-    const step = Number(value);
-    return Number.isInteger(step) && step >= 0 && step <= 3 ? step : 0;
-  } catch { return 0; }
-};
-const readOnboardingComplete = (): boolean | null => {
-  try {
-    return window.localStorage.getItem(ONBOARDING_DONE_KEY) === 'true';
-  } catch {
-    return null;
-  }
-};
-const writeOnboardingStep = (step: number) => {
-  try { window.localStorage.setItem(ONBOARDING_STEP_KEY, String(step)); } catch { /* Storage can be unavailable in privacy-restricted browsers. */ }
-};
-const finishOnboarding = () => window.localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
-export function Sidebar() {
+
+
+function useIsOnline() {
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' && 'onLine' in navigator ? navigator.onLine : true));
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  return isOnline;
+}
+export function Sidebar({
+  collapsed = false,
+  onToggleCollapse = () => {},
+}: {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+} = {}) {
   const [location] = useLocation();
   const seller = readSellerProfile();
+  const { userId, signOut } = useAppAuth();
+  const entitlements = useEntitlements(userId);
+  const { isPro, isProPlus, isTrial } = entitlements;
+  const { openPaywall } = usePaywall();
   const links = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/catalog', label: 'Catalog', icon: Boxes },
@@ -457,24 +650,311 @@ export function Sidebar() {
     { href: '/expenses', label: 'Expenses', icon: Receipt },
     { href: '/take-order', label: 'Take an order', icon: Link2 },
   ];
-  return <aside className="desktop-sidebar fixed inset-y-0 left-0 z-30 flex w-[246px] flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))]">
-    <div className="px-7 py-7">
-      <BrandLockup className="gap-3" />
-      <div className="mt-2 pl-12 font-mono-ui text-[9px] uppercase tracking-[.18em] text-[hsl(var(--sidebar-foreground))]/45">seller workspace</div>
-    </div>
-    <div className="mx-5 mb-5 h-px bg-[hsl(var(--sidebar-border))]" />
-    <div className="px-4 text-[10px] font-semibold uppercase tracking-[.16em] text-[hsl(var(--sidebar-foreground))]/45">Workspace</div>
-    <nav aria-label="Seller workspace navigation" className="sidebar-scroll mt-3 flex-1 overflow-y-auto px-3">
-      {links.map(({ href, label, icon: Icon }) => <Link key={href} href={href} data-testid={`link-${label.toLowerCase().replaceAll(' ', '-')}`} aria-current={location === href ? 'page' : undefined} className={cn('group mb-1 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === href ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}>
-        <Icon aria-hidden="true" size={17} strokeWidth={location === href ? 2.3 : 1.8} /><span>{label}</span>
-      </Link>)}
-      <div className="my-5 h-px bg-[hsl(var(--sidebar-border))]" />
-      <div className="px-1 text-[10px] font-semibold uppercase tracking-[.16em] text-[hsl(var(--sidebar-foreground))]/45">Settings</div>
-      <Link href="/settings" data-testid="link-settings" aria-current={location === '/settings' ? 'page' : undefined} className={cn('mt-3 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/settings' ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}><UserRound aria-hidden="true" size={17} /><span>Profile & settings</span></Link>
-      <Link href="/connect" data-testid="link-connect" aria-current={location === '/connect' ? 'page' : undefined} className={cn('mt-1 flex items-center gap-3 rounded-[12px] px-4 py-3 text-[13px] font-medium transition-colors', location === '/connect' ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]' : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]')}><Settings2 aria-hidden="true" size={17} /><span>Connect tools</span></Link>
-    </nav>
-      <Link href="/settings" aria-label="Open profile and settings" className="flex items-center gap-3 border-t border-[hsl(var(--sidebar-border))] px-6 py-5 transition-colors hover:bg-[hsl(var(--sidebar-accent))]"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-[11px] font-bold text-white">{initials(seller?.sellerName || 'Amina Mensah')}</div><div className="min-w-0"><div className="truncate text-[12px] font-semibold">{seller?.sellerName || 'Amina Mensah'}</div><div className="truncate text-[10px] text-[hsl(var(--sidebar-foreground))]/55">{seller?.businessName || 'The Sunday Edit'}</div></div><MoreHorizontal aria-hidden="true" className="ml-auto text-[hsl(var(--sidebar-foreground))]/45" size={16} /></Link>
-  </aside>;
+
+  return (
+    <aside
+      className={cn(
+        'desktop-sidebar fixed inset-y-0 left-0 z-30 flex flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))] transition-all duration-200 ease-in-out border-r border-[hsl(var(--sidebar-border))]',
+        collapsed ? 'w-[72px]' : 'w-[250px]'
+      )}
+      aria-label="App navigation"
+    >
+      {/* Top Brand Header / Monogram Collapse Toggle */}
+      {collapsed ? (
+        <div className="flex h-16 items-center justify-center border-b border-[hsl(var(--sidebar-border))]/60">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+            className="group relative flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[hsl(var(--sidebar-accent))] transition-colors cursor-pointer"
+          >
+            {/* App Monogram Icon */}
+            <img
+              src={brandAssets.icon}
+              alt="Take Order"
+              className="h-8 w-8 rounded-lg object-contain shadow-2xs transition-all duration-200 group-hover:scale-0 group-hover:opacity-0"
+            />
+            {/* Expandable Icon shown on hover */}
+            <PanelLeftOpen
+              size={20}
+              className="absolute text-[hsl(var(--sidebar-foreground))] transition-all duration-200 scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100"
+            />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-4 pt-4 pb-2.5">
+          <Link href="/" aria-label="Take Order dashboard" className="flex items-center gap-2.5">
+            <img src={brandAssets.icon} alt="" className="h-7 w-7 rounded-lg object-contain shadow-2xs" />
+            <BrandWordmark className="text-[17px]" />
+          </Link>
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--sidebar-foreground))]/50 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))] transition-colors"
+          >
+            <PanelLeftClose size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Slim Business Card */}
+      {!collapsed && (
+        <div className="px-3 pt-1 pb-2">
+          <div
+            className="sidebar-business-card px-3 py-2 rounded-xl border border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-accent))/0.35] shadow-xs flex items-center justify-between"
+            title={seller?.businessName || 'The Sunday Edit'}
+          >
+            <div className="truncate text-xs font-bold tracking-tight text-[hsl(var(--sidebar-foreground))]">
+              {seller?.businessName || 'The Sunday Edit'}
+            </div>
+            {isProPlus ? (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-900 text-amber-300 dark:bg-amber-400 dark:text-slate-900 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-xs shrink-0" data-testid="sidebar-pro-plus-badge">
+                <Crown size={9} strokeWidth={2.5} />
+                PRO+
+              </span>
+            ) : isTrial ? (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white shadow-xs shrink-0" data-testid="sidebar-pro-badge" title={`7-Day Free Pro Trial: ${entitlements.trial.daysRemaining} days remaining`}>
+                <Crown size={9} strokeWidth={2.5} />
+                TRIAL · {entitlements.trial.daysRemaining}D
+              </span>
+            ) : isPro ? (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white shadow-xs shrink-0" data-testid="sidebar-pro-badge">
+                <Crown size={9} strokeWidth={2.5} />
+                PRO
+              </span>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Links */}
+      <nav aria-label="Navigation" className={cn('sidebar-scroll flex-1 overflow-y-auto py-2', collapsed ? 'px-2' : 'px-3')}>
+        {links.map(({ href, label, icon: Icon }) => {
+          const isActive = location === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              data-testid={`link-${label.toLowerCase().replaceAll(' ', '-')}`}
+              aria-current={isActive ? 'page' : undefined}
+              title={collapsed ? label : undefined}
+              className={cn(
+                'group flex items-center transition-colors rounded-[11px] font-medium text-sm',
+                collapsed
+                  ? 'h-10 w-10 mx-auto justify-center mb-1.5'
+                  : 'gap-3 px-3.5 py-2.5 mb-1',
+                isActive
+                  ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))] font-semibold shadow-xs'
+                  : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]'
+              )}
+            >
+              <Icon
+                aria-hidden="true"
+                size={18}
+                strokeWidth={isActive ? 2.3 : 1.8}
+                className="shrink-0"
+              />
+              {!collapsed && (
+                <div className="flex items-center justify-between flex-1">
+                  <span>{label}</span>
+                  {!entitlements.isLoading && entitlements.tier === 'free' && href === '/reports' && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                      PRO
+                    </span>
+                  )}
+                </div>
+              )}
+            </Link>
+          );
+        })}
+
+        <div className={cn('my-3 h-px bg-[hsl(var(--sidebar-border))]', collapsed ? 'mx-1' : 'mx-2')} />
+
+        <Link
+          href="/settings"
+          data-testid="link-settings"
+          aria-current={location === '/settings' ? 'page' : undefined}
+          title={collapsed ? 'Profile & settings' : undefined}
+          className={cn(
+            'group flex items-center transition-colors rounded-[11px] font-medium text-sm',
+            collapsed
+              ? 'h-10 w-10 mx-auto justify-center mb-1.5'
+              : 'gap-3 px-3.5 py-2.5 mb-1',
+            location === '/settings'
+              ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))] font-semibold shadow-xs'
+              : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]'
+          )}
+        >
+          <UserRound aria-hidden="true" size={18} className="shrink-0" />
+          {!collapsed && <span>Profile & settings</span>}
+        </Link>
+
+        <Link
+          href="/connect"
+          data-testid="link-connect"
+          aria-current={location === '/connect' ? 'page' : undefined}
+          title={collapsed ? 'Connect tools' : undefined}
+          className={cn(
+            'group flex items-center transition-colors rounded-[11px] font-medium text-sm',
+            collapsed
+              ? 'h-10 w-10 mx-auto justify-center mb-1.5'
+              : 'gap-3 px-3.5 py-2.5 mb-1',
+            location === '/connect'
+              ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))] font-semibold shadow-xs'
+              : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]'
+          )}
+        >
+          <Settings2 aria-hidden="true" size={18} className="shrink-0" />
+          {!collapsed && <span>Connect tools</span>}
+        </Link>
+      </nav>
+
+      {/* Upgrade to Pro / Billing Action */}
+      {!isPro ? (
+        <div className={cn('px-3 pb-2', collapsed && 'px-2')}>
+          {collapsed ? (
+            <Link
+              href="/subscribe"
+              title="Upgrade to TakeOrder Pro"
+              data-testid="sidebar-button-upgrade-pro-collapsed"
+              className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs hover:brightness-105 transition-all cursor-pointer"
+            >
+              <Crown size={18} />
+            </Link>
+          ) : (
+            <Link
+              href="/subscribe"
+              data-testid="sidebar-button-upgrade-pro"
+              className="w-full flex items-center justify-between rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/15 to-orange-500/10 border border-amber-500/30 p-2.5 text-left text-xs font-semibold text-amber-900 dark:text-amber-200 hover:border-amber-500/50 hover:bg-amber-500/20 transition-all shadow-xs group cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-amber-500 p-1 text-white shadow-xs">
+                  <Crown size={13} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-amber-900 dark:text-amber-100 uppercase tracking-wider">TakeOrder Pro</div>
+                  <div className="text-[10px] text-amber-700/80 dark:text-amber-300/80 font-normal">Unlock all features</div>
+                </div>
+              </div>
+              <Sparkles size={12} className="text-amber-500 group-hover:scale-110 transition-transform" />
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className={cn('px-3 pb-2', collapsed && 'px-2')}>
+          {collapsed ? (
+            <Link
+              href="/account/billing"
+              title="Subscription & Billing"
+              data-testid="sidebar-button-billing-collapsed"
+              className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl bg-slate-900 text-amber-400 shadow-xs hover:bg-slate-800 transition-all cursor-pointer"
+            >
+              <Crown size={18} />
+            </Link>
+          ) : (
+            <Link
+              href="/account/billing"
+              data-testid="sidebar-button-billing"
+              className="w-full flex items-center justify-between rounded-xl bg-slate-900/5 border border-slate-200 p-2.5 text-left text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-all shadow-xs group cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-slate-900 p-1 text-amber-400 shadow-xs">
+                  <Crown size={13} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">
+                    {isProPlus ? 'PRO+' : isTrial ? `PRO TRIAL (${entitlements.trial.daysRemaining}D)` : 'PRO ACTIVE'}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-normal">Manage billing & plan</div>
+                </div>
+              </div>
+              <ArrowRight size={12} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Bottom Profile Bar with Account Popover */}
+      <Popover>
+        <PopoverTrigger asChild>
+          {collapsed ? (
+            <div className="flex h-16 items-center justify-center border-t border-[hsl(var(--sidebar-border))]">
+              <button
+                type="button"
+                aria-label="Open profile and settings"
+                title={`${seller?.sellerName || 'Amina Mensah'} · Account`}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-xs font-bold text-white shadow-xs hover:ring-2 hover:ring-[hsl(var(--primary))]/30 transition-all cursor-pointer"
+              >
+                {initials(seller?.sellerName || 'Amina Mensah')}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              aria-label="Open profile and settings"
+              className="w-full text-left flex items-center gap-3 border-t border-[hsl(var(--sidebar-border))] px-3.5 py-3 transition-colors hover:bg-[hsl(var(--sidebar-accent))] cursor-pointer group"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-xs font-bold text-white shrink-0 shadow-2xs">
+                {initials(seller?.sellerName || 'Amina Mensah')}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-semibold">{seller?.sellerName || 'Amina Mensah'}</div>
+                <div className="truncate text-[11px] text-[hsl(var(--sidebar-foreground))]/55">{seller?.businessName || 'The Sunday Edit'}</div>
+              </div>
+              <MoreHorizontal aria-hidden="true" className="ml-auto text-[hsl(var(--sidebar-foreground))]/45 group-hover:text-[hsl(var(--sidebar-foreground))]" size={15} />
+            </button>
+          )}
+        </PopoverTrigger>
+        <PopoverContent
+          side="top"
+          align={collapsed ? 'start' : 'center'}
+          sideOffset={8}
+          className="w-56 p-2 rounded-2xl shadow-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]"
+        >
+          <div className="px-2.5 py-2 border-b border-[hsl(var(--border))] mb-1">
+            <div className="text-xs font-bold text-[hsl(var(--foreground))] truncate">
+              {seller?.businessName || 'The Sunday Edit'}
+            </div>
+            <div className="text-[11px] text-[hsl(var(--muted-foreground))] truncate">
+              {seller?.sellerName || 'Store Owner'}
+            </div>
+          </div>
+          <div className="space-y-0.5">
+            <Link
+              href="/settings"
+              className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium rounded-xl text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
+            >
+              <UserRound size={14} className="text-[hsl(var(--muted-foreground))]" />
+              <span>Profile & Settings</span>
+            </Link>
+            <Link
+              href="/account/billing"
+              className="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-xl text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
+            >
+              <span className="flex items-center gap-2.5">
+                <Crown size={14} className="text-amber-500" />
+                <span>Subscription</span>
+              </span>
+              {isPro && <span className="text-[9px] font-bold uppercase text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Pro</span>}
+            </Link>
+          </div>
+          <div className="border-t border-[hsl(var(--border))] mt-1.5 pt-1">
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
+            >
+              <LogOut size={14} />
+              <span>Log out</span>
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </aside>
+  );
 }
 
 export function MobileMenuButton({ open, onClick }: { open: boolean; onClick: () => void }) {
@@ -483,21 +963,84 @@ export function MobileMenuButton({ open, onClick }: { open: boolean; onClick: ()
 
 function MobileTopbar() {
   const [open, setOpen] = useState(false);
+  const { signOut } = useAppAuth();
   const nav = [{ href: '/', label: 'Dashboard' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/expenses', label: 'Expenses' }, { href: '/take-order', label: 'Take an order' }, { href: '/settings', label: 'Profile & settings' }, { href: '/connect', label: 'Connect tools' }];
   const [location] = useLocation();
-  return <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md"><Link href="/" aria-label="Take Order dashboard"><BrandLockup className="gap-2" /></Link><MobileMenuButton open={open} onClick={() => setOpen(!open)} />{open && <div className="mobile-nav-panel absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">{nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} aria-current={location === item.href ? 'page' : undefined} className={cn('block rounded-[10px] px-3 py-3 text-sm transition-colors', location === item.href ? 'bg-[hsl(var(--muted))] font-semibold text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]')}>{item.label}</Link>)}</div>}</div>;
+  return (
+    <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md">
+      <Link href="/" aria-label="Take Order dashboard"><BrandLockup className="gap-2" /></Link>
+      <MobileMenuButton open={open} onClick={() => setOpen(!open)} />
+      {open && (
+        <div className="mobile-nav-panel absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">
+          {nav.map((item) => (
+            <Link key={item.href} href={item.href} onClick={() => setOpen(false)} aria-current={location === item.href ? 'page' : undefined} className={cn('block rounded-[10px] px-3 py-3 text-sm transition-colors', location === item.href ? 'bg-[hsl(var(--muted))] font-semibold text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]')}>
+              {item.label}
+            </Link>
+          ))}
+          <div className="border-t border-[hsl(var(--border))] mt-2 pt-2">
+            <button
+              type="button"
+              onClick={() => { setOpen(false); void signOut(); }}
+              className="w-full flex items-center gap-2 rounded-[10px] px-3 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+            >
+              <LogOut size={16} />
+              <span>Log out</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Shell({ children }: { children: ReactNode }) {
-  return <div className="take-order-shell grain"><Sidebar /><MobileTopbar /><main className="page-content min-h-[100dvh] px-5 py-7 md:ml-[246px] md:px-10 md:py-9 lg:px-14">{children}</main></div>;
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('takeorder-sidebar-collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('takeorder-sidebar-collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  return (
+    <div className="take-order-shell grain">
+      <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+      <MobileTopbar />
+      <main
+        className={cn(
+          'page-content min-h-[100dvh] px-5 py-7 transition-all duration-200 ease-in-out md:px-10 md:py-9 lg:px-14',
+          collapsed ? 'md:ml-[72px]' : 'md:ml-[250px]'
+        )}
+      >
+        {children}
+      </main>
+    </div>
+  );
 }
 
 function PageHeading({ eyebrow, title, description, action }: { eyebrow?: string; title: string; description?: string; action?: ReactNode }) {
-  return <div className="page-heading mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div>{eyebrow && <div className="font-mono-ui text-[10px] font-bold uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">{eyebrow}</div>}<h1 className={cn('font-display text-[clamp(28px,3vw,40px)] font-bold leading-[.98] tracking-[-.055em] text-[hsl(var(--foreground))]', eyebrow && 'mt-2')}>{title}</h1>{description && <p className="mt-3 max-w-[540px] text-base leading-7 text-[hsl(var(--muted-foreground))]">{description}</p>}</div>{action}</div>;
+  return <div className="page-heading mb-6 flex flex-col justify-between gap-4 border-b border-[hsl(var(--border))] pb-5 sm:flex-row sm:items-center">
+    <div className="min-w-0">
+      {eyebrow && <div className="type-eyebrow mb-1">{eyebrow}</div>}
+      <h1 className="type-h1">{title}</h1>
+      {description && <p className="mt-1.5 max-w-[580px] type-body text-[hsl(var(--muted-foreground))] leading-relaxed">{description}</p>}
+    </div>
+    {action && <div className="flex shrink-0 flex-wrap items-center gap-2.5 sm:self-center">{action}</div>}
+  </div>;
 }
 
 function Button({ children, variant = 'primary', className, ...props }: { children: ReactNode; variant?: 'primary' | 'soft' | 'outline' | 'danger' | 'ghost'; className?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...props} className={cn('inline-flex min-h-10 items-center justify-center gap-2 rounded-[11px] px-4 py-2.5 text-xs font-semibold tracking-[-.01em] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-50', variant === 'primary' && 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-sm hover:-translate-y-px hover:shadow-md', variant === 'soft' && 'bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))] hover:bg-[hsl(var(--muted))]', variant === 'outline' && 'border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:border-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]', variant === 'danger' && 'border border-[hsl(var(--foreground))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]', variant === 'ghost' && 'border border-transparent bg-transparent text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]', className)} {...props}>{children}</button>;
+  return <button {...props} className={cn('inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold tracking-[-.01em] transition-all duration-200 ease-out active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-50', variant === 'primary' && 'bg-[#0f172a] text-white shadow-sm hover:bg-[#1e293b]', variant === 'soft' && 'bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))] hover:bg-[hsl(var(--muted))]', variant === 'outline' && 'border border-slate-200 bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:border-slate-400 hover:bg-slate-50', variant === 'danger' && 'border border-[hsl(var(--destructive))]/30 bg-[hsl(var(--destructive))]/10 text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive))]/20', variant === 'ghost' && 'border border-transparent bg-transparent text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]', className)} {...props}>{children}</button>;
 }
 
 export function CatalogActions({
@@ -508,15 +1051,12 @@ export function CatalogActions({
   deleteDisabled = false,
 }: {
   productId?: number;
-  productName: string;
+  productName?: string;
   onEdit: () => void;
   onDelete: () => void;
   deleteDisabled?: boolean;
 }) {
-  return <div className="catalog-actions">
-    <button type="button" onClick={onEdit} aria-label={`Edit ${productName}`} data-testid={`button-edit-product-${productId ?? productName}`} className="catalog-icon-button"><Pencil aria-hidden="true" size={15} /></button>
-    <button type="button" onClick={onDelete} disabled={deleteDisabled} aria-label={`Delete ${productName}`} data-testid={`button-delete-product-${productId ?? productName}`} className="catalog-icon-button is-danger"><Trash2 aria-hidden="true" size={15} /></button>
-  </div>;
+  return <div className="catalog-actions-cell flex items-center justify-end gap-1.5"><button type="button" onClick={onEdit} aria-label={productName ? `Edit ${productName}` : 'Edit item'} data-testid={productId ? `button-edit-product-${productId}` : 'button-edit-product'} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><Pencil size={15} /></button><button type="button" onClick={onDelete} disabled={deleteDisabled} aria-label={productName ? `Delete ${productName}` : 'Delete item'} data-testid={productId ? `button-delete-product-${productId}` : 'button-delete-product'} className="rounded-lg p-2 text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive))]/10 disabled:opacity-40"><Trash2 size={15} /></button></div>;
 }
 
 export function ExpenseActions({
@@ -527,34 +1067,46 @@ export function ExpenseActions({
   deleteDisabled = false,
 }: {
   expenseId?: number;
-  expenseTitle: string;
+  expenseTitle?: string;
   onEdit: () => void;
   onDelete: () => void;
   deleteDisabled?: boolean;
 }) {
-  return <div className="flex gap-1">
-    <button type="button" onClick={onEdit} aria-label={`Edit ${expenseTitle}`} data-testid={`button-edit-expense-${expenseId ?? expenseTitle}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--ring))]"><Pencil aria-hidden="true" size={15} /></button>
-    <button type="button" onClick={onDelete} disabled={deleteDisabled} aria-label={`Delete ${expenseTitle}`} data-testid={`button-delete-expense-${expenseId ?? expenseTitle}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--destructive))]/10 hover:text-[hsl(var(--destructive))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--ring))]"><Trash2 aria-hidden="true" size={15} /></button>
-  </div>;
+  return <div className="flex items-center justify-end gap-1"><button type="button" onClick={onEdit} aria-label={expenseTitle ? `Edit ${expenseTitle}` : 'Edit expense'} data-testid={expenseId ? `button-edit-expense-${expenseId}` : 'button-edit-expense'} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><Pencil size={15} /></button><button type="button" onClick={onDelete} disabled={deleteDisabled} aria-label={expenseTitle ? `Delete ${expenseTitle}` : 'Delete expense'} data-testid={expenseId ? `button-delete-expense-${expenseId}` : 'button-delete-expense'} className="rounded-lg p-2 text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive))]/10 disabled:opacity-40"><Trash2 size={15} /></button></div>;
 }
 
 function Card({ children, className = '', ...props }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLDivElement>) { return <div {...props} className={cn('app-card', className)}>{children}</div>; }
 function Skeleton({ className = '' }: { className?: string }) { return <div className={cn('animate-pulse rounded-lg bg-[hsl(var(--muted))]', className)} />; }
-function EmptyState({ icon: Icon, title, description, action, card = false }: { icon: typeof Package; title: string; description?: string; action?: ReactNode; card?: boolean }) { return <div className={cn(card && 'app-card', 'flex flex-col items-center justify-center px-6 py-16 text-center')}><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Icon size={22} /></div><h3 className="font-display text-lg font-bold">{title}</h3>{description && <p className="mt-2 max-w-[340px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{description}</p>}{action && <div className="mt-5">{action}</div>}</div>; }
+function EmptyState({ icon: Icon, title, description, action, card = false }: { icon: typeof Package; title: string; description?: string; action?: ReactNode; card?: boolean }) { return <div className={cn(card && 'app-card', 'flex flex-col items-center justify-center px-6 py-16 text-center')}><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Icon size={22} /></div><h2 className="type-h2">{title}</h2>{description && <p className="mt-2 max-w-[340px] type-body">{description}</p>}{action && <div className="mt-5">{action}</div>}</div>; }
 function ErrorState({ retry }: { retry: () => void }) { return <div className="rounded-[16px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 p-8 text-center"><p className="font-semibold">Something could not load.</p><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">Give it another try or check your connection.</p><Button className="mt-5" variant="outline" onClick={retry}><RefreshCw size={15} />Try again</Button></div>; }
 function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'gold' | 'mint' | 'rose' | 'blue' | 'reserved' }) {
   const paid = tone === 'mint';
   const deposit = tone === 'gold';
   const reserved = tone === 'reserved';
   const shipped = tone === 'blue';
-  return <span data-tone={tone} className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold capitalize', paid && 'border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]', deposit && 'border-2 border-[hsl(var(--foreground))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))]', reserved && 'border border-dashed border-[hsl(var(--foreground))] bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]', shipped && 'border border-dotted border-[hsl(var(--foreground))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))]', !paid && !deposit && !reserved && !shipped && 'border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))]')}>{paid && <Check size={11} strokeWidth={3} aria-hidden="true" />}{deposit && <CircleDollarSign size={11} strokeWidth={2.5} aria-hidden="true" />}{reserved && <Clock3 size={11} strokeWidth={2.5} aria-hidden="true" />}{shipped && <ArrowUpRight size={11} strokeWidth={2.5} aria-hidden="true" />}{children}</span>;
+  const rose = tone === 'rose';
+  return <span data-tone={tone} className={cn(
+    'inline-flex items-center gap-1 rounded-[6px] px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.06em] border transition-colors',
+    paid && 'border-emerald-200/50 bg-[#eaf8ee] text-[#15803d] dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-300',
+    deposit && 'border-amber-200/60 bg-amber-50 text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-300',
+    reserved && 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+    shipped && 'border-sky-200/60 bg-sky-50 text-sky-700 dark:border-sky-800/40 dark:bg-sky-950/40 dark:text-sky-300',
+    rose && 'border-rose-200/60 bg-rose-50 text-rose-700 dark:border-rose-800/40 dark:bg-rose-950/40 dark:text-rose-300',
+    !paid && !deposit && !reserved && !shipped && !rose && 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
+  )}>
+    {paid && <Check size={11} strokeWidth={3} aria-hidden="true" />}
+    {deposit && <CircleDollarSign size={11} strokeWidth={2.5} aria-hidden="true" />}
+    {reserved && <Clock3 size={11} strokeWidth={2.5} aria-hidden="true" />}
+    {shipped && <ArrowUpRight size={11} strokeWidth={2.5} aria-hidden="true" />}
+    {children}
+  </span>;
 }
 
 const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 'reserved' =>
   status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';
 const paymentLabel = (order: Order) => order.status === 'deposit_paid' ? 'Deposit paid' : order.status === 'paid' ? 'Paid in full' : 'Awaiting payment';
 const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value[0].toUpperCase() + value.slice(1);
-type MetricTrend = { direction: 'up' | 'down'; percentage: number | null };
+type MetricTrend = { direction: 'up' | 'down'; percentage: number | null; tone?: 'positive' | 'negative' | 'neutral' };
 type MetricIndicator = { direction: 'up' | 'down' | 'neutral'; percentage: number; tone?: 'positive' | 'negative' | 'neutral' };
 type DashboardStatCard = {
   label: string;
@@ -565,237 +1117,1393 @@ type DashboardStatCard = {
   note: ReactNode;
 };
 function MetricCard({ label, value, valueAccessory, note, period, trend, indicator, loading = false, dataTestId, className = '', style }: { label: string; value: ReactNode; valueAccessory?: ReactNode; note?: ReactNode; period?: string; trend?: MetricTrend; indicator?: MetricIndicator; loading?: boolean; dataTestId?: string; className?: string; style?: React.CSSProperties }) {
-  const isUp = trend?.direction === 'up';
-  const indicatorDirection = trend?.direction ?? indicator?.direction;
-  const indicatorTone = trend?.percentage === null || indicator?.tone === 'neutral'
+  const effectiveTone = trend?.tone || indicator?.tone;
+  const isNeutral = trend?.percentage === null || effectiveTone === 'neutral' || (!effectiveTone && !trend?.direction && (!indicator?.direction || indicator.direction === 'neutral'));
+  const indicatorTone = isNeutral
     ? 'metric-trend-neutral'
-    : indicator?.tone === 'positive'
+    : effectiveTone === 'positive'
       ? 'metric-trend-up'
-      : indicator?.tone === 'negative'
+      : effectiveTone === 'negative'
         ? 'metric-trend-down'
-        : indicatorDirection === 'up' ? 'metric-trend-up' : indicatorDirection === 'down' ? 'metric-trend-down' : 'metric-trend-neutral';
-  const indicatorLabel = trend ? (trend.percentage === null ? 'New' : `${isUp ? '+' : '−'}${trend.percentage}%`) : `${indicator?.percentage.toFixed(1)}%`;
-  const indicatorAriaLabel = trend ? (trend.percentage === null ? 'New activity' : `${isUp ? 'Up' : 'Down'} ${trend.percentage}%`) : `${indicator?.percentage.toFixed(1)}%`;
-  const IndicatorIcon = trend?.percentage === null || indicator?.tone === 'neutral' ? null : indicatorDirection === 'up' ? ArrowUp : indicatorDirection === 'down' ? ArrowDown : null;
-  return <Card className={cn('p-5', className)} style={style} data-testid={dataTestId}>
-    <div className="flex items-start justify-between gap-3">
-      <div className={cn('metric-card-heading', period && 'has-period')}>
-        <div className={period ? 'metric-card-title' : 'text-[10px] font-normal uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]'}>{label}</div>
-        {period && <span className="metric-card-period">{period}</span>}
+        : (trend?.direction === 'up' || indicator?.direction === 'up')
+          ? 'metric-trend-up'
+          : (trend?.direction === 'down' || indicator?.direction === 'down')
+            ? 'metric-trend-down'
+            : 'metric-trend-neutral';
+  const isGreen = indicatorTone === 'metric-trend-up';
+  const isRed = indicatorTone === 'metric-trend-down';
+  const indicatorLabel = trend ? (trend.percentage === null ? 'New' : `${isGreen ? '+' : isRed ? '-' : ''}${trend.percentage}%`) : `${indicator?.percentage.toFixed(1)}%`;
+  const indicatorAriaLabel = trend ? (trend.percentage === null ? 'New activity' : `${isGreen ? 'Up' : isRed ? 'Down' : 'Neutral'} ${trend.percentage}%`) : `${isGreen ? 'Up' : isRed ? 'Down' : 'Neutral'} ${indicator?.percentage.toFixed(1)}%`;
+  const IndicatorIcon = isGreen ? ArrowUp : isRed ? ArrowDown : null;
+  return <Card className={cn('metric-card p-6 sm:p-7 flex flex-col justify-between min-h-[176px]', className)} style={style} data-testid={dataTestId}>
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="metric-card-heading">
+          <div className="type-stat-label">{label}</div>
+        </div>
+        {loading ? <Skeleton className="h-6 w-14 rounded-full" /> : (trend || indicator) && <span className={cn('metric-trend-badge', indicatorTone)} aria-label={indicatorAriaLabel}>
+          {IndicatorIcon && <IndicatorIcon size={12} strokeWidth={2.5} aria-hidden="true" />}
+          <span>{indicatorLabel}</span>
+        </span>}
       </div>
-      {loading ? <Skeleton className="h-5 w-12 rounded-full" /> : (trend || indicator) && <span className={cn('metric-trend-badge', indicatorTone)} aria-label={indicatorAriaLabel}>
-        {IndicatorIcon && <IndicatorIcon size={11} strokeWidth={2.5} aria-hidden="true" />}
-        <span>{indicatorLabel}</span>
-      </span>}
+      <div className="metric-value-row mt-3.5 type-stat-value">
+        {loading ? <Skeleton className="h-10 w-28" /> : <>{valueAccessory}<span className="metric-value-content">{value}</span></>}
+      </div>
     </div>
-    <div className="metric-value-row mt-3 font-display text-3xl font-bold tracking-[-.06em] metric-value">
-      {loading ? <Skeleton className="h-9 w-24" /> : <>{valueAccessory}<span className="metric-value-content">{value}</span></>}
-    </div>
-    {note && (loading ? <Skeleton className="mt-3 h-3 w-40" /> : <div className="mt-2 text-xs font-normal leading-5 text-[hsl(var(--muted-foreground))]">{note}</div>)}
+    {note && (loading ? <Skeleton className="mt-4 h-4 w-40" /> : <div className="mt-4 pt-2 type-body-small text-[hsl(var(--muted-foreground))]">{note}</div>)}
   </Card>;
 }
 function InsightCard({ icon: Icon, title, description, className = '', dataTestId }: { icon: typeof CircleDollarSign; title: string; description?: string; className?: string; dataTestId?: string }) {
-  return <Card className={cn('flex items-center gap-4 p-5', className)} data-testid={dataTestId}><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--accent))]/25 text-[hsl(var(--accent-foreground))]"><Icon size={18} /></div><div><div className="text-sm font-bold">{title}</div>{description && <p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</p>}</div></Card>;
+  return <Card className={cn('flex items-center gap-4 p-6 sm:p-7 min-h-[176px]', className)} data-testid={dataTestId}><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-[hsl(var(--accent))]/15 text-[hsl(var(--foreground))]"><Icon size={22} /></div><div><div className="type-h3">{title}</div>{description && <p className="mt-1.5 type-body">{description}</p>}</div></Card>;
 }
+
+function AuthShowcaseCard() {
+  const [visibleCount, setVisibleCount] = React.useState(0);
+
+  const messages = [
+    { from: 'buyer',  text: 'Hey! Do you still have the black midi dress in size M? 👗' },
+    { from: 'seller', text: 'Yes! Last one. It\'s GHS 320. Want me to reserve it for you?' },
+    { from: 'buyer',  text: 'Yes please! Can I pay a deposit first?' },
+    { from: 'seller', text: 'Sure! I\'ll send you a secure link to lock it in 🔗' },
+    { from: 'seller', text: '✅ Order link sent → takeorder.io/o/xk92a', isLink: true },
+    { from: 'buyer',  text: 'Paid! Deposit of GHS 160. See you Thursday for pickup 🙏' },
+  ];
+
+  React.useEffect(() => {
+    if (visibleCount >= messages.length) return;
+    const delays = [600, 1600, 2800, 3900, 4800, 6000];
+    const timer = setTimeout(() => setVisibleCount((n) => n + 1), delays[visibleCount]);
+    return () => clearTimeout(timer);
+  }, [visibleCount]);
+
+  return (
+    <div className="flex flex-col items-center w-full max-w-[400px] gap-5">
+      {/* Label */}
+      <div className="text-center space-y-1">
+        <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#9ca3af' }}>How TakeOrder works</div>
+        <div className="text-sm font-semibold text-foreground">From DM to paid — in seconds</div>
+      </div>
+
+      {/* Phone mockup */}
+      <div className="auth-showcase-card w-full">
+        {/* WA Header */}
+        <div className="flex items-center gap-2.5 pb-3 mb-3" style={{ borderBottom: '1px solid #f0ede8' }}>
+          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold shrink-0">
+            S
+          </div>
+          <div>
+            <div className="text-xs font-bold text-foreground">Your Store</div>
+            <div className="text-[10px]" style={{ color: '#25D366' }}>● Online</div>
+          </div>
+          <div className="ml-auto">
+            <SiWhatsapp size={18} style={{ color: '#25D366' }} />
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex flex-col gap-2 min-h-[260px]">
+          {messages.slice(0, visibleCount).map((msg, i) => (
+            <div
+              key={i}
+              className={`flex ${msg.from === 'seller' ? 'justify-end' : 'justify-start'}`}
+              style={{
+                animation: 'msgIn 0.25s ease',
+              }}
+            >
+              <div
+                className="max-w-[78%] px-3 py-2 rounded-2xl text-xs leading-relaxed"
+                style={{
+                  background: msg.from === 'seller' ? '#dcf8c6' : '#fff',
+                  color: msg.isLink ? '#2563eb' : '#1f2937',
+                  border: msg.from === 'buyer' ? '1px solid #f0ede8' : 'none',
+                  fontWeight: msg.isLink ? 600 : 400,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                  borderRadius: msg.from === 'seller' ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                }}
+              >
+                {msg.text}
+              </div>
+            </div>
+          ))}
+
+          {/* Typing indicator */}
+          {visibleCount < messages.length && (
+            <div className="flex justify-start">
+              <div className="px-3 py-2.5 rounded-2xl bg-white border border-neutral-100 flex items-center gap-1" style={{ borderRadius: '4px 16px 16px 16px', boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Input bar */}
+        <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: '#f0ede8' }}>
+          <span className="text-xs flex-1" style={{ color: '#9ca3af' }}>Message…</span>
+          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: '#25D366' }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="white" strokeWidth="2.5" strokeLinecap="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Powered by */}
+      <div className="flex items-center gap-1.5 text-xs" style={{ color: '#9ca3af' }}>
+        <BrandWordmark className="h-4 w-auto opacity-60" />
+        <span>turns every DM into a tracked order</span>
+      </div>
+    </div>
+  );
+}
+
+const onboardingCategoryImages: Record<string, string> = {
+  'Fashion & Apparel': 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=700&h=500&q=80',
+  'Beauty & Skincare': 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=700&h=500&q=80',
+  'Sneakers & Shoes': 'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=700&h=500&q=80',
+  'Jewelry & Accessories': 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=700&h=500&q=80',
+  'Perfumes & Scents': 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=700&h=500&q=80',
+  'Tech & Gadgets': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=700&h=500&q=80',
+  'Food & Bakery': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=700&h=500&q=80',
+  'Home & Living': 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=700&h=500&q=80',
+  'Other Products': 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=700&h=500&q=80',
+};
+
+export function OnboardingShowcase({ step, profile }: { step: number; profile: SellerProfile }) {
+  const symbol = currencySymbol(profile.currency || 'GHS');
+  
+  if (step === 0) {
+    const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Sarah Mensah';
+    return (
+      <div className="onboarding-showcase-container">
+        <div className="onboarding-showcase-card">
+          <div className="onboarding-showcase-image-wrap">
+            <img
+              src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=700&h=500&q=80"
+              alt="Take Order seller"
+              loading="lazy"
+            />
+            <span className="onboarding-showcase-badge">SELLER IDENTITY · STEP 1 OF 4</span>
+          </div>
+          <div className="onboarding-showcase-body">
+            <h2 className="text-lg font-bold text-neutral-900 tracking-tight">Your Private Seller Identity</h2>
+            <p className="mt-1 text-xs text-neutral-600 leading-relaxed">
+              Set up your verified merchant profile. Connect your contact details and home currency for automated calculations.
+            </p>
+            <div className="onboarding-showcase-subcard space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-medium">Merchant:</span>
+                <strong className="text-neutral-900">{fullName}</strong>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-medium">Contact:</span>
+                <span className="font-mono-ui text-neutral-800">{profile.phone || profile.whatsappPhone || '+233 24 123 4567'}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-neutral-200/60">
+                <span className="text-neutral-500 font-medium">Country & Currency:</span>
+                <span className="font-semibold text-emerald-700">{profile.country || 'Ghana'} ({profile.currency || 'GHS'} · {symbol})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 1) {
+    const storeName = profile.businessName.trim() || 'Your Store Name';
+    const storeSlug = profile.businessName ? profile.businessName.toLowerCase().replace(/[^a-z0-9]/g, '') : 'store';
+    return (
+      <div className="onboarding-showcase-container">
+        <div className="onboarding-showcase-card">
+          <div className="onboarding-showcase-image-wrap">
+            <img
+              src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=700&h=500&q=80"
+              alt="Boutique storefront"
+              loading="lazy"
+            />
+            <span className="onboarding-showcase-badge">STOREFRONT · STEP 2 OF 4</span>
+          </div>
+          <div className="onboarding-showcase-body">
+            <h2 className="text-lg font-bold text-neutral-900 tracking-tight">Instant Live Storefront</h2>
+            <p className="mt-1 text-xs text-neutral-600 leading-relaxed">
+              Your storefront link is generated live as you type. Share it directly in WhatsApp, Instagram DMs, or TikTok chats.
+            </p>
+            <div className="onboarding-showcase-subcard space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-medium">Store name:</span>
+                <strong className="text-neutral-900">{storeName}</strong>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-medium">Public link:</span>
+                <span className="font-mono-ui font-semibold text-blue-600">takeorder.io/@{storeSlug}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-neutral-200/60">
+                <span className="text-neutral-500 font-medium">Status:</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Ready to take orders
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 2) {
+    const selectedCat = profile.category || 'Fashion & Apparel';
+    const catImage = onboardingCategoryImages[selectedCat] || onboardingCategoryImages['Fashion & Apparel'];
+    return (
+      <div className="onboarding-showcase-container">
+        <div className="onboarding-showcase-card">
+          <div className="onboarding-showcase-image-wrap">
+            <img
+              src={catImage}
+              alt={selectedCat}
+              loading="lazy"
+            />
+            <span className="onboarding-showcase-badge">CATALOG · STEP 3 OF 4</span>
+          </div>
+          <div className="onboarding-showcase-body">
+            <h2 className="text-lg font-bold text-neutral-900 tracking-tight">Tailored Product Catalog</h2>
+            <p className="mt-1 text-xs text-neutral-600 leading-relaxed">
+              Take Order configures variant options, sizing, and color swatches matching your specific commerce category.
+            </p>
+            <div className="onboarding-showcase-subcard space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-medium">Category:</span>
+                <strong className="text-neutral-900">{selectedCat}</strong>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-medium">Features enabled:</span>
+                <span className="text-neutral-800 font-medium">Sizes · Colors · Qty counters</span>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-neutral-200/60">
+                <span className="text-neutral-500 font-medium">Sample item quote:</span>
+                <span className="font-mono-ui font-bold text-neutral-900">{symbol} 250.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 3) {
+    const teamLabel = profile.teamSize || 'Just me (Solo seller)';
+    return (
+      <div className="onboarding-showcase-container">
+        <div className="onboarding-showcase-card">
+          <div className="onboarding-showcase-image-wrap">
+            <img
+              src="https://images.unsplash.com/photo-1556742049-0a67e557224b?auto=format&fit=crop&w=700&h=500&q=80"
+              alt="Fulfillment workflow"
+              loading="lazy"
+            />
+            <span className="onboarding-showcase-badge">OPERATIONS · STEP 4 OF 4</span>
+          </div>
+          <div className="onboarding-showcase-body">
+            <h2 className="text-lg font-bold text-neutral-900 tracking-tight">Order Fulfillment & Delivery</h2>
+            <p className="mt-1 text-xs text-neutral-600 leading-relaxed">
+              Coordinate deliveries with copyable motorbike rider slips, and track deposits and balances due upon delivery.
+            </p>
+            <div className="onboarding-showcase-subcard space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-medium">Team structure:</span>
+                <strong className="text-neutral-900">{teamLabel}</strong>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-medium">Courier workflow:</span>
+                <span className="text-neutral-800 font-medium">Motorbike Rider Dispatch Slips</span>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-neutral-200/60">
+                <span className="text-neutral-500 font-medium">Balance protection:</span>
+                <span className="font-semibold text-emerald-600">Track paid vs due on delivery</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 4: Finished / Ready
+  return (
+    <div className="onboarding-showcase-container">
+      <div className="onboarding-showcase-card">
+        <div className="onboarding-showcase-image-wrap">
+          <img
+            src="https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=700&h=500&q=80"
+            alt="Ready to sell"
+            loading="lazy"
+          />
+          <span className="onboarding-showcase-badge">WORKSPACE READY</span>
+        </div>
+        <div className="onboarding-showcase-body">
+          <h2 className="text-lg font-bold text-neutral-900 tracking-tight">Setup Complete!</h2>
+          <p className="mt-1 text-xs text-neutral-600 leading-relaxed">
+            Your workspace is ready. You can now build your catalog, send order links to buyers, and track real-time sales.
+          </p>
+          <div className="onboarding-showcase-subcard space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-neutral-500 font-medium">Store active:</span>
+              <strong className="text-neutral-900">{profile.businessName || 'Take Order Store'}</strong>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-neutral-500 font-medium">Connected channels:</span>
+              <span className="font-semibold text-neutral-900">WhatsApp · Instagram · TikTok</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthSplitLayout({
+  children,
+  rightVariant = 'default',
+  showcase,
+}: {
+  children: ReactNode;
+  rightVariant?: 'default' | 'onboarding';
+  showcase?: ReactNode;
+}) {
+  return (
+    <div className="auth-split-wrapper">
+      <div className="auth-split-left">
+        {/* Top bar with Take Order brand logo */}
+        <header className="flex items-center justify-between">
+          <Link href="/" aria-label="Take Order home" className="inline-flex items-center gap-2.5" data-testid="link-auth-logo">
+            <img src={brandAssets.icon} alt="Take Order" className="h-8 sm:h-9 w-auto rounded-xl object-contain shadow-xs" />
+            <span className="font-black tracking-tight text-xl text-neutral-900 leading-none">
+              Take<span className="text-[#F5B418]">Order</span>
+            </span>
+          </Link>
+        </header>
+
+        {/* Main Content Form */}
+        <main className="w-full max-w-[400px] mx-auto my-auto py-8">
+          {children}
+        </main>
+
+        {/* Bottom Legal Links */}
+        <footer className="pt-6 border-t border-neutral-100 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-neutral-400">
+          <button type="button" onClick={() => alert('Take Order Terms & Conditions: Your seller data and transaction history are private to your account.')} className="hover:text-neutral-600 transition-colors">
+            Terms and conditions
+          </button>
+          <span>·</span>
+          <button type="button" onClick={() => alert('Take Order Privacy Policy: Buyer order links remain shareable without exposing internal seller finances.')} className="hover:text-neutral-600 transition-colors">
+            Privacy policy
+          </button>
+          <span>·</span>
+          <span className="inline-flex items-center gap-1.5 text-neutral-500">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
+            Take Order Status
+          </span>
+        </footer>
+      </div>
+
+      {/* Right Column Showcase */}
+      <div className={cn("auth-split-right", rightVariant === 'onboarding' && 'is-onboarding')} aria-hidden="true">
+        {showcase || <AuthShowcaseCard />}
+      </div>
+    </div>
+  );
+}
+
+const countryCurrencyMap: Record<string, SellerSettings['currency']> = {
+  'Ghana': 'GHS',
+  'Nigeria': 'NGN',
+  'Kenya': 'KES',
+  'South Africa': 'ZAR',
+  'United Kingdom': 'GBP',
+  'United States': 'USD',
+  'Canada': 'CAD',
+  'Other': 'USD',
+};
+
+const onboardingCategories = [
+  { id: 'fashion', label: 'Fashion & Apparel', icon: '👗' },
+  { id: 'beauty', label: 'Beauty & Skincare', icon: '💄' },
+  { id: 'sneakers', label: 'Sneakers & Shoes', icon: '👟' },
+  { id: 'jewelry', label: 'Jewelry & Accessories', icon: '💍' },
+  { id: 'fragrance', label: 'Perfumes & Scents', icon: '🧴' },
+  { id: 'electronics', label: 'Tech & Gadgets', icon: '📱' },
+  { id: 'food', label: 'Food & Bakery', icon: '🧁' },
+  { id: 'home', label: 'Home & Living', icon: '🪴' },
+  { id: 'other', label: 'Other Products', icon: '✨' },
+];
+
+const teamSizeOptions = [
+  { id: 'solo', label: 'Just me', subtitle: 'Solo seller' },
+  { id: 'small', label: '2–5 people', subtitle: 'Small team' },
+  { id: 'medium', label: '6–10 people', subtitle: 'Growing business' },
+  { id: 'large', label: '11+ people', subtitle: 'Established team' },
+];
 
 export function Onboarding() {
   const [, setLocation] = useLocation();
-  const [step, setStep] = useState(() => readOnboardingStep());
-  const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [], currency: null });
-  const [logoError, setLogoError] = useState('');
+  const { userId } = useAppAuth();
+  const isOnline = useIsOnline();
+  const [step, setStep] = useState(() => Math.min(readOnboardingStep(userId), 4));
+  const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile(userId));
   const [onboardingSaveError, setOnboardingSaveError] = useState('');
-  const currencyHintQuery = useGetCurrencyHint();
+  const [offlineSavedNotice, setOfflineSavedNotice] = useState(false);
   const settingsQuery = useGetSellerSettings();
   const saveOnboardingSettingsMutation = useUpdateSellerSettings();
+
   useEffect(() => {
-    writeSellerProfile(profile);
-  }, [profile]);
+    writeSellerProfile(profile, userId);
+  }, [profile, userId]);
+
   useEffect(() => {
-    writeOnboardingStep(step);
-  }, [step]);
+    writeOnboardingStep(step, userId);
+  }, [step, userId]);
+
   useEffect(() => {
-    if (profile.currency || currencyHintQuery.isLoading) return;
-    const suggestedCurrency = currencyHintQuery.data?.currency
-      ?? currencyForLanguage(typeof navigator === 'undefined' ? undefined : navigator.language)?.currency;
-    if (suggestedCurrency) setProfile((current) => current.currency ? current : { ...current, currency: suggestedCurrency as SellerSettings['currency'] });
-  }, [currencyHintQuery.data?.currency, currencyHintQuery.isLoading, profile.currency]);
-  const update = (key: keyof SellerProfile, value: string) => {
-    const next = { ...profile, [key]: value };
-    setProfile(next);
-    writeSellerProfile(next);
-  };
-  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setLogoError('Choose an image file.');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      setLogoError('Choose an image smaller than 2 MB.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') return;
-      setLogoError('');
-      update('logoDataUrl', reader.result);
+    const handleBeforeUnload = () => {
+      writeSellerProfile(profile, userId);
+      writeOnboardingStep(step, userId);
     };
-    reader.onerror = () => setLogoError('That image could not be read. Try another file.');
-    reader.readAsDataURL(file);
-  };
-  const removeLogo = () => {
-    const next = { ...profile };
-    delete next.logoDataUrl;
-    setProfile(next);
-    writeSellerProfile(next);
-    setLogoError('');
-  };
-  const toggleChannel = (channel: string) => {
-    const next = { ...profile, channels: togglePreference(profile.channels, channel) };
-    setProfile(next);
-    writeSellerProfile(next);
-  };
-  const changeStep = (nextStep: number) => {
-    writeOnboardingStep(nextStep);
-    setStep(nextStep);
-  };
-  const finishSetup = () => {
-    if (!profile.currency) return;
-    const existing = settingsQuery.data ?? emptySellerSettings;
-    saveOnboardingSettingsMutation.mutate({
-      data: {
-        ...existing,
-        sellerName: profile.sellerName,
-        businessName: profile.businessName,
-        description: profile.description,
-        channels: profile.channels,
-        logoDataUrl: profile.logoDataUrl ?? existing.logoDataUrl,
-        currency: profile.currency,
-      },
-    }, {
-      onSuccess: (data) => {
-        queryClient.setQueryData(getGetSellerSettingsQueryKey(), data);
-        setOnboardingSaveError('');
-        finishOnboarding();
-        changeStep(3);
-      },
-      onError: (error) => setOnboardingSaveError(error instanceof Error ? error.message : 'Your setup could not be saved. Try again.'),
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [profile, step, userId]);
+
+  const update = (key: keyof SellerProfile, value: string) => {
+    setProfile((prev) => {
+      const next = { ...prev, [key]: value };
+      writeSellerProfile(next, userId);
+      return next;
     });
   };
-  const skip = () => { finishOnboarding(); setLocation('/'); };
-  const next = () => {
-    if (step === 0 && profile.description.trim()) changeStep(1);
-    else if (step === 1 && profile.sellerName.trim() && profile.businessName.trim()) changeStep(2);
-    else if (step === 2) finishSetup();
+
+  const handleCountryChange = (countryName: string) => {
+    const currency = countryCurrencyMap[countryName] || 'USD';
+    setProfile((prev) => {
+      const next = { ...prev, country: countryName, currency };
+      writeSellerProfile(next, userId);
+      setActiveCurrency(currency);
+      return next;
+    });
   };
-  const canContinue = step === 0 ? Boolean(profile.description.trim()) : step === 1 ? Boolean(profile.sellerName.trim() && profile.businessName.trim()) : Boolean(profile.currency);
-  const continuationGuidance = step === 0 && !canContinue
-    ? 'Add what you sell and where buyers find you before continuing.'
-    : step === 1 && !canContinue
-      ? 'Add your name and business or shop name before continuing.'
-        : step === 2 && !canContinue
-          ? 'Choose a base currency before finishing setup.'
-      : null;
-  const panelCopy = [
-    { eyebrow: 'A calmer way to sell', title: 'Keep every order moving.', body: 'Take Order gives your buyers one clear place to choose, confirm, and pay.', note: 'Set up once. Share whenever you are ready.' },
-    { eyebrow: 'Your workspace', title: 'Make it recognisably yours.', body: 'A familiar name and mark help every buyer link feel like your business.', note: 'Your details stay private on this device.' },
-    { eyebrow: 'Ready when buyers are', title: 'Meet them wherever they find you.', body: 'Your links work alongside the channels you already use — without extra connections.', note: 'Choose as many channels as you like.' },
-    { eyebrow: 'You are ready', title: 'One less thing to keep in your head.', body: 'Your workspace is saved. Start with a product, then let Take Order keep the details tidy.', note: 'You can change these preferences later.' },
-  ][step];
-  return <div className="onboarding-shell">
-    <div className="onboarding-layout">
-      <section className="onboarding-main" aria-label="Take Order setup">
-        <header className="onboarding-header">
-          <Link href="/" data-testid="link-onboarding-logo" aria-label="Take Order overview"><BrandLockup className="gap-2" /></Link>
-          {step < 3 && <button type="button" onClick={skip} data-testid="button-skip-onboarding" className="onboarding-skip">Skip setup</button>}
-        </header>
-        <div className="onboarding-form-wrap">
-          {step < 3 && <div className="onboarding-progress" aria-label="Setup progress">{[0, 1, 2].map((item) => <span key={item} className={cn(item <= step && 'is-complete')} />)}</div>}
-          <div className="onboarding-form-panel">
-           {step === 0 && <div className="page-in"><div className="onboarding-kicker">Step one of three</div><h1>Tell us what you sell.</h1><p className="onboarding-lede">A few words is enough. This helps us shape your starting point around the way you already work.</p><textarea autoFocus data-testid="input-onboarding-description" value={profile.description} onChange={(event) => update('description', event.target.value)} placeholder="I sell handmade jewellery, mostly through Instagram and WhatsApp." rows={6} className="field-input onboarding-textarea" /><div className="onboarding-helper"><CheckCircle2 size={15} aria-hidden="true" />No account connections are needed for setup.</div></div>}
-           {step === 1 && <div className="page-in"><div className="onboarding-kicker">Step two of three</div><h1>Set up your identity.</h1><p className="onboarding-lede">Use the name buyers know you by. You can always refine your workspace later.</p><div className="onboarding-fields"><div><label className="field-label" htmlFor="onboarding-seller-name">Your name</label><input autoFocus id="onboarding-seller-name" data-testid="input-onboarding-seller-name" value={profile.sellerName} onChange={(event) => update('sellerName', event.target.value)} placeholder="e.g. Amina Mensah" className="field-input" /></div><div><label className="field-label" htmlFor="onboarding-business-name">Business or shop name</label><input id="onboarding-business-name" data-testid="input-onboarding-business-name" value={profile.businessName} onChange={(event) => update('businessName', event.target.value)} placeholder="e.g. The Sunday Edit" className="field-input" /></div><div><div className="field-label">Business logo <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></div><div className="seller-logo-picker"><SellerLogo businessName={profile.businessName || 'Your shop'} logoDataUrl={profile.logoDataUrl} className="seller-logo-picker-mark" /><div className="min-w-0 flex-1"><div className="text-sm font-semibold">{profile.logoDataUrl ? 'Your logo is ready' : 'Use a logo or our generated graphic'}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">PNG, JPG, WebP, or SVG up to 2 MB.</p><div className="mt-3 flex flex-wrap gap-2"><label className="onboarding-upload"><ImagePlus size={14} />{profile.logoDataUrl ? 'Replace logo' : 'Upload logo'}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" tabIndex={-1} className="sr-only" onChange={handleLogoChange} data-testid="input-onboarding-logo" /></label>{profile.logoDataUrl && <button type="button" onClick={removeLogo} className="onboarding-remove" data-testid="button-remove-onboarding-logo"><X size={14} />Remove</button>}</div>{logoError && <p role="alert" className="mt-2 text-xs text-[hsl(var(--destructive))]">{logoError}</p>}</div></div></div></div></div>}
-            {step === 2 && <div className="page-in"><div className="onboarding-kicker">Step three of three</div><h1>Set your currency and channels.</h1><p className="onboarding-lede">Your currency is used across your workspace and buyer links. You can change the suggestion before finishing, and later from settings.</p><div className="mb-7"><label className="field-label" htmlFor="onboarding-currency">Base currency</label><select id="onboarding-currency" data-testid="select-onboarding-currency" className="field-input" value={profile.currency ?? ''} onChange={(event) => { setOnboardingSaveError(''); setProfile((current) => ({ ...current, currency: event.target.value as SellerSettings['currency'] })); }}><option value="">Choose a currency</option>{storeCurrencyOptions.map((option) => <option key={option.currency} value={option.currency}>{option.label} ({option.currency})</option>)}</select>{currencyHintQuery.data?.currency && <p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">We think you’re in {countryNameForCode(currencyHintQuery.data.country) ?? 'your current location'} — {storeCurrencyOptions.find((option) => option.currency === currencyHintQuery.data?.currency)?.label ?? currencyHintQuery.data.currency} ({currencyHintQuery.data.currency}) is suggested. You can choose another currency above.</p>}{!currencyHintQuery.isLoading && !currencyHintQuery.data?.currency && !profile.currency && <p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">We could not make a reliable location suggestion. Choose any currency from the full list.</p>}</div><div className="onboarding-channel-area"><div className="field-label mb-3">Where do you usually sell?</div><OnboardingChannelPicker selectedChannels={profile.channels} onToggle={toggleChannel} /></div>{onboardingSaveError && <p role="alert" className="mt-5 text-xs text-[hsl(var(--destructive))]">{onboardingSaveError}</p>}</div>}
-           {step === 3 && <div className="page-in onboarding-complete"><div className="onboarding-success"><Check size={22} /></div><div className="onboarding-kicker">Setup complete</div><h1>Your shop has a home.</h1><p className="onboarding-lede">Your preferences are saved locally. Choose the next useful step and Take Order will keep the rest tidy.</p><div className="onboarding-next-steps"><Link href="/catalog" data-testid="link-onboarding-add-item"><span className="step-number">01</span><span><strong>Add your first catalog item</strong><small>Name, price, cost, and stock — that’s the foundation.</small></span><ArrowRight size={16} /></Link><Link href="/connect" data-testid="link-onboarding-connect-tools"><span className="step-number">02</span><span><strong>Review optional tools</strong><small>Save the channels and payment tools you use.</small></span><ArrowRight size={16} /></Link></div><Button onClick={() => setLocation('/')} className="onboarding-open-button" data-testid="button-open-workspace">Open my workspace <ArrowRight size={15} /></Button></div>}
-           {step < 3 && <div className="onboarding-actions">
-             {continuationGuidance && <p id="onboarding-continue-guidance" role="status" aria-live="polite" aria-atomic="true" className="onboarding-guidance">{continuationGuidance}</p>}
-              <div className="onboarding-action-row"><button type="button" onClick={() => step === 0 ? skip() : changeStep(step - 1)} data-testid="button-onboarding-back" className="onboarding-back">{step === 0 ? 'Not now' : <><ArrowLeft size={14} />Back</>}</button><Button onClick={next} disabled={!canContinue || settingsQuery.isLoading || saveOnboardingSettingsMutation.isPending} aria-describedby={continuationGuidance ? 'onboarding-continue-guidance' : undefined} data-testid="button-onboarding-continue">{saveOnboardingSettingsMutation.isPending ? 'Saving…' : step === 2 ? 'Finish setup' : 'Continue'}<ArrowRight size={15} /></Button></div>
-           </div>}
+
+  const changeStep = (nextStep: number) => {
+    writeOnboardingStep(nextStep, userId);
+    setStep(nextStep);
+  };
+
+  const finishSetup = (forceOffline = false) => {
+    const finalCurrency = profile.currency || 'GHS';
+    const existing = settingsQuery.data ?? emptySellerSettings;
+    const finalSellerName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.sellerName.trim() || 'Store Owner';
+    const finalBusinessName = profile.businessName.trim() || 'Take Order Store';
+    const finalDescription = profile.category ? `${finalBusinessName} · ${profile.category}` : `${finalBusinessName} store`;
+
+    const updatedSettings: SellerSettings = {
+      ...existing,
+      sellerName: finalSellerName,
+      businessName: finalBusinessName,
+      description: finalDescription,
+      channels: profile.channels?.length ? profile.channels : ['whatsapp', 'instagram'],
+      currency: (finalCurrency as SellerSettings['currency']) || 'GHS',
+      organizationPhone: profile.phone || profile.whatsappPhone || existing.organizationPhone,
+    };
+
+    const finalizedProfile: SellerProfile = {
+      ...profile,
+      sellerName: finalSellerName,
+      businessName: finalBusinessName,
+      currency: finalCurrency,
+    };
+
+    writeSellerProfile(finalizedProfile, userId);
+
+    if (!isOnline || forceOffline) {
+      writePendingSettingsSync(updatedSettings);
+      queryClient.setQueryData(getGetSellerSettingsQueryKey(), updatedSettings);
+      finishOnboarding(userId);
+      changeStep(4);
+      return;
+    }
+
+    saveOnboardingSettingsMutation.mutate({
+      data: updatedSettings,
+    }, {
+      onSuccess: (data) => {
+        clearPendingSettingsSync();
+        queryClient.setQueryData(getGetSellerSettingsQueryKey(), data);
+        setOnboardingSaveError('');
+        finishOnboarding(userId);
+        changeStep(4);
+      },
+      onError: (error) => {
+        writePendingSettingsSync(updatedSettings);
+        queryClient.setQueryData(getGetSellerSettingsQueryKey(), updatedSettings);
+        setOnboardingSaveError(formatUserFacingError(error, 'Connection issue detected. Your details are saved safely on this device.'));
+        setOfflineSavedNotice(true);
+      },
+    });
+  };
+
+  return (
+    <AuthSplitLayout rightVariant="onboarding" showcase={<OnboardingShowcase step={step} profile={profile} />}>
+      <div className="w-full">
+        {!isOnline && (
+          <div className="mb-4 flex items-center gap-2 px-3.5 py-2.5 rounded-[10px] bg-amber-50 border border-amber-200 text-xs font-medium text-amber-900" role="status">
+            <WifiOff size={15} className="shrink-0 text-amber-600" />
+            <span>Working offline. All your entries are safely saved on this device.</span>
           </div>
+        )}
+        {step < 4 && (
+          <div className="flex items-center gap-1.5 mb-6" aria-label={`Step ${step + 1} of 4`}>
+            {[0, 1, 2, 3].map((s) => (
+              <div
+                key={s}
+                className={cn(
+                  'h-1.5 flex-1 rounded-full transition-all duration-300',
+                  s <= step ? 'bg-neutral-900' : 'bg-neutral-200'
+                )}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* STEP 0: Finish signing up */}
+        {step === 0 && (
+          <div className="space-y-5">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Finish signing up</h1>
+              <p className="mt-1.5 text-sm text-neutral-600">
+                Enter your details to complete your seller profile.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="onboarding-first-name">
+                    First name
+                  </label>
+                  <input
+                    autoFocus
+                    id="onboarding-first-name"
+                    data-testid="input-onboarding-first-name"
+                    value={profile.firstName ?? ''}
+                    onChange={(e) => update('firstName', e.target.value)}
+                    placeholder="First name"
+                    className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="onboarding-last-name">
+                    Last name
+                  </label>
+                  <input
+                    id="onboarding-last-name"
+                    data-testid="input-onboarding-last-name"
+                    value={profile.lastName ?? ''}
+                    onChange={(e) => update('lastName', e.target.value)}
+                    placeholder="Last name"
+                    className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="onboarding-phone">
+                  Mobile number
+                </label>
+                <input
+                  id="onboarding-phone"
+                  data-testid="input-onboarding-phone"
+                  type="tel"
+                  value={profile.phone ?? profile.whatsappPhone ?? ''}
+                  onChange={(e) => {
+                    update('phone', e.target.value);
+                    update('whatsappPhone', e.target.value);
+                  }}
+                  placeholder="e.g. +233 24 123 4567"
+                  className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="onboarding-country">
+                  Country
+                </label>
+                <select
+                  id="onboarding-country"
+                  data-testid="select-onboarding-country"
+                  value={profile.country ?? 'Ghana'}
+                  onChange={(e) => handleCountryChange(e.target.value)}
+                  className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+                >
+                  <option value="Ghana">🇬🇭 Ghana (GHS)</option>
+                  <option value="Nigeria">🇳🇬 Nigeria (NGN)</option>
+                  <option value="Kenya">🇰🇪 Kenya (KES)</option>
+                  <option value="South Africa">🇿🇦 South Africa (ZAR)</option>
+                  <option value="United Kingdom">🇬🇧 United Kingdom (GBP)</option>
+                  <option value="United States">🇺🇸 United States (USD)</option>
+                  <option value="Canada">🇨🇦 Canada (CAD)</option>
+                  <option value="Other">🌐 Other (USD)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const full = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
+                  if (full) update('sellerName', full);
+                  changeStep(1);
+                }}
+                disabled={!(profile.firstName?.trim() && profile.lastName?.trim() && (profile.phone?.trim() || profile.whatsappPhone?.trim()))}
+                className="w-full py-2.5 px-4 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                data-testid="button-onboarding-step0-continue"
+              >
+                <span>Continue</span>
+                <ArrowRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 1: What's your business name? */}
+        {step === 1 && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">What's your business name?</h1>
+            </div>
+
+            <div className="pt-1">
+              <input
+                autoFocus
+                id="onboarding-business-name"
+                data-testid="input-onboarding-business-name"
+                value={profile.businessName}
+                onChange={(e) => update('businessName', e.target.value)}
+                placeholder="e.g. The Sunday Edit or Kicks Vault"
+                className="w-full h-12 px-4 py-3 rounded-[10px] border border-neutral-200 bg-white text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => changeStep(0)}
+                className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1.5 cursor-pointer"
+                data-testid="button-onboarding-step1-back"
+              >
+                <ArrowLeft size={15} />
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => changeStep(2)}
+                disabled={!profile.businessName.trim()}
+                className="px-6 py-2.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer flex items-center gap-2"
+                data-testid="button-onboarding-step1-continue"
+              >
+                <span>Continue</span>
+                <ArrowRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: Categories */}
+        {step === 2 && (
+          <div className="space-y-5">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">What best describes your business?</h1>
+              <p className="mt-1.5 text-sm text-neutral-600">Select what you sell to customize your workspace.</p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1" role="group" aria-label="Select business category">
+              {onboardingCategories.map((cat) => {
+                const isSelected = profile.category === cat.label;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => update('category', cat.label)}
+                    className={cn(
+                      'flex items-center gap-2 p-3 rounded-[10px] border text-left text-xs font-medium transition-all cursor-pointer',
+                      isSelected
+                        ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs'
+                        : 'border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50'
+                    )}
+                  >
+                    <span className="text-base" aria-hidden="true">{cat.icon}</span>
+                    <span className="truncate">{cat.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between pt-4">
+              <button
+                type="button"
+                onClick={() => changeStep(1)}
+                className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1.5 cursor-pointer"
+                data-testid="button-onboarding-step2-back"
+              >
+                <ArrowLeft size={15} />
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => changeStep(3)}
+                disabled={!profile.category}
+                className="px-6 py-2.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer flex items-center gap-2"
+                data-testid="button-onboarding-step2-continue"
+              >
+                <span>Continue</span>
+                <ArrowRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Team size selection */}
+        {step === 3 && (
+          <div className="space-y-5">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">What's your team size?</h1>
+              <p className="mt-1.5 text-sm text-neutral-600">How many people work in your business?</p>
+            </div>
+
+            <div className="space-y-2.5 pt-1" role="group" aria-label="Select team size">
+              {teamSizeOptions.map((opt) => {
+                const isSelected = (profile.teamSize ?? 'Just me') === opt.label;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => update('teamSize', opt.label)}
+                    className={cn(
+                      'w-full flex items-center justify-between p-3.5 rounded-[10px] border text-left transition-all cursor-pointer',
+                      isSelected
+                        ? 'border-neutral-900 bg-neutral-50 text-neutral-900 ring-1 ring-neutral-900'
+                        : 'border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50'
+                    )}
+                  >
+                    <div>
+                      <div className="text-sm font-bold text-neutral-900">{opt.label}</div>
+                      <div className="text-xs text-neutral-500">{opt.subtitle}</div>
+                    </div>
+                    <div className={cn(
+                      'w-4 h-4 rounded-full border flex items-center justify-center',
+                      isSelected ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'
+                    )}>
+                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {onboardingSaveError && (
+              <div role="alert" className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-2">
+                <div className="flex items-center gap-1.5 font-medium">
+                  <WifiOff size={14} className="shrink-0 text-amber-700" />
+                  <span>{onboardingSaveError}</span>
+                </div>
+                {offlineSavedNotice && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => finishSetup(true)}
+                      className="px-3 py-1.5 rounded-md bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors cursor-pointer"
+                      data-testid="button-onboarding-offline-proceed"
+                    >
+                      Proceed to workspace
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => finishSetup(false)}
+                      className="px-3 py-1.5 rounded-md border border-neutral-300 bg-white text-neutral-800 text-xs font-semibold hover:bg-neutral-50 transition-colors cursor-pointer"
+                      data-testid="button-onboarding-offline-retry"
+                    >
+                      Retry sync
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-4">
+              <button
+                type="button"
+                onClick={() => changeStep(2)}
+                className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1.5 cursor-pointer"
+                data-testid="button-onboarding-step3-back"
+              >
+                <ArrowLeft size={15} />
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => finishSetup(false)}
+                disabled={saveOnboardingSettingsMutation.isPending}
+                className="px-6 py-2.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50 transition-all shadow-xs cursor-pointer flex items-center gap-2"
+                data-testid="button-onboarding-finish"
+              >
+                {saveOnboardingSettingsMutation.isPending ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    <span>Setting up workspace…</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Complete setup</span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: All set / Ready */}
+        {step === 4 && (
+          <div className="space-y-6">
+            <div>
+              <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mb-4">
+                <Check size={24} />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">You're all set!</h1>
+              <p className="mt-1.5 text-sm text-neutral-600">
+                Your workspace is ready for <strong className="text-neutral-900">{profile.businessName || 'your business'}</strong>.
+              </p>
+            </div>
+
+            <div className="rounded-[14px] border border-neutral-200 bg-neutral-50 p-4 space-y-2.5 text-xs text-neutral-600">
+              <div className="flex justify-between">
+                <span>Business name:</span>
+                <strong className="text-neutral-900">{profile.businessName || 'Your store'}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Owner:</span>
+                <strong className="text-neutral-900">{`${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.sellerName || 'Store Owner'}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Category:</span>
+                <strong className="text-neutral-900">{profile.category || 'General merchandise'}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Country & Currency:</span>
+                <strong className="text-neutral-900">{profile.country || 'Ghana'} ({profile.currency || 'GHS'})</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Team size:</span>
+                <strong className="text-neutral-900">{profile.teamSize || 'Just me'}</strong>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  finishOnboarding(userId);
+                  setLocation('/');
+                }}
+                className="w-full py-3 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                data-testid="button-open-workspace"
+              >
+                <span>Open seller dashboard</span>
+                <ArrowRight size={15} />
+              </button>
+              <Link
+                href="/take-order"
+                className="w-full py-2.5 rounded-[10px] border border-neutral-200 text-xs font-semibold text-neutral-700 hover:text-neutral-900 hover:bg-neutral-50 transition-colors flex items-center justify-center gap-1.5"
+                data-testid="link-onboarding-take-order"
+              >
+                <span>Take an order link right now</span>
+                <ArrowUpRight size={14} />
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+    </AuthSplitLayout>
+  );
+}
+
+function NativeSignInForm({ onDemoLogin }: { onDemoLogin: () => void }) {
+  const [email, setEmail] = useState(() => readDraftAuth().signInEmail || '');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [, setLocation] = useLocation();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email');
+      return;
+    }
+    clearDraftAuth(['signInEmail']);
+    const cleanEmail = email.trim().toLowerCase();
+    const emailHash = cleanEmail.replace(/[^a-z0-9]/g, '_');
+    const derivedUserId = `seller_${emailHash}`;
+    localStorage.setItem('duka-test-auth', 'true');
+    localStorage.setItem('duka-test-user-id', derivedUserId);
+    if (typeof window !== 'undefined') {
+      (window as any).__DUKA_TEST_USER_ID__ = derivedUserId;
+    }
+    setActiveSellerUserId(derivedUserId);
+    queryClient.clear();
+    const existing = readSellerProfile(derivedUserId);
+    const completed = readOnboardingComplete(derivedUserId);
+    if (completed && existing.businessName?.trim()) {
+      setLocation('/');
+    } else {
+      setLocation('/onboarding');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Log in</h1>
+        <p className="mt-1.5 text-sm text-neutral-600">
+          Welcome back! Please enter your email and password to continue.
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+          {error}
         </div>
-      </section>
-      <aside className="onboarding-brand-panel">
-        <div className="onboarding-brand-top"><BrandLockup className="onboarding-brand-lockup" /><span className="onboarding-panel-tag">Seller workspace</span></div>
-        <div className="onboarding-panel-copy"><div className="onboarding-panel-eyebrow">{panelCopy.eyebrow}</div><h2>{panelCopy.title}</h2><p>{panelCopy.body}</p><div className="onboarding-panel-note"><span className="onboarding-note-dot" />{panelCopy.note}</div></div>
-        <div className="onboarding-product-scene" aria-hidden="true"><div className="product-orbit product-orbit-one" /><div className="product-orbit product-orbit-two" /><div className="product-device"><div className="product-device-top"><span>take order</span><span className="product-status"><i />live</span></div><div className="product-device-content"><span className="product-device-label">{step === 3 ? 'Order ready' : step === 2 ? 'Share your link' : 'Your shop'}</span><strong>{profile.businessName || 'Take Order'}</strong><div className="product-device-line" /><div className="product-device-row"><span /><span /><span /></div></div><div className="product-device-base" /></div><div className="product-floating-card"><Link2 size={14} /><span>{step === 3 ? 'Ready to share' : 'One simple link'}</span></div></div>
-        <div className="onboarding-panel-footer"><span>01</span><div className="onboarding-panel-dashes">{[0, 1, 2].map((item) => <i key={item} className={cn(item <= Math.min(step, 2) && 'is-active')} />)}</div><span>03</span></div>
-      </aside>
-    </div>
-  </div>;
+      )}
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="signin-email">
+            Email
+          </label>
+          <input
+            id="signin-email"
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              writeDraftAuth({ signInEmail: e.target.value });
+              setError('');
+            }}
+            placeholder="email@example.com"
+            autoComplete="email"
+            className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+          />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-neutral-800" htmlFor="signin-password">
+              Password
+            </label>
+            <button
+              type="button"
+              onClick={() => alert('Password reset instructions will be sent to your registered email.')}
+              className="text-xs text-neutral-500 hover:text-neutral-900 underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+          <input
+            id="signin-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••••••"
+            autoComplete="current-password"
+            className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-2">
+        <Link
+          href="/sign-up"
+          className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 transition-colors"
+          data-testid="link-auth-sign-up"
+        >
+          Sign up
+        </Link>
+        <button
+          type="submit"
+          className="px-6 py-2.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
+          data-testid="button-auth-login"
+        >
+          Log in
+        </button>
+      </div>
+
+      <div className="pt-4 border-t border-neutral-100">
+        <button
+          type="button"
+          onClick={onDemoLogin}
+          className="w-full py-2.5 px-3 rounded-[10px] border border-dashed border-neutral-300 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          data-testid="button-demo-login"
+        >
+          <span>Explore demo seller workspace</span>
+          <ArrowRight size={13} />
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function NativeSignUpForm({ onDemoLogin }: { onDemoLogin: () => void }) {
+  const draft = readDraftAuth();
+  const [fullName, setFullName] = useState(() => draft.signUpFullName || '');
+  const [email, setEmail] = useState(() => draft.signUpEmail || '');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [, setLocation] = useLocation();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email');
+      return;
+    }
+    clearDraftAuth(['signUpFullName', 'signUpEmail']);
+    const cleanEmail = email.trim().toLowerCase();
+    const emailHash = cleanEmail.replace(/[^a-z0-9]/g, '_');
+    const newUserId = `seller_${emailHash}_${Date.now()}`;
+    localStorage.setItem('duka-test-auth', 'true');
+    localStorage.setItem('duka-test-user-id', newUserId);
+    if (typeof window !== 'undefined') {
+      (window as any).__DUKA_TEST_USER_ID__ = newUserId;
+    }
+    setActiveSellerUserId(newUserId);
+    queryClient.clear();
+
+    const parts = fullName.trim().split(/\s+/);
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ') || '';
+    const freshProfile: SellerProfile = {
+      ...defaultSellerProfile,
+      businessName: fullName.trim(),
+      sellerName: fullName.trim(),
+      firstName,
+      lastName,
+    };
+    writeSellerProfile(freshProfile, newUserId);
+    writeOnboardingStep(0, newUserId);
+    setLocation('/onboarding');
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Create your account</h1>
+        <p className="mt-1.5 text-sm text-neutral-600">
+          Get started with Take Order. Set up your shop in minutes.
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+          {error}
+        </div>
+      )}
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="signup-name">
+            Business or full name
+          </label>
+          <input
+            id="signup-name"
+            type="text"
+            value={fullName}
+            onChange={(e) => {
+              setFullName(e.target.value);
+              writeDraftAuth({ signUpFullName: e.target.value });
+            }}
+            placeholder="e.g. The Sunday Edit"
+            className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="signup-email">
+            Email
+          </label>
+          <input
+            id="signup-email"
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              writeDraftAuth({ signUpEmail: e.target.value });
+              setError('');
+            }}
+            placeholder="email@example.com"
+            autoComplete="email"
+            className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="signup-password">
+            Password
+          </label>
+          <input
+            id="signup-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••••••"
+            autoComplete="new-password"
+            className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-2">
+        <Link
+          href="/sign-in"
+          className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 transition-colors"
+          data-testid="link-auth-sign-in"
+        >
+          Log in
+        </Link>
+        <button
+          type="submit"
+          className="px-6 py-2.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
+          data-testid="button-auth-signup"
+        >
+          Sign up
+        </button>
+      </div>
+
+      <div className="pt-4 border-t border-neutral-100">
+        <button
+          type="button"
+          onClick={onDemoLogin}
+          className="w-full py-2.5 px-3 rounded-[10px] border border-dashed border-neutral-300 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          data-testid="button-demo-signup"
+        >
+          <span>Explore demo seller workspace</span>
+          <ArrowRight size={13} />
+        </button>
+      </div>
+    </form>
+  );
 }
 
 function SignInPage() {
+  const [, setLocation] = useLocation();
+  const { isLoaded, isSignedIn } = useAppAuth();
+  const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
+  const effectiveSignedIn = isSignedIn || isTestAuth;
   const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
-  return <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
-    <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-  </div>;
+  const [useClerkView, setUseClerkView] = useState(Boolean(clerkPubKey));
+
+  useEffect(() => {
+    if (isLoaded && effectiveSignedIn) {
+      setLocation('/');
+    }
+  }, [isLoaded, effectiveSignedIn, setLocation]);
+
+  const handleDemoLogin = () => {
+    const demoId = `demo_seller_${Date.now()}`;
+    localStorage.setItem('duka-test-auth', 'true');
+    localStorage.setItem('duka-test-user-id', demoId);
+    if (typeof window !== 'undefined') {
+      (window as any).__DUKA_TEST_USER_ID__ = demoId;
+    }
+    setActiveSellerUserId(demoId);
+    queryClient.clear();
+    setLocation('/onboarding');
+  };
+
+  return (
+    <AuthSplitLayout>
+      {clerkPubKey && useClerkView ? (
+        <div className="w-full">
+          <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => setUseClerkView(false)}
+              className="text-xs text-neutral-500 hover:text-neutral-900 underline cursor-pointer"
+            >
+              Switch to simple email log in
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full">
+          <NativeSignInForm onDemoLogin={handleDemoLogin} />
+          {clerkPubKey && (
+            <div className="mt-3 text-center">
+              <button
+                type="button"
+                onClick={() => setUseClerkView(true)}
+                className="text-xs text-neutral-500 hover:text-neutral-900 underline cursor-pointer"
+              >
+                Sign in with Clerk account
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </AuthSplitLayout>
+  );
 }
 
 function SignUpPage() {
+  const [, setLocation] = useLocation();
+  const { isLoaded, isSignedIn } = useAppAuth();
+  const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
+  const effectiveSignedIn = isSignedIn || isTestAuth;
   const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
-  return <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
-    <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
-  </div>;
+  const [useClerkView, setUseClerkView] = useState(Boolean(clerkPubKey));
+
+  useEffect(() => {
+    if (isLoaded && effectiveSignedIn) {
+      setLocation('/');
+    }
+  }, [isLoaded, effectiveSignedIn, setLocation]);
+
+  const handleDemoLogin = () => {
+    const demoId = `demo_seller_${Date.now()}`;
+    localStorage.setItem('duka-test-auth', 'true');
+    localStorage.setItem('duka-test-user-id', demoId);
+    if (typeof window !== 'undefined') {
+      (window as any).__DUKA_TEST_USER_ID__ = demoId;
+    }
+    setActiveSellerUserId(demoId);
+    queryClient.clear();
+    setLocation('/onboarding');
+  };
+
+  return (
+    <AuthSplitLayout>
+      {clerkPubKey && useClerkView ? (
+        <div className="w-full">
+          <SignUp
+            routing="path"
+            path={`${basePath}/sign-up`}
+            signInUrl={`${basePath}/sign-in`}
+            fallbackRedirectUrl={`${basePath}/onboarding`}
+            forceRedirectUrl={`${basePath}/onboarding`}
+          />
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => setUseClerkView(false)}
+              className="text-xs text-neutral-500 hover:text-neutral-900 underline cursor-pointer"
+            >
+              Switch to simple email sign up
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full">
+          <NativeSignUpForm onDemoLogin={handleDemoLogin} />
+          {clerkPubKey && (
+            <div className="mt-3 text-center">
+              <button
+                type="button"
+                onClick={() => setUseClerkView(true)}
+                className="text-xs text-neutral-500 hover:text-neutral-900 underline cursor-pointer"
+              >
+                Sign up with Clerk account
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </AuthSplitLayout>
+  );
 }
 
 function LandingPage() {
-  return <div className="onboarding-shell auth-shell">
-    <div className="onboarding-layout">
-      <section className="onboarding-main" aria-label="Take Order overview">
-        <header className="onboarding-header auth-header">
-          <Link href="/" data-testid="link-auth-logo" aria-label="Take Order home"><BrandLockup className="gap-2" /></Link>
-        </header>
-        <div className="onboarding-form-wrap auth-form-wrap">
-          <div className="onboarding-form-panel auth-form-panel">
-            <div className="onboarding-kicker">Seller workspace</div>
-            <h1>Keep every order moving.</h1>
-            <p className="onboarding-lede">Take Order gives you one clear place to manage products, share buyer links, and keep your shop organised.</p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/sign-in" className="auth-submit" data-testid="link-auth-sign-in">Sign in <ArrowRight size={15} aria-hidden="true" /></Link>
-              <Link href="/sign-up" className="auth-text-link inline-flex items-center rounded-[10px] border border-[hsl(var(--border))] px-4 py-3" data-testid="link-auth-sign-up">Create an account</Link>
-            </div>
-            <p className="auth-legal mt-6">Your seller data is private to your account. Buyer order links remain shareable without a seller login.</p>
-          </div>
-        </div>
-      </section>
-      <aside className="onboarding-brand-panel auth-brand-panel">
-        <div className="onboarding-brand-top"><BrandLockup className="onboarding-brand-lockup" /><span className="onboarding-panel-tag">Seller workspace</span></div>
-        <div className="onboarding-panel-copy"><div className="onboarding-panel-eyebrow">A calmer way to sell</div><h2>Your shop should grow, not just run you.</h2><p>Set up your workspace, add products, and send buyers one simple link.</p><div className="onboarding-panel-note"><span className="onboarding-note-dot" />Secure sign-in powered by Clerk.</div></div>
-        <div className="onboarding-product-scene" aria-hidden="true"><div className="product-orbit product-orbit-one" /><div className="product-orbit product-orbit-two" /><div className="product-device"><div className="product-device-top"><span>take order</span><span className="product-status"><i />live</span></div><div className="product-device-content"><span className="product-device-label">Your workspace</span><strong>Take Order</strong><div className="product-device-line" /><div className="product-device-row"><span /><span /><span /></div></div><div className="product-device-base" /></div><div className="product-floating-card"><Link2 size={14} /><span>One simple link</span></div></div>
-        <div className="onboarding-panel-footer auth-panel-footer"><span>PRIVATE</span><div className="onboarding-panel-dashes"><i className="is-active" /></div><span>TAKE ORDER</span></div>
-      </aside>
-    </div>
-  </div>;
+  return <SignInPage />;
 }
 
 function SellerRoute({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
-  const { isLoaded, isSignedIn } = useAuth();
-  const settingsQuery = useGetSellerSettings({ query: { enabled: isLoaded && isSignedIn, queryKey: getGetSellerSettingsQueryKey() } });
+  const { isLoaded, isSignedIn, userId } = useAppAuth();
+  const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
+  const effectiveSignedIn = isSignedIn || isTestAuth;
+  const settingsQuery = useGetSellerSettings({
+    query: {
+      enabled: Boolean(clerkPubKey && isLoaded && effectiveSignedIn),
+      queryKey: getGetSellerSettingsQueryKey(),
+    },
+  });
   const [ready, setReady] = useState(false);
+
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn) {
+    const syncPending = async () => {
+      if (typeof window === 'undefined' || !navigator.onLine) return;
+      const pending = readPendingSettingsSync();
+      if (!pending) return;
+      try {
+        await customFetch('/api/settings', {
+          method: 'PUT',
+          body: JSON.stringify(pending),
+        });
+        clearPendingSettingsSync();
+        queryClient.invalidateQueries({ queryKey: getGetSellerSettingsQueryKey() });
+      } catch {
+        // Will retry on next online event
+      }
+    };
+
+    syncPending();
+    window.addEventListener('online', syncPending);
+    return () => window.removeEventListener('online', syncPending);
+  }, []);
+
+  useEffect(() => {
+    if (clerkPubKey && !isLoaded && !isTestAuth) {
+      return;
+    }
+    if (!effectiveSignedIn) {
       setLocation('/sign-in');
       return;
     }
-    const completed = readOnboardingComplete();
-    if (completed === false) setLocation('/onboarding');
-    else setReady(true);
-  }, [isLoaded, isSignedIn, setLocation]);
+    if (settingsQuery.isLoading) {
+      return;
+    }
+    const completed = readOnboardingComplete(userId);
+    const localProfile = readSellerProfile(userId);
+    const hasBusinessProfile = Boolean(settingsQuery.data?.businessName?.trim() || localProfile?.businessName?.trim());
+
+    if (hasBusinessProfile && !completed) {
+      finishOnboarding(userId);
+    }
+
+    if (!completed && !hasBusinessProfile) {
+      setLocation('/onboarding');
+      return;
+    }
+    setReady(true);
+  }, [isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.isLoading, settingsQuery.isSuccess, settingsQuery.data?.businessName, setLocation]);
+
   setActiveCurrency(settingsQuery.data?.currency ?? 'GHS');
-  if (!isLoaded || !isSignedIn || !ready) return <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6"><div className="w-full max-w-[320px]"><Skeleton className="mx-auto h-10 w-10 rounded-[14px]" /><Skeleton className="mx-auto mt-6 h-8 w-48" /><Skeleton className="mx-auto mt-3 h-3 w-60" /></div></div>;
+  if (!clerkPubKey && !isTestAuth) return <Redirect to="/sign-in" />;
+  if ((!isLoaded || !effectiveSignedIn || !ready) && !isTestAuth) {
+    return (
+      <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6">
+        <div className="w-full max-w-[320px]">
+          <Skeleton className="mx-auto h-10 w-10 rounded-[14px]" />
+          <Skeleton className="mx-auto mt-6 h-8 w-48" />
+          <Skeleton className="mx-auto mt-3 h-3 w-60" />
+        </div>
+      </div>
+    );
+  }
   return <>{children}</>;
 }
 
@@ -804,22 +2512,237 @@ function ProtectedRoute({ page: Page }: { page: React.ComponentType }) {
 }
 
 function HomeRoute() {
-  const { isLoaded, isSignedIn } = useAuth();
-  if (!isLoaded) return <div className="onboarding-shell min-h-[100dvh]" />;
-  return isSignedIn ? <ProtectedRoute page={Overview} /> : <LandingPage />;
+  const { isLoaded, isSignedIn } = useAppAuth();
+  const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
+  const effectiveSignedIn = isSignedIn || isTestAuth;
+  if (!isLoaded && !isTestAuth) {
+    return (
+      <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6">
+        <div className="w-full max-w-[320px]">
+          <Skeleton className="mx-auto h-10 w-10 rounded-[14px]" />
+          <Skeleton className="mx-auto mt-6 h-8 w-48" />
+          <Skeleton className="mx-auto mt-3 h-3 w-60" />
+        </div>
+      </div>
+    );
+  }
+  if (!effectiveSignedIn) return <LandingPage />;
+  return <ProtectedRoute page={Overview} />;
 }
 
 function OnboardingRoute() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, userId } = useAppAuth();
+  const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
+  const effectiveSignedIn = isSignedIn || isTestAuth;
   const [, setLocation] = useLocation();
+  const settingsQuery = useGetSellerSettings({
+    query: {
+      enabled: Boolean(clerkPubKey && isLoaded && effectiveSignedIn),
+      queryKey: getGetSellerSettingsQueryKey(),
+    },
+  });
+
   useEffect(() => {
-    if (isLoaded && !isSignedIn) setLocation('/sign-in');
-  }, [isLoaded, isSignedIn, setLocation]);
-  if (!isLoaded || !isSignedIn) return <div className="onboarding-shell min-h-[100dvh]" />;
+    if (!isLoaded && !isTestAuth) return;
+    if (!effectiveSignedIn) {
+      setLocation('/sign-in');
+      return;
+    }
+    const completed = readOnboardingComplete(userId);
+    const localProfile = readSellerProfile(userId);
+    const hasBusinessProfile = Boolean(settingsQuery.data?.businessName?.trim() || localProfile?.businessName?.trim());
+    if (completed || hasBusinessProfile) {
+      if (hasBusinessProfile && !completed) {
+        finishOnboarding(userId);
+      }
+      setLocation('/');
+    }
+  }, [isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.data?.businessName, setLocation]);
+
+  if (!isLoaded && !isTestAuth) {
+    return (
+      <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6">
+        <div className="w-full max-w-[320px]">
+          <Skeleton className="mx-auto h-10 w-10 rounded-[14px]" />
+          <Skeleton className="mx-auto mt-6 h-8 w-48" />
+          <Skeleton className="mx-auto mt-3 h-3 w-60" />
+        </div>
+      </div>
+    );
+  }
+  if (!effectiveSignedIn) return <Redirect to="/sign-in" />;
   return <Onboarding />;
 }
 
+function FirstRunChecklist({
+  productCount,
+  orderCount,
+  onDismiss,
+}: {
+  productCount: number;
+  orderCount: number;
+  onDismiss: () => void;
+}) {
+  const seller = readSellerProfile();
+  return (
+    <Card className="p-6 sm:p-8 bg-gradient-to-b from-white to-slate-50/60 border border-slate-200/90 shadow-sm rounded-2xl mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+        <div>
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200/60 text-amber-800 text-[11px] font-bold uppercase tracking-wider mb-2">
+            <Sparkles size={12} className="text-amber-600" />
+            <span>Getting Started Checklist</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+            Welcome to Take Order, {seller.businessName || 'Seller'}!
+          </h2>
+          <p className="text-sm text-slate-600 mt-1 max-w-xl">
+            Complete these two quick steps to take your first order and start tracking sales in real time.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="text-xs text-slate-400 hover:text-slate-700 underline self-start sm:self-center transition-colors"
+        >
+          Skip checklist
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3 mt-6">
+        {/* Step 1 */}
+        <div className={cn(
+          'p-5 rounded-xl border transition-all flex flex-col justify-between',
+          productCount > 0 ? 'bg-emerald-50/40 border-emerald-200/80' : 'bg-white border-slate-200 shadow-2xs'
+        )}>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className={cn(
+                'inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold',
+                productCount > 0 ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
+              )}>
+                {productCount > 0 ? <Check size={14} strokeWidth={2.5} /> : '1'}
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Step 1</span>
+            </div>
+            <h3 className="font-bold text-slate-900 text-base">Add your first product</h3>
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+              Add your merchandise with prices, buyer variants, and stock counts.
+            </p>
+          </div>
+          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+            {productCount > 0 ? (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                <Check size={13} strokeWidth={2.5} />
+                <span>Product added</span>
+              </span>
+            ) : (
+              <Link href="/catalog/new" className="w-full">
+                <Button variant="primary" className="w-full text-xs h-9">
+                  <Plus size={14} />
+                  <span>Add product</span>
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Step 2 */}
+        <div className={cn(
+          'p-5 rounded-xl border transition-all flex flex-col justify-between',
+          orderCount > 0 ? 'bg-emerald-50/40 border-emerald-200/80' : 'bg-white border-slate-200 shadow-2xs'
+        )}>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className={cn(
+                'inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold',
+                orderCount > 0 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
+              )}>
+                {orderCount > 0 ? <Check size={14} strokeWidth={2.5} /> : '2'}
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Step 2</span>
+            </div>
+            <h3 className="font-bold text-slate-900 text-base">Create your first link</h3>
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+              Generate a secure buyer checkout link to share on WhatsApp, Instagram, or TikTok.
+            </p>
+          </div>
+          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+            {orderCount > 0 ? (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                <Check size={13} strokeWidth={2.5} />
+                <span>Link created</span>
+              </span>
+            ) : (
+              <Link href="/take-order" className="w-full">
+                <Button variant={productCount > 0 ? 'primary' : 'outline'} className="w-full text-xs h-9">
+                  <Link2 size={14} />
+                  <span>Take an order</span>
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Step 3 */}
+        <div className="p-5 rounded-xl border border-slate-200/80 bg-slate-50/50 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200 text-slate-600 text-xs font-bold">
+                3
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Step 3</span>
+            </div>
+            <h3 className="font-bold text-slate-900 text-base">Explore live dashboard</h3>
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+              Cash flow charts, conversion rates, and client ledgers update as orders arrive.
+            </p>
+          </div>
+          <div className="mt-5 pt-3 border-t border-slate-100">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+              <Clock3 size={13} />
+              <span>Unlocks with first order</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export function Overview() {
+  const { userId } = useAppAuth();
+  const entitlements = useEntitlements(userId);
+  const { isPro, isProPlus, isTrial, tier } = entitlements;
+  const [isExporting, setIsExporting] = useState(false);
+  const [upgradeDialogReason, setUpgradeDialogReason] = useState<UpgradeReason | null>(null);
+
+  const handleExportCsv = async () => {
+    if (!entitlements.canExportAnalytics) {
+      setUpgradeDialogReason('analytics_export');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const blob = await customFetch<Blob>('/api/dashboard/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `take-order-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      if (err?.status === 403) {
+        setUpgradeDialogReason('analytics_export');
+        return;
+      }
+      console.error('Failed to export CSV:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const today = inputDate(new Date());
   const [savedDashboardPeriod] = useState<DashboardPeriodPreference | null>(() => readDashboardPeriodPreference());
   const [period, setPeriod] = useState<DashboardPeriod>(() => savedDashboardPeriod?.period ?? 'week');
@@ -829,6 +2752,7 @@ export function Overview() {
   const periodTriggerRef = useRef<HTMLButtonElement>(null);
   const periodMenuWasOpen = useRef(false);
   const [connectedTools, setConnectedTools] = useState<string[]>(readConnectedTools);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(() => readChecklistDismissed(userId));
   useEffect(() => {
     const storage = getPreferenceStorage();
     if (!storage) return;
@@ -867,10 +2791,13 @@ export function Overview() {
   const summaryRefreshing = summaryQuery.isFetching && !summaryQuery.isLoading && Boolean(summaryQuery.data);
   const productsQuery = useListProducts();
   const ordersQuery = useListOrders();
+  const settingsQuery = useGetSellerSettings();
   const summary = summaryQuery.data;
   const daily = summary?.dailyPerformance ?? [];
   const products = productsQuery.data ?? [];
   const orders = ordersQuery.data ?? [];
+  const isDataLoading = productsQuery.isLoading || ordersQuery.isLoading || (summaryQuery.isLoading && !summaryQuery.data);
+  const isNewSeller = !isDataLoading && products.length === 0 && orders.length === 0;
   const periodOrders = useMemo(() => periodRange ? orders.filter((order) => {
     const date = new Date(order.createdAt).toISOString().slice(0, 10);
     return date >= periodRange.from && date <= periodRange.to;
@@ -889,17 +2816,17 @@ export function Overview() {
   const movement = (key: 'orders' | 'revenue'): MetricTrend | undefined => {
     const recent = recentDaily.reduce((sum, day) => sum + day[key], 0);
     const earlier = earlierDaily.reduce((sum, day) => sum + day[key], 0);
-    if (earlier === 0) return recent > 0 ? { direction: 'up', percentage: null } : undefined;
+    if (earlier === 0) return recent > 0 ? { direction: 'up', percentage: null, tone: 'positive' } : undefined;
     const percentage = Math.round(((recent - earlier) / earlier) * 100);
-    return { direction: percentage >= 0 && recent > 0 ? 'up' : 'down', percentage: Math.abs(percentage) };
+    return { direction: percentage >= 0 && recent > 0 ? 'up' : 'down', percentage: Math.abs(percentage), tone: percentage >= 0 ? 'positive' : 'negative' };
   };
   const salesTrend = movement('orders');
   const revenueTrend = movement('revenue');
   const primaryStatCards: DashboardStatCard[] = [
-    { label: 'Sales', value: ordersQuery.isLoading ? '—' : periodOrders.length, trend: salesTrend, note: `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` },
-    { label: 'Revenue', value: money(summary?.revenue), trend: revenueTrend, note: 'Money received from recorded orders' },
-    { label: 'Outstanding balances', value: money(summary?.outstanding), note: `${waitingPayments} waiting payments` },
-    { label: 'Orders', value: summary?.orders ?? 0, trend: movement('orders'), note: `${shippedOrders} shipped` },
+    { label: 'Sales', value: ordersQuery.isLoading ? '—' : periodOrders.length, trend: salesTrend, note: periodOrders.length > 0 ? `${paidConversion}% paid conversion · ${waitingPayments} waiting payments` : 'No orders in this period' },
+    { label: 'Revenue', value: money(summary?.revenue ?? 0), trend: revenueTrend, note: 'Money received from recorded orders' },
+    { label: 'Outstanding balances', value: money(summary?.outstanding ?? 0), note: waitingPayments > 0 ? `${waitingPayments} waiting payments` : 'All customer balances cleared' },
+    { label: 'Orders', value: summary?.orders ?? 0, trend: movement('orders'), note: shippedOrders > 0 ? `${shippedOrders} shipped` : 'Track fulfillment as orders arrive' },
   ];
   const analyticsState = getAnalyticsViewState({
     isLoading: summaryQuery.isLoading && !summaryQuery.data,
@@ -957,26 +2884,276 @@ export function Overview() {
       document.removeEventListener('keydown', dismissOnEscape);
     };
   }, [periodMenuOpen, period, appliedCustomRange]);
-  return <Shell><div data-testid="dashboard-analytics" data-analytics-state={analyticsState}><AnalyticsStateMarker state={analyticsState} /><PageHeading title="Dashboard" action={<div className="flex flex-wrap items-center gap-2"><div className="relative" ref={periodMenuRef}><button ref={periodTriggerRef} type="button" className="period-chip" aria-label="Reporting period" aria-expanded={periodMenuOpen} onClick={() => { setDraftPeriod(period); setDraftCustomRange(appliedCustomRange); setPeriodMenuOpen((open) => !open); }} data-testid="button-dashboard-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />{periodLabel}<ChevronDown size={14} className={cn('transition-transform', periodMenuOpen && 'rotate-180')} /></button>{periodMenuOpen && <div className={cn('dashboard-period-menu', draftPeriod === 'custom' && 'is-custom')} role="dialog" aria-label="Choose reporting period">{draftPeriod !== 'custom' && <div className="dashboard-period-options">{dashboardPeriodOptions.map((option) => <button type="button" key={option.value} className={cn('dashboard-period-option', draftPeriod === option.value && 'is-active')} onClick={() => { setPeriod(option.value); setDraftPeriod(option.value); setPeriodMenuOpen(false); }} aria-pressed={draftPeriod === option.value}>{option.label}</button>)}<button type="button" className="dashboard-period-option" onClick={chooseCustomPeriod} aria-pressed={false} data-testid="button-dashboard-period-custom">Custom range</button></div>}{draftPeriod === 'custom' && <DashboardCustomRangePicker from={draftCustomRange.from} to={draftCustomRange.to} onFromChange={(from) => setDraftCustomRange((current) => ({ ...current, from }))} onToChange={(to) => setDraftCustomRange((current) => ({ ...current, to }))} onClose={closePeriodMenu} onApply={applyCustomPeriod} canApply={Boolean(draftPeriodRange)} />}</div>}</div><Link href="/take-order" data-testid="link-take-order-hero"><Button><Plus size={16} />Take an order</Button></Link></div>} />
-     {(productsQuery.isError || ordersQuery.isError) && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-dashboard-auxiliary-error"><span>Some dashboard lists could not be refreshed, so related counts may be incomplete.</span><div className="flex gap-3">{productsQuery.isError && <button type="button" className="font-bold underline" onClick={() => productsQuery.refetch()}>Retry catalog</button>}{ordersQuery.isError && <button type="button" className="font-bold underline" onClick={() => ordersQuery.refetch()}>Retry orders</button>}</div></div>}
-     {summaryQuery.isLoading && !summaryQuery.data ? <OverviewSkeleton /> : summaryQuery.isError && !summaryQuery.data ? <ErrorState retry={() => summaryQuery.refetch()} /> : <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-         {primaryStatCards.map((stat, index) => <MetricCard key={`${stat.label}-${index}`} className="rise-in" style={{ animationDelay: `${index * 55}ms` }} dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`} label={stat.label} value={stat.value} valueAccessory={stat.valueAccessory} trend={stat.trend} indicator={stat.indicator} note={stat.note} period={periodLabel} loading={summaryRefreshing} />)}
+  return (
+    <Shell>
+      <div data-testid="dashboard-analytics" data-analytics-state={analyticsState}>
+        <AnalyticsStateMarker state={analyticsState} />
+        <PageHeading
+          title="Dashboard"
+          action={
+            !isNewSeller ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative" ref={periodMenuRef}>
+                  <button
+                    ref={periodTriggerRef}
+                    type="button"
+                    className="period-chip"
+                    aria-label="Reporting period"
+                    aria-expanded={periodMenuOpen}
+                    onClick={() => {
+                      setDraftPeriod(period);
+                      setDraftCustomRange(appliedCustomRange);
+                      setPeriodMenuOpen((open) => !open);
+                    }}
+                    data-testid="button-dashboard-period"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />
+                    {periodLabel}
+                    <ChevronDown size={14} className={cn('transition-transform', periodMenuOpen && 'rotate-180')} />
+                  </button>
+                  {periodMenuOpen && (
+                    <div className={cn('dashboard-period-menu', draftPeriod === 'custom' && 'is-custom')} role="dialog" aria-label="Choose reporting period">
+                      {draftPeriod !== 'custom' && (
+                        <div className="dashboard-period-options">
+                          {dashboardPeriodOptions.map((option) => (
+                            <button
+                              type="button"
+                              key={option.value}
+                              className={cn('dashboard-period-option', draftPeriod === option.value && 'is-active')}
+                              onClick={() => {
+                                setPeriod(option.value);
+                                setDraftPeriod(option.value);
+                                setPeriodMenuOpen(false);
+                              }}
+                              aria-pressed={draftPeriod === option.value}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            className="dashboard-period-option"
+                            onClick={chooseCustomPeriod}
+                            aria-pressed={false}
+                            data-testid="button-dashboard-period-custom"
+                          >
+                            Custom range
+                          </button>
+                        </div>
+                      )}
+                      {draftPeriod === 'custom' && (
+                        <DashboardCustomRangePicker
+                          from={draftCustomRange.from}
+                          to={draftCustomRange.to}
+                          onFromChange={(from) => setDraftCustomRange((current) => ({ ...current, from }))}
+                          onToChange={(to) => setDraftCustomRange((current) => ({ ...current, to }))}
+                          onClose={closePeriodMenu}
+                          onApply={applyCustomPeriod}
+                          canApply={Boolean(draftPeriodRange)}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+                <Link href="/take-order" data-testid="link-take-order-hero">
+                  <Button><Plus size={16} />Take an order</Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link href="/take-order" data-testid="link-take-order-hero">
+                  <Button><Plus size={16} />Take an order</Button>
+                </Link>
+              </div>
+            )
+          }
+        />
+
+        {/* Pro+ Executive Intelligence Row (only when seller has orders) */}
+        {!isNewSeller && isProPlus && (
+          <section className="mb-6 grid gap-4 sm:grid-cols-3" aria-label="Executive Intelligence" data-testid="executive-intelligence-row">
+            <Card className="p-4 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-0 shadow-md">
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <span className="font-semibold uppercase tracking-wider text-[10px]">Average Order Value</span>
+                <Sparkles size={13} className="text-amber-400" />
+              </div>
+              <div className="mt-2 text-xl font-bold tracking-tight">
+                {money(summary?.orders ? (summary.revenue / summary.orders) : 0)}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                Net margin health: {summary?.revenue ? Math.round(((summary.profit) / summary.revenue) * 100) : 0}%
+              </p>
+            </Card>
+            <Card className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-semibold uppercase tracking-wider text-[10px]">Settlement Velocity</span>
+                <CheckCircle2 size={13} className="text-emerald-500" />
+              </div>
+              <div className="mt-2 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                {summary?.orders ? Math.round(((summary.orders - waitingPayments) / Math.max(1, summary.orders)) * 100) : 100}%
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">
+                {waitingPayments === 0 ? 'All orders settled in full' : `${waitingPayments} awaiting completion`}
+              </p>
+            </Card>
+            <Card className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-semibold uppercase tracking-wider text-[10px]">Top Channel Conversion</span>
+                <ArrowUpRight size={13} className="text-amber-500" />
+              </div>
+              <div className="mt-2 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                {summary?.channelPerformance?.[0] ? `${channelName(summary.channelPerformance[0].channel)} (${summary.channelPerformance[0].conversionRate}%)` : 'WhatsApp (Direct)'}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Highest revenue conversion channel
+              </p>
+            </Card>
+          </section>
+        )}
+
+        {/* Clean Empty State Pattern (Like Clients page): If new seller, show only the onboarding guide/empty state */}
+        {isDataLoading ? (
+          <OverviewSkeleton />
+        ) : isNewSeller ? (
+          !onboardingDismissed ? (
+            <EmptyStateOnboardingCard
+              businessName={settingsQuery.data?.businessName || readSellerProfile(userId).businessName}
+              productCount={products.length}
+              orderCount={orders.length}
+              onDismiss={() => {
+                setOnboardingDismissed(true);
+                writeChecklistDismissed(true, userId);
+              }}
+            />
+          ) : (
+            <EmptyState
+              card
+              icon={Store}
+              title="Your store is ready"
+              description="Create your first catalog item or generate a Take Order link to start seeing sales, revenue, and customer activity here."
+              action={
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <Link href="/take-order" data-testid="link-dashboard-empty-order">
+                    <Button><Plus size={15} />Take an order</Button>
+                  </Link>
+                  <Link href="/catalog/new" data-testid="link-dashboard-empty-product">
+                    <Button variant="outline"><Package size={15} className="mr-1.5" />Add product</Button>
+                  </Link>
+                </div>
+              }
+            />
+          )
+        ) : (
+          <>
+            {(productsQuery.isError || ordersQuery.isError) && (
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-dashboard-auxiliary-error">
+                <span>Some dashboard lists could not be refreshed, so related counts may be incomplete.</span>
+                <div className="flex gap-3">
+                  {productsQuery.isError && <button type="button" className="font-bold underline" onClick={() => productsQuery.refetch()}>Retry catalog</button>}
+                  {ordersQuery.isError && <button type="button" className="font-bold underline" onClick={() => ordersQuery.refetch()}>Retry orders</button>}
+                </div>
+              </div>
+            )}
+            {summaryQuery.isError && !summaryQuery.data ? (
+              <ErrorState retry={() => summaryQuery.refetch()} />
+            ) : (
+              <>
+                <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                  {primaryStatCards.map((stat, index) => (
+                    <MetricCard
+                      key={`${stat.label}-${index}`}
+                      className="rise-in"
+                      style={{ animationDelay: `${index * 55}ms` }}
+                      dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`}
+                      label={stat.label}
+                      value={stat.value}
+                      valueAccessory={stat.valueAccessory}
+                      trend={stat.trend}
+                      indicator={stat.indicator}
+                      note={stat.note}
+                      loading={summaryRefreshing}
+                    />
+                  ))}
+                </div>
+                <div className="mt-8 sm:mt-10 grid gap-6 sm:gap-8 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
+                  <Card className="p-6 sm:p-7">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="type-eyebrow">Cash flow</div>
+                        <h3 className="type-h3 mt-2">Revenue, costs, and net profit</h3>
+                        <p className="mt-1 type-body text-[hsl(var(--muted-foreground))]">Product costs and shop expenses stay separate</p>
+                      </div>
+                      <div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-xs font-medium text-[hsl(var(--muted-foreground))]">
+                        {periodLabel}
+                      </div>
+                    </div>
+                    <div className="mt-6 h-[280px]" data-testid="chart-cash-flow" aria-busy={summaryRefreshing}>
+                      {summaryRefreshing ? (
+                        <div className="flex h-full flex-col justify-center gap-4">
+                          <Skeleton className="h-3 w-28" />
+                          <Skeleton className="h-48 w-full" />
+                        </div>
+                      ) : daily.length ? (
+                        <ResponsiveContainer width="100%" height="100%" debounce={0}>
+                          <LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+                            <CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} />
+                            <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} />
+                            <YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} />
+                            <RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} />
+                            <RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} />
+                            <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
+                            <Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
+                            <Line type="monotone" dataKey="operatingExpenses" name="Shop expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
+                            <Line type="monotone" dataKey="expenses" name="Total costs" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
+                            <Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <ChartEmpty message="Cash-flow data will appear after your first activity." />
+                      )}
+                    </div>
+                  </Card>
+                  <AlertsRail
+                    outstanding={summary?.outstanding ?? 0}
+                    lowStock={lowStock}
+                    missingCosts={missingCosts}
+                    productLoading={productsQuery.isLoading}
+                    productCount={products.length}
+                    orderCount={periodOrders.length}
+                    unfulfilledCount={orders.filter((o) => o.fulfillment === 'pending').length}
+                    loading={summaryRefreshing}
+                  />
+                </div>
+                <RecentTransactions />
+              </>
+            )}
+          </>
+        )}
+        <ContextualUpgradeDialog
+          open={Boolean(upgradeDialogReason)}
+          onOpenChange={(open) => !open && setUpgradeDialogReason(null)}
+          reason={upgradeDialogReason || 'analytics_export'}
+          tier={tier}
+        />
       </div>
-         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
-          <Card className="p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cash flow</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Revenue, costs, and net profit</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Product costs and shop expenses stay separate</p></div><div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{periodLabel}</div></div><div className="mt-6 h-[280px]" data-testid="chart-cash-flow" aria-busy={summaryRefreshing}>{summaryRefreshing ? <div className="flex h-full flex-col justify-center gap-4"><Skeleton className="h-3 w-28" /><Skeleton className="h-48 w-full" /></div> : daily.length ? <ResponsiveContainer width="100%" height="100%" debounce={0}><LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}><CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} /><RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} /><RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="operatingExpenses" name="Shop expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="expenses" name="Total costs" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /><Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <ChartEmpty message="Cash-flow data will appear after your first activity." />}</div></Card>
-         <AlertsRail outstanding={summary?.outstanding ?? 0} lowStock={lowStock} missingCosts={missingCosts} productLoading={productsQuery.isLoading} productCount={products.length} orderCount={periodOrders.length} loading={summaryRefreshing} />
-      </div>
-      <RecentTransactions />
-    </>}</div></Shell>;
+    </Shell>
+  );
 }
 
 function OverviewSkeleton() {
-  return <div className="space-y-5" aria-label="Loading overview"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((i) => <Card key={i} className="h-[145px] p-5"><Skeleton className="h-3 w-20" /><Skeleton className="mt-6 h-8 w-32" /><Skeleton className="mt-3 h-3 w-36" /></Card>)}</div><div className="grid gap-5 xl:grid-cols-[1.7fr_.8fr]"><Card className="h-[370px] p-6"><Skeleton className="h-4 w-36" /><Skeleton className="mt-3 h-3 w-52" /><Skeleton className="mt-8 h-[260px] w-full" /></Card><Card className="h-[370px] p-6"><Skeleton className="h-4 w-28" /><Skeleton className="mt-6 h-16 w-full" /><Skeleton className="mt-3 h-16 w-full" /><Skeleton className="mt-3 h-16 w-full" /></Card></div></div>;
+  return <div className="space-y-8 sm:space-y-10" aria-label="Loading overview"><div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((i) => <Card key={i} className="h-[176px] p-6 sm:p-7 flex flex-col justify-between"><Skeleton className="h-4 w-20" /><Skeleton className="h-10 w-32" /><Skeleton className="h-4 w-36" /></Card>)}</div><div className="grid gap-6 sm:gap-8 xl:grid-cols-[1.7fr_.8fr]"><Card className="h-[390px] p-6"><Skeleton className="h-4 w-36" /><Skeleton className="mt-3 h-3 w-52" /><Skeleton className="mt-8 h-[260px] w-full" /></Card><Card className="h-[390px] p-6"><Skeleton className="h-4 w-28" /><Skeleton className="mt-6 h-16 w-full" /><Skeleton className="mt-3 h-16 w-full" /><Skeleton className="mt-3 h-16 w-full" /></Card></div></div>;
 }
 
 function Reports() {
-  const summaryQuery = useGetDashboardSummary();
+  const { userId } = useAppAuth();
+  const entitlements = useEntitlements(userId);
+  const isFree = !entitlements.isLoading && entitlements.tier === 'free';
+  const summaryQuery = useGetDashboardSummary(undefined, {
+    query: {
+      queryKey: getGetDashboardSummaryQueryKey(),
+      enabled: !isFree,
+    },
+  });
   const summary = summaryQuery.data;
   const productPerformance = summary?.productPerformance ?? [];
   const categoryData = useMemo(() => {
@@ -994,20 +3171,111 @@ function Reports() {
   const palette = ['#c9943d', '#438879', '#b66b77', '#6c82b4', '#d99566', '#7f8f68'];
 
   return <Shell>
-    <PageHeading
-      title="Reports"
-      action={<div className="reports-period-note" data-testid="text-reports-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />Current snapshot</div>}
-    />
-    {summaryQuery.isLoading ? <ReportsSkeleton /> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <div className="space-y-5">
+    {!isFree && (
+      <PageHeading
+        title="Reports"
+        action={<div className="reports-period-note" data-testid="text-reports-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />Current snapshot</div>}
+      />
+    )}
+    {isFree ? (
+      <ProUpgradeFeatureCard
+        pageTitle="Reports"
+        title="Track your store growth"
+        description="See best-selling items with real data. Make smarter decisions and maximize profits."
+        learnMoreHref="/account/billing"
+        previewLabel="Total views"
+        previewValue="130"
+      />
+    ) : summaryQuery.isLoading ? (
+      <ReportsSkeleton />
+    ) : summaryQuery.isError ? (
+      <ErrorState retry={() => summaryQuery.refetch()} />
+    ) : (!summary?.orders && !summary?.operatingExpenses) ? (
+      <EmptyState
+        card
+        icon={BarChart3}
+        title="No financial activity to report yet"
+        description="Once you record sales or track operating expenses, your profit margins, cost breakdowns, and product rankings will appear here."
+        action={
+          <Link href="/take-order" data-testid="link-reports-empty-order">
+            <Button><Plus size={15} />Take an order</Button>
+          </Link>
+        }
+      />
+    ) : (
+      <div className="space-y-8 sm:space-y-10">
       <section className="reports-metric-grid" aria-label="Profitability summary">
          <MetricCard className="rise-in" dataTestId="card-report-tracked-profit" label="Reported profit" value={<span data-testid="text-report-profit">{money(summary?.profit)}</span>} note={summary?.legacyOrders ? `${summary.legacyOrders} older ${summary.legacyOrders === 1 ? 'sale uses' : 'sales use'} an estimated cost instead of the exact cost at the time.` : 'Revenue less product costs and shop expenses.'} />
          <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-report-cash-balance" label="Cash balance" value={<span data-testid="text-report-cash-balance">{money(summary?.cashBalance)}</span>} note="Money left after recorded payments and shop expenses." />
         <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-report-context" label="Reporting window" value={money(summary?.revenue)} note={`${summary?.orders ?? 0} recorded orders${summary?.bestSeller ? ` · ${summary.bestSeller} leads` : ''}`} />
       </section>
 
-      <section className="grid gap-5 xl:gap-12 xl:grid-cols-[minmax(0,.88fr)_minmax(0,1.12fr)]">
+      <Card className="profit-breakdown-card" data-testid="card-profit-breakdown">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="type-eyebrow text-emerald-600 dark:text-emerald-400">Take-home earnings</div>
+            <h3 className="type-h3 mt-1 text-lg font-bold">Net Profit & Cost Breakdown</h3>
+            <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+              What you actually keep after subtracting inventory product costs (COGS) and operating expenses.
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="font-mono-ui text-2xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="text-net-profit">
+              {moneyExact(summary?.profit ?? 0)}
+            </div>
+            <div className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              <span>{summary?.revenue ? Math.round(((summary.profit) / summary.revenue) * 100) : 0}% Net margin</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="profit-progress-track" aria-hidden="true">
+          <div
+            className="profit-segment-cogs"
+            style={{ width: `${summary?.revenue ? Math.min(100, Math.round(((summary.productCosts ?? 0) / summary.revenue) * 100)) : 0}%` }}
+            title={`Product costs: ${moneyExact(summary?.productCosts ?? 0)}`}
+          />
+          <div
+            className="profit-segment-expenses"
+            style={{ width: `${summary?.revenue ? Math.min(100, Math.round(((summary.operatingExpenses ?? 0) / summary.revenue) * 100)) : 0}%` }}
+            title={`Operating expenses: ${moneyExact(summary?.operatingExpenses ?? 0)}`}
+          />
+          <div
+            className="profit-segment-profit"
+            style={{ width: `${summary?.revenue && summary.profit > 0 ? Math.min(100, Math.round((summary.profit / summary.revenue) * 100)) : 0}%` }}
+            title={`Net take-home profit: ${moneyExact(summary?.profit ?? 0)}`}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
+          <div className="rounded-[10px] bg-[hsl(var(--muted))]/50 p-2.5">
+            <span className="text-[hsl(var(--muted-foreground))] block">Gross sales</span>
+            <strong className="font-mono-ui text-sm">{moneyExact(summary?.revenue ?? 0)}</strong>
+          </div>
+          <div className="rounded-[10px] bg-[hsl(var(--muted))]/50 p-2.5">
+            <span className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
+              <span className="h-2 w-2 rounded-full bg-[#b66b77]" /> Product costs (COGS)
+            </span>
+            <strong className="font-mono-ui text-sm">{moneyExact(summary?.productCosts ?? 0)}</strong>
+          </div>
+          <div className="rounded-[10px] bg-[hsl(var(--muted))]/50 p-2.5">
+            <span className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
+              <span className="h-2 w-2 rounded-full bg-[#7b83b7]" /> Shop expenses
+            </span>
+            <strong className="font-mono-ui text-sm">{moneyExact(summary?.operatingExpenses ?? 0)}</strong>
+          </div>
+          <div className="rounded-[10px] bg-emerald-50/80 dark:bg-emerald-950/30 p-2.5 border border-emerald-200/50">
+            <span className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-semibold">
+              <span className="h-2 w-2 rounded-full bg-[#10b981]" /> Net take-home
+            </span>
+            <strong className="font-mono-ui text-sm text-emerald-700 dark:text-emerald-400">{moneyExact(summary?.profit ?? 0)}</strong>
+          </div>
+        </div>
+      </Card>
+
+      <section className="grid gap-8 sm:gap-10 xl:grid-cols-[minmax(0,.88fr)_minmax(0,1.12fr)]">
         <Card className="overflow-hidden" data-testid="card-report-category-breakdown">
-           <div className="reports-panel-heading"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Where revenue sits</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Category breakdown</h2></div><BarChart3 size={18} className="text-[hsl(var(--muted-foreground))]" /></div>
+           <div className="reports-panel-heading"><div><div className="type-eyebrow">Where revenue sits</div><h3 className="type-h3 mt-2">Category breakdown</h3></div><BarChart3 size={18} className="text-[hsl(var(--muted-foreground))]" /></div>
           <div className="reports-donut-area">
             {categoryData.length && totalCategoryRevenue > 0 ? <ResponsiveContainer width="100%" height="100%"><PieChart>
               <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="47%" innerRadius="54%" outerRadius="73%" paddingAngle={2} stroke="hsl(var(--card))" strokeWidth={3} isAnimationActive={false}>
@@ -1017,23 +3285,23 @@ function Reports() {
               <RechartsLegend verticalAlign="bottom" height={30} iconType="circle" wrapperStyle={{ fontSize: 11, color: '#68717d' }} />
             </PieChart></ResponsiveContainer> : <ChartEmpty message="Category revenue will appear after your first recorded sale." />}
           </div>
-           <div className="border-t border-[hsl(var(--border))] px-5 py-4 text-[11px] leading-5 text-[hsl(var(--muted-foreground))] sm:px-6"><strong className="text-[hsl(var(--foreground))]">{categoryData.length ? `${categoryData.length} ${categoryData.length === 1 ? 'category' : 'categories'}` : 'No categories yet'}</strong></div>
-       </Card>
-        <Card className="overflow-hidden" data-testid="card-report-selling-items">
-          <div className="reports-panel-heading"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Product performance</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Top-selling items</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Ranked by recorded revenue, not quantity sold</p></div><Package size={18} className="text-[hsl(var(--muted-foreground))]" /></div>
-          {rankedProducts.length ? <div className="reports-table-wrap"><table className="reports-table"><thead><tr><th>Item</th><th>Category</th><th className="text-right">Orders</th><th className="text-right">Revenue</th><th>Margin / cost</th><th className="text-right">Stock</th><th>Detail</th></tr></thead><tbody>{rankedProducts.map((item, index) => {
+           <div className="border-t border-[hsl(var(--border))] px-5 py-4 text-xs leading-5 text-[hsl(var(--muted-foreground))] sm:px-6"><strong className="text-[hsl(var(--foreground))]">{categoryData.length ? `${categoryData.length} ${categoryData.length === 1 ? 'category' : 'categories'}` : 'No categories yet'}</strong></div>
+        </Card>
+         <Card className="overflow-hidden" data-testid="card-report-selling-items">
+          <div className="reports-panel-heading"><div><div className="type-eyebrow">Product performance</div><h3 className="type-h3 mt-2">Top-selling items</h3><p className="mt-1 type-body text-[hsl(var(--muted-foreground))]">Ranked by recorded revenue, not quantity sold</p></div><Package size={18} className="text-[hsl(var(--muted-foreground))]" /></div>
+          {rankedProducts.length ? <div className="reports-table-wrap"><table className="reports-table"><thead><tr><th>Item</th><th className="text-right">Orders</th><th className="text-right">Revenue</th><th className="text-right">Margin</th></tr></thead><tbody>{rankedProducts.map((item, index) => {
             const share = totalCategoryRevenue ? (item.revenue / totalCategoryRevenue) * 100 : 0;
-             return <tr key={`${item.name}-${index}`} data-testid={`row-report-item-${index}`}><td><div className="font-semibold">{item.name}</div></td><td><span className="reports-category-tag">{item.category || 'Uncategorised'}</span></td><td className="data-value text-right text-xs">{item.orders}</td><td className="data-value text-right text-xs font-bold">{money(item.revenue)}</td><td>{item.marginStatus === 'tracked' ? <span className="reports-cost-status reports-cost-tracked">{item.margin.toFixed(1)}% margin</span> : item.marginStatus === 'estimated' ? <span className="reports-cost-status reports-cost-missing" title={`${item.legacyOrders} legacy ${item.legacyOrders === 1 ? 'sale' : 'sales'} included`}>{item.margin.toFixed(1)}% estimated</span> : <span className="reports-cost-status reports-cost-missing">Cost not tracked</span>}</td><td className="data-value text-right text-xs">{item.stock}</td><td className="text-[11px] text-[hsl(var(--muted-foreground))]">{item.legacyOrders ? `${item.legacyOrders} legacy ${item.legacyOrders === 1 ? 'sale' : 'sales'} · ${share ? `${share.toFixed(1)}% of revenue` : 'no revenue share'}` : share ? `${share.toFixed(1)}% of recorded revenue` : 'No revenue recorded'}</td></tr>;
+             return <tr key={`${item.name}-${index}`} data-testid={`row-report-item-${index}`}><td><div className="text-[15px] font-semibold">{item.name}</div><div className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{item.category || 'Uncategorised'} · {item.stock} in stock {item.legacyOrders ? `· ${item.legacyOrders} older sale${item.legacyOrders === 1 ? '' : 's'}` : ''}</div></td><td className="data-value text-right text-sm font-medium">{item.orders}</td><td className="data-value text-right text-sm font-semibold">{money(item.revenue)}</td><td className="text-right">{item.marginStatus === 'tracked' ? <span className="reports-cost-status reports-cost-tracked">{item.margin.toFixed(1)}% margin</span> : item.marginStatus === 'estimated' ? <span className="reports-cost-status reports-cost-estimated" title={`${item.legacyOrders} older ${item.legacyOrders === 1 ? 'sale uses' : 'sales use'} an estimated cost`}>{item.margin.toFixed(1)}% est.</span> : <span className="reports-cost-status reports-cost-missing">Not tracked</span>}</td></tr>;
           })}</tbody></table></div> : <div className="p-6"><EmptyState icon={PackageSearch} title="No selling pattern yet" description="Once product performance is recorded, your highest-revenue items will appear here." /></div>}
         </Card>
       </section>
-       <div className="flex items-start gap-3 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/55 px-4 py-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]" data-testid="text-report-data-note"><CircleDollarSign size={15} className="mt-0.5 shrink-0 text-[hsl(var(--accent-foreground))]" /><span><strong className="text-[hsl(var(--foreground))]">A note on this report:</strong> Take Order currently records orders, revenue, stock, and optional product costs. {summary?.legacyOrders ? `${summary.legacyOrders} legacy ${summary.legacyOrders === 1 ? 'sale has' : 'sales have'} no captured sale-time cost, so affected margins and product costs are estimates based on today’s catalog.` : 'All paid sales have captured sale-time costs.'} It does not store item quantity or historical comparison data, so this page intentionally uses “orders” and “detail” rather than invented sales trends.</span></div>
-    </div>}
+       <div className="flex items-start gap-3 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/55 px-4 py-3 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]" data-testid="text-report-data-note"><CircleDollarSign size={16} className="mt-0.5 shrink-0 text-[hsl(var(--accent-foreground))]" /><span><strong className="text-[hsl(var(--foreground))]">A note on this report:</strong> Take Order currently records orders, revenue, stock, and optional product costs. {summary?.legacyOrders ? `${summary.legacyOrders} older ${summary.legacyOrders === 1 ? 'sale has' : 'sales have'} no captured sale-time cost, so affected margins and product costs are estimates based on today’s catalog.` : 'All paid sales have captured sale-time costs.'} It does not store item quantity or historical comparison data, so this page intentionally uses “orders” and “detail” rather than invented sales trends.</span></div>
+    </div>)}
   </Shell>;
 }
 
 function ReportsSkeleton() {
-  return <div className="space-y-5" aria-label="Loading reports"><div className="reports-metric-grid"><Card className="h-[220px] p-6"><Skeleton className="h-3 w-24" /><Skeleton className="mt-7 h-12 w-40" /><Skeleton className="mt-6 h-3 w-56" /></Card><Card className="h-[220px] p-6"><Skeleton className="h-3 w-24" /><Skeleton className="mt-7 h-12 w-40" /><Skeleton className="mt-6 h-3 w-56" /></Card><Card className="h-[220px] p-6"><Skeleton className="h-3 w-28" /><Skeleton className="mt-7 h-8 w-full" /><Skeleton className="mt-5 h-3 w-40" /></Card></div><div className="grid gap-5 xl:grid-cols-[.88fr_1.12fr]"><Card className="h-[465px] p-6"><Skeleton className="h-4 w-36" /><Skeleton className="mt-3 h-3 w-52" /><Skeleton className="mx-auto mt-10 h-56 w-56 rounded-full" /></Card><Card className="h-[465px] p-6"><Skeleton className="h-4 w-44" /><Skeleton className="mt-3 h-3 w-64" /><Skeleton className="mt-9 h-10 w-full" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div></div>;
+  return <div className="space-y-8 sm:space-y-10" aria-label="Loading reports"><div className="reports-metric-grid"><Card className="h-[176px] p-6 sm:p-7 flex flex-col justify-between"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-40" /><Skeleton className="h-4 w-56" /></Card><Card className="h-[176px] p-6 sm:p-7 flex flex-col justify-between"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-40" /><Skeleton className="h-4 w-56" /></Card><Card className="h-[176px] p-6 sm:p-7 flex flex-col justify-between"><Skeleton className="h-4 w-28" /><Skeleton className="h-10 w-40" /><Skeleton className="h-4 w-40" /></Card></div><Card className="h-[180px] p-6"><Skeleton className="h-4 w-40" /><Skeleton className="mt-4 h-6 w-full" /><Skeleton className="mt-6 h-12 w-full" /></Card><div className="grid gap-6 sm:gap-8 xl:grid-cols-[.88fr_1.12fr]"><Card className="h-[465px] p-6"><Skeleton className="h-4 w-36" /><Skeleton className="mt-3 h-3 w-52" /><Skeleton className="mx-auto mt-10 h-56 w-56 rounded-full" /></Card><Card className="h-[465px] p-6"><Skeleton className="h-4 w-44" /><Skeleton className="mt-3 h-3 w-64" /><Skeleton className="mt-9 h-10 w-full" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div></div>;
 }
 
 function AnalyticsTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name?: string; value?: number; color?: string }>; label?: string }) {
@@ -1049,7 +3317,7 @@ function DashboardRowsSkeleton({ count = 3 }: { count?: number }) {
   return <div className="space-y-3" aria-label="Loading card content">{Array.from({ length: count }, (_, index) => <div key={index} className="flex items-center gap-3"><Skeleton className="h-8 w-8 rounded-[10px]" /><Skeleton className="h-3 flex-1" /><Skeleton className="h-3 w-16" /></div>)}</div>;
 }
 
-function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, productCount, orderCount, loading = false }: { outstanding: number; lowStock: Product[]; missingCosts: Product[]; productLoading: boolean; productCount: number; orderCount: number; loading?: boolean }) {
+function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, productCount, orderCount, unfulfilledCount = 0, loading = false }: { outstanding: number; lowStock: Product[]; missingCosts: Product[]; productLoading: boolean; productCount: number; orderCount: number; unfulfilledCount?: number; loading?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (!expanded) return;
@@ -1065,33 +3333,34 @@ function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, produ
     };
   }, [expanded]);
   const alerts = [
-    { id: 'rose', icon: Receipt, tone: 'rose', title: outstanding > 0 ? `${money(outstanding)} outstanding` : 'No outstanding deposits', detail: outstanding > 0 ? 'Follow up on deposits before they go cold.' : 'Your deposits are all accounted for.', href: '/orders', action: outstanding > 0 ? 'Review orders' : 'Open orders' },
-    { id: 'gold', icon: PackageSearch, tone: 'gold', title: productLoading ? 'Checking stock levels' : `${lowStock.length} low-stock ${lowStock.length === 1 ? 'item' : 'items'}`, detail: lowStock.length ? lowStock.slice(0, 2).map((item) => item.name).join(' · ') : 'Nothing needs a restock right now.', href: '/catalog', action: 'Review catalog' },
-    { id: 'blue', icon: CircleDollarSign, tone: 'blue', title: productLoading ? 'Checking cost prices' : `${missingCosts.length} missing cost ${missingCosts.length === 1 ? 'price' : 'prices'}`, detail: missingCosts.length ? 'Add costs to keep margin reporting honest.' : 'All catalog costs are tracked.', href: '/catalog', action: 'Add costs' },
+    ...(unfulfilledCount > 0 ? [{ id: 'fulfillment', icon: Truck, tone: 'mint' as const, title: `${unfulfilledCount} ${unfulfilledCount === 1 ? 'order' : 'orders'} to dispatch`, detail: 'Pack and ship pending orders to keep your buyers updated.', href: '/orders', action: 'Review orders' }] : []),
+    { id: 'rose', icon: Receipt, tone: 'rose' as const, title: outstanding > 0 ? `${money(outstanding)} outstanding` : 'No outstanding balances', detail: outstanding > 0 ? 'Follow up on unpaid buyer balances before they go cold.' : 'Your orders are all accounted for.', href: '/orders', action: outstanding > 0 ? 'Review orders' : 'Open orders' },
+    { id: 'gold', icon: PackageSearch, tone: 'gold' as const, title: productLoading ? 'Checking stock levels' : `${lowStock.length} low-stock ${lowStock.length === 1 ? 'item' : 'items'}`, detail: lowStock.length ? lowStock.slice(0, 2).map((item) => item.name).join(' · ') : 'Nothing needs a restock right now.', href: '/catalog', action: 'Review catalog' },
+    { id: 'blue', icon: CircleDollarSign, tone: 'blue' as const, title: productLoading ? 'Checking cost prices' : `${missingCosts.length} missing cost ${missingCosts.length === 1 ? 'price' : 'prices'}`, detail: missingCosts.length ? 'Add costs to keep margin reporting honest.' : 'All catalog costs are tracked.', href: '/catalog', action: 'Add costs' },
   ];
   const additionalAlerts = [
-    { id: 'share', icon: Link2, tone: 'mint', title: orderCount ? 'Share your order link' : 'Share your first order link', detail: orderCount ? 'Keep your link visible wherever buyers find you.' : 'Send it to buyers to start collecting orders.', href: '/take-order', action: 'Open order link' },
-    { id: 'catalog', icon: Package, tone: 'gold', title: productCount ? 'Review your catalog' : 'Add your first product', detail: productCount ? 'Keep product details, prices, and stock ready for buyers.' : 'Add an item so you can start building order links.', href: '/catalog', action: productCount ? 'Open catalog' : 'Add product' },
-    { id: 'reports', icon: BarChart3, tone: 'blue', title: 'Review performance', detail: 'See what is selling and where buyers are coming from.', href: '/reports', action: 'Open reports' },
-    { id: 'connect', icon: Settings2, tone: 'gold', title: 'Tune your tools', detail: 'Update the channels and payment tools you use.', href: '/connect', action: 'Review tools' },
+    { id: 'share', icon: Link2, tone: 'mint' as const, title: orderCount ? 'Share your order link' : 'Share your first order link', detail: orderCount ? 'Keep your link visible wherever buyers find you.' : 'Send it to buyers to start collecting orders.', href: '/take-order', action: 'Open order link' },
+    { id: 'catalog', icon: Package, tone: 'gold' as const, title: productCount ? 'Review your catalog' : 'Add your first product', detail: productCount ? 'Keep product details, prices, and stock ready for buyers.' : 'Add an item so you can start building order links.', href: '/catalog', action: productCount ? 'Open catalog' : 'Add product' },
+    { id: 'reports', icon: BarChart3, tone: 'blue' as const, title: 'Review performance', detail: 'See what is selling and where buyers are coming from.', href: '/reports', action: 'Open reports' },
+    { id: 'connect', icon: Settings2, tone: 'gold' as const, title: 'Tune your tools', detail: 'Update the channels and payment tools you use.', href: '/connect', action: 'Review tools' },
   ];
   const visibleAlerts = expanded ? [...alerts, ...additionalAlerts] : alerts;
-  return <>{expanded && <button type="button" className="alerts-backdrop" aria-label="Close action center" onClick={() => setExpanded(false)} />}<Card className={cn('alerts-rail-card overflow-hidden', expanded && 'is-expanded')}><div className="border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><AlertTriangle size={16} className="text-[hsl(var(--chart-3))]" /><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Seller updates</div></div><button type="button" className="alerts-expand-button" aria-expanded={expanded} aria-controls="dashboard-action-list" onClick={() => setExpanded((value) => !value)} data-testid="button-toggle-dashboard-actions">{expanded ? 'Close' : 'Show all'}{expanded ? <X size={14} /> : <ChevronDown size={14} />}</button></div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Action center</h2></div><div id="dashboard-action-list" className={cn('alerts-list divide-y divide-[hsl(var(--border))]', expanded && 'is-expanded')}>{loading ? <div className="space-y-5 p-5 sm:p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : visibleAlerts.map((alert) => <Link href={alert.href} key={alert.id} className="alert-row group flex gap-3 px-5 py-4 sm:px-6" data-testid={`link-alert-${alert.id}`}><div className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]', alert.tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', alert.tone === 'gold' && 'bg-[hsl(42_81%_67%/.25)] text-[hsl(31_64%_34%)]', alert.tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]', alert.tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]')}><alert.icon size={15} /></div><div className="min-w-0 flex-1"><div className="text-sm font-semibold">{alert.title}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{alert.detail}</p><div className="mt-2 text-[10px] font-bold text-[hsl(var(--primary))] group-hover:underline">{alert.action}<ArrowUpRight size={12} className="ml-1 inline" /></div></div></Link>)}</div></Card></>;
+  return <>{expanded && <button type="button" className="alerts-backdrop" aria-label="Close action center" onClick={() => setExpanded(false)} />}<Card className={cn('alerts-rail-card overflow-hidden', expanded && 'is-expanded')}><div className="border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><AlertTriangle size={16} className="text-[hsl(var(--chart-3))]" /><div className="type-eyebrow">Seller updates</div></div><button type="button" className="alerts-expand-button" aria-expanded={expanded} aria-controls="dashboard-action-list" onClick={() => setExpanded((value) => !value)} data-testid="button-toggle-dashboard-actions">{expanded ? 'Close' : 'Show all'}{expanded ? <X size={14} /> : <ChevronDown size={14} />}</button></div><h3 className="type-h3 mt-2">Action center</h3></div><div id="dashboard-action-list" className={cn('alerts-list divide-y divide-[hsl(var(--border))]', expanded && 'is-expanded')}>{loading ? <div className="space-y-5 p-5 sm:p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : visibleAlerts.map((alert) => <Link href={alert.href} key={alert.id} className="alert-row group flex gap-3.5 px-5 py-4 sm:px-6" data-testid={`link-alert-${alert.id}`}><div className={cn('mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]', alert.tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', alert.tone === 'gold' && 'bg-[hsl(42_81%_67%/.25)] text-[hsl(31_64%_34%)]', alert.tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]', alert.tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]')}><alert.icon size={16} /></div><div className="min-w-0 flex-1"><div className="text-[15px] font-semibold">{alert.title}</div><p className="mt-1 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">{alert.detail}</p><div className="mt-2 text-sm font-semibold text-[hsl(var(--primary))] group-hover:underline">{alert.action}<ArrowUpRight size={14} className="ml-1 inline" /></div></div></Link>)}</div></Card></>;
 }
 
 function ProductPerformance({ products, loading = false }: { products: Array<{ name: string; category: string; revenue: number; orders: number; stock: number; margin: number; costTracked: boolean; marginStatus: 'tracked' | 'estimated' | 'unavailable'; snapshotOrders: number; legacyOrders: number }>; loading?: boolean }) {
   const ranked = [...products].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   return <section className="overview-stat-section overview-product-card" aria-labelledby="product-performance-title">
     <div className="overview-card-title">
-      <div className="font-display text-lg font-bold tracking-[-.03em]" id="product-performance-title">Best-selling items</div>
-      <div className="font-mono-ui text-[11px] uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))]">Product performance</div>
+      <div className="type-eyebrow">Product performance</div>
+      <h3 className="type-h3 mt-2" id="product-performance-title">Best-selling items</h3>
     </div>
     {loading ? <div className="mt-5"><DashboardRowsSkeleton /></div> : ranked.length ? <div className="overview-card-table" role="table" aria-label="Best-selling items">
       <div className="overview-card-table-head" role="row"><span role="columnheader">Item</span><span role="columnheader">Orders</span><span className="text-right" role="columnheader">Revenue</span></div>
       {ranked.map((product, index) => <div key={product.name} className="overview-card-table-row product-performance-row" data-testid={`row-product-performance-${index}`} role="row">
-        <span className="min-w-0 truncate font-semibold" role="cell">{product.name}</span>
-         <span className="overview-product-orders data-value text-xs" role="cell"><span>{number(product.orders)}</span><span className={cn('overview-product-signal', product.orders > 0 ? 'overview-product-signal-up' : 'overview-product-signal-down')} aria-label={product.orders > 0 ? 'Sales activity up' : 'No sales activity'} title={product.orders > 0 ? 'Sales activity up' : 'No sales activity'}>{product.orders > 0 ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}</span></span>
-         <span className="data-value text-right text-xs font-bold" role="cell">{money(product.revenue)}</span>
+        <span className="min-w-0 truncate font-medium" role="cell">{product.name}</span>
+         <span className="overview-product-orders data-value text-sm font-medium" role="cell"><span>{number(product.orders)}</span><span className={cn('overview-product-signal', product.orders > 0 ? 'overview-product-signal-up' : 'overview-product-signal-down')} aria-label={product.orders > 0 ? 'Sales activity up' : 'No sales activity'} title={product.orders > 0 ? 'Sales activity up' : 'No sales activity'}>{product.orders > 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}</span></span>
+         <span className="data-value text-right text-sm font-semibold" role="cell">{money(product.revenue)}</span>
       </div>)}
     </div> : <div className="mt-5"><ChartEmpty message="Product performance will appear after your first sale." /></div>}
   </section>;
@@ -1155,6 +3424,9 @@ function ChannelPerformance({ channels, loading = false }: { channels: ChannelPe
 }
 
 export function ChannelConversionInsight() {
+  const { userId } = useAppAuth();
+  const { isPro } = useEntitlement(userId);
+  const { openPaywall } = usePaywall();
   const summaryQuery = useGetDashboardSummary(undefined, {
     query: {
       queryKey: getGetDashboardSummaryQueryKey(),
@@ -1172,8 +3444,20 @@ export function ChannelConversionInsight() {
   const summaryRefreshing = summaryQuery.isFetching && !summaryQuery.isLoading && Boolean(summaryQuery.data);
 
   return <Shell>
-    <PageHeading title="Channel conversion" action={<Link href="/"><Button variant="outline"><ArrowLeft size={15} />Back to dashboard</Button></Link>} />
-    {summaryQuery.isLoading ? <div className="space-y-5" aria-label="Loading channel conversion"><div className="reports-metric-grid">{[1, 2, 3, 4].map((item) => <Card key={item} className="h-[132px] p-5"><Skeleton className="h-3 w-24" /><Skeleton className="mt-6 h-8 w-28" /><Skeleton className="mt-3 h-3 w-36" /></Card>)}</div><Card className="space-y-4 p-6"><Skeleton className="h-5 w-44" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></Card></div> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <div className="channel-insight-page space-y-5">
+    {!isPro ? (
+      <ProUpgradeFeatureCard
+        pageTitle="Channel conversion"
+        title="Track channel conversion"
+        description="Discover which social channels (WhatsApp, Instagram, TikTok) drive actual paying customers. Compare attention and conversion."
+        learnMoreHref="/account/billing"
+        previewLabel="Total views"
+        previewValue={number(totalViews) || '130'}
+        onUpgrade={openPaywall}
+      />
+    ) : (
+      <>
+        <PageHeading title="Channel conversion" action={<Link href="/"><Button variant="outline"><ArrowLeft size={15} />Back to dashboard</Button></Link>} />
+    {summaryQuery.isLoading ? <div className="space-y-8 sm:space-y-10" aria-label="Loading channel conversion"><div className="reports-metric-grid">{[1, 2, 3, 4].map((item) => <Card key={item} className="h-[176px] p-6 sm:p-7 flex flex-col justify-between"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-28" /><Skeleton className="h-4 w-36" /></Card>)}</div><Card className="space-y-4 p-6"><Skeleton className="h-5 w-44" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></Card></div> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <div className="channel-insight-page space-y-8 sm:space-y-10">
        <ChannelConversionRefreshStatus refreshing={summaryRefreshing} />
       <section className="reports-metric-grid" aria-label="Channel conversion summary">
         <MetricCard dataTestId="card-channel-insight-views" label="Total views" value={number(totalViews)} note="Recorded link views" />
@@ -1183,7 +3467,7 @@ export function ChannelConversionInsight() {
       </section>
       <Card className="channel-insight-card" data-testid="card-channel-conversion-detail">
         <div className="channel-insight-heading">
-          <div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Channel breakdown</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Where views become sales</h2><p>Compare attention, paid sales, and revenue for {selectedChannelLabel}.</p></div>
+          <div><div className="type-eyebrow">Channel breakdown</div><h3 className="type-h3 mt-2">Where views become sales</h3><p className="mt-1 type-body text-[hsl(var(--muted-foreground))]">Compare attention, paid sales, and revenue for {selectedChannelLabel}.</p></div>
           <div className="channel-insight-heading-tools">
             <div className="channel-insight-filter">
               <label htmlFor="channel-conversion-filter">Focus channel</label>
@@ -1207,6 +3491,8 @@ export function ChannelConversionInsight() {
       </Card>
       <div className="flex items-start gap-3 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/55 px-4 py-3 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]"><CircleDollarSign size={15} className="mt-0.5 shrink-0 text-[hsl(var(--accent-foreground))]" aria-hidden="true" /><span><strong className="text-[hsl(var(--foreground))]">How to read this:</strong> Conversion is paid sales divided by recorded views. Channels are ranked by views so you can see where attention is concentrated before comparing sales and revenue.</span></div>
     </div>}
+      </>
+    )}
   </Shell>;
 }
 
@@ -1227,21 +3513,71 @@ function RecentTransactions() {
     return matchesFilter && `${order.customerName} ${order.productName} ${order.channel}`.toLowerCase().includes(search.trim().toLowerCase());
   }).slice(0, 6), [allOrders, filter, search]);
   const filterOptions = [{ value: 'all', label: 'All' }, { value: 'paid', label: 'Paid' }, { value: 'open', label: 'Open' }];
-  return <Card className="recent-transactions-card list-card mt-5 overflow-hidden">
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Latest activity</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.035em]">Recent transactions</h2></div><Link href="/orders" data-testid="link-see-all-orders"><Button variant="ghost">See all <ArrowUpRight size={15} /></Button></Link></div>
-     <div className="list-toolbar filter-surface"><div className="list-filter-tabs" role="group" aria-label="Recent transaction filters">{filterOptions.map((option) => <button type="button" key={option.value} onClick={() => setFilter(option.value)} aria-pressed={filter === option.value} className={cn('list-filter-tab', filter === option.value && 'is-active')}>{option.label}</button>)}</div><div className="list-search-shell"><Search className="pointer-events-none absolute left-2.5 top-2.5 text-[hsl(var(--muted-foreground))]" size={14} /><input aria-label="Search recent transactions" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search" className="list-search-input" /></div></div>
-     {query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="overflow-x-auto"><table className="list-table w-full min-w-[780px] text-left"><thead><tr><th className="px-5 py-3 sm:px-6">Order ID</th><th className="px-4 py-3">Buyer / item</th><th className="px-4 py-3 text-center">Traffic</th><th className="px-4 py-3">Placed</th><th className="px-4 py-3">Order value</th><th className="px-5 py-3 sm:px-6">Payment</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id} className="transaction-row" data-testid={`row-transaction-${order.id}`}><td className="px-5 py-4 sm:px-6" data-testid={`text-transaction-order-id-${order.id}`}><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-recent-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></td><td className="px-4 py-4"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-[10px] font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName}</div></div></div></td><td className="px-4 py-4"><div className="orders-traffic-cell"><span className="orders-traffic-icon" data-testid={`text-transaction-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div></td><td className="px-4 py-4 text-sm text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</td><td className="data-value px-4 py-4 text-xs">{moneyExact(order.amount)}</td><td className="px-5 py-4 sm:px-6"><StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill></td></tr>)}</tbody></table></div> : <div className="p-8"><EmptyState icon={ShoppingBag} title="No transactions match" description="Try another filter or search." action={<Link href="/take-order"><Button><Plus size={15} />Create a link</Button></Link>} /></div>}
-  </Card>;
+  return <div className="mt-8 sm:mt-10 space-y-4">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div><div className="type-eyebrow">Latest activity</div><h3 className="type-h3 mt-1 text-lg font-bold">Recent transactions</h3></div>
+      <Link href="/orders" data-testid="link-see-all-orders"><Button variant="ghost">See all <ArrowUpRight size={15} /></Button></Link>
+    </div>
+    <div className="table-toolbar">
+      <div className="category-filter-card list-filter-tabs" role="group" aria-label="Recent transaction filters">
+        {filterOptions.map((option) => (
+          <button
+            type="button"
+            key={option.value}
+            onClick={() => setFilter(option.value)}
+            aria-pressed={filter === option.value}
+            className={cn('category-filter-tab list-filter-tab', filter === option.value && 'is-active')}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <div className="table-search-shell list-search-shell">
+        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
+        <input
+          aria-label="Search recent transactions"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search"
+          className="table-search-input list-search-input"
+        />
+      </div>
+    </div>
+    <Card className="recent-transactions-card list-card overflow-hidden">
+      {query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="overflow-x-auto"><table className="list-table w-full min-w-[780px] text-left"><thead><tr><th className="px-5 py-3 sm:px-6">Order ID</th><th className="px-4 py-3">Buyer / item</th><th className="px-4 py-3 text-center">Traffic</th><th className="px-4 py-3">Placed</th><th className="px-4 py-3">Order value</th><th className="px-5 py-3 sm:px-6">Payment</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id} className="transaction-row" data-testid={`row-transaction-${order.id}`}><td className="px-5 py-4 sm:px-6" data-testid={`text-transaction-order-id-${order.id}`}><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-recent-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></td><td className="px-4 py-4"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-xs font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-[15px] font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{order.productName}</div></div></div></td><td className="px-4 py-4"><div className="orders-traffic-cell"><span className="orders-traffic-icon" data-testid={`text-transaction-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div></td><td className="px-4 py-4 text-sm text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</td><td className="data-value px-4 py-4 text-sm font-medium">{moneyExact(order.amount)}</td><td className="px-5 py-4 sm:px-6"><StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill></td></tr>)}</tbody></table></div> : <div className="p-8"><EmptyState icon={ShoppingBag} title="No transactions match" description="Try another filter or search." action={<Link href="/take-order"><Button><Plus size={15} />Create a link</Button></Link>} /></div>}
+    </Card>
+  </div>;
 }
 
 function OrderRow({ order, compact = false }: { order: Order; compact?: boolean }) {
-  return <div className={cn('flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between', compact && 'py-3.5')} data-testid={`row-order-${order.id}`}><div className="flex items-center gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] font-mono-ui text-[10px] font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName} · <ChannelInline value={order.channel} /></div></div></div><div className="flex items-center gap-4 pl-12 sm:pl-0"><div className="text-right"><div className="font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</div></div><StatusPill tone={paymentTone(order.status)}>{order.status.replace('_', ' ')}</StatusPill></div></div>;
+  return <div className={cn('flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between', compact && 'py-3.5')} data-testid={`row-order-${order.id}`}><div className="flex items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] font-mono-ui text-xs font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-[15px] font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{order.productName} · <ChannelInline value={order.channel} /></div></div></div><div className="flex items-center gap-4 pl-12 sm:pl-0"><div className="text-right"><div className="font-mono-ui text-sm font-semibold">{moneyExact(order.amount)}</div><div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</div></div><StatusPill tone={paymentTone(order.status)}>{order.status.replace('_', ' ')}</StatusPill></div></div>;
 }
 
-type ProductPreferenceDraft = { label: string; options: string };
-type ProductCustomFieldDraft = { label: string; value: string };
-type ProductFormState = { name: string; category: string; sku: string; description: string; price: string; compareAtPrice: string; cost: string; stock: string; preferences: ProductPreferenceDraft[]; customFields: ProductCustomFieldDraft[]; imageUrl: string; imageUrls: string; accent: string };
-const blankProduct: ProductFormState = { name: '', category: 'Apparel', sku: '', description: '', price: '', compareAtPrice: '', cost: '', stock: '0', preferences: [], customFields: [], imageUrl: '', imageUrls: '', accent: '#E6B85C' };
+export type ProductPreferenceDraft = { label: string; options: string };
+export type ProductCustomFieldDraft = { label: string; value: string };
+export type ProductFormState = { name: string; category: string; sku: string; description: string; price: string; compareAtPrice: string; cost: string; stock: string; preferences: ProductPreferenceDraft[]; customFields: ProductCustomFieldDraft[]; imageUrl: string; imageUrls: string; images?: string[]; accent: string };
+export const blankProduct: ProductFormState = { name: '', category: '', sku: '', description: '', price: '', compareAtPrice: '', cost: '', stock: '0', preferences: [], customFields: [], imageUrl: '', imageUrls: '', images: [], accent: '' };
+
+export function calculateProfitAndMargin(priceStr: string, costStr: string) {
+  const priceNum = parseFloat(priceStr);
+  const costNum = parseFloat(costStr);
+  const hasPricingInfo = !isNaN(priceNum) && priceNum > 0;
+  const hasCostInfo = !isNaN(costNum) && costNum >= 0;
+  const grossProfit = hasPricingInfo && hasCostInfo ? priceNum - costNum : null;
+  const marginPercent = hasPricingInfo && hasCostInfo && priceNum > 0 ? ((grossProfit! / priceNum) * 100) : null;
+  return { hasPricingInfo, hasCostInfo, grossProfit, marginPercent, priceNum, costNum };
+}
+
+export function resolveStockStatus(stock: string | number) {
+  const stockNum = typeof stock === 'number' ? stock : parseInt(String(stock), 10);
+  if (isNaN(stockNum) || stockNum <= 0) {
+    return { label: 'Out of stock', tone: 'neutral' as const, quantity: isNaN(stockNum) ? 0 : stockNum };
+  }
+  if (stockNum < 5) {
+    return { label: 'Low stock', tone: 'gold' as const, quantity: stockNum };
+  }
+  return { label: 'In stock', tone: 'mint' as const, quantity: stockNum };
+}
 const PRODUCT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 const PRODUCT_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const isProductImageValue = (value: string) => /^https?:\/\//i.test(value) || /^data:image\/(png|jpeg|webp|gif);base64,/i.test(value);
@@ -1265,9 +3601,12 @@ type ReferenceProductEditorProps = {
   change: (key: keyof ProductFormState, value: string) => void;
   setForm: React.Dispatch<React.SetStateAction<ProductFormState>>;
   updatePreference: (index: number, key: keyof ProductPreferenceDraft, value: string) => void;
+  updateCustomField: (index: number, key: keyof ProductCustomFieldDraft, value: string) => void;
   imageError: string;
   onImageChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveImage: () => void;
+  onRemoveImageAt?: (index: number) => void;
+  onSetPrimaryImage?: (index: number) => void;
 };
 
 function ReferenceProductEditor({
@@ -1282,120 +3621,844 @@ function ReferenceProductEditor({
   change,
   setForm,
   updatePreference,
+  updateCustomField,
   imageError,
   onImageChange,
   onRemoveImage,
+  onRemoveImageAt,
+  onSetPrimaryImage,
 }: ReferenceProductEditorProps) {
-  const [expandedProduct, setExpandedProduct] = useState(false);
+  const productsQuery = useListProducts();
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+
+  const defaultCategories = useMemo(() => [
+    'Apparel',
+    'Accessories',
+    'Bags',
+    'Footwear',
+    'Beauty & Cosmetics',
+    'Jewelry',
+    'Home & Living',
+    'Electronics',
+    'Food & Drink',
+    'Art & Crafts',
+  ], []);
+
+  const allCategories = useMemo(() => {
+    const fromProducts = (productsQuery.data ?? [])
+      .map((p) => p.category?.trim())
+      .filter(Boolean) as string[];
+    const merged = Array.from(new Set([
+      ...defaultCategories,
+      ...fromProducts,
+      ...customCategories,
+      ...(form.category ? [form.category] : []),
+    ]));
+    return merged.sort((a, b) => a.localeCompare(b));
+  }, [productsQuery.data, defaultCategories, customCategories, form.category]);
+
+  const filteredCategories = useMemo(() => {
+    if (!categorySearch.trim()) return allCategories;
+    return allCategories.filter((c) => c.toLowerCase().includes(categorySearch.toLowerCase()));
+  }, [allCategories, categorySearch]);
+
+  const handleAddNewCategory = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return;
+    setCustomCategories((prev) => [...prev, trimmed]);
+    change('category', trimmed);
+    setNewCategoryName('');
+    setIsAddingNewCategory(false);
+    setCategoryOpen(false);
+  };
+
+  const allImages = useMemo(() => {
+    if (form.images && form.images.length > 0) return form.images;
+    if (form.imageUrl) return [form.imageUrl];
+    return [];
+  }, [form.images, form.imageUrl]);
+
   const addOption = () => setForm((current) => ({
     ...current,
     preferences: [...current.preferences, { label: '', options: '' }],
   }));
+  const removeOption = (index: number) => setForm((current) => ({
+    ...current,
+    preferences: current.preferences.filter((_, i) => i !== index),
+  }));
+  const addCustomField = () => setForm((current) => ({
+    ...current,
+    customFields: [...current.customFields, { label: '', value: '' }],
+  }));
+  const removeCustomField = (index: number) => setForm((current) => ({
+    ...current,
+    customFields: current.customFields.filter((_, i) => i !== index),
+  }));
 
-  const content = <div className="product-reference-editor">
-    <header className="product-reference-header">
-      <button type="button" className="product-back-button" onClick={onClose} aria-label="Back to catalog" data-testid="button-back-product">
-        <ArrowLeft size={20} aria-hidden="true" />
-      </button>
-      <h1>{product ? 'Product' : 'Product'}</h1>
-    </header>
+  const { priceNum, costNum, hasPricingInfo, hasCostInfo, grossProfit, marginPercent } = calculateProfitAndMargin(form.price, form.cost);
+  const stockStatus = resolveStockStatus(form.stock);
+  const stockNum = stockStatus.quantity;
 
-    <form className="product-reference-layout" onSubmit={onSubmit}>
-      <div className="product-reference-main">
-        <section className="product-reference-card product-details-card">
-          <h2>Product</h2>
-          <div className="product-reference-field">
-            <label htmlFor="product-name-reference">Name <span aria-hidden="true">*</span></label>
-            <input id="product-name-reference" data-testid="input-product-name" autoFocus required value={form.name} onChange={(event) => change('name', event.target.value)} placeholder="Name" />
-          </div>
-          <div className="product-reference-two-up">
-            <div className="product-reference-field">
-              <label htmlFor="product-category-reference">Category <span aria-hidden="true">*</span></label>
-              <input id="product-category-reference" data-testid="select-product-category" list="product-category-options" value={form.category} onChange={(event) => change('category', event.target.value)} placeholder="Search or create category" required />
-              <datalist id="product-category-options">
-                <option value="Apparel" />
-                <option value="Accessories" />
-                <option value="Home" />
-                <option value="Beauty" />
-                <option value="Food & drink" />
-                <option value="Other" />
-              </datalist>
-            </div>
-          </div>
-          <div className="product-reference-field product-reference-description">
-            <div className="product-reference-label-row">
-              <label htmlFor="product-description-reference">Description <span className="product-info-mark" title="Shown to buyers">i</span></label>
-              <span className="product-magic-mark" aria-hidden="true"><Sparkles size={13} /></span>
-            </div>
-             <textarea id="product-description-reference" value={form.description} onChange={(event) => change('description', event.target.value)} placeholder="" rows={5} />
-          </div>
-          <div className="product-reference-field">
-            <div className="product-reference-label-row">
-              <label>Images</label>
-              <span className="product-magic-mark" aria-hidden="true"><Sparkles size={13} /></span>
-            </div>
-             <div className="product-image-upload">
-               <label htmlFor="product-image-upload" className="product-upload-button"><ImagePlus size={14} />{form.imageUrl ? 'Replace image' : 'Upload image'}</label>
-               <input id="product-image-upload" data-testid="input-product-image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="sr-only" onChange={onImageChange} />
-               <span className="product-image-upload-note">PNG, JPG, WebP, or GIF up to 2 MB.</span>
-             </div>
-             {form.imageUrl && <div className="product-image-preview"><img src={form.imageUrl} alt="Product preview" /><span>Image ready</span><button type="button" onClick={onRemoveImage} data-testid="button-remove-product-image">Remove</button></div>}
-             {imageError && <p className="product-reference-error" role="alert" data-testid="status-product-image-error">{imageError}</p>}
-          </div>
-          <button type="button" className="product-more-button" onClick={() => setExpandedProduct(!expandedProduct)} aria-expanded={expandedProduct}>
-            <ChevronRight size={15} className={cn(expandedProduct && 'rotate-90')} aria-hidden="true" />More options
+  const content = (
+    <div className="catalog-editor-container">
+      <div className="catalog-editor-header flex flex-col gap-4 border-b border-[hsl(var(--border))] pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3.5">
+          <button
+            type="button"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[hsl(var(--muted))] active:scale-95"
+            onClick={onClose}
+            aria-label="Back to catalog"
+            data-testid="button-back-product"
+          >
+            <ArrowLeft size={18} aria-hidden="true" />
           </button>
-          {expandedProduct && <div className="product-reference-more-fields">
-            <div className="product-reference-field">
-              <label>Accent color</label>
-              <div className="product-accent-options">{accentOptions.map(({ value, label }) => <button type="button" key={value} onClick={() => change('accent', value)} aria-label={`Use ${label} accent color`} aria-pressed={form.accent === value} className={cn('product-accent-swatch', form.accent === value && 'is-selected')} style={{ backgroundColor: value }} />)}</div>
-            </div>
-          </div>}
-        </section>
-
-        <section className="product-reference-card product-pricing-card">
-          <h2>Pricing</h2>
-          <div className="product-reference-two-up">
-            <div className="product-reference-field">
-              <label htmlFor="product-price-reference">Price</label>
-              <div className="product-currency-input"><span>{currencySymbol()}</span><input id="product-price-reference" data-testid="input-product-price" type="number" min="0" step=".01" required value={form.price} onChange={(event) => change('price', event.target.value)} placeholder="0" /></div>
-            </div>
-            <div className="product-reference-field">
-              <label htmlFor="product-cost-reference">Cost price <span className="product-info-mark" title="Your buying price, used for profit estimates">i</span></label>
-              <div className="product-currency-input"><span>{currencySymbol()}</span><input id="product-cost-reference" data-testid="input-product-cost" type="number" min="0" step=".01" value={form.cost} onChange={(event) => change('cost', event.target.value)} placeholder="Not tracked" /></div>
-              <p className="product-reference-help">Your buying price, used for profit estimates.</p>
-            </div>
+          <div className="min-w-0">
+            <div className="type-eyebrow">Catalog inventory</div>
+            <h1 className="type-h1 mt-1">{product ? `Edit ${product.name || 'item'}` : 'Add new product'}</h1>
           </div>
-          <div className="product-reference-field product-compare-price-field">
-            <label htmlFor="product-compare-price-reference">Original price <span className="product-info-mark" title="Optional original price">i</span></label>
-            <div className="product-currency-input"><span>{currencySymbol()}</span><input id="product-compare-price-reference" data-testid="input-product-compare-price" type="number" min="0" step=".01" value={form.compareAtPrice} onChange={(event) => change('compareAtPrice', event.target.value)} placeholder="0" /></div>
-          </div>
-        </section>
+        </div>
 
-        <section className="product-reference-section">
-           <div className="product-section-heading"><div><h2>Buyer options</h2><p>Give buyers choices such as Color or Size.</p></div><div className="product-inline-action"><button type="button" onClick={addOption}><Plus size={17} aria-hidden="true" /><strong>Add option</strong></button></div></div>
-           {form.preferences.length > 0 ? <div className="product-reference-options-list">{form.preferences.map((preference, index) => <div className="product-reference-option-row" key={`option-${index}`}><input aria-label={`Option ${index + 1} name`} required value={preference.label} onChange={(event) => updatePreference(index, 'label', event.target.value)} placeholder="Option name, e.g. Color" /><input aria-label={`Option ${index + 1} values`} required value={preference.options} onChange={(event) => updatePreference(index, 'options', event.target.value)} placeholder="Values separated by commas" /><button type="button" onClick={() => setForm((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))} aria-label={`Remove option ${index + 1}`}><X size={15} /></button></div>)}</div> : <p className="product-reference-help">No buyer options. The item can be added directly to an order.</p>}
-        </section>
-        {(error || hasMutationError) && <div className="product-reference-error" role="alert" data-testid="status-product-form-error">{error || 'This item could not be saved. Try again.'}</div>}
-        <div className="product-reference-actions">
-          <button type="button" className="product-cancel-button" onClick={onClose}>Cancel</button>
-          <button type="submit" className="product-save-button" disabled={pending} data-testid="button-save-product">{pending && <Loader2 size={15} className="animate-spin" />}Save</button>
+        <div className="flex shrink-0 items-center gap-2.5 self-end sm:self-center">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Discard
+          </Button>
+          <Button
+            type="button"
+            disabled={pending}
+            data-testid="button-save-product"
+            onClick={(e) => {
+              const formEl = document.getElementById('catalog-product-form') as HTMLFormElement | null;
+              if (formEl) formEl.requestSubmit();
+              else onSubmit(e as unknown as React.FormEvent);
+            }}
+          >
+            {pending && <Loader2 size={15} className="animate-spin mr-1.5" />}
+            {product ? 'Save changes' : 'Save product'}
+          </Button>
         </div>
       </div>
 
-       <aside className="product-reference-sidebar">
-        <section className="product-reference-card product-side-card">
-           <div className="product-side-heading"><h2>Inventory</h2></div>
-           <div className="product-reference-field product-sku-field"><label htmlFor="product-sku-reference">SKU <span className="product-info-mark" title="Optional internal reference">?</span></label><input id="product-sku-reference" data-testid="input-product-sku" value={form.sku} onChange={(event) => change('sku', event.target.value)} placeholder="Optional SKU" /></div>
-           <div className="product-reference-field"><label htmlFor="product-stock-reference">Stock on hand</label><input id="product-stock-reference" data-testid="input-product-stock" type="number" min="0" step="1" required value={form.stock} onChange={(event) => change('stock', event.target.value)} placeholder="0" /></div>
-        </section>
-      </aside>
-    </form>
-  </div>;
+      <form id="catalog-product-form" className="catalog-editor-layout mt-6" onSubmit={onSubmit}>
+        {/* Left Column: General Info, Pricing, Buyer Options, Custom Specifications */}
+        <div className="catalog-editor-main space-y-6">
+          {/* Card 1: General Info */}
+          <section className="catalog-editor-card">
+            <div className="catalog-editor-card-header">
+              <div>
+                <div className="type-eyebrow">Information</div>
+                <h2 className="type-h3 mt-1">General details</h2>
+              </div>
+            </div>
+
+            <div className="catalog-field">
+              <label htmlFor="product-name-reference">Product name <span className="required" aria-hidden="true">*</span></label>
+              <input
+                id="product-name-reference"
+                data-testid="input-product-name"
+                autoFocus
+                required
+                value={form.name}
+                onChange={(event) => change('name', event.target.value)}
+                placeholder="e.g. Vintage Leather Jacket, Handcrafted Ceramic Mug"
+              />
+            </div>
+
+            <div className="catalog-field mt-4">
+              <label htmlFor="product-category-reference">Category <span className="required" aria-hidden="true">*</span></label>
+              <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    id="product-category-reference"
+                    data-testid="select-product-category"
+                    aria-label="Select product category"
+                    className={cn(
+                      'field-input flex items-center justify-between text-left h-10 px-3 cursor-pointer rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]',
+                      !form.category && 'text-[hsl(var(--muted-foreground))]'
+                    )}
+                  >
+                    <span className="truncate">
+                      {form.category || 'Select a category...'}
+                    </span>
+                    <ChevronDown size={15} className={cn('shrink-0 text-[hsl(var(--muted-foreground))] transition-transform duration-200', categoryOpen && 'rotate-180')} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  side="bottom"
+                  sideOffset={4}
+                  data-testid="card-category-dropdown"
+                  className="z-50 w-72 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-2 text-[hsl(var(--foreground))] shadow-xl"
+                >
+                  <div className="flex items-center justify-between pb-2 mb-1.5 border-b border-[hsl(var(--border))]">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[hsl(var(--muted-foreground))] font-mono-ui">
+                      Select Category
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingNewCategory((prev) => !prev)}
+                      title="Add a new category"
+                      data-testid="button-add-category"
+                      className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors cursor-pointer"
+                    >
+                      <Plus size={13} />
+                      <span>New</span>
+                    </button>
+                  </div>
+
+                  {isAddingNewCategory ? (
+                    <form onSubmit={handleAddNewCategory} className="mb-2 p-2 rounded-lg bg-[hsl(var(--muted))]/50 border border-[hsl(var(--border))]">
+                      <div className="text-[11px] font-semibold text-[hsl(var(--foreground))] mb-1.5">Add new category</div>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="e.g. Footwear"
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(e.target.value)}
+                          data-testid="input-new-category-name"
+                          className="field-input h-8 text-xs flex-1 px-2 rounded-md"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!newCategoryName.trim()}
+                          data-testid="button-save-new-category"
+                          className="h-8 px-2.5 rounded-md bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-xs font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer"
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setIsAddingNewCategory(false); setNewCategoryName(''); }}
+                          className="h-8 px-2 rounded-md hover:bg-[hsl(var(--muted))] text-xs text-[hsl(var(--muted-foreground))] cursor-pointer"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="relative mb-1.5">
+                      <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" />
+                      <input
+                        type="text"
+                        placeholder="Search categories..."
+                        value={categorySearch}
+                        onChange={(e) => setCategorySearch(e.target.value)}
+                        style={{ paddingLeft: '2.15rem' }}
+                        className="field-input h-8 pr-2.5 text-xs rounded-lg whitespace-nowrap overflow-hidden text-ellipsis"
+                      />
+                    </div>
+                  )}
+
+                  <div className="max-h-48 overflow-y-auto space-y-0.5">
+                    {filteredCategories.length > 0 ? (
+                      filteredCategories.map((category) => {
+                        const isSelected = form.category === category;
+                        return (
+                          <button
+                            key={category}
+                            type="button"
+                            data-testid={`option-category-${category.toLowerCase().replace(/\s+/g, '-')}`}
+                            onClick={() => {
+                              change('category', category);
+                              setCategoryOpen(false);
+                            }}
+                            className={cn(
+                              'flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors cursor-pointer',
+                              isSelected
+                                ? 'bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] font-semibold'
+                                : 'text-[hsl(var(--foreground))]/80 hover:bg-[hsl(var(--muted))]/60'
+                            )}
+                          >
+                            <span>{category}</span>
+                            {isSelected && <Check size={13} className="shrink-0 text-[hsl(var(--primary))]" />}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="py-3 text-center text-xs text-[hsl(var(--muted-foreground))]">
+                        No category found.{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewCategoryName(categorySearch.trim());
+                            setIsAddingNewCategory(true);
+                          }}
+                          className="text-[hsl(var(--primary))] font-semibold underline cursor-pointer"
+                        >
+                          Add "{categorySearch}"
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="catalog-field mt-4">
+              <label htmlFor="product-description-reference">Description</label>
+              <textarea
+                id="product-description-reference"
+                value={form.description}
+                onChange={(event) => change('description', event.target.value)}
+                placeholder="Write a clear, compelling description of your product for buyers..."
+                rows={4}
+              />
+            </div>
+
+            <div className="catalog-field mt-5 border-t border-[hsl(var(--border))] pt-4">
+              <label>Store accent theme</label>
+              <div className="catalog-accent-options mt-1">
+                {accentOptions.map(({ value, label }) => (
+                  <button
+                    type="button"
+                    key={value}
+                    onClick={() => change('accent', value)}
+                    aria-label={`Use ${label} accent color`}
+                    aria-pressed={form.accent === value}
+                    data-testid={`button-accent-${value.slice(1)}`}
+                    className={cn('catalog-accent-swatch', form.accent === value && 'is-selected')}
+                    style={{ backgroundColor: value }}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Card 2: Pricing & Profitability (Strictly Two Prices: Selling price and Cost price) */}
+          <section className="catalog-editor-card">
+            <div className="catalog-editor-card-header">
+              <div>
+                <div className="type-eyebrow">Financials</div>
+                <h2 className="type-h3 mt-1">Pricing & Profitability</h2>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="catalog-field">
+                <label htmlFor="product-price-reference">Selling price <span className="required" aria-hidden="true">*</span></label>
+                <div className="catalog-currency-wrap">
+                  <span>{currencySymbol()}</span>
+                  <input
+                    id="product-price-reference"
+                    data-testid="input-product-price"
+                    type="number"
+                    min="0"
+                    step=".01"
+                    required
+                    value={form.price}
+                    onChange={(event) => change('price', event.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <span className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1">Price charged to buyer</span>
+              </div>
+
+              <div className="catalog-field">
+                <label htmlFor="product-cost-reference">Cost price <span className="text-[11px] font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label>
+                <div className="catalog-currency-wrap">
+                  <span>{currencySymbol()}</span>
+                  <input
+                    id="product-cost-reference"
+                    data-testid="input-product-cost"
+                    type="number"
+                    min="0"
+                    step=".01"
+                    value={form.cost}
+                    onChange={(event) => change('cost', event.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <span className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1">What you bought the item at</span>
+              </div>
+            </div>
+
+            {hasPricingInfo && hasCostInfo && grossProfit !== null && marginPercent !== null ? (
+              <div className="mt-5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      'flex h-7 w-7 items-center justify-center rounded-lg',
+                      grossProfit >= 0 ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                    )}>
+                      <Percent size={14} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold">Profit & Margin Overview</div>
+                      <div className="text-[10.5px] text-[hsl(var(--muted-foreground))]">Per unit sold to buyer</div>
+                    </div>
+                  </div>
+                  <StatusPill tone={grossProfit >= 0 ? 'mint' : 'rose'}>
+                    {marginPercent.toFixed(1)}% profit margin
+                  </StatusPill>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[hsl(var(--border))]/50 text-center sm:text-left">
+                  <div className="p-2 rounded-lg bg-[hsl(var(--card))] border border-[hsl(var(--border))]/60">
+                    <div className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider font-semibold">Selling Price</div>
+                    <div className="font-mono-ui text-sm font-bold mt-0.5">{moneyExact(priceNum)}</div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-[hsl(var(--card))] border border-[hsl(var(--border))]/60">
+                    <div className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider font-semibold">Unit Cost</div>
+                    <div className="font-mono-ui text-sm font-bold text-slate-500 mt-0.5">{moneyExact(costNum)}</div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-[hsl(var(--card))] border border-[hsl(var(--border))]/60">
+                    <div className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider font-semibold">Gross Profit</div>
+                    <div className={cn('font-mono-ui text-sm font-bold mt-0.5', grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}>
+                      {grossProfit >= 0 ? '+' : ''}{moneyExact(grossProfit)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : hasPricingInfo && !hasCostInfo ? (
+              <div className="mt-4 flex items-center gap-2 rounded-lg bg-[hsl(var(--muted))]/20 p-2.5 text-xs text-[hsl(var(--muted-foreground))]">
+                <Info size={14} className="shrink-0 text-[hsl(var(--muted-foreground))]" />
+                <span>Add what you bought the item at (cost price) to track estimated gross profit and margin automatically.</span>
+              </div>
+            ) : null}
+          </section>
+
+          {/* Card 3: Buyer Options */}
+          <section className="catalog-editor-card">
+            <div className="catalog-editor-card-header">
+              <div>
+                <div className="type-eyebrow">Variants</div>
+                <h2 className="type-h3 mt-1">Buyer Options</h2>
+              </div>
+              <Button type="button" variant="soft" onClick={addOption} className="text-xs">
+                <Plus size={14} /> Add option
+              </Button>
+            </div>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Provide choices for buyers such as Size, Color, Finish, or Material.
+            </p>
+
+            {form.preferences.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {form.preferences.map((preference, index) => {
+                  const chips = preference.options.split(',').map((o) => o.trim()).filter(Boolean);
+                  return (
+                    <div key={`pref-${index}`} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/20 p-3">
+                      <div className="catalog-option-row">
+                        <input
+                          aria-label={`Option ${index + 1} name`}
+                          required
+                          value={preference.label}
+                          onChange={(e) => updatePreference(index, 'label', e.target.value)}
+                          placeholder="Name, e.g. Size"
+                          className="field-input text-xs"
+                        />
+                        <input
+                          aria-label={`Option ${index + 1} values`}
+                          required
+                          value={preference.options}
+                          onChange={(e) => updatePreference(index, 'options', e.target.value)}
+                          placeholder="Options, comma-separated e.g. S, M, L, XL"
+                          className="field-input text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeOption(index)}
+                          aria-label={`Remove option ${index + 1}`}
+                          className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive))]/10 hover:text-[hsl(var(--destructive))]"
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+                      {chips.length > 0 && (
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pt-2 border-t border-[hsl(var(--border))]/50">
+                          <span className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider mr-1">Preview:</span>
+                          {chips.map((chip, chipIdx) => (
+                            <span key={chipIdx} className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-0.5 font-mono-ui text-[11px] text-[hsl(var(--foreground))]">
+                              {chip}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-dashed border-[hsl(var(--border))] p-4 text-center text-xs text-[hsl(var(--muted-foreground))]">
+                No buyer options defined yet. This item will be purchased as a standard single variant.
+              </div>
+            )}
+          </section>
+
+          {/* Card 4: Custom Specifications */}
+          <section className="catalog-editor-card">
+            <div className="catalog-editor-card-header">
+              <div>
+                <div className="type-eyebrow">Specifications</div>
+                <h2 className="type-h3 mt-1">Custom Details</h2>
+              </div>
+              <Button type="button" variant="soft" onClick={addCustomField} className="text-xs">
+                <Plus size={14} /> Add specification
+              </Button>
+            </div>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Add non-selectable product specifications like Material, Care Guide, Dimensions, or Origin.
+            </p>
+
+            {form.customFields.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {form.customFields.map((field, index) => (
+                  <div key={`spec-${index}`} className="catalog-option-row">
+                    <input
+                      aria-label={`Custom specification ${index + 1} label`}
+                      value={field.label}
+                      onChange={(e) => updateCustomField(index, 'label', e.target.value)}
+                      placeholder="Label, e.g. Material"
+                      className="field-input text-xs"
+                    />
+                    <input
+                      aria-label={`Custom specification ${index + 1} value`}
+                      value={field.value}
+                      onChange={(e) => updateCustomField(index, 'value', e.target.value)}
+                      placeholder="Value, e.g. 100% Pure Organic Linen"
+                      className="field-input text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeCustomField(index)}
+                      aria-label={`Remove custom field ${index + 1}`}
+                      className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive))]/10 hover:text-[hsl(var(--destructive))]"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-dashed border-[hsl(var(--border))] p-4 text-center text-xs text-[hsl(var(--muted-foreground))]">
+                No extra custom specifications added.
+              </div>
+            )}
+          </section>
+
+          {(error || hasMutationError) && (
+            <div className="rounded-xl border border-[hsl(var(--destructive))]/25 bg-[hsl(var(--destructive))]/10 p-4 text-xs font-medium text-[hsl(var(--destructive))]" role="alert" data-testid="status-product-form-error">
+              {error || 'This item could not be saved. Try again.'}
+            </div>
+          )}
+
+          {/* Bottom mobile action buttons */}
+          <div className="flex items-center justify-end gap-3 sm:hidden pt-2">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              Discard
+            </Button>
+            <Button type="submit" disabled={pending} data-testid="button-save-product-mobile" className="flex-1">
+              {pending && <Loader2 size={15} className="animate-spin mr-1.5" />}
+              {product ? 'Save changes' : 'Save product'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Right Column: Media, Inventory, Live Preview */}
+        <aside className="catalog-editor-sidebar space-y-6">
+          {/* Media Card (Multiple Product Images) */}
+          <section className="catalog-editor-card">
+            <div className="catalog-editor-card-header flex items-center justify-between">
+              <div>
+                <div className="type-eyebrow">Media</div>
+                <h2 className="type-h3 mt-1">Product Images</h2>
+              </div>
+              {allImages.length > 0 && (
+                <span className="text-xs text-[hsl(var(--muted-foreground))] font-mono-ui">
+                  {allImages.length} {allImages.length === 1 ? 'image' : 'images'}
+                </span>
+              )}
+            </div>
+
+            {allImages.length > 0 ? (
+              <div className="space-y-3">
+                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))] group/hero">
+                  <img src={allImages[0]} alt="Cover product visual" className="h-full w-full object-cover" />
+                  <div className="absolute top-2 left-2 rounded-full bg-slate-900/80 backdrop-blur-sm px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm flex items-center gap-1">
+                    <Check size={10} /> Cover Photo
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveImageAt ? onRemoveImageAt(0) : onRemoveImage()}
+                    data-testid="button-remove-product-image"
+                    title="Remove cover photo"
+                    className="absolute top-2 right-2 rounded-lg bg-black/60 hover:bg-rose-600 p-1.5 text-white transition-colors cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  {allImages.map((imgUrl, idx) => (
+                    <div
+                      key={idx}
+                      className={cn(
+                        'group/thumb relative aspect-square rounded-lg overflow-hidden border transition-all',
+                        idx === 0
+                          ? 'border-[hsl(var(--primary))] ring-2 ring-[hsl(var(--primary))]/20'
+                          : 'border-[hsl(var(--border))] hover:border-[hsl(var(--foreground))]/40'
+                      )}
+                    >
+                      <img src={imgUrl} alt={`Product thumbnail ${idx + 1}`} className="h-full w-full object-cover" />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                        {idx !== 0 && onSetPrimaryImage && (
+                          <button
+                            type="button"
+                            onClick={() => onSetPrimaryImage(idx)}
+                            title="Make cover photo"
+                            className="rounded px-1.5 py-0.5 bg-white/95 text-slate-900 hover:bg-white text-[9px] font-bold cursor-pointer"
+                          >
+                            Cover
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveImageAt ? onRemoveImageAt(idx) : onRemoveImage()}
+                          title="Delete image"
+                          data-testid={`button-delete-image-${idx}`}
+                          className="rounded p-1 bg-rose-600 text-white hover:bg-rose-700 cursor-pointer"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                      {idx === 0 && (
+                        <span className="absolute bottom-1 left-1 rounded bg-black/75 px-1 text-[8px] font-bold text-white uppercase tracking-wider">
+                          Main
+                        </span>
+                      )}
+                    </div>
+                  ))}
+
+                  <label
+                    htmlFor="product-image-upload"
+                    className="aspect-square flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--muted))]/20 hover:bg-[hsl(var(--muted))]/50 cursor-pointer transition-colors p-2 text-center"
+                  >
+                    <Plus size={16} className="text-[hsl(var(--muted-foreground))]" />
+                    <span className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] mt-0.5">Add more</span>
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <label htmlFor="product-image-upload" className="catalog-upload-dropzone">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[hsl(var(--card))] shadow-sm text-[hsl(var(--muted-foreground))]">
+                  <ImagePlus size={20} />
+                </div>
+                <div className="text-xs font-semibold text-[hsl(var(--foreground))]">Upload product visuals</div>
+                <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Select multiple photos (PNG, JPG, WebP up to 2 MB each)</p>
+              </label>
+            )}
+
+            <input
+              id="product-image-upload"
+              data-testid="input-product-image"
+              type="file"
+              multiple
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="sr-only"
+              onChange={onImageChange}
+            />
+
+            {imageError && (
+              <p className="mt-2 text-xs font-medium text-[hsl(var(--destructive))]" role="alert" data-testid="status-product-image-error">
+                {imageError}
+              </p>
+            )}
+          </section>
+
+          {/* Inventory Card (Proper Stock Management) */}
+          <section className="catalog-editor-card">
+            <div className="catalog-editor-card-header flex items-center justify-between">
+              <div>
+                <div className="type-eyebrow">Stock management</div>
+                <h2 className="type-h3 mt-1">Inventory</h2>
+              </div>
+              <div data-testid="pill-stock-status">
+                <StatusPill tone={stockStatus.tone}>{stockStatus.label}</StatusPill>
+              </div>
+            </div>
+
+            <div className="catalog-field">
+              <label htmlFor="product-stock-reference">Stock on hand <span className="required" aria-hidden="true">*</span></label>
+              <div className="mt-1 flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="Decrease stock"
+                  data-testid="button-stock-decrement"
+                  onClick={() => {
+                    const current = Math.max(0, (parseInt(form.stock, 10) || 0) - 1);
+                    change('stock', String(current));
+                  }}
+                  disabled={parseInt(form.stock, 10) <= 0}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] active:scale-95 disabled:opacity-40 cursor-pointer"
+                >
+                  <Minus size={15} />
+                </button>
+
+                <input
+                  id="product-stock-reference"
+                  data-testid="input-product-stock"
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  value={form.stock}
+                  onChange={(event) => change('stock', event.target.value)}
+                  placeholder="0"
+                  className="text-center font-mono-ui font-semibold"
+                />
+
+                <button
+                  type="button"
+                  aria-label="Increase stock"
+                  data-testid="button-stock-increment"
+                  onClick={() => {
+                    const current = (parseInt(form.stock, 10) || 0) + 1;
+                    change('stock', String(current));
+                  }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] active:scale-95 cursor-pointer"
+                >
+                  <Plus size={15} />
+                </button>
+              </div>
+
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] mr-1">Quick:</span>
+                {[5, 10, 25, 50].map((delta) => (
+                  <button
+                    key={delta}
+                    type="button"
+                    data-testid={`button-stock-add-${delta}`}
+                    onClick={() => {
+                      const current = (parseInt(form.stock, 10) || 0) + delta;
+                      change('stock', String(current));
+                    }}
+                    className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-0.5 text-[11px] font-mono-ui font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors cursor-pointer"
+                  >
+                    +{delta}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  data-testid="button-stock-set-0"
+                  onClick={() => change('stock', '0')}
+                  className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-0.5 text-[11px] font-mono-ui text-[hsl(var(--muted-foreground))] hover:text-rose-600 hover:border-rose-200 transition-colors cursor-pointer"
+                >
+                  Set 0
+                </button>
+              </div>
+            </div>
+
+            <div className="catalog-field mt-4 border-t border-[hsl(var(--border))]/50 pt-3">
+              <div className="flex items-center justify-between">
+                <label htmlFor="product-sku-reference">SKU / Item code <span className="text-[11px] font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label>
+                <button
+                  type="button"
+                  data-testid="button-generate-sku"
+                  onClick={() => {
+                    const prefix = (form.category || form.name || 'SKU')
+                      .replace(/[^a-zA-Z]/g, '')
+                      .slice(0, 3)
+                      .toUpperCase() || 'SKU';
+                    const randomNum = Math.floor(1000 + Math.random() * 9000);
+                    change('sku', `${prefix}-${randomNum}`);
+                  }}
+                  className="text-[11px] font-semibold text-[hsl(var(--primary))] hover:underline cursor-pointer"
+                >
+                  Generate SKU
+                </button>
+              </div>
+              <input
+                id="product-sku-reference"
+                data-testid="input-product-sku"
+                value={form.sku}
+                onChange={(event) => change('sku', event.target.value)}
+                placeholder="e.g. APP-4081"
+                className="mt-1 font-mono-ui"
+              />
+            </div>
+          </section>
+
+          {/* Live Buyer Preview Card */}
+          <section className="catalog-editor-card">
+            <div className="catalog-editor-card-header">
+              <div>
+                <div className="type-eyebrow">Customer view</div>
+                <h3 className="type-h3 mt-1 flex items-center gap-1.5">
+                  <Eye size={15} /> Storefront Preview
+                </h3>
+              </div>
+            </div>
+
+            <div className="catalog-preview-mockup">
+              <div className="relative aspect-[4/3] w-full overflow-hidden bg-[hsl(var(--muted))]">
+                {allImages[0] ? (
+                  <img src={allImages[0]} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center text-[hsl(var(--muted-foreground))]">
+                    <Package size={32} className="opacity-40" />
+                    <span className="mt-1 text-[11px]">No image uploaded</span>
+                  </div>
+                )}
+                <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                  <span className="rounded-full bg-[hsl(var(--card))]/90 backdrop-blur-sm px-2.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--foreground))] shadow-sm">
+                    {form.category || 'Category'}
+                  </span>
+                  <span className="h-2.5 w-2.5 rounded-full ring-2 ring-white shadow-sm" style={{ backgroundColor: form.accent }} />
+                </div>
+                {allImages.length > 1 && (
+                  <div className="absolute bottom-2.5 right-2.5 rounded-full bg-black/70 backdrop-blur-sm px-2 py-0.5 text-[10px] font-mono-ui text-white">
+                    1 / {allImages.length}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4">
+                <div className="truncate text-sm font-bold text-[hsl(var(--foreground))]">
+                  {form.name || 'Product name'}
+                </div>
+                {form.description && (
+                  <div className="mt-1 line-clamp-2 text-xs text-[hsl(var(--muted-foreground))]">
+                    {form.description}
+                  </div>
+                )}
+
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="font-mono-ui text-base font-bold text-[hsl(var(--foreground))]">
+                    {hasPricingInfo ? moneyExact(priceNum) : `${currencySymbol()}0.00`}
+                  </span>
+                </div>
+
+                {form.preferences.some((p) => p.label && p.options) && (
+                  <div className="mt-3 flex flex-wrap gap-1 border-t border-[hsl(var(--border))] pt-2.5">
+                    {form.preferences
+                      .filter((p) => p.label && p.options)
+                      .map((p, idx) => (
+                        <span key={idx} className="rounded-md bg-[hsl(var(--muted))] px-2 py-0.5 text-[10px] text-[hsl(var(--muted-foreground))]">
+                          {p.label}: {p.options.split(',').length} options
+                        </span>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <p className="mt-3 text-center text-[11px] text-[hsl(var(--muted-foreground))]">
+              Real-time preview of how buyers will see this item on mobile & web.
+            </p>
+          </section>
+        </aside>
+      </form>
+    </div>
+  );
 
   return fullPage
     ? <div className="catalog-editor-page">{content}</div>
-    : <div className="fixed inset-0 z-50 flex items-end justify-center bg-[hsl(220_30%_17%/.45)] p-0 backdrop-blur-sm sm:items-center sm:p-5"><div className="product-reference-modal">{content}</div></div>;
+    : <div className="fixed inset-0 z-50 flex items-end justify-center bg-[hsl(220_30%_17%/.45)] p-0 backdrop-blur-sm sm:items-center sm:p-5"><div className="catalog-editor-modal max-h-[92dvh] w-full max-w-[960px] overflow-y-auto rounded-2xl bg-[hsl(var(--background))] p-6 shadow-2xl">{content}</div></div>;
 }
 
 export function ProductModal({ product, onClose, fullPage = false }: { product?: Product; onClose: () => void; fullPage?: boolean }) {
@@ -1403,13 +4466,26 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
   const create = useCreateProduct(); const update = useUpdateProduct();
   const [error, setError] = useState('');
   const [imageError, setImageError] = useState('');
-  const [form, setForm] = useState<ProductFormState>(product ? {
+
+  const initialImages = useMemo(() => {
+    if (!product) return [];
+    const list: string[] = [];
+    if (product.imageUrl) list.push(product.imageUrl);
+    if (product.imageUrls) {
+      for (const url of product.imageUrls) {
+        if (url && !list.includes(url)) list.push(url);
+      }
+    }
+    return list;
+  }, [product]);
+
+  const [form, setForm] = useState<ProductFormState>(() => product ? {
     name: product.name,
     category: product.category,
-     sku: product.sku ?? '',
-     description: product.description ?? '',
+    sku: product.sku ?? '',
+    description: product.description ?? '',
     price: String(product.price),
-     compareAtPrice: product.compareAtPrice == null ? '' : String(product.compareAtPrice),
+    compareAtPrice: '',
     cost: product.cost == null ? '' : String(product.cost),
     stock: String(product.stock),
     preferences: product.preferences.length
@@ -1417,78 +4493,179 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
       : product.variants.length
         ? [{ label: 'Option', options: product.variants.join(', ') }]
         : [],
-     customFields: product.customFields.map((field) => ({ label: field.label, value: field.value })),
-    imageUrl: product.imageUrl ?? '',
-      imageUrls: product.imageUrls?.filter((url) => url !== product.imageUrl).join('\n') || '',
+    customFields: product.customFields.map((field) => ({ label: field.label, value: field.value })),
+    imageUrl: initialImages[0] ?? '',
+    imageUrls: initialImages.slice(1).join('\n'),
+    images: initialImages,
     accent: product.accent,
   } : blankProduct);
+
   const pending = create.isPending || update.isPending;
   const change = (key: keyof ProductFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const updatePreference = (index: number, key: keyof ProductPreferenceDraft, value: string) => setForm((current) => ({ ...current, preferences: current.preferences.map((preference, preferenceIndex) => preferenceIndex === index ? { ...preference, [key]: value } : preference) }));
   const updateCustomField = (index: number, key: keyof ProductCustomFieldDraft, value: string) => setForm((current) => ({ ...current, customFields: current.customFields.map((field, fieldIndex) => fieldIndex === index ? { ...field, [key]: value } : field) }));
+
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
     event.target.value = '';
-    if (!file) return;
-    if (!PRODUCT_IMAGE_TYPES.has(file.type)) {
-      setImageError('Choose a PNG, JPG, WebP, or GIF image.');
-      return;
-    }
-    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
-      setImageError('Choose an image smaller than 2 MB.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') {
-        setImageError('That image could not be read. Try another file.');
+    if (!files.length) return;
+
+    for (const file of files) {
+      if (!PRODUCT_IMAGE_TYPES.has(file.type)) {
+        setImageError('Choose PNG, JPG, WebP, or GIF images.');
         return;
       }
-      setImageError('');
-      setForm((current) => ({ ...current, imageUrl: reader.result as string, imageUrls: '' }));
-    };
-    reader.onerror = () => setImageError('That image could not be read. Try another file.');
-    reader.readAsDataURL(file);
+      if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+        setImageError(`"${file.name}" is larger than 2 MB. Choose images under 2 MB.`);
+        return;
+      }
+    }
+
+    setImageError('');
+    Promise.all(files.map((file) => new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') resolve(reader.result);
+        else reject(new Error('Failed reading image'));
+      };
+      reader.onerror = () => reject(new Error('Failed reading image'));
+      reader.readAsDataURL(file);
+    }))).then((dataUrls) => {
+      setForm((current) => {
+        const existing = current.images ?? (current.imageUrl ? [current.imageUrl] : []);
+        const combined = Array.from(new Set([...existing, ...dataUrls]));
+        return {
+          ...current,
+          images: combined,
+          imageUrl: combined[0] || '',
+          imageUrls: combined.slice(1).join('\n'),
+        };
+      });
+    }).catch(() => {
+      setImageError('One or more images could not be read. Try another file.');
+    });
   };
-  const removeImage = () => {
-    setForm((current) => ({ ...current, imageUrl: '', imageUrls: '' }));
+
+  const removeImageAt = (index: number) => {
+    setForm((current) => {
+      const existing = current.images ?? (current.imageUrl ? [current.imageUrl] : []);
+      const updated = existing.filter((_, i) => i !== index);
+      return {
+        ...current,
+        images: updated,
+        imageUrl: updated[0] || '',
+        imageUrls: updated.slice(1).join('\n'),
+      };
+    });
     setImageError('');
   };
+
+  const setPrimaryImage = (index: number) => {
+    setForm((current) => {
+      const existing = [...(current.images ?? (current.imageUrl ? [current.imageUrl] : []))];
+      if (index <= 0 || index >= existing.length) return current;
+      const [chosen] = existing.splice(index, 1);
+      existing.unshift(chosen);
+      return {
+        ...current,
+        images: existing,
+        imageUrl: existing[0] || '',
+        imageUrls: existing.slice(1).join('\n'),
+      };
+    });
+  };
+
+  const removeImage = () => {
+    setForm((current) => ({ ...current, imageUrl: '', imageUrls: '', images: [] }));
+    setImageError('');
+  };
+
   const save = (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
     setImageError('');
+
+    if (!form.category.trim()) {
+      setError('Please select or add a category for this item.');
+      return;
+    }
+
     const preferences: ProductPreferenceGroup[] = form.preferences
       .map((preference) => ({
         label: preference.label.trim(),
         options: Array.from(new Set(preference.options.split(',').map((option) => option.trim()).filter(Boolean))),
       }))
       .filter((preference) => preference.label && preference.options.length > 0);
+
     const price = Number(form.price);
-    const compareAtPrice = form.compareAtPrice.trim() === '' ? null : Number(form.compareAtPrice);
     const cost = form.cost.trim() === '' ? null : Number(form.cost);
     const stock = Number(form.stock);
-    const imageUrls = Array.from(new Set([form.imageUrl.trim(), ...form.imageUrls.split(/[\n,]+/).map((url) => url.trim()).filter(Boolean)].filter(Boolean)));
+
+    const imageUrls = form.images && form.images.length > 0
+      ? form.images
+      : Array.from(new Set([form.imageUrl.trim(), ...form.imageUrls.split(/[\n,]+/).map((url) => url.trim()).filter(Boolean)].filter(Boolean)));
+
     const invalidImageUrl = imageUrls.find((url) => !isProductImageValue(url));
-    if (!form.name.trim() || !form.category.trim() || !Number.isFinite(price) || price < 0 || (compareAtPrice !== null && (!Number.isFinite(compareAtPrice) || compareAtPrice < 0)) || (cost !== null && (!Number.isFinite(cost) || cost < 0)) || !Number.isInteger(stock) || stock < 0) {
+
+    if (!form.name.trim() || !form.category.trim() || !Number.isFinite(price) || price < 0 || (cost !== null && (!Number.isFinite(cost) || cost < 0)) || !Number.isInteger(stock) || stock < 0) {
       setError('Add a name, category, valid price, and non-negative whole-number stock.');
       return;
     }
+
     if (invalidImageUrl) {
-      setError('Choose a valid product image.');
+      setError('One or more product images are invalid.');
       return;
     }
-    const data: ProductInput = { name: form.name.trim(), category: form.category.trim(), sku: form.sku.trim() || null, description: form.description.trim() || null, price, compareAtPrice, cost, stock, variants: preferences.flatMap((preference) => preference.options), preferences, customFields: product?.customFields ?? [], imageUrl: imageUrls[0] || null, imageUrls, accent: form.accent };
+
+    const data: ProductInput = {
+      name: form.name.trim(),
+      category: form.category.trim(),
+      sku: form.sku.trim() || null,
+      description: form.description.trim() || null,
+      price,
+      compareAtPrice: null, // Strictly 2 prices: Compare-at price removed
+      cost,
+      stock,
+      variants: preferences.flatMap((preference) => preference.options),
+      preferences,
+      customFields: form.customFields.filter(f => f.label.trim() && f.value.trim()),
+      imageUrl: imageUrls[0] || null,
+      imageUrls,
+      accent: form.accent,
+    };
+
     const onSuccess = () => {
       void queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
       invalidateDashboardSummary(queryClient);
       onClose();
     };
+
     const onError = (mutationError: unknown) => setError(mutationError instanceof Error && mutationError.message ? mutationError.message : 'This item could not be saved. Try again.');
+
     product ? update.mutate({ id: product.id, data }, { onSuccess, onError }) : create.mutate({ data }, { onSuccess, onError });
   };
-   return <ReferenceProductEditor product={product} fullPage={fullPage} form={form} pending={pending} error={error} hasMutationError={create.isError || update.isError} onClose={onClose} onSubmit={save} change={change} setForm={setForm} updatePreference={updatePreference} imageError={imageError} onImageChange={handleImageChange} onRemoveImage={removeImage} />;
-  return <div className={fullPage ? 'catalog-editor-page' : 'fixed inset-0 z-50 flex items-end justify-center bg-[hsl(220_30%_17%/.45)] p-0 backdrop-blur-sm sm:items-center sm:p-5'}><div className={cn('max-h-[92dvh] w-full max-w-[560px] overflow-y-auto rounded-t-[20px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-6 sm:rounded-[20px] sm:p-8', fullPage && 'catalog-editor-card')}><div className="flex items-start justify-between"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">{product ? 'Edit item' : 'New item'}</div><h2 className="mt-2 font-display text-2xl font-bold tracking-[-.04em]">{product ? 'Update your item.' : 'Add to your catalog.'}</h2><p className="mt-2 max-w-[520px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">Give buyers the details they need and keep your inventory accurate.</p></div>{!fullPage && <button type="button" onClick={onClose} aria-label="Close item editor" data-testid="button-close-product-modal" className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><X aria-hidden="true" size={18} /></button>}</div><form onSubmit={save} className="mt-7 space-y-5"><div><label className="field-label">Item name</label><input data-testid="input-product-name" autoFocus required value={form.name} onChange={(e) => change('name', e.target.value)} placeholder="e.g. Linen wrap top" className="field-input" /></div><div><label className="field-label">Product image URL <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><input data-testid="input-product-image-url" type="url" value={form.imageUrl} onChange={(e) => change('imageUrl', e.target.value)} placeholder="https://images.example.com/item.jpg" className="field-input" /><p className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Use a public image URL so the item looks consistent across catalog and buyer previews.</p>{form.imageUrl && <div className="mt-3 overflow-hidden rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]"><img src={form.imageUrl} alt="Product preview" className="h-40 w-full object-cover" /></div>}</div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Category</label><select data-testid="select-product-category" value={form.category} onChange={(e) => change('category', e.target.value)} className="field-input"><option>Apparel</option><option>Accessories</option><option>Home</option><option>Beauty</option><option>Food & drink</option><option>Other</option></select></div><div><label className="field-label">Stock on hand</label><input data-testid="input-product-stock" type="number" min="0" required value={form.stock} onChange={(e) => change('stock', e.target.value)} className="field-input" /></div></div><div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label">Selling price</label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-price" type="number" min="0" step=".01" required value={form.price} onChange={(e) => change('price', e.target.value)} className="field-input pl-7" /></div></div><div><label className="field-label">Cost <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input data-testid="input-product-cost" type="number" min="0" step=".01" value={form.cost} onChange={(e) => change('cost', e.target.value)} placeholder="Not tracked" className="field-input pl-7" /></div></div></div><div className="catalog-preferences-editor"><div className="flex items-start justify-between gap-3"><div><label className="field-label">Buyer preferences <span className="font-normal text-[hsl(var(--muted-foreground))]"> (optional)</span></label><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Set the groups and choices buyers should see, such as Color or Size.</p></div><button type="button" className="shrink-0 rounded-full border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold" onClick={() => setForm((current) => ({ ...current, preferences: [...current.preferences, { label: '', options: '' }] }))}><Plus size={12} />Add group</button></div>{form.preferences.length > 0 && <div className="mt-3 space-y-2">{form.preferences.map((preference, index) => <div key={index} className="catalog-preference-row"><input aria-label={`Preference group ${index + 1} name`} value={preference.label} onChange={(event) => updatePreference(index, 'label', event.target.value)} placeholder="Group name, e.g. Color" className="field-input" /><input aria-label={`Choices for preference group ${index + 1}`} value={preference.options} onChange={(event) => updatePreference(index, 'options', event.target.value)} placeholder="Choices separated by commas" className="field-input" /><button type="button" aria-label={`Remove preference group ${index + 1}`} className="catalog-preference-remove" onClick={() => setForm((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))}><X size={14} /></button></div>)}</div>}</div><div className="catalog-custom-fields-editor"><div className="flex items-start justify-between gap-3"><div><label className="field-label">Custom fields <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Add details like material, fit, care, or collection.</p></div><button type="button" className="shrink-0 rounded-full border border-[hsl(var(--border))] px-2.5 py-1.5 text-[10px] font-bold" onClick={() => setForm((current) => ({ ...current, customFields: [...current.customFields, { label: '', value: '' }] }))}><Plus size={12} />Add field</button></div>{form.customFields.length > 0 && <div className="mt-3 space-y-2">{form.customFields.map((field, index) => <div key={index} className="catalog-preference-row"><input aria-label={`Custom field ${index + 1} name`} value={field.label} onChange={(event) => updateCustomField(index, 'label', event.target.value)} placeholder="Field name, e.g. Material" className="field-input" /><input aria-label={`Value for custom field ${index + 1}`} value={field.value} onChange={(event) => updateCustomField(index, 'value', event.target.value)} placeholder="Field value" className="field-input" /><button type="button" aria-label={`Remove custom field ${index + 1}`} className="catalog-preference-remove" onClick={() => setForm((current) => ({ ...current, customFields: current.customFields.filter((_, fieldIndex) => fieldIndex !== index) }))}><X size={14} /></button></div>)}</div>}</div><div><label className="field-label">Accent color</label><div className="flex gap-2">{accentOptions.map(({ value, label }) => <button type="button" key={value} onClick={() => change('accent', value)} aria-label={`Use ${label} accent color`} aria-pressed={form.accent === value} data-testid={`button-accent-${value.slice(1)}`} className={cn('h-8 w-8 rounded-full border-2 transition-transform', form.accent === value ? 'scale-110 border-[hsl(var(--foreground))]' : 'border-transparent')} style={{ backgroundColor: value }} />)}</div></div>{(error || create.isError || update.isError) && <div className="rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-product-form-error">{error || 'This item could not be saved. Try again.'}</div>}<div className="flex justify-end gap-3 border-t border-[hsl(var(--border))] pt-5"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending}>{pending && <Loader2 size={15} className="animate-spin" />}{product ? 'Save changes' : 'Add item'}</Button></div></form></div></div>;
+
+  return (
+    <ReferenceProductEditor
+      product={product}
+      fullPage={fullPage}
+      form={form}
+      pending={pending}
+      error={error}
+      hasMutationError={create.isError || update.isError}
+      onClose={onClose}
+      onSubmit={save}
+      change={change}
+      setForm={setForm}
+      updatePreference={updatePreference}
+      updateCustomField={updateCustomField}
+      imageError={imageError}
+      onImageChange={handleImageChange}
+      onRemoveImage={removeImage}
+      onRemoveImageAt={removeImageAt}
+      onSetPrimaryImage={setPrimaryImage}
+    />
+  );
 }
 
 type ExpenseFormState = { title: string; category: ExpenseInput['category']; amount: string; date: string; note: string };
@@ -1529,7 +4706,7 @@ export function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose:
       queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
       onClose();
     };
-    const onError = (mutationError: unknown) => setError(mutationError instanceof Error && mutationError.message ? mutationError.message : 'This expense could not be saved. Try again.');
+    const onError = (mutationError: unknown) => setError(formatUserFacingError(mutationError, 'This expense could not be saved. Try again.'));
     if (expense) update.mutate({ id: expense.id, data: { ...data, note: note || null } as ExpenseUpdate }, { onSuccess, onError });
     else create.mutate({ data }, { onSuccess, onError });
   };
@@ -1570,15 +4747,118 @@ function Expenses() {
           queryClient.invalidateQueries({ queryKey: getListExpensesQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
         },
-        onError: (error) => setActionError(error instanceof Error && error.message ? error.message : 'This expense could not be deleted. Try again.'),
+        onError: (error) => setActionError(formatUserFacingError(error, 'This expense could not be deleted. Try again.')),
       });
     }
   };
-  return <Shell><PageHeading title="Expenses" action={<Button onClick={() => setModal('new')} data-testid="button-new-expense"><Plus size={16} />Add expense</Button>} />
-    <div className="expenses-summary mb-5 grid gap-4 md:grid-cols-3"><MetricCard dataTestId="card-expenses-total" label="All operating expenses" value={moneyExact(total)} note={`${query.data?.length ?? 0} recorded expenses`} /><MetricCard dataTestId="card-expenses-visible" label="Showing now" value={moneyExact(visibleTotal)} indicator={total ? { direction: expenses.length > 0 ? 'up' : 'down', percentage: (visibleTotal / total) * 100 } : undefined} note={`${expenses.length} matching entries`} /><InsightCard dataTestId="card-expenses-profit-note" icon={CircleDollarSign} title="A clearer profit view" description="Operating expenses flow into combined expenses, not gross margin." /></div>
-      {actionError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-expense-action-error">{actionError}</div>}<div className="expenses-workspace-controls"><div className="expenses-search"><Search aria-hidden="true" size={16} /><input aria-label="Search expenses" data-testid="input-search-expenses" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search expenses" /></div><select data-testid="select-filter-expenses" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="expenses-category-filter"><option value="all">All categories</option>{expenseCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div><Card className="expenses-table-card overflow-hidden">
-       {query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : <div className="expenses-table" role="table"><div className="expenses-table-head" role="row"><span>Expense</span><span>Category</span><span>Date</span><span className="is-numeric">Amount</span><span className="sr-only">Actions</span></div>{expenses.length ? <div className="divide-y divide-[hsl(var(--border))]">{expenses.map((expense) => <div key={expense.id} className="expenses-table-row" data-testid={`row-expense-${expense.id}`} role="row"><div className="min-w-0"><div className="flex items-center gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Receipt size={16} /></div><div className="min-w-0"><div className="truncate text-sm font-semibold">{expense.title}</div>{expense.note && <div className="mt-1 truncate text-[11px] text-[hsl(var(--muted-foreground))]">{expense.note}</div>}</div></div></div><div className="expenses-table-cell" data-label="Category">{expenseCategoryLabel(expense.category)}</div><div className="expenses-table-cell" data-label="Date">{dateShort(expense.date)}</div><div className="expenses-table-cell expenses-table-amount" data-label="Amount">{moneyExact(expense.amount)}</div><div className="flex justify-end"><ExpenseActions expenseId={expense.id} expenseTitle={expense.title} onEdit={() => setModal(expense)} onDelete={() => remove(expense)} deleteDisabled={deleteExpense.isPending} /></div></div>)}</div> : <div className="p-6"><EmptyState icon={Receipt} title={search || categoryFilter !== 'all' ? 'No matching expenses' : 'No operating expenses yet'} description={search || categoryFilter !== 'all' ? 'Try another search or category.' : 'Record rent, delivery, supplies, and other costs that keep your shop moving.'} action={<Button onClick={() => setModal('new')}><Plus size={15} />Add your first expense</Button>} /></div>}</div>}
-    </Card>
+  return <Shell>
+    <PageHeading title="Expenses" action={<Button onClick={() => setModal('new')} data-testid="button-new-expense"><Plus size={16} />Add expense</Button>} />
+    {query.isLoading ? (
+      <div className="space-y-4 p-6"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+    ) : query.isError ? (
+      <div className="p-6"><ErrorState retry={() => query.refetch()} /></div>
+    ) : !(query.data ?? []).length ? (
+      <EmptyState
+        card
+        icon={Receipt}
+        title="No operating expenses yet"
+        description="Record rent, delivery, supplies, and other costs that keep your shop moving."
+        action={
+          <Button onClick={() => setModal('new')} data-testid="button-new-expense-empty">
+            <Plus size={15} />Add your first expense
+          </Button>
+        }
+      />
+    ) : (
+      <>
+        <div className="expenses-summary mb-8 sm:mb-10 grid gap-6 md:grid-cols-3">
+          <MetricCard dataTestId="card-expenses-total" label="All operating expenses" value={moneyExact(total)} note={`${query.data?.length ?? 0} recorded expenses`} />
+          <MetricCard dataTestId="card-expenses-visible" label="Showing now" value={moneyExact(visibleTotal)} indicator={total ? { direction: expenses.length > 0 ? 'up' : 'down', percentage: (visibleTotal / total) * 100 } : undefined} note={`${expenses.length} matching entries`} />
+          <InsightCard dataTestId="card-expenses-profit-note" icon={CircleDollarSign} title="A clearer profit view" description="Operating expenses flow into combined expenses, not gross margin." />
+        </div>
+        {actionError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-expense-action-error">{actionError}</div>}
+        <div className="table-toolbar expenses-workspace-controls">
+          <div className="category-filter-card expenses-filter-bar" role="group" aria-label="Filter expenses by category">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter('all')}
+              aria-pressed={categoryFilter === 'all'}
+              className={cn('category-filter-tab', categoryFilter === 'all' && 'is-active')}
+            >
+              All expenses
+            </button>
+            {expenseCategories.map((item) => (
+              <button
+                type="button"
+                key={item.value}
+                onClick={() => setCategoryFilter(item.value)}
+                aria-pressed={categoryFilter === item.value}
+                className={cn('category-filter-tab', categoryFilter === item.value && 'is-active')}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="table-search-shell expenses-search">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
+            <input
+              aria-label="Search expenses"
+              data-testid="input-search-expenses"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search expenses"
+              className="table-search-input"
+            />
+          </div>
+        </div>
+        <select
+          aria-hidden="true"
+          data-testid="select-filter-expenses"
+          value={categoryFilter}
+          onChange={(event) => setCategoryFilter(event.target.value)}
+          className="sr-only"
+          tabIndex={-1}
+        >
+          <option value="all">All categories</option>
+          {expenseCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+        </select>
+        <Card className="expenses-table-card overflow-hidden">
+          <div className="expenses-table" role="table">
+            <div className="table-summary-bar"><span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}</span></div>
+            <div className="expenses-table-head" role="row"><span>Expense</span><span>Category</span><span>Date</span><span className="is-numeric">Amount</span><span className="sr-only">Actions</span></div>
+            {expenses.length ? (
+              <div className="divide-y divide-[hsl(var(--border))]">
+                {expenses.map((expense) => (
+                  <div key={expense.id} className="expenses-table-row" data-testid={`row-expense-${expense.id}`} role="row">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
+                          <Receipt size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-[15px] font-semibold">{expense.title}</div>
+                          {expense.note && <div className="mt-1 truncate text-xs text-[hsl(var(--muted-foreground))]">{expense.note}</div>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="expenses-table-cell" data-label="Category">{expenseCategoryLabel(expense.category)}</div>
+                    <div className="expenses-table-cell" data-label="Date">{dateShort(expense.date)}</div>
+                    <div className="expenses-table-cell expenses-table-amount" data-label="Amount">{moneyExact(expense.amount)}</div>
+                    <div className="flex justify-end">
+                      <ExpenseActions expenseId={expense.id} expenseTitle={expense.title} onEdit={() => setModal(expense)} onDelete={() => remove(expense)} deleteDisabled={deleteExpense.isPending} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-6">
+                <EmptyState icon={Receipt} title="No matching expenses" description="Try another search or category." />
+              </div>
+            )}
+          </div>
+        </Card>
+      </>
+    )}
     {modal && <ExpenseModal expense={modal === 'new' ? undefined : modal} onClose={() => setModal(null)} />}
   </Shell>;
 }
@@ -1607,12 +4887,170 @@ function CatalogGridCard({ product, animationDelay, onEdit, onDelete, deleteDisa
     </div>
     <div className="catalog-grid-details">
       <h3 title={product.name}>{product.name}</h3>
-      <strong>{moneyExact(product.price)}</strong>
+      <div className="flex items-center justify-between mt-1">
+        <strong>{moneyExact(product.price)}</strong>
+        <span className={cn('text-xs font-medium', product.stock === 0 ? 'text-rose-600 font-semibold' : product.stock < 5 ? 'text-amber-600' : 'text-neutral-500')}>
+          {product.stock === 0 ? 'Out of stock' : `${product.stock} in stock`}
+        </span>
+      </div>
     </div>
   </div>;
 }
 
+export const STOCK_FILTER_OPTIONS = [
+  {
+    value: 'all' as const,
+    label: 'All stock',
+    hint: 'Show all catalog items',
+    icon: Package,
+    iconClass: 'text-slate-500 dark:text-slate-400',
+  },
+  {
+    value: 'low' as const,
+    label: 'Low stock',
+    hint: 'Fewer than 5 units left',
+    icon: AlertTriangle,
+    iconClass: 'text-amber-500 dark:text-amber-400',
+  },
+  {
+    value: 'out' as const,
+    label: 'Out of stock',
+    hint: '0 units remaining',
+    icon: PackageX,
+    iconClass: 'text-rose-500 dark:text-rose-400',
+  },
+];
+
+export function StockFilterPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearTimer = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  const handleMouseEnter = () => {
+    clearTimer();
+    setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    clearTimer();
+    timeoutRef.current = setTimeout(() => {
+      setOpen(false);
+    }, 200);
+  };
+
+  useEffect(() => {
+    return () => clearTimer();
+  }, []);
+
+  const handleSelect = (newValue: string) => {
+    clearTimer();
+    setOpen(false);
+    if (value !== newValue) {
+      onChange(newValue);
+    }
+  };
+
+  const activeOption = STOCK_FILTER_OPTIONS.find((opt) => opt.value === value) ?? STOCK_FILTER_OPTIONS[0];
+  const ActiveIcon = activeOption.icon;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onPointerEnter={handleMouseEnter}
+          onPointerLeave={handleMouseLeave}
+          onMouseOver={handleMouseEnter}
+          aria-label={`Filter by stock. Current: ${activeOption.label}`}
+          title="Click or hover to view stock options"
+          data-testid="select-filter-products-stock"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((prev) => !prev);
+          }}
+          className="group/trigger relative inline-flex h-10 items-center justify-between gap-2 rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 text-xs sm:text-sm font-medium text-[hsl(var(--foreground))] outline-none hover:bg-[hsl(var(--muted))] focus-visible:border-[hsl(var(--ring))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))/0.2] transition-colors cursor-pointer select-none shrink-0"
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
+            <ActiveIcon size={14} className={cn('shrink-0', activeOption.iconClass)} />
+            <span className="truncate">{activeOption.label}</span>
+          </div>
+          <ChevronDown
+            size={13}
+            className={cn(
+              'opacity-60 transition-transform duration-200 group-hover/trigger:opacity-100 shrink-0',
+              open && 'rotate-180'
+            )}
+          />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        side="bottom"
+        sideOffset={6}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onPointerEnter={handleMouseEnter}
+        onPointerLeave={handleMouseLeave}
+        onMouseOver={handleMouseEnter}
+        onClick={(e) => e.stopPropagation()}
+        data-testid="card-stock-filter-picker"
+        className="z-50 min-w-[155px] w-auto rounded-xl border border-slate-200/90 bg-white p-1 text-slate-900 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 animate-in fade-in-0 zoom-in-95 duration-100"
+      >
+        <div className="space-y-0.5" role="menu" aria-label="Stock filter options">
+          {STOCK_FILTER_OPTIONS.map((opt) => {
+            const isSelected = value === opt.value;
+            const Icon = opt.icon;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="menuitem"
+                title={opt.hint}
+                data-testid={`option-stock-filter-${opt.value}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(opt.value);
+                }}
+                className={cn(
+                  'group/opt w-full flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer select-none outline-none',
+                  isSelected
+                    ? 'bg-slate-100 text-slate-900 font-semibold dark:bg-slate-800 dark:text-slate-100'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-800/60'
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Icon size={14} className={cn('shrink-0', opt.iconClass)} />
+                  <span className="truncate">{opt.label}</span>
+                </div>
+                {isSelected && (
+                  <Check size={13} className="shrink-0 text-slate-900 dark:text-slate-100 stroke-[2.5]" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function Catalog() {
+  const { userId } = useAppAuth();
+  const entitlements = useEntitlements(userId);
   const query = useListProducts(); const deleteProduct = useDeleteProduct(); const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState('');
@@ -1627,6 +5065,11 @@ function Catalog() {
     const stockMatches = stockFilter === 'all' || (stockFilter === 'low' ? product.stock > 0 && product.stock < 5 : product.stock === 0);
     return textMatches && categoryMatches && stockMatches;
   }), [allProducts, search, categoryFilter, stockFilter]);
+
+  const handleAddItem = () => {
+    setLocation('/catalog/new');
+  };
+
   const remove = (product: Product) => {
     if (window.confirm(`Delete ${product.name} from your catalog?`)) {
       setActionError('');
@@ -1635,54 +5078,290 @@ function Catalog() {
           void queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
           invalidateDashboardSummary(queryClient);
         },
-        onError: (error) => setActionError(error instanceof Error && error.message ? error.message : 'This item could not be deleted. Try again.'),
+        onError: (error) => setActionError(formatUserFacingError(error, 'This item could not be deleted. Try again.')),
       });
     }
   };
   const inventoryValue = catalogValue(query.data ?? []);
+  const totalStockUnits = (query.data ?? []).reduce((sum, product) => sum + Math.max(0, product.stock ?? 0), 0);
   const lowStock = (query.data ?? []).filter((product) => product.stock < 5).length;
   const categories = new Set((query.data ?? []).map((product) => product.category)).size;
+  const catalogCategories = ['all', ...Array.from(new Set(allProducts.map((product) => product.category).filter(Boolean))).sort()];
    useEffect(() => { writeCatalogView(view); }, [view]);
    return <Shell>
-      <PageHeading title="Catalog" description="Keep the products, prices, stock, and buyer choices you reuse most in one place." action={<Button onClick={() => setLocation('/catalog/new')} data-testid="button-new-product"><Plus size={16} />Add item</Button>} />
-    <section className="catalog-summary" aria-label="Catalog summary">
-       <MetricCard className="rise-in" dataTestId="card-catalog-inventory-value" label="Catalog value" value={money(inventoryValue)} note={`${query.data?.length ?? 0} catalog item prices`} />
-        <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-catalog-items" label="Items" value={query.data?.length ?? 0} note={`${categories} ${categories === 1 ? 'category' : 'categories'} in the catalog`} />
-       <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-catalog-low-stock" label="Low stock" value={<span className={cn(lowStock > 0 && 'text-[hsl(var(--destructive))]')}>{lowStock}</span>} indicator={(query.data?.length ?? 0) > 0 ? { direction: lowStock > 0 ? 'down' : 'neutral', percentage: (lowStock / query.data!.length) * 100, tone: lowStock > 0 ? 'negative' : 'positive' } : undefined} note={lowStock ? `${lowStock} ${lowStock === 1 ? 'item needs' : 'items need'} a restock` : 'All levels look good'} />
-       <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-catalog-categories" label="Categories" value={categories} note={`${query.data?.length ?? 0} items grouped for buyers`} />
-    </section>
-      {actionError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-catalog-action-error">{actionError}</div>}<Card className="catalog-workspace list-card mt-5 overflow-hidden">
-       <div className="catalog-toolbar filter-surface">
-          <div><div className="catalog-toolbar-kicker">Inventory workspace</div><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{products.length} of {allProducts.length} items</p></div>
-        <div className="catalog-toolbar-tools">
-           <div className="relative min-w-0 flex-1 sm:max-w-[280px]"><Search className="pointer-events-none absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={16} /><input aria-label="Search catalog" data-testid="input-search-products" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products" className="field-input pl-9" /></div>
-           <select aria-label="Filter by category" data-testid="select-filter-products-category" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="field-input catalog-filter-select"><option value="all">All categories</option>{[...new Set(allProducts.map((product) => product.category))].sort().map((category) => <option key={category} value={category}>{category}</option>)}</select>
-           <select aria-label="Filter by stock" data-testid="select-filter-products-stock" value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} className="field-input catalog-filter-select"><option value="all">All stock</option><option value="low">Low stock</option><option value="out">Out of stock</option></select>
-           <div className="catalog-view-toggle" role="group" aria-label="Catalog view"><button type="button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={cn(view === 'grid' && 'is-active')}><Boxes size={15} /></button><button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')} className={cn(view === 'list' && 'is-active')}><Clipboard size={15} /></button></div>
-        </div>
-      </div>
-       {query.isLoading ? <div className="catalog-loading">{[1, 2, 3].map((i) => <div key={i} className="catalog-loading-row"><Skeleton className="h-11 w-11 rounded-[13px]" /><div className="flex-1"><Skeleton className="h-4 w-40" /><Skeleton className="mt-2 h-3 w-24" /></div><Skeleton className="h-8 w-20" /></div>)}</div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : products.length ? <div className={cn(view === 'grid' ? 'catalog-grid' : 'catalog-list')} role="list">
-         {view === 'list' && <div className="catalog-list-head" aria-hidden="true"><span>Product</span><span>Options</span><span>Price / cost</span><span>Stock</span><span /></div>}
-          {products.map((product, index) => view === 'grid'
-            ? <CatalogGridCard key={product.id} product={product} animationDelay={`${index * 50}ms`} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
-             : <div key={product.id} className="catalog-product-row rise-in" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
-               <div className="catalog-product-main"><div className="catalog-product-thumb"><img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt="" /></div><div className="min-w-0"><h3 className="truncate font-display text-base font-bold tracking-[-.025em]">{product.name}</h3><div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
-              <div className="catalog-variants">{product.preferences.length ? product.preferences.map((preference) => `${preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
-              <div className="catalog-number"><span className="catalog-mobile-label">Price</span><strong>{moneyExact(product.price)}</strong><small>{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
-              <div className="catalog-stock"><span className="catalog-mobile-label">Stock</span><strong className={cn(product.stock < 5 && 'is-alert')}>{product.stock}</strong><span className={cn('catalog-stock-status', product.stock < 5 ? 'is-alert' : 'is-good')}>{product.stock === 0 ? 'Out of stock' : product.stock < 5 ? 'Running low' : 'In stock'}</span></div>
-              <CatalogActions productId={product.id} productName={product.name} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
-            </div>)}
-       </div> : <div className="p-6"><EmptyState icon={Package} title={search || categoryFilter !== 'all' || stockFilter !== 'all' ? 'No matching items' : 'Your catalog is waiting'} description="Try another search or filter, or add your first catalog item." action={<Button onClick={() => setLocation('/catalog/new')}><Plus size={15} />Add item</Button>} /></div>}
-    </Card>
-  </Shell>;
+      <PageHeading
+        title="Catalog"
+        description="Keep the products, prices, stock, and buyer choices you reuse most in one place."
+        action={
+          <Button onClick={handleAddItem} data-testid="button-new-product">
+            <Plus size={16} />Add item
+          </Button>
+        }
+      />
+      {query.isLoading ? (
+        <div className="catalog-loading p-6">{[1, 2, 3].map((i) => <div key={i} className="catalog-loading-row"><Skeleton className="h-11 w-11 rounded-[13px]" /><div className="flex-1"><Skeleton className="h-4 w-40" /><Skeleton className="mt-2 h-3 w-24" /></div><Skeleton className="h-8 w-20" /></div>)}</div>
+      ) : query.isError ? (
+        <div className="p-6"><ErrorState retry={() => query.refetch()} /></div>
+      ) : !allProducts.length ? (
+        <EmptyState
+          card
+          icon={Package}
+          title="Your catalog is waiting"
+          description="Keep the products, prices, stock, and buyer choices you reuse most in one place."
+          action={
+            <Button onClick={handleAddItem} data-testid="button-new-product-empty">
+              <Plus size={15} />Add your first product
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          <section className="catalog-summary" aria-label="Catalog summary">
+            <MetricCard className="rise-in" dataTestId="card-catalog-inventory-value" label="Catalog value" value={money(inventoryValue)} note={`${totalStockUnits} ${totalStockUnits === 1 ? 'unit' : 'units'} in stock across ${query.data?.length ?? 0} ${query.data?.length === 1 ? 'item' : 'items'}`} />
+            <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-catalog-items" label="Items" value={query.data?.length ?? 0} note={`${categories} ${categories === 1 ? 'category' : 'categories'} in the catalog`} />
+            <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-catalog-low-stock" label="Low stock" value={<span className={cn(lowStock > 0 && 'text-[hsl(var(--destructive))]')}>{lowStock}</span>} indicator={(query.data?.length ?? 0) > 0 ? { direction: lowStock > 0 ? 'down' : 'neutral', percentage: (lowStock / query.data!.length) * 100, tone: lowStock > 0 ? 'negative' : 'positive' } : undefined} note={lowStock ? `${lowStock} ${lowStock === 1 ? 'item needs' : 'items need'} a restock` : 'All levels look good'} />
+            <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-catalog-categories" label="Categories" value={categories} note={`${query.data?.length ?? 0} items grouped for buyers`} />
+          </section>
+          <div className="mt-8 sm:mt-10 space-y-5">
+            {actionError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-catalog-action-error">{actionError}</div>}
+            <div className="table-toolbar catalog-page-toolbar">
+              <div className="category-filter-card catalog-filter-bar" role="group" aria-label="Filter catalog by category">
+                {catalogCategories.map((cat) => (
+                  <button
+                    type="button"
+                    key={cat}
+                    onClick={() => setCategoryFilter(cat)}
+                    aria-pressed={categoryFilter === cat}
+                    className={cn('category-filter-tab', categoryFilter === cat && 'is-active')}
+                  >
+                    {cat === 'all' ? 'All items' : cat}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-nowrap items-center gap-2 sm:gap-2.5 min-w-0">
+                <div className="table-search-shell flex-1 min-w-[120px] sm:min-w-[160px] md:w-56 lg:w-64">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
+                  <input
+                    aria-label="Search catalog"
+                    data-testid="input-search-products"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search products"
+                    className="table-search-input"
+                  />
+                </div>
+                <StockFilterPicker value={stockFilter} onChange={setStockFilter} />
+                <div className="catalog-view-toggle shrink-0" role="group" aria-label="Catalog view">
+                  <button type="button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={cn(view === 'grid' && 'is-active')}><LayoutGrid size={15} /></button>
+                  <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')} className={cn(view === 'list' && 'is-active')}><List size={15} /></button>
+                </div>
+              </div>
+            </div>
+            <select
+              aria-hidden="true"
+              data-testid="select-filter-products-category"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="sr-only"
+              tabIndex={-1}
+            >
+              <option value="all">All categories</option>
+              {catalogCategories.filter((c) => c !== 'all').map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+            <Card className="catalog-workspace list-card overflow-hidden">
+              {products.length ? (
+                <div className={cn(view === 'grid' ? 'catalog-grid' : 'catalog-list')} role="list">
+                  {view === 'list' && <div className="catalog-list-head" aria-hidden="true"><span>Product</span><span>Options</span><span>Price / cost</span><span>Stock</span><span /></div>}
+                  {products.map((product, index) => view === 'grid'
+                    ? <CatalogGridCard key={product.id} product={product} animationDelay={`${index * 50}ms`} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
+                    : <div key={product.id} className="catalog-product-row rise-in" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
+                      <div className="catalog-product-main"><div className="catalog-product-thumb"><img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt="" /></div><div className="min-w-0"><h3 className="truncate font-display text-base font-bold tracking-[-.025em]">{product.name}</h3><div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
+                      <div className="catalog-variants">{product.preferences.length ? product.preferences.map((preference) => `${preference.label.toLowerCase() === 'choose an option' ? 'Option' : preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
+                      <div className="catalog-number"><span className="catalog-mobile-label">Price</span><strong>{moneyExact(product.price)}</strong><small>{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
+                      <div className="catalog-stock"><span className="catalog-mobile-label">Stock</span><strong className={cn(product.stock < 5 && 'is-alert')}>{product.stock}</strong><span className={cn('catalog-stock-status', product.stock < 5 ? 'is-alert' : 'is-good')}>{product.stock === 0 ? 'Out of stock' : product.stock < 5 ? 'Running low' : 'In stock'}</span></div>
+                      <CatalogActions productId={product.id} productName={product.name} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
+                    </div>)}
+                </div>
+              ) : (
+                <div className="p-6">
+                  <EmptyState icon={Package} title={search || categoryFilter !== 'all' || stockFilter !== 'all' ? 'No matching items' : 'Your catalog is waiting'} description="Try another search or filter, or add your first catalog item." action={<Button onClick={() => setLocation('/catalog/new')}><Plus size={15} />Add item</Button>} />
+                </div>
+              )}
+            </Card>
+          </div>
+        </>
+      )}
+    </Shell>;
 }
 
 function LegacyOrders() {
   const query = useListOrders(); const update = useUpdateOrder(); const [filter, setFilter] = useState('all'); const [search, setSearch] = useState(''); const queryClient = useQueryClient();
   const orders = useMemo(() => (query.data ?? []).filter((order) => (filter === 'all' || order.status === filter || order.fulfillment === filter) && `${order.customerName} ${order.productName} ${order.token}`.toLowerCase().includes(search.toLowerCase())), [query.data, filter, search]);
   const updateOrder = (order: Order, data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => update.mutate({ id: order.id, data }, { onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); invalidateDashboardSummary(queryClient); } });
-  const copyLink = async (token: string) => { await navigator.clipboard?.writeText(`${window.location.origin}/o/${token}`); };
-  return <Shell><PageHeading title="Orders" action={<Link href="/take-order"><Button><Plus size={16} />Take an order</Button></Link>} /><div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="relative max-w-[360px] flex-1"><Search className="absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={16} /><input data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" className="field-input pl-9" /></div><div className="flex flex-wrap gap-2">{['all', 'reserved', 'deposit_paid', 'paid', 'shipped'].map((value) => <button key={value} onClick={() => setFilter(value)} aria-pressed={filter === value} data-testid={`button-filter-${value}`} className={cn('soft-focus rounded-full px-3 py-2 text-[10px] font-bold capitalize transition-colors', filter === value ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] ring-2 ring-[hsl(var(--primary))] ring-offset-2 ring-offset-[hsl(var(--background))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{value.replace('_', ' ')}</button>)}</div></div>{query.isLoading ? <Card className="space-y-5 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></Card> : query.isError ? <ErrorState retry={() => query.refetch()} /> : orders.length ? <Card className="overflow-hidden"><div className="hidden grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] gap-4 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-6 py-3 text-[10px] font-bold uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))] md:grid"><span>Buyer</span><span>Payment</span><span>Fulfillment</span><span>Placed</span><span /></div>{orders.map((order) => <div key={order.id} className="grid gap-3 border-b border-[hsl(var(--border))] px-5 py-4 last:border-0 md:grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] md:items-center md:gap-4 md:px-6" data-testid={`row-orders-order-${order.id}`}><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-[10px] font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName} · {channelName(order.channel)}</div></div></div><div className="flex items-center justify-between md:block"><span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Payment</span><button data-testid={`button-payment-${order.id}`} onClick={() => updateOrder(order, { status: order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved' })}><StatusPill tone={paymentTone(order.status)}>{order.status.replace('_', ' ')}</StatusPill></button></div><div className="flex items-center justify-between md:block"><span className="text-[10px] uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Delivery</span><button data-testid={`button-fulfillment-${order.id}`} onClick={() => updateOrder(order, { fulfillment: order.fulfillment === 'pending' ? 'shipped' : order.fulfillment === 'shipped' ? 'delivered' : 'pending' })}><StatusPill tone={fulfillmentTone(order.fulfillment)}>{order.fulfillment}</StatusPill></button></div><div className="hidden font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))] md:block">{dateShort(order.createdAt)}<div className="mt-1 text-[12px] font-bold text-[hsl(var(--foreground))]">{moneyExact(order.amount)}</div></div><div className="flex justify-end gap-1"><button type="button" onClick={() => copyLink(order.token)} aria-label="Copy buyer link" data-testid={`button-copy-link-${order.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" title="Copy buyer link"><Copy aria-hidden="true" size={15} /></button><Link href={`/o/${order.token}`} data-testid={`link-open-order-${order.id}`} aria-label="Open buyer preview" className="rounded-lg p-2 text-[11px] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><ExternalLink aria-hidden="true" size={15} /></Link></div></div>)}</Card> : <EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} />}</Shell>;
+  const copyLink = async (token: string) => { await navigator.clipboard?.writeText(buildPublicOrderLink(token)); };
+  return <Shell><PageHeading title="Orders" action={<Link href="/take-order"><Button><Plus size={16} />Take an order</Button></Link>} /><div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="relative max-w-[360px] flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={16} /><input data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" style={{ paddingLeft: '2.75rem' }} className="field-input text-sm whitespace-nowrap overflow-hidden text-ellipsis" /></div><div className="flex flex-wrap gap-2">{['all', 'reserved', 'deposit_paid', 'paid', 'shipped'].map((value) => <button key={value} onClick={() => setFilter(value)} aria-pressed={filter === value} data-testid={`button-filter-${value}`} className={cn('soft-focus rounded-full px-3.5 py-2 text-xs font-semibold capitalize transition-colors', filter === value ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] ring-2 ring-[hsl(var(--primary))] ring-offset-2 ring-offset-[hsl(var(--background))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{value.replace('_', ' ')}</button>)}</div></div>{query.isLoading ? <Card className="space-y-5 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></Card> : query.isError ? <ErrorState retry={() => query.refetch()} /> : orders.length ? <Card className="overflow-hidden"><div className="hidden grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] gap-4 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-6 py-3 text-xs font-semibold uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))] md:grid"><span>Buyer</span><span>Payment</span><span>Fulfillment</span><span>Placed</span><span /></div>{orders.map((order) => <div key={order.id} className="grid gap-3 border-b border-[hsl(var(--border))] px-5 py-4 last:border-0 md:grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] md:items-center md:gap-4 md:px-6" data-testid={`row-orders-order-${order.id}`}><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-xs font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-[15px] font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{order.productName} · {channelName(order.channel)}</div></div></div><div className="flex items-center justify-between md:block"><span className="text-xs uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Payment</span><button data-testid={`button-payment-${order.id}`} onClick={() => updateOrder(order, { status: order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved' })}><StatusPill tone={paymentTone(order.status)}>{order.status.replace('_', ' ')}</StatusPill></button></div><div className="flex items-center justify-between md:block"><span className="text-xs uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Delivery</span><FulfillmentPickerCell order={order} disabled={update.isPending} onUpdateFulfillment={(targetOrder, fulfillment) => updateOrder(targetOrder, { fulfillment })} /></div><div className="hidden font-mono-ui text-xs text-[hsl(var(--muted-foreground))] md:block">{dateShort(order.createdAt)}<div className="mt-1 text-sm font-bold text-[hsl(var(--foreground))]">{moneyExact(order.amount)}</div></div><div className="flex justify-end gap-1"><button type="button" onClick={() => copyLink(order.token)} aria-label="Copy buyer link" data-testid={`button-copy-link-${order.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" title="Copy buyer link"><Copy aria-hidden="true" size={15} /></button><Link href={`/o/${order.token}`} data-testid={`link-open-order-${order.id}`} aria-label="Open buyer preview" className="rounded-lg p-2 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><ExternalLink aria-hidden="true" size={15} /></Link></div></div>)}</Card> : <EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} />}</Shell>;
+}
+
+export const FULFILLMENT_OPTIONS = [
+  {
+    value: 'pending' as const,
+    label: 'To ship',
+    hint: 'Awaiting packing or courier dispatch',
+    icon: Package,
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40',
+    iconClass: 'text-amber-600 dark:text-amber-400',
+  },
+  {
+    value: 'shipped' as const,
+    label: 'Shipped',
+    hint: 'In transit with rider / delivery team',
+    icon: Truck,
+    badgeClass: 'bg-blue-50 text-blue-700 border-blue-200/80 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40',
+    iconClass: 'text-blue-600 dark:text-blue-400',
+  },
+  {
+    value: 'delivered' as const,
+    label: 'Delivered',
+    hint: 'Confirmed delivery to customer',
+    icon: CheckCircle2,
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40',
+    iconClass: 'text-emerald-600 dark:text-emerald-400',
+  },
+];
+
+export function FulfillmentPickerCell({
+  order,
+  disabled = false,
+  onUpdateFulfillment,
+  forceMount,
+}: {
+  order: Order;
+  disabled?: boolean;
+  onUpdateFulfillment: (order: Order, fulfillment: 'pending' | 'shipped' | 'delivered') => void;
+  forceMount?: true;
+}) {
+  const [open, setOpen] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearTimer = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  const handleMouseEnter = () => {
+    clearTimer();
+    setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    clearTimer();
+    timeoutRef.current = setTimeout(() => {
+      setOpen(false);
+    }, 200);
+  };
+
+  useEffect(() => {
+    return () => clearTimer();
+  }, []);
+
+  const handleSelect = (newFulfillment: 'pending' | 'shipped' | 'delivered') => {
+    clearTimer();
+    setOpen(false);
+    if (order.fulfillment !== newFulfillment) {
+      onUpdateFulfillment(order, newFulfillment);
+    }
+  };
+
+  const currentLabel = order.fulfillment === 'pending' ? 'To ship' : order.fulfillment === 'shipped' ? 'Shipped' : 'Delivered';
+  const currentTone = order.fulfillment === 'delivered' ? 'mint' : order.fulfillment === 'shipped' ? 'blue' : 'neutral';
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onPointerEnter={handleMouseEnter}
+          onPointerLeave={handleMouseLeave}
+          onMouseOver={handleMouseEnter}
+          aria-label={`Change fulfillment status for order ${order.id}. Current: ${currentLabel}`}
+          title="Hover to view fulfillment options"
+          data-testid={`button-fulfillment-${order.id}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((prev) => !prev);
+          }}
+          className="group/trigger relative inline-flex items-center outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-full cursor-pointer transition-transform active:scale-95"
+        >
+          <StatusPill tone={currentTone}>
+            <span>{currentLabel}</span>
+            <ChevronDown
+              size={11}
+              className={cn(
+                'ml-0.5 opacity-60 transition-transform duration-200 group-hover/trigger:opacity-100',
+                open && 'rotate-180'
+              )}
+            />
+          </StatusPill>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="bottom"
+        sideOffset={6}
+        forceMount={forceMount}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onPointerEnter={handleMouseEnter}
+        onPointerLeave={handleMouseLeave}
+        onMouseOver={handleMouseEnter}
+        onClick={(e) => e.stopPropagation()}
+        data-testid={`card-fulfillment-picker-${order.id}`}
+        className="z-50 min-w-[150px] w-auto rounded-xl border border-slate-200/90 bg-white p-1 text-slate-900 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 animate-in fade-in-0 zoom-in-95 duration-100"
+      >
+        <div className="space-y-0.5" role="menu" aria-label="Fulfillment options">
+          {FULFILLMENT_OPTIONS.map((opt) => {
+            const isSelected = order.fulfillment === opt.value;
+            const Icon = opt.icon;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="menuitem"
+                disabled={disabled}
+                title={opt.hint}
+                data-testid={`option-fulfillment-${order.id}-${opt.value}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(opt.value);
+                }}
+                className={cn(
+                  'group/opt w-full flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer select-none outline-none',
+                  isSelected
+                    ? 'bg-slate-100 text-slate-900 font-semibold dark:bg-slate-800 dark:text-slate-100'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-800/60'
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Icon size={14} className={cn('shrink-0', opt.iconClass)} />
+                  <span className="truncate">{opt.label}</span>
+                </div>
+                {isSelected && (
+                  <Check size={13} className="shrink-0 text-slate-900 dark:text-slate-100 stroke-[2.5]" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function Orders() {
@@ -1715,7 +5394,7 @@ function Orders() {
     setMutationError('');
     update.mutate({ id: order.id, data }, {
       onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); invalidateDashboardSummary(queryClient); },
-      onError: (error) => setMutationError(error instanceof Error && error.message ? error.message : 'That order update could not be saved. Try again.'),
+      onError: (error) => setMutationError(formatUserFacingError(error, 'That order update could not be saved. Try again.')),
     });
   };
   const orderFilterOptions = [
@@ -1738,24 +5417,105 @@ function Orders() {
 
   return <Shell>
     <PageHeading title="Orders" action={<Link href="/take-order" data-testid="link-take-order-orders"><Button><Plus size={16} />Take an order</Button></Link>} />
-    <section className="orders-snapshot" aria-label="Order performance summary">
-       <MetricCard className="rise-in" dataTestId="card-orders-live-value" label="Live order value" value={<span data-testid="text-live-order-value">{money(metrics.orderValue)}</span>} indicator={metrics.orderValue ? { direction: metrics.outstanding > 0 ? 'down' : 'up', percentage: (metrics.collected / metrics.orderValue) * 100 } : undefined} note={`${money(metrics.collected)} collected · ${money(metrics.outstanding)} outstanding`} />
-       <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-orders-total" label="Total orders" value={<span data-testid="text-total-orders">{allOrders.length}</span>} indicator={allOrders.length ? { direction: metrics.paidOrders > 0 ? 'up' : 'down', percentage: (metrics.paidOrders / allOrders.length) * 100 } : undefined} note={`${metrics.paidOrders} paid in full`} />
-       <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-orders-average" label="Average order value" value={<span data-testid="text-average-order-value">{money(metrics.average)}</span>} note="Based on live order value" />
-       <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-orders-collection-rate" label="Collection rate" value={<span data-testid="text-collection-rate">{metrics.collectionRate.toFixed(1)}%</span>} note="Paid amount against order value" />
-    </section>
-    <section className="mt-5">
-       {mutationError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}
-       <div className="orders-controls orders-page-controls filter-surface">
-         <div className="orders-filter-scroll" role="group" aria-label="Order filters">{orderFilterOptions.map((option) => <button type="button" key={option.value} onClick={() => selectOrderFilter(option.value)} aria-pressed={filter === option.value} data-testid={`button-filter-${option.value}`} className={cn('orders-filter-button', filter === option.value && 'is-active')}>{option.label}</button>)}</div>
-         <div className="list-search-shell"><Search className="pointer-events-none absolute left-2.5 top-2.5 text-[hsl(var(--muted-foreground))]" size={14} /><input aria-label="Search orders" data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" className="list-search-input" /></div>
-        </div>
-       <Card className="overflow-hidden">
-          {query.isLoading ? <div className="space-y-4 p-5 sm:p-6" aria-label="Loading orders"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div> : query.isError ? <div className="p-5 sm:p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="orders-table-wrap" role="table" aria-label="Orders"><div className="orders-table-head" role="row"><span role="columnheader">Order ID</span><span role="columnheader">Buyer / item</span><span role="columnheader">Traffic</span><span role="columnheader">Order value</span><span role="columnheader">Placed</span><span role="columnheader">Payment</span><span role="columnheader">Fulfillment</span></div>{orders.map((order) => <div key={order.id} className="orders-table-row is-clickable" role="row" tabIndex={0} aria-label={`Open order ${order.id} details`} data-testid={`row-orders-order-${order.id}`} onClick={(event) => { if ((event.target as HTMLElement).closest('a,button,input,select,textarea')) return; setLocation(`/orders/${order.id}`); }} onKeyDown={(event) => { if (event.key !== 'Enter' && event.key !== ' ') return; event.preventDefault(); setLocation(`/orders/${order.id}`); }}><div className="orders-order-id-cell"><span className="orders-mobile-label">Order ID</span><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></div><div className="orders-buyer-cell"><div className="orders-avatar">{initials(order.customerName || order.productName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 truncate text-[11px] text-[hsl(var(--muted-foreground))]">{order.productName}</div>{order.deliveryMethod && <div className="mt-1 truncate text-[10px] text-[hsl(var(--muted-foreground))]" title={order.deliveryAddress ?? undefined}>{order.deliveryMethod === 'delivery' ? `Delivery · ${moneyExact(order.deliveryFee)}` : 'Pickup'}{order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}</div>}</div></div><div className="orders-traffic-cell"><span className="orders-mobile-label">Traffic</span><span className="orders-traffic-icon" data-testid={`text-order-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div><div className="orders-value-cell"><span className="orders-mobile-label">Order value</span><div className="font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">{moneyExact(collectedFor(order))} collected</div></div><div className="orders-date-cell"><span className="orders-mobile-label">Placed</span><span className="font-mono-ui text-[10px] text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</span></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Payment</span><button type="button" disabled={update.isPending} aria-label={`Advance payment status for ${order.customerName || order.productName}`} title="Advance payment status" data-testid={`button-payment-${order.id}`} onClick={() => { const status: 'reserved' | 'deposit_paid' | 'paid' = order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved'; updateOrder(order, { status }); }}><StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>{paymentLabel(order)}</StatusPill></button></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Fulfillment</span><button type="button" disabled={update.isPending} aria-label={`Advance fulfillment status for ${order.customerName || order.productName}`} title="Advance fulfillment status" data-testid={`button-fulfillment-${order.id}`} onClick={() => { const fulfillment: 'pending' | 'shipped' | 'delivered' = order.fulfillment === 'pending' ? 'shipped' : order.fulfillment === 'shipped' ? 'delivered' : 'pending'; updateOrder(order, { fulfillment }); }}><StatusPill tone={order.fulfillment === 'delivered' ? 'mint' : order.fulfillment === 'shipped' ? 'blue' : 'neutral'}>{fulfillmentLabel(order.fulfillment)}</StatusPill></button></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} action={!search && filter === 'all' ? <Link href="/take-order" data-testid="link-create-first-order"><Button><Plus size={15} />Create a link</Button></Link> : undefined} /></div>}
-      </Card>
-    </section>
-    {orders.some((order) => order.items.length > 1) && <Card className="mt-5 overflow-hidden" data-testid="card-order-item-breakdown"><div className="orders-panel-heading"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Line-item view</div><h2 className="mt-2 font-display text-xl font-bold tracking-[-.04em]">What each order contains</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Review every agreed item and price before handing the order off.</p></div><Package size={18} className="text-[hsl(var(--muted-foreground))]" /></div><div className="divide-y divide-[hsl(var(--border))]">{orders.filter((order) => order.items.length > 1).map((order) => <div key={order.id} className="px-5 py-5 sm:px-6" data-testid={`row-order-item-breakdown-${order.id}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-sm font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{order.items.length} items · {channelName(order.channel)} · {dateShort(order.createdAt)}</div></div><div className="text-right"><div className="font-mono-ui text-xs font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">Combined total</div></div></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{order.items.map((item, index) => <div key={`${order.id}-${item.productId}-${index}`} className="flex items-center justify-between gap-3 rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2.5"><span className="min-w-0 truncate text-xs font-semibold">{item.productName}</span><span className="shrink-0 font-mono-ui text-xs">{moneyExact(item.amount)}</span></div>)}</div></div>)}</div></Card>}
-   </Shell>;
+    {query.isLoading ? (
+      <div className="space-y-4 p-5 sm:p-6" aria-label="Loading orders"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
+    ) : query.isError ? (
+      <div className="p-5 sm:p-6"><ErrorState retry={() => query.refetch()} /></div>
+    ) : !allOrders.length ? (
+      <EmptyState
+        card
+        icon={ShoppingBag}
+        title="Your order list is quiet"
+        description="When buyers use your links, their orders and payment status will show up here."
+        action={
+          <Link href="/take-order" data-testid="link-create-first-order">
+            <Button><Plus size={15} />Create an order link</Button>
+          </Link>
+        }
+      />
+    ) : (
+      <>
+        <section className="orders-snapshot" aria-label="Order performance summary">
+          <MetricCard className="rise-in" dataTestId="card-orders-live-value" label="Live order value" value={<span data-testid="text-live-order-value">{money(metrics.orderValue)}</span>} indicator={metrics.orderValue ? { direction: metrics.outstanding > 0 ? 'down' : 'up', percentage: (metrics.collected / metrics.orderValue) * 100 } : undefined} note={`${money(metrics.collected)} collected · ${money(metrics.outstanding)} outstanding`} />
+          <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-orders-total" label="Total orders" value={<span data-testid="text-total-orders">{allOrders.length}</span>} indicator={allOrders.length ? { direction: metrics.paidOrders > 0 ? 'up' : 'down', percentage: (metrics.paidOrders / allOrders.length) * 100 } : undefined} note={`${metrics.paidOrders} paid in full`} />
+          <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-orders-average" label="Average order value" value={<span data-testid="text-average-order-value">{money(metrics.average)}</span>} note="Based on live order value" />
+          <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-orders-collection-rate" label="Collection rate" value={<span data-testid="text-collection-rate">{metrics.collectionRate.toFixed(1)}%</span>} note="Paid amount against order value" />
+        </section>
+        <section className="mt-8 sm:mt-10 space-y-5">
+          {mutationError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex items-center gap-1 rounded-xl bg-slate-100/90 p-1 text-xs" role="group" aria-label="Payment status filter">
+                <span className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Payment</span>
+                {[
+                  { value: 'all', label: 'All' },
+                  { value: 'reserved', label: 'Reserved' },
+                  { value: 'deposit_paid', label: 'Deposit' },
+                  { value: 'paid', label: 'Paid' },
+                ].map((opt) => (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    onClick={() => setPaymentFilter(opt.value)}
+                    className={cn(
+                      'rounded-lg px-2.5 py-1 font-medium transition-all cursor-pointer',
+                      paymentFilter === opt.value
+                        ? 'bg-white font-semibold text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                    data-testid={`button-payment-filter-${opt.value}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="inline-flex items-center gap-1 rounded-xl bg-slate-100/90 p-1 text-xs" role="group" aria-label="Fulfillment status filter">
+                <span className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Fulfillment</span>
+                {[
+                  { value: 'all', label: 'All' },
+                  { value: 'pending', label: 'To ship' },
+                  { value: 'shipped', label: 'Shipped' },
+                  { value: 'delivered', label: 'Delivered' },
+                ].map((opt) => (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    onClick={() => setFulfillmentFilter(opt.value)}
+                    className={cn(
+                      'rounded-lg px-2.5 py-1 font-medium transition-all cursor-pointer',
+                      fulfillmentFilter === opt.value
+                        ? 'bg-white font-semibold text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                    data-testid={`button-fulfillment-filter-${opt.value}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="table-search-shell list-search-shell min-w-[200px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
+              <input
+                aria-label="Search orders"
+                data-testid="input-search-orders"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search orders"
+                className="table-search-input list-search-input"
+              />
+            </div>
+          </div>
+          <Card className="overflow-hidden">
+            {orders.length ? <div className="orders-table-wrap" role="table" aria-label="Orders"><div className="table-summary-bar"><span>{orders.length} {orders.length === 1 ? 'link' : 'links'}</span></div><div className="orders-table-head" role="row"><span role="columnheader">Order ID</span><span role="columnheader">Buyer / item</span><span role="columnheader">Traffic</span><span role="columnheader">Order value</span><span role="columnheader">Placed</span><span role="columnheader">Payment</span><span role="columnheader">Fulfillment</span></div>{orders.map((order) => {
+              const isAwaiting = !order.customerPhone && (!order.customerName || order.customerName.toLowerCase() === 'waiting for buyer' || order.customerName.toLowerCase() === 'buyer pending');
+              return <div key={order.id} className="orders-table-row is-clickable" role="row" tabIndex={0} aria-label={`Open order ${order.id} details`} data-testid={`row-orders-order-${order.id}`} onClick={(event) => { if ((event.target as HTMLElement).closest('a,button,input,select,textarea')) return; setLocation(`/orders/${order.id}`); }} onKeyDown={(event) => { if (event.key !== 'Enter' && event.key !== ' ') return; event.preventDefault(); setLocation(`/orders/${order.id}`); }}><div className="orders-order-id-cell"><span className="orders-mobile-label">Order ID</span><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></div><div className="orders-buyer-cell">{isAwaiting ? <div className="orders-avatar bg-slate-100 text-slate-400 border border-dashed border-slate-200" title="Awaiting buyer completion"><Link2 size={15} /></div> : <div className="orders-avatar">{initials(order.customerName || order.productName)}</div>}<div className="min-w-0"><div className={cn("truncate text-[15px]", isAwaiting ? "font-medium italic text-slate-400" : "font-semibold")}>{isAwaiting ? 'Awaiting buyer' : order.customerName}</div><div className="mt-1 truncate text-xs text-[hsl(var(--muted-foreground))]">{order.productName}</div>{order.deliveryMethod && <div className="mt-1 truncate text-xs text-[hsl(var(--muted-foreground))]" title={order.deliveryAddress ?? undefined}>{order.deliveryMethod === 'delivery' ? `Delivery · ${moneyExact(order.deliveryFee)}` : 'Pickup'}{order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}</div>}</div></div><div className="orders-traffic-cell"><span className="orders-mobile-label">Traffic</span><span className="orders-traffic-icon" data-testid={`text-order-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div><div className="orders-value-cell"><span className="orders-mobile-label">Order value</span><div className="font-mono-ui text-sm font-bold">{moneyExact(order.amount)}</div><div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{moneyExact(collectedFor(order))} collected</div></div><div className="orders-date-cell"><span className="orders-mobile-label">Placed</span><span className="font-mono-ui text-xs text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</span></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Payment</span><button type="button" disabled={update.isPending} aria-label={`Advance payment status for ${order.customerName || order.productName}`} title="Advance payment status" data-testid={`button-payment-${order.id}`} onClick={() => { const status: 'reserved' | 'deposit_paid' | 'paid' = order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved'; updateOrder(order, { status }); }}><StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>{paymentLabel(order)}</StatusPill></button></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Fulfillment</span><FulfillmentPickerCell order={order} disabled={update.isPending} onUpdateFulfillment={(targetOrder, fulfillment) => updateOrder(targetOrder, { fulfillment })} /></div></div>;
+            })}</div> : <div className="p-5 sm:p-6"><EmptyState icon={ShoppingBag} title="No orders match" description="Try another filter or search." /></div>}
+          </Card>
+        </section>
+      </>
+    )}
+  </Shell>;
 }
 
 type ClientSummary = {
@@ -1779,6 +5539,11 @@ function Clients() {
     (query.data ?? []).forEach((order) => {
       const phone = order.customerPhone?.trim() ?? '';
       const name = order.customerName?.trim() ?? '';
+      const isPlaceholder = !name || name.toLowerCase() === 'waiting for buyer' || name.toLowerCase() === 'buyer pending' || name.toLowerCase() === 'awaiting buyer';
+      if (!phone && isPlaceholder) {
+        // Exclude uncompleted/no-identity orders from the Clients directory entirely!
+        return;
+      }
       const identity = phone || name;
       if (!identity) return;
       const key = `${phone ? 'phone' : 'name'}:${identity.toLowerCase()}`;
@@ -1846,19 +5611,40 @@ function Clients() {
       <section className="clients-overview" aria-label="Client summary">
         <MetricCard className="rise-in" dataTestId="card-clients-return-visits" label="Return visits" value={<span data-testid="text-client-return-visits">{repeatClients}</span>} indicator={clients.length ? { direction: repeatClients ? 'up' : 'neutral', percentage: repeatRate } : undefined} note={`${repeatClients} ${repeatClients === 1 ? 'client has' : 'clients have'} ordered more than once`} />
         <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-clients-total" label="Total clients" value={<span data-testid="text-total-clients">{clients.length}</span>} indicator={clients.length ? { direction: settledRate >= 50 ? 'up' : 'down', percentage: settledRate } : undefined} note={`${clients.length - balanceDueClients} without an outstanding balance`} />
-        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-clients-balance-due" label="Owing clients" value={<span data-testid="text-clients-balance-due">{balanceDueClients}</span>} indicator={clients.length ? { direction: balanceDueClients ? 'down' : 'neutral', percentage: balanceRate, tone: balanceDueClients ? 'positive' : 'neutral' } : undefined} note={`${money(totalBalanceDue)} outstanding across ${balanceDueClients} ${balanceDueClients === 1 ? 'client' : 'clients'}`} />
-        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-clients-to-serve" label="To serve" value={<span data-testid="text-clients-to-serve">{clientsToServe}</span>} indicator={clients.length ? { direction: clientsToServe ? 'down' : 'neutral', percentage: serviceRate, tone: clientsToServe ? 'positive' : 'neutral' } : undefined} note={`${clientsToServe} ${clientsToServe === 1 ? 'client has' : 'clients have'} orders to fulfil`} />
+        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-clients-balance-due" label="Owing clients" value={<span data-testid="text-clients-balance-due">{balanceDueClients}</span>} indicator={clients.length ? { direction: balanceDueClients ? 'down' : 'neutral', percentage: balanceRate, tone: balanceDueClients ? 'negative' : 'neutral' } : undefined} note={`${money(totalBalanceDue)} outstanding across ${balanceDueClients} ${balanceDueClients === 1 ? 'client' : 'clients'}`} />
+        <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-clients-to-serve" label="To serve" value={<span data-testid="text-clients-to-serve">{clientsToServe}</span>} indicator={clients.length ? { direction: clientsToServe ? 'down' : 'neutral', percentage: serviceRate, tone: clientsToServe ? 'negative' : 'neutral' } : undefined} note={`${clientsToServe} ${clientsToServe === 1 ? 'client has' : 'clients have'} orders to fulfil`} />
       </section>
-       <section className="clients-list-section mt-5">
-         <div className="clients-workspace-heading">
-           <h2>Clients</h2>
+       <section className="clients-list-section mt-8 sm:mt-10 space-y-5">
+         <div className="table-toolbar clients-workspace-controls">
+           <div className="category-filter-card clients-filter-bar" role="group" aria-label="Filter clients">
+             {clientFilters.map((filterOption) => (
+               <button
+                 key={filterOption.value}
+                 type="button"
+                 className={cn('category-filter-tab clients-filter-tab', clientFilter === filterOption.value && 'is-active')}
+                 aria-pressed={clientFilter === filterOption.value}
+                 data-testid={`button-client-filter-${filterOption.value}`}
+                 onClick={() => setClientFilter(filterOption.value)}
+               >
+                 <span>{filterOption.label}</span>
+                 <strong className="tab-count">{filterOption.count}</strong>
+               </button>
+             ))}
+           </div>
+           <div className="table-search-shell clients-search">
+             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
+             <input
+               aria-label="Search clients"
+               data-testid="input-search-clients"
+               value={search}
+               onChange={(event) => setSearch(event.target.value)}
+               placeholder="Search clients"
+               className="table-search-input"
+             />
+           </div>
          </div>
-         <div className="clients-workspace-controls">
-           <div className="clients-filter-bar" role="group" aria-label="Filter clients">{clientFilters.map((filterOption) => <button key={filterOption.value} type="button" className={cn('clients-filter-tab', clientFilter === filterOption.value && 'is-active')} aria-pressed={clientFilter === filterOption.value} data-testid={`button-client-filter-${filterOption.value}`} onClick={() => setClientFilter(filterOption.value)}><span>{filterOption.label}</span><strong>{filterOption.count}</strong></button>)}</div>
-           <div className="clients-search"><Search aria-hidden="true" /><input aria-label="Search clients" data-testid="input-search-clients" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search clients" /></div>
-         </div>
-         <Card className="overflow-hidden">
-           {filteredClients.length ? <div className="clients-table-wrap"><div className="clients-table-head"><span>Client</span><span>Phone</span><span className="is-numeric">Orders</span><span className="is-numeric">Collected</span><span className="is-numeric">Balance due</span><span className="is-numeric">Last purchase</span><span className="sr-only">Details</span></div>{filteredClients.map((client) => <div className="clients-table-row" key={client.key} data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="clients-buyer-cell"><div className="clients-avatar">{initials(client.displayName)}</div><div className="min-w-0"><div className="truncate text-sm font-semibold" data-testid={`text-client-name-${client.key}`}>{client.displayName}</div></div></div><div className="clients-cell-labeled clients-phone-cell"><span className="clients-mobile-label">Phone</span><span>{client.phone || '—'}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Orders</span><span className="font-mono-ui text-xs font-bold">{client.orderCount}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Collected</span><span className="font-mono-ui text-xs font-bold">{moneyExact(client.collected)}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Balance due</span><span className="font-mono-ui text-xs font-bold">{client.outstanding ? moneyExact(client.outstanding) : '—'}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Last purchase</span><span className="font-mono-ui text-xs">{dateShort(client.latestPurchase)}</span></div><div className="clients-actions"><Link href={`/orders?customer=${encodeURIComponent(client.displayName)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link">View <ArrowRight size={13} /></Link></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={Search} title="No clients match" /></div>}
+          <Card className="overflow-hidden">
+            {filteredClients.length ? <div className="clients-table-wrap"><div className="table-summary-bar"><span>{filteredClients.length} {filteredClients.length === 1 ? 'client' : 'clients'}</span></div><div className="clients-table-head"><span>Client</span><span>Phone</span><span className="is-numeric">Orders</span><span className="is-numeric">Collected</span><span className="is-numeric">Balance due</span><span className="is-numeric">Last purchase</span><span className="sr-only">Details</span></div>{filteredClients.map((client) => <div className="clients-table-row" key={client.key} data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="clients-buyer-cell"><div className="clients-avatar">{initials(client.displayName)}</div><div className="min-w-0"><div className="truncate text-[15px] font-semibold" data-testid={`text-client-name-${client.key}`}>{client.displayName}</div></div></div><div className="clients-cell-labeled clients-phone-cell"><span className="clients-mobile-label">Phone</span><span className="inline-flex items-center gap-1.5"><span>{client.phone || '—'}</span>{client.phone && <button type="button" className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-[#25D366] hover:bg-emerald-100 transition-colors" title={`Open WhatsApp chat with ${client.displayName}`} aria-label={`Open WhatsApp chat with ${client.displayName}`} onClick={() => openWhatsApp(client.phone, `Hi ${client.displayName}!`)}><SiWhatsapp size={13} /></button>}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Orders</span><span className="font-mono-ui text-sm font-bold">{client.orderCount}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Collected</span><span className="font-mono-ui text-sm font-bold">{moneyExact(client.collected)}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Balance due</span><span className="font-mono-ui text-sm font-bold">{client.outstanding ? moneyExact(client.outstanding) : '—'}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Last purchase</span><span className="font-mono-ui text-sm">{dateShort(client.latestPurchase)}</span></div><div className="clients-actions flex items-center gap-2">{client.outstanding > 0 && client.phone && <button type="button" className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors" title="Send balance reminder on WhatsApp" onClick={() => { const profile = readSellerProfile(); const msg = buildClientBalanceReminderMessage({ clientName: client.displayName, balanceDue: client.outstanding, shopName: profile?.businessName || 'our shop', currencySymbol: currencySymbol() }); openWhatsApp(client.phone, msg); }}><MessageSquare size={12} />Remind</button>}<Link href={`/orders?customer=${encodeURIComponent(client.displayName)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link">View <ArrowRight size={13} /></Link></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={Search} title="No clients match" /></div>}
         </Card>
       </section>
     </>}
@@ -1866,7 +5652,7 @@ function Clients() {
 }
 
 function ClientsSkeleton() {
-  return <div className="space-y-5" aria-label="Loading clients"><div className="clients-overview">{Array.from({ length: 4 }, (_, index) => <Card key={index} className="h-[150px] p-5"><Skeleton className="h-3 w-24" /><Skeleton className="mt-7 h-10 w-16" /></Card>)}</div><Card className="h-[360px] p-5"><Skeleton className="h-6 w-24" /><Skeleton className="mt-8 h-11 w-56 ml-auto" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div>;
+  return <div className="space-y-8 sm:space-y-10" aria-label="Loading clients"><div className="clients-overview">{Array.from({ length: 4 }, (_, index) => <Card key={index} className="h-[176px] p-6 sm:p-7 flex flex-col justify-between"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-16" /><Skeleton className="h-4 w-32" /></Card>)}</div><Card className="h-[360px] p-6 sm:p-7"><Skeleton className="h-6 w-24" /><Skeleton className="mt-8 h-11 w-56 ml-auto" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div>;
 }
 
 type TakeOrderPath = 'catalog' | 'custom';
@@ -1940,7 +5726,7 @@ function TakeOrder() {
       createLink(product.id);
     }
   };
-  const link = created ? `${window.location.origin}/o/${created.token}` : '';
+  const link = created ? buildPublicOrderLink(created.token) : '';
   const copy = async () => {
     await navigator.clipboard?.writeText(link);
     setCopied(true);
@@ -1956,38 +5742,38 @@ function TakeOrder() {
   if (created) {
     return <Shell><div className="mx-auto max-w-[620px] page-in">
       <div className="mb-8 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white"><Check size={30} /></div>
-      <div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Link is ready</div>
+      <div className="font-mono-ui text-xs font-semibold uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Link is ready</div>
       <h1 className="mt-2 font-display text-[clamp(34px,5vw,56px)] font-bold leading-none tracking-[-.06em]">Send it their way.</h1>
-      <p className="mt-4 max-w-[480px] leading-6 text-[hsl(var(--muted-foreground))]">Your {created.productName} link is live. Share it in the same place you started the conversation.</p>
-      <Card className="mt-8 p-5"><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Buyer link</div><div className="mt-3 flex items-center gap-3 rounded-[10px] bg-[hsl(var(--muted))] p-3"><Link2 size={16} className="shrink-0 text-[hsl(var(--muted-foreground))]" /><span className="min-w-0 flex-1 truncate font-mono-ui text-xs">{link}</span><Button onClick={copy} variant="soft" data-testid="button-copy-created-link">{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? 'Copied' : 'Copy'}</Button></div></Card>
+      <p className="mt-4 max-w-[480px] text-base leading-relaxed text-[hsl(var(--muted-foreground))]">Your {created.productName} link is live. Share it in the same place you started the conversation.</p>
+      <Card className="mt-8 p-5"><div className="text-xs font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Buyer link</div><div className="mt-3 flex items-center gap-3 rounded-[10px] bg-[hsl(var(--muted))] p-3"><Link2 size={16} className="shrink-0 text-[hsl(var(--muted-foreground))]" /><span className="min-w-0 flex-1 truncate font-mono-ui text-sm">{link}</span><Button onClick={copy} variant="soft" data-testid="button-copy-created-link">{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? 'Copied' : 'Copy'}</Button></div></Card>
       <div className="mt-6 flex flex-wrap gap-3"><Link href={`/o/${created.token}`} data-testid="link-preview-created-order"><Button variant="outline"><ExternalLink size={15} />Preview buyer page</Button></Link><Button onClick={reset} variant="ghost">Create another</Button></div>
     </div></Shell>;
   }
 
   return <Shell><PageHeading title="Take an order" />
     <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-1">
-      {(['Item', 'Payment', 'Preview'] as const).map((label, index) => { const number = index + 1; return <button key={label} type="button" onClick={() => number < step && setStep(number as TakeOrderStep)} className={cn('flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs font-bold', step === number ? 'bg-[hsl(var(--primary))] text-white' : step > number ? 'bg-[hsl(var(--accent))]/15 text-[hsl(var(--accent-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}><span className="font-mono-ui text-[10px]">{number}</span>{label}</button>; })}
+      {(['Item', 'Payment', 'Preview'] as const).map((label, index) => { const number = index + 1; return <button key={label} type="button" onClick={() => number < step && setStep(number as TakeOrderStep)} className={cn('flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold', step === number ? 'bg-[hsl(var(--primary))] text-white' : step > number ? 'bg-[hsl(var(--accent))]/15 text-[hsl(var(--accent-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}><span className="font-mono-ui text-xs">{number}</span>{label}</button>; })}
     </div>
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <Card className="p-6 sm:p-8"><form onSubmit={submit} className="space-y-6">
         {step === 1 && <div className="page-in space-y-6">
-          <div><div className="field-label">What are they buying?</div><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Use an existing catalog item or create the lightweight item you already agreed in chat.</p></div>
+          <div><div className="field-label">What are they buying?</div><p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">Use an existing catalog item or create the lightweight item you already agreed in chat.</p></div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <button type="button" onClick={() => setPath('catalog')} className={cn('rounded-[14px] border p-4 text-left', path === 'catalog' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/[.06]' : 'border-[hsl(var(--border))]')}><Boxes size={18} className="text-[hsl(var(--primary))]" /><div className="mt-3 text-sm font-bold">Catalog item</div><div className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Pick something already in your catalog.</div></button>
-            <button type="button" onClick={() => setPath('custom')} className={cn('rounded-[14px] border p-4 text-left', path === 'custom' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/[.06]' : 'border-[hsl(var(--border))]')}><Sparkles size={18} className="text-[hsl(var(--primary))]" /><div className="mt-3 text-sm font-bold">New item from chat</div><div className="mt-1 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">Create just the name and price now.</div></button>
+            <button type="button" onClick={() => setPath('catalog')} className={cn('rounded-[14px] border p-4 text-left', path === 'catalog' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/[.06]' : 'border-[hsl(var(--border))]')}><Boxes size={18} className="text-[hsl(var(--primary))]" /><div className="mt-3 text-base font-semibold">Catalog item</div><div className="mt-1 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">Pick something already in your catalog.</div></button>
+            <button type="button" onClick={() => setPath('custom')} className={cn('rounded-[14px] border p-4 text-left', path === 'custom' ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/[.06]' : 'border-[hsl(var(--border))]')}><Sparkles size={18} className="text-[hsl(var(--primary))]" /><div className="mt-3 text-base font-semibold">New item from chat</div><div className="mt-1 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">Create just the name and price now.</div></button>
           </div>
-          {path === 'catalog' ? <div>{productsQuery.isLoading ? <Skeleton className="h-11 w-full" /> : <select data-testid="select-order-product" required value={form.productId} onChange={(event) => chooseProduct(event.target.value)} className="field-input"><option value="">Choose from catalog</option>{(productsQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name} · {moneyExact(item.price)}</option>)}</select>}{productsQuery.data?.length === 0 && <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">No catalog items yet. Choose “New item from chat” to create one as you make the link.</p>}</div> : <div><label className="field-label" htmlFor="custom-order-name">Item name</label><input id="custom-order-name" data-testid="input-custom-order-name" required value={form.customName} onChange={(event) => change('customName', event.target.value)} placeholder="e.g. Hand-painted denim jacket" className="field-input" /><p className="mt-2 text-[11px] text-[hsl(var(--muted-foreground))]">This keeps a temporary item on the buyer link without adding it to your Catalog.</p></div>}
+          {path === 'catalog' ? <div>{productsQuery.isLoading ? <Skeleton className="h-11 w-full" /> : <select data-testid="select-order-product" required value={form.productId} onChange={(event) => chooseProduct(event.target.value)} className="field-input"><option value="">Choose from catalog</option>{(productsQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name} · {moneyExact(item.price)}</option>)}</select>}{productsQuery.data?.length === 0 && <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">No catalog items yet. Choose “New item from chat” to create one as you make the link.</p>}</div> : <div><label className="field-label" htmlFor="custom-order-name">Item name</label><input id="custom-order-name" data-testid="input-custom-order-name" required value={form.customName} onChange={(event) => change('customName', event.target.value)} placeholder="e.g. Hand-painted denim jacket" className="field-input" /><p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">This keeps a temporary item on the buyer link without adding it to your Catalog.</p></div>}
         </div>}
         {step === 2 && <div className="page-in space-y-6">
-          <div><div className="field-label">Set the agreed terms</div><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">These terms are already negotiated. The buyer will see them before they pay or reserve.</p></div>
+          <div><div className="field-label">Set the agreed terms</div><p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">These terms are already negotiated. The buyer will see them before they pay or reserve.</p></div>
           <div className="grid gap-5 sm:grid-cols-2"><div><label className="field-label" htmlFor="order-amount">Agreed price</label><div className="relative"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input id="order-amount" data-testid="input-order-amount" required type="number" min="0" step=".01" value={form.amount} onChange={(event) => change('amount', event.target.value)} className="field-input pl-7" /></div></div><div><label className="field-label">Conversation started on</label><ChannelPicker value={form.channel} onChange={(value) => change('channel', value)} testId="select-order-channel" /></div></div>
-          <div><div className="field-label">How should they pay?</div><div className="grid gap-2 sm:grid-cols-3">{[['full', 'Pay in full', 'Collect everything now'], ['deposit', 'Pay a deposit', 'Secure the order'], ['reserve', 'Reserve it', 'Confirm details first']].map(([value, title, note]) => <button type="button" key={value} onClick={() => change('paymentMode', value)} data-testid={`button-payment-mode-${value}`} className={cn('rounded-[12px] border p-3 text-left transition-colors', form.paymentMode === value ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]')}><div className="text-xs font-bold">{title}</div><div className={cn('mt-1 text-[10px]', form.paymentMode === value ? 'text-white' : 'text-[hsl(var(--muted-foreground))]')}>{note}</div></button>)}</div></div>
+          <div><div className="field-label">How should they pay?</div><div className="grid gap-2 sm:grid-cols-3">{[['full', 'Pay in full', 'Collect everything now'], ['deposit', 'Pay a deposit', 'Secure the order'], ['reserve', 'Reserve it', 'Confirm details first']].map(([value, title, note]) => <button type="button" key={value} onClick={() => change('paymentMode', value)} data-testid={`button-payment-mode-${value}`} className={cn('rounded-[12px] border p-3 text-left transition-colors', form.paymentMode === value ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]')}><div className="text-sm font-semibold">{title}</div><div className={cn('mt-1 text-xs', form.paymentMode === value ? 'text-white' : 'text-[hsl(var(--muted-foreground))]')}>{note}</div></button>)}</div></div>
           {form.paymentMode === 'deposit' && <div className="page-in"><label className="field-label" htmlFor="order-deposit">Deposit amount</label><div className="relative max-w-[240px]"><span className="absolute left-3 top-2.5 text-sm text-[hsl(var(--muted-foreground))]">$</span><input id="order-deposit" data-testid="input-order-deposit" required type="number" min="0" step=".01" value={form.depositAmount} onChange={(event) => change('depositAmount', event.target.value)} className="field-input pl-7" /></div></div>}
         </div>}
-        {step === 3 && <div className="page-in space-y-5"><div><div className="field-label">Review the buyer page</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">The buyer will see the item, agreed amount, seller name, contact fields, image upload, and payment choice.</p></div><div className="rounded-[14px] bg-[hsl(var(--muted))] p-4 text-sm"><div className="flex items-center justify-between"><span className="text-[hsl(var(--muted-foreground))]">Item</span><strong>{previewName || '—'}</strong></div><div className="mt-3 flex items-center justify-between"><span className="text-[hsl(var(--muted-foreground))]">Amount</span><strong>{form.amount ? moneyExact(Number(form.amount)) : '—'}</strong></div><div className="mt-3 flex items-center justify-between"><span className="text-[hsl(var(--muted-foreground))]">Payment</span><strong className="capitalize">{form.paymentMode === 'deposit' ? `Deposit · ${moneyExact(Number(form.depositAmount))}` : form.paymentMode}</strong></div></div></div>}
+        {step === 3 && <div className="page-in space-y-5"><div><div className="field-label">Review the buyer page</div><p className="mt-1 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">This is exactly what your buyer will see when they open the link.</p></div><div className="rounded-[14px] border border-[hsl(var(--border))] bg-white overflow-hidden shadow-sm"><div className="px-4 py-3 border-b border-[hsl(var(--border))]"><div className="text-[11px] font-bold text-[hsl(var(--primary))] uppercase tracking-wide">Step 1 of 2 · Contact &amp; Delivery</div><div className="text-base font-bold mt-0.5">Contact information</div></div><div className="px-4 py-4 space-y-4"><div><div className="text-xs font-semibold mb-1">Your name <span className="text-destructive">*</span></div><div className="field-input pointer-events-none text-[hsl(var(--muted-foreground))] text-sm">Full name</div></div><div><div className="text-xs font-semibold mb-1">Phone number <span className="text-destructive">*</span></div><div className="field-input pointer-events-none text-[hsl(var(--muted-foreground))] text-sm">Best number to reach you</div></div><div><div className="text-xs font-semibold mb-1">Delivery service <span className="text-destructive">*</span></div><div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border-2 border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/[.04] p-3 flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-[hsl(var(--primary))] flex items-center justify-center shrink-0"><Check size={10} className="text-white stroke-[3]" /></div><div><div className="text-xs font-bold">Pick up</div><div className="text-[10px] text-[hsl(var(--muted-foreground))]">No delivery fee</div></div></div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 flex items-center gap-2"><div className="w-4 h-4 rounded-full border-2 border-[hsl(var(--border))] shrink-0" /><div><div className="text-xs font-bold">Delivery</div><div className="text-[10px] text-[hsl(var(--muted-foreground))]">Free</div></div></div></div></div><div><div className="text-xs font-semibold mb-1 text-[hsl(var(--muted-foreground))]">Useful details <span className="font-normal">(optional)</span></div><div className="field-input pointer-events-none text-[hsl(var(--muted-foreground))] text-sm">Delivery timing, access notes, or anything agreed...</div></div><button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-80">Continue to payment →</button><div className="text-center text-[11px] text-[hsl(var(--muted-foreground))]">Select your payment provider on the next step</div></div></div></div>}
         <div className="flex justify-between border-t border-[hsl(var(--border))] pt-6">{step > 1 ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setStep((current) => (current - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : <span aria-hidden="true" />}<Button type="submit" disabled={!validStep || busy || (path === 'catalog' && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div>
       </form></Card>
-      <Card className="h-fit overflow-hidden"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-6 py-4"><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Buyer page preview</div><Eye size={17} className="text-[hsl(var(--muted-foreground))]" /></div><div className="max-h-[760px] overflow-hidden bg-[hsl(var(--background))] px-6 py-8"><BuyerOrderSurface businessName={seller?.businessName || 'The Sunday Edit'} description={seller?.description} productName={previewName || 'Your item'} amount={form.amount ? Number(form.amount) : 0} paymentMode={form.paymentMode} depositAmount={form.depositAmount ? Number(form.depositAmount) : null} variants={product?.variants ?? []}><div className="space-y-5"><div><label className="field-label">Your name</label><input disabled placeholder="Full name" className="field-input" /></div><div><label className="field-label">Phone number</label><input disabled placeholder="Best number to reach you" className="field-input" /></div>{product?.preferences?.length ? <div><label className="field-label">Buyer preferences</label><div className="space-y-3">{product.preferences.map((preference) => <div key={preference.label}><span className="text-xs font-semibold">{preference.label}</span><div className="mt-2 flex flex-wrap gap-2">{preference.options.map((option) => <span key={option} className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-xs">{option}</span>)}</div></div>)}</div></div> : null}<div><label className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea disabled placeholder="Anything already agreed..." rows={3} className="field-input resize-none" /></div><div><label className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><div className="flex items-center gap-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] p-3 text-xs text-[hsl(var(--muted-foreground))]"><Clipboard size={15} />Attach an image</div></div>{form.paymentMode !== 'reserve' && <div className="grid grid-cols-2 gap-2"><div className="rounded-[10px] border border-[hsl(var(--primary))] bg-[hsl(var(--primary))] p-3 text-left text-xs font-bold text-white">{form.paymentMode === 'deposit' ? `Pay deposit · ${form.depositAmount ? moneyExact(Number(form.depositAmount)) : '—'}` : `Pay ${form.amount ? moneyExact(Number(form.amount)) : '—'}`}</div><div className="rounded-[10px] border border-[hsl(var(--border))] p-3 text-left text-xs font-bold">Reserve for later</div></div>}<button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] py-3.5 text-sm font-bold text-white opacity-70">{form.paymentMode === 'reserve' ? 'Reserve this item' : 'Continue to mock payment'} <ArrowUpRight size={15} /></button></div></BuyerOrderSurface></div></Card>
+      <Card className="h-fit overflow-hidden"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-6 py-4"><div className="font-mono-ui text-xs font-semibold uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Buyer page preview</div><Eye size={17} className="text-[hsl(var(--muted-foreground))]" /></div><div className="max-h-[760px] overflow-hidden p-6" style={{ background: '#EDE8DF' }}><div className="rounded-2xl bg-white p-5 shadow-sm space-y-4 text-left"><div className="border-b border-neutral-100 pb-3"><div className="text-[11px] font-semibold text-blue-600 tracking-tight">Step 1 of 2 · Contact &amp; Delivery</div><h3 className="text-lg font-bold text-neutral-900 mt-0.5">Contact information</h3></div><div className="space-y-3.5"><div><label className="block text-xs font-semibold text-neutral-800 mb-1">Your name <span className="text-red-500">*</span></label><input disabled placeholder="Full name" className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-400 cursor-not-allowed" /></div><div><label className="block text-xs font-semibold text-neutral-800 mb-1">Phone number <span className="text-red-500">*</span></label><input disabled placeholder="Best number to reach you" className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-400 cursor-not-allowed" /></div><div><label className="block text-xs font-semibold text-neutral-800 mb-1.5">Delivery service <span className="text-red-500">*</span></label><div className="grid grid-cols-2 gap-2"><div className="rounded-xl border-2 border-neutral-900 p-2.5 flex items-center gap-2 bg-neutral-50/50"><div className="w-4 h-4 rounded-full bg-neutral-900 flex items-center justify-center shrink-0"><Check size={10} className="text-white stroke-[3]" /></div><div><div className="text-xs font-bold text-neutral-900">Pick up</div><div className="text-[10px] text-neutral-500">No delivery fee</div></div></div><div className="rounded-xl border border-neutral-200 p-2.5 flex items-center gap-2"><div className="w-4 h-4 rounded-full border border-neutral-300 shrink-0" /><div><div className="text-xs font-semibold text-neutral-700">Delivery</div><div className="text-[10px] text-neutral-400">Free</div></div></div></div></div><div><label className="block text-xs font-semibold text-neutral-800 mb-1">Useful details <span className="font-normal text-neutral-400">(optional)</span></label><textarea disabled placeholder="Delivery timing, access notes, or anything agreed..." rows={2} className="w-full px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-400 resize-none cursor-not-allowed" /></div><button type="button" disabled className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 py-3 text-xs font-bold text-white shadow-xs cursor-not-allowed">Continue to payment →</button><p className="text-center text-[10px] text-neutral-400 pt-0.5">Select your payment provider on the next step</p></div></div></div></Card>
     </div>
   </Shell>;
 }
@@ -2013,32 +5799,34 @@ type DraftOrderItem = {
 const takeOrderStepMeta: Array<{ step: TakeOrderStep; label: string; detail: string }> = [
   { step: 1, label: 'Items', detail: 'Build the basket' },
   { step: 2, label: 'Checkout', detail: 'Confirm items and payment' },
-  { step: 3, label: 'Review', detail: 'Check before sharing' },
+  { step: 3, label: 'Preview', detail: 'Live buyer preview' },
 ];
 
 function TakeOrderStepRail({ step, onStepChange }: { step: TakeOrderStep; onStepChange: (step: TakeOrderStep) => void }) {
   return <nav className="take-order-step-rail" aria-label="Order link setup">
-    {takeOrderStepMeta.map((item, index) => {
-      const complete = step > item.step;
-      const current = step === item.step;
-      return <React.Fragment key={item.step}>
-        <button
-          type="button"
-          className={cn('take-order-step', current && 'is-current', complete && 'is-complete')}
-          onClick={() => complete && onStepChange(item.step)}
-          disabled={!complete && !current}
-          aria-current={current ? 'step' : undefined}
-          aria-label={`${item.label}: ${item.detail}${complete ? ', edit' : current ? ', current step' : ', locked'}`}
-        >
-          <span className="take-order-step-number">{complete ? <Check size={13} /> : item.step}</span>
-          <span className="min-w-0 text-left">
-            <span className="take-order-step-label">{item.label}</span>
-            <span className="take-order-step-detail">{item.detail}</span>
-          </span>
-        </button>
-        {index < takeOrderStepMeta.length - 1 && <span className={cn('take-order-step-line', step > item.step && 'is-complete')} aria-hidden="true" />}
-      </React.Fragment>;
-    })}
+    <div className="take-order-step-pill-container">
+      {takeOrderStepMeta.map((item, index) => {
+        const complete = step > item.step;
+        const current = step === item.step;
+        return <React.Fragment key={item.step}>
+          <button
+            type="button"
+            className={cn('take-order-step', current && 'is-current', complete && 'is-complete')}
+            onClick={() => complete && onStepChange(item.step)}
+            disabled={!complete && !current}
+            aria-current={current ? 'step' : undefined}
+            aria-label={`${item.label}: ${item.detail}${complete ? ', edit' : current ? ', current step' : ', locked'}`}
+          >
+            <span className="take-order-step-number">{complete ? <Check size={13} strokeWidth={2.5} /> : item.step}</span>
+            <span className="min-w-0 text-left">
+              <span className="take-order-step-label">{item.label}</span>
+              <span className="take-order-step-detail">{item.detail}</span>
+            </span>
+          </button>
+          {index < takeOrderStepMeta.length - 1 && <span className={cn('take-order-step-line', step > item.step && 'is-complete')} aria-hidden="true" />}
+        </React.Fragment>;
+      })}
+    </div>
   </nav>;
 }
 
@@ -2057,15 +5845,23 @@ type TakeOrderItemSource = 'catalog' | 'custom';
 
 function TakeOrderChoiceCards({ selected, onSelect }: { selected: TakeOrderItemSource | null; onSelect: (source: TakeOrderItemSource) => void }) {
   return <div className="take-order-choice-grid" role="group" aria-label="Choose how to add an item">
-    <button type="button" aria-pressed={selected === 'catalog'} className={cn('take-order-choice-card', selected === 'catalog' && 'is-active')} onClick={() => onSelect('catalog')}>
-      <span className="take-order-choice-mark"><Boxes size={17} /></span>
-      <span className="take-order-choice-copy"><strong>From catalog</strong><small>Use a saved product and price.</small></span>
-      <ChevronRight size={16} aria-hidden="true" />
+    <button type="button" data-testid="button-choose-catalog-item" aria-pressed={selected === 'catalog'} className={cn('take-order-choice-card group', selected === 'catalog' && 'is-active')} onClick={() => onSelect('catalog')}>
+      <span className="take-order-choice-mark"><Boxes size={22} /></span>
+      <span className="take-order-choice-copy">
+        <strong>From catalog</strong>
+        <small>Use a saved product, inventory, and preset price.</small>
+        <span className="take-order-choice-pill">Saved inventory</span>
+      </span>
+      <ChevronRight size={18} className="take-order-choice-arrow" aria-hidden="true" />
     </button>
-    <button type="button" aria-pressed={selected === 'custom'} className={cn('take-order-choice-card', selected === 'custom' && 'is-active')} onClick={() => onSelect('custom')}>
-      <span className="take-order-choice-mark is-custom"><Plus size={17} /></span>
-      <span className="take-order-choice-copy"><strong>Not from catalog</strong><small>Add a one-off item from your conversation.</small></span>
-      <ChevronRight size={16} aria-hidden="true" />
+    <button type="button" data-testid="button-choose-custom-item" aria-pressed={selected === 'custom'} className={cn('take-order-choice-card is-custom-card group', selected === 'custom' && 'is-active')} onClick={() => onSelect('custom')}>
+      <span className="take-order-choice-mark is-custom"><Sparkles size={22} /></span>
+      <span className="take-order-choice-copy">
+        <strong>Not from catalog</strong>
+        <small>Add a one-off item from your conversation.</small>
+        <span className="take-order-choice-pill is-accent">Instant quote</span>
+      </span>
+      <ChevronRight size={18} className="take-order-choice-arrow" aria-hidden="true" />
     </button>
   </div>;
 }
@@ -2095,7 +5891,7 @@ function TakeOrderCustomOrderPanel({ items, total, canContinue, busy, onRemove, 
       {items.length ? <div className="take-order-custom-order-items">
          {items.map((item) => <div key={item.key} className="take-order-custom-order-row">
            <div className="take-order-custom-order-mark"><img src={item.imageUrls?.[0] ?? item.imageUrl ?? productImageFor(item.name)} alt="" /></div>
-          <div className="take-order-custom-order-copy"><strong>{item.name}</strong><span>{item.preferences.length ? `${item.preferences.length} option group${item.preferences.length === 1 ? '' : 's'}` : 'Custom item'}</span></div>
+          <div className="take-order-custom-order-copy take-order-item-copy"><strong>{item.name}</strong><span>{item.preferences.length ? `${item.preferences.length} buyer option${item.preferences.length === 1 ? '' : 's'}` : 'Custom item'}</span></div>
           <div className="take-order-custom-order-price"><span>{currencySymbol()}</span><input aria-label={`Price for ${item.name}`} type="number" min="0" step=".01" value={item.amount} onChange={(event) => onUpdateAmount(item.key, event.target.value)} /></div>
           <button type="button" aria-label={`Remove ${item.name}`} onClick={() => onRemove(item.key)}><X size={14} /></button>
         </div>)}
@@ -2115,66 +5911,315 @@ function TakeOrderCustomOrderPanel({ items, total, canContinue, busy, onRemove, 
   </aside>;
 }
 
-function TakeOrderCheckoutSummary({ items, total, paymentMode, deposit }: { items: DraftOrderItem[]; total: number; paymentMode: 'full' | 'deposit' | 'reserve'; deposit: number }) {
-  const paymentLabel = paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'reserve' ? 'Reserve it · Pay later' : 'Pay in full';
+function TakeOrderCheckoutSummary({ items, total, paymentMode, deposit, deliveryFee = 0 }: { items: DraftOrderItem[]; total: number; paymentMode: 'full' | 'deposit' | 'reserve' | null; deposit: number; deliveryFee?: number }) {
+  const paymentLabel = paymentMode === 'deposit'
+    ? `Deposit · ${moneyExact(deposit)}`
+    : paymentMode === 'reserve'
+      ? 'Make Reservation · Pay on delivery'
+      : paymentMode === 'full'
+        ? 'Full Payment'
+        : 'Select payment option';
+  const effectiveTotal = total + (deliveryFee || 0);
   return <aside className="take-order-checkout-summary">
     <div className="take-order-checkout-summary-body">
-      <div className="take-order-checkout-summary-heading"><ShoppingBag size={22} /><div><strong>Basket</strong><span>Order summary</span></div></div>
+      <div className="take-order-checkout-summary-heading"><ShoppingBag size={20} /><div><strong>Basket</strong><span>Order summary</span></div></div>
       <div className="take-order-checkout-summary-section">
-        <div className="take-order-checkout-summary-label">Items</div>
+        <div className="take-order-checkout-summary-label">Items ({items.length})</div>
          <div className="take-order-checkout-summary-items">{items.map((item) => <div key={item.key}><span className="take-order-summary-item-copy"><img src={item.imageUrls?.[0] ?? item.imageUrl ?? productImageFor(item.name)} alt="" />{item.name} × 1</span><strong>{moneyExact(item.amount)}</strong></div>)}</div>
       </div>
       <div className="take-order-checkout-summary-divider" />
       <div className="take-order-checkout-summary-line"><span>Subtotal</span><strong>{moneyExact(total)}</strong></div>
+      {deliveryFee > 0 && <div className="take-order-checkout-summary-line"><span>Delivery fee</span><strong>+{moneyExact(deliveryFee)}</strong></div>}
       <div className="take-order-checkout-summary-line"><span>Payment method</span><strong>{paymentLabel}</strong></div>
-      <div className="take-order-checkout-summary-total"><div><span>Total</span><strong>{moneyExact(total)}</strong></div><small>Final total payable on confirmation</small></div>
+      <div className="take-order-checkout-summary-total"><div><span>Total</span><strong>{moneyExact(effectiveTotal)}</strong></div><small>Final total payable on confirmation</small></div>
     </div>
     <div className="take-order-checkout-summary-note">Summary will be confirmed on step 3</div>
   </aside>;
 }
 
-function TakeOrderBuyerPreviewForm({ item, items, paymentMode, total, deposit }: { item: BuyerOrderItem; items: BuyerOrderItem[]; paymentMode: 'full' | 'deposit' | 'reserve'; total: number; deposit: number }) {
-  const previewForm: BuyerOrderFormValues = { name: '', phone: '', deliveryMethod: 'pickup', address: '', orderDetails: '' };
-  const previewItemForm = emptyBuyerItemForm();
-  return <BuyerOrderForm
-    paymentMode={paymentMode}
-    amount={total}
-    depositAmount={paymentMode === 'deposit' ? deposit : null}
-    item={item}
-    itemIndex={0}
-    itemCount={items.length}
-    items={items}
-    itemForm={previewItemForm}
-    form={previewForm}
-    mockPayment={{ cardNumber: '', expiry: '', cvc: '' }}
-    showMockPayment={false}
-    submitPending={false}
-    onSubmit={(event) => event.preventDefault()}
-    onChange={() => undefined}
-    onItemChange={() => undefined}
-    onQuantityChange={() => undefined}
-    onPreferenceChange={() => undefined}
-    onMockPaymentChange={() => undefined}
-    onReferenceImageChange={() => undefined}
-    onPaymentAction={() => undefined}
-  />;
+function ApplePhonePreview({
+  businessName,
+  items,
+  total,
+  paymentMode,
+  deposit,
+  deliveryFee,
+  channel,
+}: {
+  businessName: string;
+  items: DraftOrderItem[];
+  total: number;
+  paymentMode: 'full' | 'deposit' | 'reserve' | null;
+  deposit: number;
+  deliveryFee: number;
+  channel: string;
+}) {
+  const payableToday = paymentMode === 'deposit' ? deposit : paymentMode === 'reserve' ? 0 : total + deliveryFee;
+  return (
+    <div className="take-order-apple-phone" aria-label="Buyer mobile page preview">
+      <div className="take-order-phone-speaker">
+        <div className="take-order-phone-dynamic-island">
+          <div className="take-order-phone-camera" />
+        </div>
+      </div>
+      <div className="take-order-phone-status-bar">
+        <span className="take-order-phone-time">9:41</span>
+        <div className="take-order-phone-icons">
+          <Signal size={12} strokeWidth={2.2} />
+          <Wifi size={12} strokeWidth={2.2} />
+          <div className="take-order-phone-battery"><div className="take-order-phone-battery-level" /></div>
+        </div>
+      </div>
+      <div className="take-order-phone-screen">
+        <div className="take-order-phone-browser-bar">
+          <Lock size={10} className="text-neutral-400" />
+          <span className="truncate">takeorder.app/o/checkout</span>
+        </div>
+
+        <div className="take-order-phone-scroll-body">
+          <div className="take-order-phone-store-header">
+            <div className="take-order-phone-avatar">{businessName.slice(0, 2).toUpperCase()}</div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1 font-semibold text-xs text-neutral-900 dark:text-neutral-100 truncate">
+                <span>{businessName}</span>
+                <CheckCircle2 size={12} className="text-blue-500 shrink-0" />
+              </div>
+              <div className="text-[10px] text-neutral-500 capitalize">{channelName(channel as any)} checkout link</div>
+            </div>
+          </div>
+
+          <div className="take-order-phone-pass-card">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 mb-2">Order Items ({items.length})</div>
+            <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+              {items.map((item) => (
+                <div key={item.key} className="flex items-center gap-2">
+                  <img
+                    src={item.imageUrls?.[0] ?? item.imageUrl ?? productImageFor(item.name)}
+                    alt=""
+                    className="w-9 h-9 rounded-lg object-cover bg-neutral-100 dark:bg-neutral-800 shrink-0 border border-neutral-200/50 dark:border-neutral-700/50"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold text-neutral-900 dark:text-neutral-100 truncate">{item.name}</div>
+                    <div className="text-[10px] text-neutral-500">{item.source === 'catalog' ? 'Catalog item' : 'Custom'}</div>
+                  </div>
+                  <div className="text-xs font-bold font-mono-ui text-neutral-900 dark:text-neutral-100">{moneyExact(item.amount)}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-neutral-200/70 dark:border-neutral-800 space-y-1 text-xs">
+              <div className="flex justify-between text-neutral-500 text-[11px]">
+                <span>Subtotal</span>
+                <span className="font-mono-ui">{moneyExact(total)}</span>
+              </div>
+              {deliveryFee > 0 && (
+                <div className="flex justify-between text-neutral-500 text-[11px]">
+                  <span>Delivery fee</span>
+                  <span className="font-mono-ui">{moneyExact(deliveryFee)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-neutral-900 dark:text-white pt-1 text-xs">
+                <span>Total amount</span>
+                <span className="font-mono-ui text-sm">{moneyExact(total + deliveryFee)}</span>
+              </div>
+              {paymentMode === 'deposit' && (
+                <div className="flex justify-between font-bold text-blue-600 dark:text-blue-400 text-[11px] pt-0.5">
+                  <span>Payable today (Deposit)</span>
+                  <span className="font-mono-ui">{moneyExact(deposit)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="take-order-phone-buyer-inputs-mock">
+            <div className="mock-input-row"><span>Customer name</span><span>Customer in conversation</span></div>
+            <div className="mock-input-row"><span>Phone number</span><span>Entered at checkout</span></div>
+            <div className="mock-input-row"><span>Fulfilment</span><span>Pickup / Delivery</span></div>
+          </div>
+
+          <div className="take-order-phone-pay-action">
+            <div className="take-order-phone-apple-pay-btn">
+              <span className="font-semibold text-xs tracking-tight">
+                {paymentMode === 'reserve' ? 'Reserve order' : `Pay ${moneyExact(payableToday)}`}
+              </span>
+            </div>
+            <div className="text-center text-[9px] text-neutral-400 mt-2 flex items-center justify-center gap-1">
+              <ShieldCheck size={11} className="text-emerald-500" />
+              <span>Apple Pay & Card payments supported</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="take-order-phone-home-indicator" />
+      </div>
+    </div>
+  );
+}
+
+function TakeOrderBuyerPreviewForm({
+  item,
+  items,
+  paymentMode,
+  subtotal,
+  deposit,
+  deliveryFee = 0,
+  itemIndex = 0,
+  onActiveIndexChange,
+}: {
+  item: BuyerOrderItem;
+  items: BuyerOrderItem[];
+  paymentMode: 'full' | 'deposit' | 'reserve' | null;
+  subtotal: number;
+  deposit: number;
+  deliveryFee?: number;
+  itemIndex?: number;
+  onActiveIndexChange?: (index: number) => void;
+}) {
+  const [form, setForm] = useState<BuyerOrderFormValues>({
+    name: '',
+    phone: '',
+    deliveryMethod: undefined,
+    address: '',
+    orderDetails: '',
+  });
+  const [itemForms, setItemForms] = useState<BuyerItemFormValues[]>(() =>
+    items.map(() => emptyBuyerItemForm())
+  );
+  const [activeItemStep, setActiveItemStep] = useState(itemIndex);
+  const [submitError, setSubmitError] = useState('');
+  const [previewCompleted, setPreviewCompleted] = useState(false);
+
+  useEffect(() => {
+    setActiveItemStep(itemIndex);
+  }, [itemIndex]);
+
+  useEffect(() => {
+    setItemForms((current) => items.map((_, idx) => current[idx] ?? emptyBuyerItemForm()));
+  }, [items.length]);
+
+  const currentItem = items[activeItemStep] ?? item;
+  const currentItemForm = itemForms[activeItemStep] ?? emptyBuyerItemForm();
+
+  const currentSubtotal = itemForms.length === items.length
+    ? items.reduce((sum, itm, idx) => sum + itm.amount * (itemForms[idx]?.quantity ?? 1), 0)
+    : subtotal;
+  const currentDeliveryFee = form.deliveryMethod === 'delivery' ? deliveryFee : 0;
+  const currentTotal = currentSubtotal + currentDeliveryFee;
+
+  if (previewCompleted) {
+    return (
+      <div className="buyer-order-detail-card p-8 sm:p-10 text-center space-y-4 my-auto">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+          <Check size={28} strokeWidth={2.5} />
+        </div>
+        <h3 className="text-xl font-bold text-neutral-900">Preview: Order Submitted</h3>
+        <p className="text-sm text-neutral-500 max-w-sm mx-auto leading-relaxed">
+          {paymentMode === 'reserve'
+            ? 'When a buyer reserves, you’ll get an instant notification to confirm fulfillment.'
+            : 'When a buyer completes checkout, payment is collected and logged directly in your Orders list.'}
+        </p>
+        <button
+          type="button"
+          onClick={() => setPreviewCompleted(false)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
+        >
+          Reset preview form
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <BuyerOrderForm
+      paymentMode={paymentMode}
+      amount={currentTotal}
+      depositAmount={paymentMode === 'deposit' ? deposit : null}
+      deliveryFee={deliveryFee}
+      askForDetails={true}
+      allowReferenceImages={true}
+      item={currentItem}
+      itemIndex={activeItemStep}
+      itemCount={items.length}
+      items={items}
+      itemForms={itemForms}
+      itemForm={currentItemForm}
+      form={form}
+      submitPending={false}
+      submitError={submitError}
+      onSubmit={(event) => {
+        event.preventDefault();
+        setPreviewCompleted(true);
+      }}
+      onChange={(key, value) => {
+        setSubmitError('');
+        if (key === 'details') {
+          setItemForms((curr) => curr.map((it, idx) => idx === activeItemStep ? { ...it, details: value } : it));
+        } else {
+          setForm((curr) => ({ ...curr, [key]: value }));
+        }
+      }}
+      onItemChange={(key, value) => {
+        setSubmitError('');
+        setItemForms((curr) => curr.map((it, idx) => idx === activeItemStep ? { ...it, [key]: value } : it));
+      }}
+      onQuantityChange={(qty) => {
+        setItemForms((curr) => curr.map((it, idx) => idx === activeItemStep ? { ...it, quantity: qty } : it));
+      }}
+      onPreferenceChange={(label, value) => {
+        setSubmitError('');
+        setItemForms((curr) => curr.map((it, idx) => idx === activeItemStep ? { ...it, preferences: { ...it.preferences, [label]: value } } : it));
+      }}
+      onNextItem={() => {
+        if (activeItemStep < items.length - 1) {
+          const nextIdx = activeItemStep + 1;
+          setActiveItemStep(nextIdx);
+          onActiveIndexChange?.(nextIdx);
+        }
+      }}
+      onPrevItem={() => {
+        if (activeItemStep > 0) {
+          const prevIdx = activeItemStep - 1;
+          setActiveItemStep(prevIdx);
+          onActiveIndexChange?.(prevIdx);
+        }
+      }}
+      onBack={() => {
+        if (activeItemStep > 0) {
+          const prevIdx = activeItemStep - 1;
+          setActiveItemStep(prevIdx);
+          onActiveIndexChange?.(prevIdx);
+        }
+      }}
+      onReferenceImageChange={(event) => {
+        const file = event.target.files?.[0];
+        if (file) {
+          const previewUrl = URL.createObjectURL(file);
+          setItemForms((curr) => curr.map((it, idx) => idx === activeItemStep ? { ...it, imagePreview: previewUrl, image: file.name } : it));
+        }
+      }}
+      onError={setSubmitError}
+    />
+  );
 }
 
 function MultiItemTakeOrderModern() {
+  const { userId } = useAppAuth();
+  const entitlements = useEntitlements(userId);
   const productsQuery = useListProducts();
   const settingsQuery = useGetSellerSettings();
   const createOrder = useCreateOrder();
   const createProduct = useCreateProduct();
   const seller = readSellerProfile();
+  const [upgradeDialogReason, setUpgradeDialogReason] = useState<UpgradeReason | null>(null);
   const [step, setStep] = useState<TakeOrderStep>(1);
   const [items, setItems] = useState<DraftOrderItem[]>([]);
   const [nextKey, setNextKey] = useState(1);
   const [itemSource, setItemSource] = useState<TakeOrderItemSource | null>(null);
   const [customDraft, setCustomDraft] = useState<{ name: string; amount: string; preferences: ProductPreferenceDraft[] }>({ name: '', amount: '', preferences: [] });
-  const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
+  const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve' | null>(null);
   const [depositAmount, setDepositAmount] = useState('');
   const [deliveryFee, setDeliveryFee] = useState('0');
-   const [channel, setChannel] = useState<OrderInput['channel'] | ''>('');
+  const [channel, setChannel] = useState<OrderInput['channel'] | ''>('');
   const [catalogSearch, setCatalogSearch] = useState('');
   const [created, setCreated] = useState<Order | null>(null);
   const [copied, setCopied] = useState(false);
@@ -2182,8 +6227,9 @@ function MultiItemTakeOrderModern() {
   const [feedback, setFeedback] = useState<string | null>(null);
   useEffect(() => {
     if (!settingsQuery.data) return;
-    setPaymentMode(settingsQuery.data.paymentMode);
-    setDeliveryFee(String(settingsQuery.data.deliveryFee));
+    if (settingsQuery.data.deliveryFee != null) {
+      setDeliveryFee(String(settingsQuery.data.deliveryFee));
+    }
   }, [settingsQuery.data]);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
   const catalogProducts = productsQuery.data ?? [];
@@ -2196,9 +6242,39 @@ function MultiItemTakeOrderModern() {
   }, [catalogProducts, catalogSearch]);
   const choiceOnly = step === 1 && itemSource === null && items.length === 0;
   const catalogStage = step === 1 && itemSource === 'catalog';
-  const previewItems: BuyerOrderItem[] = items.length
-    ? items.map((item) => ({ productId: item.productId ?? item.key, productName: item.name, amount: item.amount, variants: item.variants, preferences: item.preferences, source: item.source }))
-    : [{ productId: 0, productName: 'Your item', amount: 0, variants: [], preferences: [], source: 'catalog' }];
+  const [previewIndex, setPreviewIndex] = useState(0);
+  useEffect(() => {
+    setPreviewIndex(0);
+  }, [items.length]);
+  const previewItems: BuyerOrderItem[] = useMemo(() => {
+    if (!items.length) {
+      return [{
+        productId: 0,
+        productName: 'Your item',
+        amount: 0,
+        variants: [],
+        preferences: [],
+        source: 'catalog' as const,
+      }];
+    }
+    return items.map((item) => {
+      const img = item.imageUrls?.[0] ?? item.imageUrl ?? productImageFor(item.name);
+      return {
+        productId: item.productId ?? item.key,
+        productName: item.name,
+        amount: item.amount,
+        variants: item.variants,
+        preferences: item.preferences,
+        imageUrl: img,
+        imageUrls: item.imageUrls?.length ? item.imageUrls : [img],
+        stock: item.stock,
+        description: item.description,
+        compareAtPrice: item.compareAtPrice,
+        available: item.available ?? true,
+        source: item.source,
+      };
+    });
+  }, [items]);
   const busy = createOrder.isPending || createProduct.isPending;
   const deposit = Number(depositAmount);
   const validDeposit = paymentMode !== 'deposit' || (Number.isFinite(deposit) && deposit > 0 && deposit <= total);
@@ -2206,7 +6282,7 @@ function MultiItemTakeOrderModern() {
   const validDeliveryFee = Number.isFinite(deliveryFeeAmount) && deliveryFeeAmount >= 0;
    const canContinue = step === 1
      ? items.length > 0 && items.every((item) => item.amount > 0)
-     : total > 0 && validDeposit && validDeliveryFee && Boolean(channel);
+     : total > 0 && paymentMode !== null && validDeposit && validDeliveryFee && Boolean(channel);
   const showPreview = step === 3;
   const goToStep = (nextStep: TakeOrderStep) => {
     if (nextStep === 1) {
@@ -2223,7 +6299,7 @@ function MultiItemTakeOrderModern() {
     setStep(nextStep);
   };
 
-  const getErrorMessage = (error: unknown, fallback: string) => error instanceof Error && error.message ? error.message : fallback;
+  const getErrorMessage = (error: unknown, fallback: string) => formatUserFacingError(error, fallback);
   const toggleCatalogProduct = (product: Product) => {
     setItems((current) => {
       const existing = current.some((item) => item.productId === product.id);
@@ -2263,29 +6339,52 @@ function MultiItemTakeOrderModern() {
       : filteredCatalogProducts.length
         ? <div className="take-order-product-grid" aria-label="Catalog products">{filteredCatalogProducts.map((product) => {
           const selected = items.some((item) => item.productId === product.id);
+          const variantSummary = product.preferences?.length
+            ? product.preferences.map((preference) => `${preference.label}: ${preference.options.join(', ')}`).join(' · ')
+            : product.variants?.length
+              ? product.variants.join(' · ')
+              : null;
           return <button type="button" key={product.id} className={cn('take-order-product-card', selected && 'is-selected')} onClick={() => toggleCatalogProduct(product)} aria-label={`${selected ? 'Remove' : 'Add'} ${product.name} ${selected ? 'from' : 'to'} order`} aria-pressed={selected}>
             <img src={product.imageUrl ?? productImageFor(product.name)} alt="" className="take-order-product-image" />
-            <span className="take-order-product-copy"><strong>{product.name}</strong><small>{product.category || 'Catalog item'}{product.description ? ` · ${product.description}` : ''}</small><b>{moneyExact(product.price)}</b></span>
+            <span className="take-order-product-copy"><strong className="font-semibold">{product.name}</strong><small>{variantSummary || (product.category ? `${product.category}${product.description ? ` · ${product.description}` : ''}` : product.description || 'Catalog item')}</small><b className="font-semibold">{moneyExact(product.price)}</b></span>
             <span className="take-order-product-add" aria-hidden="true">{selected ? <Check size={16} strokeWidth={3} /> : <Plus size={18} />}</span>
           </button>;
         })}</div>
-        : <p className="take-order-help">{catalogProducts.length ? 'No products match this search.' : 'No saved products yet. Add a one-off item to start this order.'}</p>;
+        : <div className="p-8 text-center" data-testid="catalog-search-empty">
+            <p className="take-order-help">{catalogProducts.length ? `No products match “${catalogSearch}”.` : 'No saved products yet.'}</p>
+            <Button type="button" variant="outline" className="mt-3 text-xs rounded-xl" onClick={() => { setItemSource('custom'); setFeedback(null); }}>
+              <Sparkles size={14} className="mr-1.5 text-blue-600 dark:text-blue-400" />
+              Take a custom product instead
+            </Button>
+          </div>;
   const updateAmount = (key: number, value: string) => {
     const amount = Number(value);
     setItems((current) => current.map((item) => item.key === key ? { ...item, amount: Number.isFinite(amount) && amount >= 0 ? amount : 0 } : item));
     setFeedback(null);
   };
   const createLink = (productIds: number[]) => {
+    if (entitlements.tier === 'free' && (entitlements.limits.activeLinkLimitReached || entitlements.usage.activeLinkCount >= FREE_ACTIVE_LINK_LIMIT)) {
+      setUpgradeDialogReason('link_limit');
+      return;
+    }
     const data: OrderInput = {
       items: items.map((item, index) => ({ productId: productIds[index]!, amount: item.amount })),
-      paymentMode,
+      paymentMode: paymentMode ?? 'full',
       depositAmount: paymentMode === 'deposit' ? deposit : null,
       deliveryFee: deliveryFeeAmount,
-       channel: channel as OrderInput['channel'],
+      channel: channel as OrderInput['channel'],
     };
     createOrder.mutate({ data }, {
       onSuccess: (order) => { setFeedback(null); setCreated(order); },
-      onError: (error) => setFeedback(getErrorMessage(error, 'The buyer link could not be created. Check your connection and try again.')),
+      onError: (error) => {
+        const errorMsg = (error as any)?.message || '';
+        const errorCode = (error as any)?.code || (error as any)?.response?.data?.code;
+        if (errorCode === 'LINK_LIMIT_REACHED' || errorMsg.includes('Active link limit reached') || errorMsg.includes('LINK_LIMIT_REACHED')) {
+          setUpgradeDialogReason('link_limit');
+        } else {
+          setFeedback(getErrorMessage(error, 'The buyer link could not be created. Check your connection and try again.'));
+        }
+      },
     });
   };
   const resolveItems = (index: number, productIds: number[] = []) => {
@@ -2314,6 +6413,10 @@ function MultiItemTakeOrderModern() {
       setFeedback(items.length ? 'Every item needs a price greater than $0.00.' : 'Add at least one item to continue.');
       return;
     }
+    if (step === 2 && !paymentMode) {
+      setFeedback('Choose how the buyer should pay before continuing.');
+      return;
+    }
     if (step === 2 && !validDeposit) {
       setFeedback('The deposit must be greater than $0.00 and no more than the order total.');
       return;
@@ -2322,17 +6425,21 @@ function MultiItemTakeOrderModern() {
       setFeedback('The delivery fee must be $0.00 or more.');
       return;
     }
-     if (step === 2 && !channel) {
-       setFeedback('Choose the conversation channel before continuing.');
-       return;
-     }
+    if (step === 2 && !channel) {
+      setFeedback('Choose the conversation channel before continuing.');
+      return;
+    }
     if (step < 3) {
       setStep((current) => (current + 1) as TakeOrderStep);
       return;
     }
+    if (entitlements.limits.activeLinkLimitReached) {
+      setUpgradeDialogReason('link_limit');
+      return;
+    }
     resolveItems(0);
   };
-  const link = created ? `${window.location.origin}/o/${created.token}` : '';
+  const link = created ? buildPublicOrderLink(created.token) : '';
   const copy = async () => {
     setCopyError(false);
     try {
@@ -2352,10 +6459,10 @@ function MultiItemTakeOrderModern() {
     setStep(1);
     setItems([]);
     setNextKey(1);
-     setItemSource(null);
-     setCustomDraft({ name: '', amount: '', preferences: [] });
-     setCatalogSearch('');
-    setPaymentMode('full');
+    setItemSource(null);
+    setCustomDraft({ name: '', amount: '', preferences: [] });
+    setCatalogSearch('');
+    setPaymentMode(null);
     setDepositAmount('');
     setDeliveryFee('0');
      setChannel('');
@@ -2376,100 +6483,387 @@ function MultiItemTakeOrderModern() {
     </div></Shell>;
   }
 
-   return <Shell>
-      <div className="take-order-page">
-        {step < 3 && <PageHeading title="Create an order" />}
-        {step < 3 && <TakeOrderStepRail step={step} onStepChange={goToStep} />}
-        <div className={cn('take-order-layout', !showPreview && 'is-builder-only', showPreview && 'is-review-only')}>
-         <div className={cn('take-order-builder-card take-order-flow-panel', catalogStage && 'take-order-catalog-stage-card', choiceOnly && 'take-order-choice-stage-card')}>
-          <form onSubmit={submit}>
-                {choiceOnly && <div className="take-order-choice-stage">
-                  <div className="take-order-choice-stage-heading">
-                    <div className="take-order-section-eyebrow">Step 01 · Add an item</div>
-                    <h2>How would you like to add an item?</h2>
-                    <p>Start with a saved product or create a one-off item from your conversation.</p>
-                  </div>
-                  <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
-               </div>}
-               {step === 1 && catalogStage && <>
-                 <div className={cn('take-order-catalog-stage', items.length > 0 && 'has-selection')}>
-               <div className="take-order-catalog-browser">
-                  {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}
-                  <div className="take-order-catalog-toolbar">
-                    <div className="take-order-search">
-                      <Search size={18} aria-hidden="true" />
-                      <input aria-label="Search catalog" value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="Search your catalog or type product name..." />
+  const canGoBack = step > 1 || (step === 1 && (itemSource !== null || items.length > 0));
+  const handleBack = () => {
+    if (step === 3) {
+      goToStep(2);
+    } else if (step === 2) {
+      goToStep(1);
+    } else if (step === 1) {
+      setItemSource(null);
+    }
+  };
+
+  return <Shell>
+    <div className="take-order-page">
+      <div className="take-order-header-bar flex items-center justify-between gap-4 mb-6">
+        <div className="w-12 sm:w-36 flex items-center justify-start">
+          {canGoBack && (
+            <button
+              type="button"
+              className="take-order-header-back-btn"
+              onClick={handleBack}
+              aria-label="Go back"
+              title="Go back"
+            >
+              <ArrowLeft size={18} strokeWidth={2.2} />
+            </button>
+          )}
+        </div>
+        <div className="flex-1 flex justify-center">
+          <TakeOrderStepRail step={step} onStepChange={goToStep} />
+        </div>
+        <div className="w-12 sm:w-36 flex items-center justify-end">
+          {step === 3 && (
+            <Button
+              type="submit"
+              form="take-order-form"
+              className="h-10 px-4 sm:px-5 text-xs sm:text-sm font-semibold rounded-full shadow-sm whitespace-nowrap"
+              disabled={!canContinue || busy}
+              data-testid="button-create-order-link"
+            >
+              {busy && <Loader2 className="animate-spin" size={15} />}
+              Create buyer link <ArrowUpRight size={15} />
+            </Button>
+          )}
+        </div>
+      </div>
+      <div className={cn('take-order-layout', choiceOnly && 'is-choice-only')}>
+        <div className={cn('take-order-builder-card take-order-flow-panel', catalogStage && 'take-order-catalog-stage-card', choiceOnly && 'take-order-choice-stage-card')}>
+          <form id="take-order-form" onSubmit={submit}>
+            {choiceOnly && (
+              <div className="take-order-choice-stage">
+                <div className="sr-only"><h2>How would you like to add an item?</h2></div>
+                <TakeOrderChoiceCards selected={itemSource} onSelect={(source) => { setItemSource(source); setFeedback(null); }} />
+              </div>
+            )}
+
+            {step === 1 && catalogStage && (
+              <div className={cn('take-order-catalog-stage', items.length > 0 && 'has-selection')}>
+                {!productsQuery.isLoading && !productsQuery.isError && catalogProducts.length === 0 ? (
+                  <>
+                    <div className="take-order-catalog-browser">
+                      <div
+                        className="take-order-catalog-empty-prompt flex flex-col items-center justify-center p-8 sm:p-14 text-center rounded-2xl border border-dashed border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-900/30 my-2 shadow-xs"
+                        data-testid="catalog-empty-prompt"
+                      >
+                        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white dark:bg-neutral-800 shadow-sm border border-neutral-200/70 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200">
+                          <Boxes size={28} strokeWidth={1.75} />
+                        </div>
+                        <h3 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">
+                          No products in your catalog yet
+                        </h3>
+                        <p className="mt-2 max-w-md text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+                          You haven't added any products to your catalog yet. Add a new product to save details and pricing for future orders, or take a custom product to create this order right away.
+                        </p>
+                        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                          <Link href="/catalog/new" data-testid="button-catalog-empty-add-product">
+                            <Button type="button" className="h-10 px-5 text-sm font-semibold rounded-xl">
+                              <Plus size={16} className="mr-1.5" />
+                              Add a new product
+                            </Button>
+                          </Link>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 px-5 text-sm font-semibold rounded-xl"
+                            data-testid="button-catalog-empty-custom-item"
+                            onClick={() => {
+                              setItemSource('custom');
+                              setFeedback(null);
+                            }}
+                          >
+                            <Sparkles size={16} className="mr-1.5 text-blue-600 dark:text-blue-400" />
+                            Take a custom product
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                    <button type="button" className="take-order-custom-action" onClick={() => { setItemSource('custom'); setFeedback(null); }}><Plus size={18} />Add custom item</button>
-                  </div>
-                  {(catalogProducts.length > 0 || productsQuery.isLoading || productsQuery.isError) && <section className="take-order-recent-products" aria-label="Recent products">
-                     <div className="take-order-catalog-section-heading"><h2>{catalogSearch ? 'Products' : 'Catalog products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
-                    {catalogItems}
-                  </section>}
-               </div>
-                 {items.length > 0 && <div className="take-order-catalog-selection-column">
-                   <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} showActions={false} />
-                 </div>}
-                 </div>
-                 {items.length > 0 && <div className="take-order-catalog-page-action"><Button type="submit" className="take-order-catalog-continue" disabled={!canContinue || busy || productsQuery.isLoading} data-testid="button-continue-catalog">Continue to checkout <ArrowRight size={15} /></Button></div>}
-               </>}
-                {step === 1 && itemSource === 'custom' && <div className="take-order-custom-stage">
-                  {items.length === 0 && <button type="button" className="take-order-stage-back" onClick={() => setItemSource(null)}><ArrowLeft size={14} />Choose another add method</button>}
-                  <TakeOrderFeedback message={feedback} />
-                  <div className="take-order-custom-columns">
-                    <section className="take-order-custom-form-panel" aria-label="Custom item details">
-                      <div className="take-order-custom-field">
-                        <label className="field-label" htmlFor="input-custom-order-name">What are they buying?</label>
-                        <input id="input-custom-order-name" data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="White leather sneakers size 42" className="field-input" />
+                    {items.length > 0 && (
+                      <div className="take-order-catalog-selection-column">
+                        <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} showActions={true} />
                       </div>
-                      <div className="take-order-custom-field">
-                        <label className="field-label" htmlFor="input-custom-order-price">Price</label>
-                        <div className="take-order-custom-price-input"><span>{currencySymbol()}</span><input id="input-custom-order-price" data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" /></div>
-                      </div>
-                      <div className="take-order-custom-options">
-                        <div className="take-order-custom-options-heading">
-                          <div className="field-label">Buyer options <span>(optional)</span></div>
-                          <button type="button" className="take-order-custom-add-group" onClick={() => setCustomDraft((current) => ({ ...current, preferences: [...current.preferences, { label: '', options: '' }] }))}><Plus size={16} />Add group</button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="take-order-catalog-browser">
+                      <div className="take-order-catalog-toolbar">
+                        <div className="take-order-search">
+                          <Search size={18} aria-hidden="true" />
+                          <input aria-label="Search catalog" value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="Search your catalog or type product name..." />
                         </div>
-                        <div className="take-order-custom-variant-label">Variant options area</div>
-                        <div className="take-order-custom-option-chips" aria-label="Custom variant options">
-                          {customDraft.preferences.flatMap((preference) => preference.options.split(',').map((option) => option.trim()).filter(Boolean)).map((option, index) => <span key={`${option}-${index}`} className="take-order-custom-option-chip">{option}<X size={12} aria-hidden="true" /></span>)}
-                          {!customDraft.preferences.some((preference) => preference.options.split(',').some((option) => option.trim())) && <span className="take-order-custom-option-placeholder">Add a group to define options</span>}
-                        </div>
-                        {customDraft.preferences.length > 0 && <div className="take-order-custom-preference-list">{customDraft.preferences.map((preference, index) => <div key={index} className="take-order-custom-preference-row">
-                          <input aria-label={`Custom option group ${index + 1} name`} value={preference.label} onChange={(event) => updateCustomPreference(index, 'label', event.target.value)} placeholder="Group name, e.g. Size" className="field-input" />
-                          <input aria-label={`Choices for custom option group ${index + 1}`} value={preference.options} onChange={(event) => updateCustomPreference(index, 'options', event.target.value)} placeholder="Choices separated by commas" className="field-input" />
-                          <button type="button" aria-label={`Remove custom option group ${index + 1}`} className="take-order-custom-preference-remove" onClick={() => setCustomDraft((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))}><X size={14} /></button>
-                        </div>)}</div>}
+                        <button type="button" className="take-order-custom-action" onClick={() => { setItemSource('custom'); setFeedback(null); }}><Plus size={18} />Add custom item</button>
                       </div>
+                      {(catalogProducts.length > 0 || productsQuery.isLoading || productsQuery.isError) && (
+                        <section className="take-order-recent-products" aria-label="Recent products">
+                          <div className="take-order-catalog-section-heading"><h2>{catalogSearch ? 'Products' : 'Catalog products'}</h2><span>{filteredCatalogProducts.length} available</span></div>
+                          {catalogItems}
+                        </section>
+                      )}
+                    </div>
+                    {items.length > 0 && (
+                      <div className="take-order-catalog-selection-column">
+                        <TakeOrderCheckoutCard items={items} total={total} feedback={feedback} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setFeedback(null); }} buttonTestId="button-continue-catalog" disabled={busy || productsQuery.isLoading} showActions={true} />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {step === 1 && itemSource === 'custom' && (
+              <div className="take-order-custom-stage">
+                <TakeOrderFeedback message={feedback} />
+                <div className="take-order-custom-columns">
+                  <section className="take-order-custom-form-panel" aria-label="Custom item details">
+                    <div className="take-order-custom-field">
+                      <label className="field-label font-semibold" htmlFor="input-custom-order-name">What are they buying?</label>
+                      <input id="input-custom-order-name" data-testid="input-custom-order-name" value={customDraft.name} onChange={(event) => setCustomDraft((current) => ({ ...current, name: event.target.value }))} placeholder="White leather sneakers size 42" className="field-input" />
+                    </div>
+                    <div className="take-order-custom-field">
+                      <label className="field-label font-semibold" htmlFor="input-custom-order-price">Price</label>
+                      <div className="take-order-custom-price-input"><span>{currencySymbol()}</span><input id="input-custom-order-price" data-testid="input-custom-order-price" type="number" min="0.01" step=".01" value={customDraft.amount} onChange={(event) => setCustomDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" /></div>
+                    </div>
+                    <div className="take-order-custom-options take-order-custom-preferences">
+                      <div className="take-order-custom-options-heading">
+                        <div className="field-label font-semibold">Buyer options <span className="font-normal text-neutral-500">(optional)</span></div>
+                        <button type="button" className="take-order-custom-add-group" onClick={() => setCustomDraft((current) => ({ ...current, preferences: [...current.preferences, { label: '', options: '' }] }))}><Plus size={16} />Add group</button>
+                      </div>
+                      <div className="take-order-custom-variant-label sr-only">Variant options area</div>
+                      <div className="take-order-custom-option-chips" aria-label="Custom variant options">
+                        {customDraft.preferences.flatMap((preference) => preference.options.split(',').map((option) => option.trim()).filter(Boolean)).map((option, index) => <span key={`${option}-${index}`} className="take-order-custom-option-chip">{option}<X size={12} aria-hidden="true" /></span>)}
+                        {!customDraft.preferences.some((preference) => preference.options.split(',').some((option) => option.trim())) && <span className="take-order-custom-option-placeholder text-xs text-neutral-400">Add a group to define options</span>}
+                      </div>
+                      {customDraft.preferences.length > 0 && (
+                        <div className="take-order-custom-preference-list">
+                          {customDraft.preferences.map((preference, index) => (
+                            <div key={index} className="take-order-custom-preference-row">
+                              <input aria-label={`Custom option group ${index + 1} name`} value={preference.label} onChange={(event) => updateCustomPreference(index, 'label', event.target.value)} placeholder="Group name, e.g. Size" className="field-input" />
+                              <input aria-label={`Choices for custom option group ${index + 1}`} value={preference.options} onChange={(event) => updateCustomPreference(index, 'options', event.target.value)} placeholder="Choices separated by commas" className="field-input" />
+                              <button type="button" aria-label={`Remove custom option group ${index + 1}`} className="take-order-custom-preference-remove" onClick={() => setCustomDraft((current) => ({ ...current, preferences: current.preferences.filter((_, preferenceIndex) => preferenceIndex !== index) }))}><X size={14} /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="take-order-custom-builder">
                       <Button type="button" className="take-order-custom-add-item" variant="outline" disabled={!customDraft.name.trim() || !customDraft.amount} onClick={addCustomItem}><Plus size={15} />Add item</Button>
-                    </section>
-                    <TakeOrderCustomOrderPanel items={items} total={total} canContinue={canContinue} busy={busy} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onUpdateAmount={updateAmount} />
+                    </div>
+                  </section>
+                  <TakeOrderCustomOrderPanel items={items} total={total} canContinue={canContinue} busy={busy} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onUpdateAmount={updateAmount} />
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="take-order-checkout-wrapper">
+                <div className="take-order-section sr-only"><h2>Review the client's checkout.</h2></div>
+                <div className="take-order-checkout-stage">
+                  <div className="take-order-step2-summary take-order-payment-checkout-card">
+                    <TakeOrderCheckoutSummary items={items} total={total} paymentMode={paymentMode} deposit={deposit} deliveryFee={Number(deliveryFee) || 0} />
                   </div>
-                </div>}
-              {step === 2 && <div className="take-order-checkout-stage">
-                <div className="take-order-checkout-main">
-                   <div className="take-order-payment-config-card">
-                    <div className="take-order-field-group"><div className="field-label">How should they pay?</div><div className="take-order-payment-options">{[['full', 'Pay in full', 'Collect the full total now'], ['deposit', 'Pay a deposit', 'Secure the order with part-payment'], ['reserve', 'Reserve it', 'Confirm the details first']].map(([value, title, note]) => <button type="button" key={value} onClick={() => { setPaymentMode(value as 'full' | 'deposit' | 'reserve'); setFeedback(null); }} data-testid={`button-payment-mode-${value}`} className={cn('take-order-payment-option', paymentMode === value && 'is-selected')}><span className="take-order-radio">{paymentMode === value && <span />}</span><span><strong>{title}</strong><small>{note}</small></span></button>)}</div></div>
-                    {paymentMode === 'deposit' && <div className="take-order-deposit-field"><label className="field-label" htmlFor="input-order-deposit">Deposit amount <span>of {moneyExact(total)}</span></label><div className="take-order-deposit-presets" aria-label="Common deposit percentages">{[25, 50, 75].map((percentage) => { const presetAmount = (total * percentage / 100).toFixed(2); const isSelected = Math.abs(Number(depositAmount) - Number(presetAmount)) < 0.005; return <button type="button" key={percentage} className={cn('take-order-deposit-preset', isSelected && 'is-selected')} onClick={() => { setDepositAmount(presetAmount); setFeedback(null); }} data-testid={`button-deposit-preset-${percentage}`} aria-pressed={isSelected}><strong>{percentage}%</strong><span>{moneyExact(total * percentage / 100)}</span></button>; })}</div><div className="relative max-w-[260px]"><span className="take-order-currency">{currencySymbol()}</span><input id="input-order-deposit" data-testid="input-order-deposit" required type="number" min="0.01" max={total} step=".01" value={depositAmount} onChange={(event) => { setDepositAmount(event.target.value); setFeedback(null); }} className={cn('field-input pl-7', depositAmount && !validDeposit && 'is-invalid')} placeholder="0.00" /></div>{depositAmount && !validDeposit && <p className="take-order-field-error">Use an amount between {currencySymbol()}0.01 and {moneyExact(total)}.</p>}</div>}
-                    <div className="take-order-field-group"><label className="field-label" htmlFor="input-order-delivery-fee">Flat delivery fee</label><div className="relative max-w-[260px]"><span className="take-order-currency">{currencySymbol()}</span><input id="input-order-delivery-fee" data-testid="input-order-delivery-fee" type="number" min="0" step=".01" value={deliveryFee} onChange={(event) => { setDeliveryFee(event.target.value); setFeedback(null); }} className={cn('field-input pl-7', deliveryFee && !validDeliveryFee && 'is-invalid')} placeholder="0.00" /></div><p className="take-order-field-help">Buyers can choose pickup or delivery. This flat fee is added only when they choose delivery.</p></div>
-                    <div className="take-order-field-group"><div className="field-label">Conversation started on</div><ChannelPicker value={channel} onChange={setChannel} testId="select-order-channel" /></div>
+
+                  <div className="take-order-checkout-main">
+                    <div className="take-order-payment-config-card">
+                      <div className="take-order-field-group">
+                        <div className="field-label text-base font-semibold mb-2.5">How should they pay?</div>
+                        <div className="take-order-payment-options">
+                          {[
+                            { value: 'full', title: 'Full Payment', note: 'Pay full total upfront' },
+                            { value: 'deposit', title: 'Pay a Deposit', note: 'Part-payment upfront' },
+                            { value: 'reserve', title: 'Make Reservation', note: 'Pay on delivery' },
+                          ].map((opt) => (
+                            <button
+                              type="button"
+                              key={opt.value}
+                              onClick={() => { setPaymentMode(opt.value as 'full' | 'deposit' | 'reserve'); setFeedback(null); }}
+                              data-testid={`button-payment-mode-${opt.value}`}
+                              className={cn('take-order-payment-option', paymentMode === opt.value && 'is-selected')}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className={cn('take-order-radio', paymentMode === opt.value && 'is-selected')}>
+                                  {paymentMode === opt.value && <span />}
+                                </span>
+                              </div>
+                              <span>
+                                <strong className="text-[13px] font-semibold">{opt.title}</strong>
+                                <small className="text-[11px] text-neutral-500 leading-tight block mt-0.5">{opt.note}</small>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {paymentMode === 'deposit' && (
+                        <div className="take-order-deposit-field">
+                          <label className="field-label font-semibold" htmlFor="input-order-deposit">
+                            Deposit amount <span className="font-normal text-neutral-500">against {moneyExact(total)}</span>
+                          </label>
+                          <div className="take-order-deposit-presets" aria-label="Common deposit percentages">
+                            {[25, 50, 75].map((percentage) => {
+                              const presetAmount = (total * percentage / 100).toFixed(2);
+                              const isSelected = Math.abs(Number(depositAmount) - Number(presetAmount)) < 0.005;
+                              return (
+                                <button
+                                  type="button"
+                                  key={percentage}
+                                  className={cn('take-order-deposit-preset', isSelected && 'is-selected')}
+                                  onClick={() => { setDepositAmount(presetAmount); setFeedback(null); }}
+                                  data-testid={`button-deposit-preset-${percentage}`}
+                                  aria-pressed={isSelected}
+                                >
+                                  <strong>{percentage}%</strong>
+                                  <span>{moneyExact(total * percentage / 100)}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="take-order-input-group mt-3">
+                            <span className="take-order-input-prefix">{currencySymbol()}</span>
+                            <input
+                              id="input-order-deposit"
+                              data-testid="input-order-deposit"
+                              required
+                              type="number"
+                              min="0.01"
+                              max={total}
+                              step=".01"
+                              value={depositAmount}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(event) => { setDepositAmount(event.target.value); setFeedback(null); }}
+                              className={cn('take-order-input-field', depositAmount && !validDeposit && 'is-invalid')}
+                              placeholder="0.00"
+                            />
+                          </div>
+                          {depositAmount && !validDeposit && <p className="take-order-field-error">Use an amount between {currencySymbol()}0.01 and {moneyExact(total)}.</p>}
+                        </div>
+                      )}
+
+                      <div className="take-order-field-group">
+                        <label className="field-label font-semibold" htmlFor="input-order-delivery-fee">Flat delivery fee</label>
+                        <div className="take-order-input-group mt-1.5">
+                          <span className="take-order-input-prefix">{currencySymbol()}</span>
+                          <input
+                            id="input-order-delivery-fee"
+                            data-testid="input-order-delivery-fee"
+                            type="number"
+                            min="0"
+                            step=".01"
+                            value={deliveryFee}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(event) => { setDeliveryFee(event.target.value); setFeedback(null); }}
+                            className={cn('take-order-input-field', deliveryFee && !validDeliveryFee && 'is-invalid')}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <p className="take-order-field-help text-xs text-neutral-500 mt-1.5">Buyers choose pickup or delivery at checkout. This fee is only applied when they choose delivery.</p>
+                      </div>
+
+                      <div className="take-order-field-group">
+                        <div className="field-label font-semibold mb-2">Conversation started on</div>
+                        <ChannelPicker value={channel} onChange={setChannel} testId="select-order-channel" />
+                      </div>
+
+                      <div className="take-order-checkout-confirm-block pt-5 mt-2 border-t border-[hsl(var(--border))]">
+                        {feedback && <TakeOrderFeedback message={feedback} />}
+                        <Button
+                          type="submit"
+                          className="w-full h-11 text-sm font-semibold rounded-xl"
+                          disabled={!canContinue || busy}
+                          data-testid="button-create-order-link"
+                        >
+                          {busy && <Loader2 className="animate-spin" size={15} />}
+                          Confirm checkout <ArrowRight size={15} />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <TakeOrderCheckoutSummary items={items} total={total} paymentMode={paymentMode} deposit={deposit} />
-              </div>}
-              {step === 3 && <TakeOrderSection eyebrow="Step 03 · Review" title="Review checkout.">
-                <TakeOrderCheckoutCard items={items} total={total} onRemove={(key) => setItems((current) => current.filter((candidate) => candidate.key !== key))} onOneOff={() => { setItemSource('custom'); setStep(1); setFeedback(null); }} buttonTestId="button-review-checkout" disabled={busy} showContinue={false} />
-              <div className="take-order-review-details"><div><span>Payment</span><strong>{paymentMode === 'deposit' ? `Deposit · ${moneyExact(deposit)}` : paymentMode === 'full' ? 'Pay in full' : 'Reserve for later'}</strong></div><div><span>Conversation</span><strong><ChannelInline value={channel} /></strong></div></div>
-              <div className="take-order-review-note"><CheckCircle2 size={17} /><div><strong>Buyer details stay with the order.</strong><span>They can add their name, phone number, notes, and an optional reference image on the next page.</span></div></div>
-            </TakeOrderSection>}
-               {!catalogStage && !choiceOnly && !(step === 1 && itemSource === 'custom') && <><TakeOrderFeedback message={feedback} /><div className="take-order-form-footer">{step > 1 && !showPreview ? <Button type="button" variant="ghost" disabled={busy} onClick={() => goToStep((step - 1) as TakeOrderStep)}><ArrowLeft size={15} />Back</Button> : step < 3 ? <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span> : null}<Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">{busy && <Loader2 className="animate-spin" size={15} />}{step === 2 ? 'Confirm checkout' : step < 3 ? 'Continue' : 'Create buyer link'} {step < 3 ? <ArrowRight size={15} /> : <ArrowUpRight size={15} />}</Button></div></>}
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="take-order-preview-stage">
+                <div className="take-order-section sr-only"><h2>Review checkout.</h2></div>
+                {feedback && (
+                  <div className="max-w-[1180px] mx-auto mb-4">
+                    <TakeOrderFeedback message={feedback} />
+                  </div>
+                )}
+
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-border bg-card/80 backdrop-blur-sm shadow-xs">
+                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 font-bold">
+                      <Eye size={14} />
+                    </span>
+                    <span>
+                      <strong className="font-semibold text-foreground">Interactive Buyer Checkout Preview:</strong> Try selecting options, entering details, or switching between pickup and delivery.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-muted text-foreground">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live Link Preview
+                    </span>
+                  </div>
+                </div>
+
+                <div className="take-order-buyer-preview-wrapper">
+                  <BuyerOrderSurface
+                    businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
+                    description={seller?.description}
+                    logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
+                    productName={previewItems[previewIndex]?.productName}
+                    amount={total}
+                    totalAmount={total + deliveryFeeAmount}
+                    paymentMode={paymentMode}
+                    depositAmount={paymentMode === 'deposit' ? deposit : null}
+                    variants={previewItems[previewIndex]?.variants ?? []}
+                    items={previewItems}
+                    previewImages={previewItems.map((p) => p.imageUrl || p.imageUrls?.[0] || '')}
+                    activeIndex={previewIndex}
+                    onActiveIndexChange={setPreviewIndex}
+                    customLayout={true}
+                  >
+                    {(activeItem) => (
+                      <TakeOrderBuyerPreviewForm
+                        item={activeItem}
+                        items={previewItems}
+                        paymentMode={paymentMode}
+                        subtotal={total}
+                        deposit={deposit}
+                        deliveryFee={deliveryFeeAmount}
+                        itemIndex={previewIndex}
+                        onActiveIndexChange={setPreviewIndex}
+                      />
+                    )}
+                  </BuyerOrderSurface>
+                </div>
+              </div>
+            )}
+
+            {!catalogStage && !choiceOnly && !(step === 1 && itemSource === 'custom') && step === 1 && (
+              <>
+                <TakeOrderFeedback message={feedback} />
+                <div className="take-order-form-footer">
+                  <span className="take-order-footer-hint"><ShieldIcon /> No account connection needed</span>
+                  <Button type="submit" disabled={!canContinue || busy || (step === 1 && productsQuery.isLoading)} data-testid="button-create-order-link">
+                    {busy && <Loader2 className="animate-spin" size={15} />}
+                    Continue <ArrowRight size={15} />
+                  </Button>
+                </div>
+              </>
+            )}
           </form>
-         </div>
-          {showPreview && <aside className="take-order-preview-column">
-           <div className="take-order-preview-frame"><BuyerOrderSurface businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'} description={settingsQuery.data?.description || seller?.description} logoDataUrl={settingsQuery.data?.logoDataUrl} items={previewItems} paymentMode={paymentMode} depositAmount={paymentMode === 'deposit' ? deposit : null}>{(activeItem) => <TakeOrderBuyerPreviewForm item={activeItem} items={previewItems} paymentMode={paymentMode} total={total} deposit={deposit} />}</BuyerOrderSurface></div>
-          </aside>}
+        </div>
       </div>
+      <ContextualUpgradeDialog
+        open={Boolean(upgradeDialogReason)}
+        onOpenChange={(open) => !open && setUpgradeDialogReason(null)}
+        reason={upgradeDialogReason || 'link_limit'}
+        tier={entitlements.tier}
+      />
     </div>
   </Shell>;
 }
@@ -2484,9 +6878,9 @@ function MultiItemTakeOrder() {
   const [nextKey, setNextKey] = useState(1);
   const [catalogChoice, setCatalogChoice] = useState('');
   const [customDraft, setCustomDraft] = useState({ name: '', amount: '' });
-  const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve'>('full');
+  const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve' | null>(null);
   const [depositAmount, setDepositAmount] = useState('');
-  const [channel, setChannel] = useState<OrderInput['channel']>('whatsapp');
+  const [channel, setChannel] = useState<OrderInput['channel'] | ''>('');
   const [created, setCreated] = useState<Order | null>(null);
   const [copied, setCopied] = useState(false);
   const total = items.reduce((sum, item) => sum + item.amount, 0);
@@ -2496,7 +6890,7 @@ function MultiItemTakeOrder() {
   const busy = createOrder.isPending || createProduct.isPending;
   const canContinue = step === 1
     ? items.length > 0
-    : total > 0 && (paymentMode !== 'deposit' || (Boolean(depositAmount) && Number(depositAmount) <= total));
+    : total > 0 && paymentMode !== null && Boolean(channel) && (paymentMode !== 'deposit' || (Boolean(depositAmount) && Number(depositAmount) <= total));
 
   const addCatalogItem = () => {
     const product = (productsQuery.data ?? []).find((item) => item.id === Number(catalogChoice));
@@ -2519,9 +6913,9 @@ function MultiItemTakeOrder() {
   const createLink = (productIds: number[]) => {
     const data: OrderInput = {
       items: items.map((item, index) => ({ productId: productIds[index]!, amount: item.amount })),
-      paymentMode,
+      paymentMode: paymentMode as OrderInput['paymentMode'],
       depositAmount: paymentMode === 'deposit' ? Number(depositAmount) : null,
-      channel,
+      channel: channel as OrderInput['channel'],
     };
     createOrder.mutate({ data }, { onSuccess: (order) => setCreated(order) });
   };
@@ -2552,7 +6946,7 @@ function MultiItemTakeOrder() {
     }
     resolveItems(0);
   };
-  const link = created ? `${window.location.origin}/o/${created.token}` : '';
+  const link = created ? buildPublicOrderLink(created.token) : '';
   const copy = async () => {
     await navigator.clipboard?.writeText(link);
     setCopied(true);
@@ -2584,7 +6978,7 @@ type BuyerOrderSurfaceProps = {
   logoDataUrl?: string | null;
   productName?: string;
   amount?: number;
-  paymentMode: 'full' | 'deposit' | 'reserve';
+  paymentMode: 'full' | 'deposit' | 'reserve' | null;
   depositAmount: number | null | undefined;
   totalAmount?: number;
   variants?: string[];
@@ -2593,6 +6987,7 @@ type BuyerOrderSurfaceProps = {
   activeIndex?: number;
   onActiveIndexChange?: (index: number) => void;
   isCheckout?: boolean;
+  customLayout?: boolean;
   children: ReactNode | ((item: BuyerOrderItem) => ReactNode);
 };
 
@@ -2613,7 +7008,7 @@ type BuyerOrderItem = {
   source: 'catalog' | 'custom';
 };
 
-export function BuyerOrderSurface({ businessName, description, logoDataUrl, productName, amount, paymentMode, depositAmount, totalAmount, variants = [], items, previewImages, activeIndex: controlledIndex, onActiveIndexChange, isCheckout = false, children }: BuyerOrderSurfaceProps) {
+export function BuyerOrderSurface({ businessName, description, logoDataUrl, productName, amount, paymentMode, depositAmount, totalAmount, variants = [], items, previewImages, activeIndex: controlledIndex, onActiveIndexChange, isCheckout = false, customLayout = false, children }: BuyerOrderSurfaceProps) {
   const displayItems = items?.length ? items : [{ productId: 0, productName: productName || 'Your item', amount: amount || 0, variants, preferences: variants.length ? [{ label: 'Choose an option', options: variants }] : [], source: 'catalog' as const }];
   const [internalIndex, setInternalIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
@@ -2646,47 +7041,51 @@ export function BuyerOrderSurface({ businessName, description, logoDataUrl, prod
         </div>
       </header>
       <div className="buyer-checkout-form-intro">
-        <h1>Complete your order.</h1>
-        <p>Your seller already has the item and price. Just provide the details they need to fulfill it.</p>
+        <h1 className="type-h2">Complete your order.</h1>
+        <p className="mt-2 type-body">Your seller already has the item and price. Just provide the details they need to fulfill it.</p>
         <div className="buyer-total-amount" aria-label={`Total amount ${moneyExact(total)}`}><span>Total amount</span><strong>{moneyExact(total)}</strong></div>
       </div>
     </div>
-    <div className="buyer-order-detail-layout">
-      <div className="buyer-order-detail-card p-6 sm:p-8">
-        {typeof children === 'function' ? children(activeItem) : children}
-      </div>
-      <aside className="buyer-product-rail" aria-label={displayItems.length > 1 ? 'Order items' : 'Product preview'}>
-        <div className="buyer-product-rail-heading">Order items</div>
-        <div className="buyer-product-list">
-        {displayItems.map((item, index) => {
-          const active = index === activeIndex;
-            const previewImage = item.source === 'custom'
-              ? previewImages?.[index] || item.imageUrls?.[0] || item.imageUrl
-              : item.imageUrls?.[0] || item.imageUrl || productImageFor(item.productName);
-          return <button
-            type="button"
-            key={`${item.productId}-${index}`}
-            className={cn('buyer-product-module', active && 'is-active')}
-            onClick={() => {
-              if (onActiveIndexChange) onActiveIndexChange(index);
-              else setInternalIndex(index);
-            }}
-            disabled={Boolean(onActiveIndexChange)}
-            aria-current={active ? 'true' : undefined}
-             aria-label={`${item.productName}, ${moneyExact(item.amount)}${active ? ', current item' : ''}`}
-          >
-            <span className="buyer-product-module-copy">
-              <strong>{item.productName}</strong>
-               <small className="buyer-product-module-price">{moneyExact(item.amount)} · qty {item.quantity ?? 1}</small>
-             </span>
-              <span className="buyer-product-module-art">
-                {previewImage && <img src={previewImage} alt="" />}
-              </span>
-          </button>;
-        })}
+    {customLayout ? (
+      typeof children === 'function' ? children(activeItem) : children
+    ) : (
+      <div className="buyer-order-detail-layout">
+        <div className="buyer-order-detail-card p-6 sm:p-8">
+          {typeof children === 'function' ? children(activeItem) : children}
         </div>
-      </aside>
-    </div>
+        <aside className="buyer-product-rail" aria-label={displayItems.length > 1 ? 'Order items' : 'Product preview'}>
+          <div className="buyer-product-rail-heading">Order items</div>
+          <div className="buyer-product-list">
+          {displayItems.map((item, index) => {
+            const active = index === activeIndex;
+              const previewImage = item.source === 'custom'
+                ? previewImages?.[index] || item.imageUrls?.[0] || item.imageUrl
+                : item.imageUrls?.[0] || item.imageUrl || productImageFor(item.productName);
+            return <button
+              type="button"
+              key={`${item.productId}-${index}`}
+              className={cn('buyer-product-module', active && 'is-active')}
+              onClick={() => {
+                if (onActiveIndexChange) onActiveIndexChange(index);
+                else setInternalIndex(index);
+              }}
+              disabled={Boolean(onActiveIndexChange)}
+              aria-current={active ? 'true' : undefined}
+              aria-label={`${item.productName}, ${moneyExact(item.amount)}${active ? ', current item' : ''}`}
+            >
+              <span className="buyer-product-module-copy">
+                <strong>{item.productName}</strong>
+                <small className="buyer-product-module-price">{moneyExact(item.amount)} · qty {item.quantity ?? 1}</small>
+              </span>
+                <span className="buyer-product-module-art">
+                  {previewImage && <img src={previewImage} alt="" />}
+                </span>
+            </button>;
+          })}
+          </div>
+        </aside>
+      </div>
+    )}
     <PoweredByTakeOrder className="mt-6" />
   </div>;
 }
@@ -2719,13 +7118,8 @@ function PublicOrderPage() {
   const submit = useSubmitPublicOrder();
   const queryClient = useQueryClient();
   const [submitted, setSubmitted] = useState(false);
-  const [showMockPayment, setShowMockPayment] = useState(false);
-  const [mockPayment, setMockPayment] = useState({ cardNumber: '', expiry: '', cvc: '' });
-  const [form, setForm] = useState<BuyerOrderFormValues>({ name: '', phone: '', address: '', orderDetails: '' });
-  const [contactComplete, setContactComplete] = useState(false);
-  const [contactStep, setContactStep] = useState(false);
+  const [form, setForm] = useState<BuyerOrderFormValues>({ name: '', phone: '', deliveryMethod: undefined, address: '', orderDetails: '' });
   const [itemStep, setItemStep] = useState(0);
-  const [checkout, setCheckout] = useState(false);
   const [itemForms, setItemForms] = useState<BuyerItemFormValues[]>([]);
   const [submitError, setSubmitError] = useState('');
   const order = query.data;
@@ -2736,13 +7130,11 @@ function PublicOrderPage() {
   useEffect(() => {
     if (!order) return;
     setItemForms((current) => order.items.map((_, index) => current[index] ?? emptyBuyerItemForm()));
-    setContactComplete(false);
-    setContactStep(false);
     setItemStep(0);
-    setCheckout(false);
-    setForm({ name: '', phone: '', deliveryMethod: order.deliveryDefault === 'delivery' ? 'delivery' : 'pickup', address: '', orderDetails: '' });
+    setForm({ name: '', phone: '', deliveryMethod: undefined, address: '', orderDetails: '' });
   }, [order?.token, order?.items.length]);
   const change = (key: 'name' | 'phone' | 'deliveryMethod' | 'address' | 'orderDetails' | 'details', value: string) => {
+    setSubmitError('');
     if (key === 'details') {
       setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, details: value } : item));
       return;
@@ -2755,43 +7147,79 @@ function PublicOrderPage() {
   const changeQuantity = (value: number) => {
     setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, quantity: value } : item));
   };
+  const handleNextItem = () => {
+    if (order && itemStep < order.items.length - 1) {
+      const activeItem = order.items[itemStep];
+      const activeForm = itemForms[itemStep] ?? emptyBuyerItemForm();
+      const missingPref = activeItem?.preferences.find((p) => !activeForm.preferences[p.label]);
+      if (missingPref) {
+        setSubmitError(`Please choose an option for ${missingPref.label}`);
+        return;
+      }
+      const missingImg = order.checkoutAllowReferenceImages !== false && activeItem?.source === 'custom' && !activeForm.imagePreview;
+      if (missingImg) {
+        setSubmitError(`Please attach a reference photo for ${activeItem.productName}`);
+        return;
+      }
+      setSubmitError('');
+      setItemStep((prev) => prev + 1);
+    }
+  };
+  const handlePrevItem = () => {
+    setSubmitError('');
+    setItemStep((prev) => Math.max(0, prev - 1));
+  };
   const submitForm = (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitError('');
-    const activeItem = order?.items[itemStep];
-    const activeForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-    if (!checkout) {
-      if (contactStep) {
-        if (!form.name.trim() || !form.phone.trim() || form.phone.trim().length < 5) return;
-        if (!form.deliveryMethod) return;
-        if (form.deliveryMethod === 'delivery' && !form.address?.trim()) return;
-        setContactComplete(true);
-        setContactStep(false);
-        setCheckout(true);
-        return;
+
+    if (order?.items) {
+      for (let i = 0; i < order.items.length; i++) {
+        const itm = order.items[i];
+        const f = itemForms[i] ?? emptyBuyerItemForm();
+        const missingPref = itm.preferences.find((p) => !f.preferences[p.label]);
+        if (missingPref) {
+          setItemStep(i);
+          setSubmitError(`Please choose an option for ${missingPref.label}`);
+          return;
+        }
+        const missingImg = order.checkoutAllowReferenceImages !== false && itm.source === 'custom' && !f.imagePreview;
+        if (missingImg) {
+          setItemStep(i);
+          setSubmitError(`Please attach a reference photo for ${itm.productName}`);
+          return;
+        }
       }
-      const missingPreference = activeItem?.preferences.some((group) => !activeForm.preferences[group.label]);
-      const missingImage = order?.checkoutAllowReferenceImages !== false && activeItem?.source === 'custom' && !activeForm.imagePreview;
-      if (missingPreference || missingImage) return;
-      if (order && itemStep < order.items.length - 1) {
-        setItemStep((current) => current + 1);
-      } else {
-        setContactStep(true);
-      }
+    }
+
+    if (!form.name.trim()) {
+      setSubmitError('Please enter your name');
       return;
     }
-    const paymentAction = order?.paymentMode === 'reserve' ? 'reserve' : form.action;
-    if (!paymentAction) return;
+    if (!form.phone.trim() || form.phone.trim().length < 5) {
+      setSubmitError('Please enter your phone number');
+      return;
+    }
+    if (!form.deliveryMethod) {
+      setSubmitError('Please choose a delivery service');
+      return;
+    }
+    if (form.deliveryMethod === 'delivery' && !form.address?.trim()) {
+      setSubmitError('Please enter your delivery address');
+      return;
+    }
+
+    const paymentAction = order?.paymentMode === 'reserve' ? 'reserve' : 'pay';
     const data: PublicOrderInput = {
       customerName: form.name.trim(),
       customerPhone: form.phone.trim(),
       buyerDetails: form.orderDetails?.trim() || undefined,
       deliveryMethod: form.deliveryMethod,
       deliveryAddress: form.deliveryMethod === 'delivery' ? form.address?.trim() || undefined : undefined,
-        itemDetails: itemForms.map((item, itemIndex) => ({
+      itemDetails: itemForms.map((item, itemIndex) => ({
         itemIndex,
-          quantity: item.quantity,
-          variant: Object.values(item.preferences).filter(Boolean).join(' · ') || undefined,
+        quantity: item.quantity,
+        variant: Object.values(item.preferences).filter(Boolean).join(' · ') || undefined,
         details: item.details || undefined,
         referenceImage: item.image || undefined,
       })),
@@ -2804,14 +7232,36 @@ function PublicOrderPage() {
   };
   if (query.isLoading) return <div className="min-h-[100dvh] bg-[hsl(var(--background))] p-6"><div className="mx-auto max-w-[480px]"><BrandLockup className="mx-auto mt-14 justify-center" /><Skeleton className="mx-auto mt-8 h-8 w-52" /><Skeleton className="mt-4 h-4 w-full" /><Skeleton className="mt-10 h-64 w-full" /></div></div>;
   if (query.isError || !order) return <div className="flex min-h-[100dvh] items-center justify-center p-6"><div className="text-center"><BrandLockup className="justify-center" /><div className="mt-10 font-display text-2xl font-bold">This link is no longer available.</div><p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">Ask the seller for a fresh order link.</p></div></div>;
-  if (submitted) return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] p-6"><div className="w-full max-w-[480px] text-center page-in"><BrandLockup className="justify-center" /><div className="mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white"><Check size={30} /></div><h1 className="mt-7 font-display text-4xl font-bold tracking-[-.05em]">You’re all set.</h1><p className="mx-auto mt-4 max-w-[350px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{form.action === 'pay' && order.paymentMode !== 'reserve' ? 'Your mock payment and order details were sent to the seller. No real payment was processed.' : 'Your details have been sent to the seller. They’ll be in touch with the next step.'}</p><div className="mt-8 font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Order reference · {token.slice(0, 8)}</div></div></div>;
+  if (submitted) return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] p-6"><div className="w-full max-w-[480px] text-center page-in"><BrandLockup className="justify-center" /><div className="mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white"><Check size={30} /></div><h1 className="mt-7 font-display text-4xl font-bold tracking-[-.05em]">You’re all set.</h1><p className="mx-auto mt-4 max-w-[350px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{order.paymentMode === 'reserve' ? 'Your details have been sent to the seller. They’ll be in touch with the next step.' : 'Your order and payment details have been sent to the seller. They’ll be in touch with the next step.'}</p><div className="mt-8 font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Order reference · {token.slice(0, 8)}</div></div></div>;
   const orderSubtotal = itemForms.length === order.items.length
     ? order.items.reduce((sum, item, index) => sum + item.amount * (itemForms[index]?.quantity ?? item.quantity ?? 1), 0)
     : order.subtotal ?? order.items.reduce((sum, item) => sum + item.amount * (item.quantity ?? 1), 0);
   const buyerDeliveryFee = form.deliveryMethod === 'delivery' ? order.deliveryFee : 0;
   const buyerTotal = orderSubtotal + buyerDeliveryFee;
+  const uploadReferenceImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result as string;
+          const res = await customFetch<{ url: string }>('/api/upload', {
+            method: 'POST',
+            body: JSON.stringify({
+              data: base64Data,
+              filename: file.name,
+            }),
+          });
+          resolve(res.url);
+        } catch {
+          resolve(file.name);
+        }
+      };
+      reader.onerror = () => resolve(file.name);
+      reader.readAsDataURL(file);
+    });
+  };
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-   return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-4 sm:py-8"><div className="mx-auto max-w-[920px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} isCheckout={checkout}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} contactStep={contactStep} contactComplete={contactComplete} checkout={checkout} form={form} itemForm={currentItemForm} mockPayment={mockPayment} showMockPayment={showMockPayment} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item))} onBack={() => { if (checkout) { setCheckout(false); setShowMockPayment(false); setContactComplete(false); setContactStep(false); } else if (contactStep) { setContactStep(false); } else if (itemStep > 0) { setItemStep((current) => current - 1); } }} onBackToReview={() => setShowMockPayment(false)} onMockPaymentChange={(key, value) => setMockPayment((current) => ({ ...current, [key]: value }))} onReferenceImageChange={(event) => { const file = event.target.files?.[0]; if (!file) return; changeItem('image', file.name); changeItem('imagePreview', URL.createObjectURL(file)); }} onPaymentAction={(action) => { setForm((current) => ({ ...current, action })); setShowMockPayment(false); }} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
+  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8"><div className="mx-auto max-w-[1180px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} customLayout={true}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} form={form} itemForm={currentItemForm} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => { setSubmitError(''); setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item)); }} onNextItem={handleNextItem} onPrevItem={handlePrevItem} onBack={handlePrevItem} onReferenceImageChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setSubmitError(''); changeItem('imagePreview', URL.createObjectURL(file)); changeItem('image', file.name); const uploadedUrl = await uploadReferenceImage(file); changeItem('image', uploadedUrl); }} onError={setSubmitError} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
 }
 
 export function Connect() {
@@ -2859,58 +7309,78 @@ export function Connect() {
     setConnected(next);
     persistTools(next);
   };
-   return <Shell><div className="mx-auto max-w-[1060px]"><div className="mx-auto max-w-[640px] text-center"><div className="font-mono-ui text-[10px] font-bold uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">Optional setup</div><h1 className="mt-3 font-display text-[clamp(36px,5vw,58px)] font-bold leading-[.95] tracking-[-.065em]">Let’s get your tools in one view.</h1><p className="mx-auto mt-4 max-w-[560px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">Choose the places you already sell or get paid. This saves a local preference for now — it does not authorize an integration.</p><div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[hsl(var(--accent))]/35 bg-[hsl(var(--accent))]/10 px-3 py-2 text-[11px] font-semibold text-[hsl(var(--accent-foreground))]"><ShieldIcon />Take Order never reads personal chats.</div></div><div className="mt-10 flex flex-col gap-3 border-b border-[hsl(var(--border))] pb-3 sm:flex-row sm:items-center sm:justify-between"><div className="font-mono-ui text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Your channels and tools</div><div className="flex flex-wrap items-center gap-3"><span className="flex items-center gap-1.5 text-[10px] font-semibold text-[hsl(var(--muted-foreground))]"><span className={cn('h-2 w-2 rounded-full', health.isError ? 'bg-[hsl(var(--destructive))]' : 'bg-[hsl(var(--accent))]')} />{health.isError ? 'Workspace check unavailable' : 'Workspace ready'}</span><Button type="button" variant="outline" onClick={clearAll} disabled={!connected.length} data-testid="button-clear-connected-tools">Clear all saved choices</Button></div></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{tools.map((tool) => { const isConnected = connected.includes(tool.name); const mark = markCatalog[tool.markKey]; return <button key={tool.name} onClick={() => toggle(tool.name)} aria-pressed={isConnected} aria-label={connectPreferenceAriaLabel(tool.name, isConnected)} data-testid={`button-connect-${tool.name.toLowerCase().replaceAll(' ', '-')}`} className={cn('tool-tile soft-focus group rounded-[17px] border p-4 text-left', isConnected ? 'border-[hsl(var(--accent))]/55 bg-[hsl(var(--accent))]/10' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:border-[hsl(var(--muted-foreground))]/45')}><div className="flex items-start justify-between"><div className="tool-mark flex h-11 w-11 items-center justify-center rounded-[13px] bg-[hsl(var(--muted))]" style={{ color: mark.color }}><ChannelMark value={tool.markKey} size={22} /></div><span className={cn('rounded-full px-2 py-1 text-[9px] font-bold', isConnected ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{connectPreferenceLabel(isConnected)}</span></div><div className="mt-5 flex items-end justify-between gap-2"><div><div className="text-sm font-bold">{tool.name}</div><div className="mt-1 text-[11px] leading-4 text-[hsl(var(--muted-foreground))]">{tool.detail}</div></div><span className="font-mono-ui text-[9px] uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]">{tool.group}</span></div></button>; })}</div><div className="mt-8 grid gap-4 lg:grid-cols-[1.15fr_.85fr]"><Card className="flex gap-4 p-5"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Link2 size={17} /></div><div><h2 className="text-sm font-bold">A connection is never required to sell.</h2><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Create buyer links, collect details, and track inventory without connecting a social or payment account. These tiles are simply your setup checklist until real integrations are attached.</p></div></Card><Card className="p-5"><div className="flex items-center gap-2 text-xs font-bold"><Check size={15} className="text-[hsl(var(--accent-foreground))]" />{connected.length ? `${connected.length} tool preference${connected.length === 1 ? '' : 's'} saved` : 'No tool preferences yet'}</div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">You can change these choices any time. They stay on this device.</p></Card></div></div></Shell>;
+   return <Shell><div className="mx-auto max-w-[1060px]"><div className="mx-auto max-w-[640px] text-center"><div className="type-eyebrow text-[hsl(var(--muted-foreground))]">Store setup</div><h1 className="mt-3 font-display text-[clamp(32px,5vw,52px)] font-bold leading-[1.05] tracking-[-.04em]">Where you sell & how you get paid.</h1><p className="mx-auto mt-3 max-w-[560px] text-base leading-relaxed text-[hsl(var(--muted-foreground))]">Select the channels where you post stories and chat with buyers, plus your payment methods. These configure your order link channels and checkout preferences.</p><div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[hsl(var(--accent))]/35 bg-[hsl(var(--accent))]/10 px-4 py-1.5 text-sm font-semibold text-[hsl(var(--accent-foreground))]"><ShieldIcon />Take Order works alongside your chats without requiring account access.</div></div><div className="mt-8 flex flex-col gap-3 border-b border-[hsl(var(--border))] pb-3 sm:flex-row sm:items-center sm:justify-between"><div className="type-eyebrow text-[hsl(var(--muted-foreground))]">Your active channels & rails</div><div className="flex flex-wrap items-center gap-3"><span className="flex items-center gap-1.5 text-sm font-semibold text-[hsl(var(--muted-foreground))]"><span className={cn('h-2 w-2 rounded-full', health.isError ? 'bg-[hsl(var(--destructive))]' : 'bg-[hsl(var(--accent))]')} />{health.isError ? 'Workspace check unavailable' : 'Workspace ready'}</span><Button type="button" variant="outline" onClick={clearAll} disabled={!connected.length} data-testid="button-clear-connected-tools">Clear all saved choices</Button></div></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{tools.map((tool) => { const isConnected = connected.includes(tool.name); const mark = markCatalog[tool.markKey]; return <button key={tool.name} onClick={() => toggle(tool.name)} aria-pressed={isConnected} aria-label={connectPreferenceAriaLabel(tool.name, isConnected)} data-testid={`button-connect-${tool.name.toLowerCase().replaceAll(' ', '-')}`} className={cn('tool-tile soft-focus group rounded-[17px] border p-4 text-left transition-all', isConnected ? 'border-[hsl(var(--accent))]/55 bg-[hsl(var(--accent))]/10 shadow-sm' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:border-[hsl(var(--muted-foreground))]/45')}><div className="flex items-start justify-between"><div className="tool-mark flex h-11 w-11 items-center justify-center rounded-[13px] bg-[hsl(var(--muted))]" style={{ color: mark.color }}><ChannelMark value={tool.markKey} size={22} /></div><span className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', isConnected ? 'bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent-foreground))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{connectPreferenceLabel(isConnected)}</span></div><div className="mt-5 flex items-end justify-between gap-2"><div><div className="text-base font-bold">{tool.name}</div><div className="mt-1 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">{tool.detail}</div></div><span className="font-mono-ui text-xs font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">{tool.group}</span></div></button>; })}</div><div className="mt-8 grid gap-4 lg:grid-cols-[1.15fr_.85fr]"><Card className="flex gap-4 p-5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Link2 size={18} /></div><div><h2 className="text-base font-bold">No integration required to start selling.</h2><p className="mt-1.5 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">Create buyer links, collect details, and track customer balances without connecting a personal social media account. These preferences configure your channel labels across Take Order.</p></div></Card><Card className="p-5"><div className="flex items-center gap-2 text-base font-bold"><Check size={16} className="text-[hsl(var(--accent-foreground))]" />{connected.length ? `${connected.length} channel preference${connected.length === 1 ? '' : 's'} active` : 'No channel preferences yet'}</div><p className="mt-2 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">You can update these anytime. Your choices stay stored on this device.</p></Card></div></div></Shell>;
 }
-type SettingsSectionId = 'general' | 'payments' | 'checkout' | 'delivery' | 'workflow' | 'domains' | 'membership' | 'seo' | 'advanced' | 'details' | 'billing' | 'staff' | 'integrations';
+type SettingsSectionId = 'shop' | 'payments' | 'delivery' | 'preferences' | 'security' | 'billing' | 'data';
 
-const settingsGroups: Array<{ label: string; items: Array<{ id: SettingsSectionId; label: string; description: string; icon: typeof Settings2 }> }> = [
-  {
-    label: 'Store',
-    items: [
-      { id: 'general', label: 'General', description: 'Your shop identity and public profile.', icon: Store },
-      { id: 'payments', label: 'Payments', description: 'How buyers pay and reserve orders.', icon: CreditCard },
-      { id: 'checkout', label: 'Checkout', description: 'The details buyers provide at checkout.', icon: ShoppingBag },
-      { id: 'delivery', label: 'Delivery', description: 'Pickup, delivery, and fulfilment defaults.', icon: Truck },
-      { id: 'workflow', label: 'Workflow', description: 'Notifications and workspace behaviour.', icon: Workflow },
-      { id: 'domains', label: 'Domains', description: 'Your buyer link and custom domains.', icon: Globe2 },
-      { id: 'membership', label: 'Membership', description: 'Plan and workspace access.', icon: WalletCards },
-      { id: 'seo', label: 'SEO and trackings', description: 'Search previews and campaign tracking.', icon: SearchCheck },
-      { id: 'advanced', label: 'Advanced', description: 'Data, privacy, and developer options.', icon: Wrench },
-    ],
-  },
-  {
-    label: 'Organization',
-    items: [
-      { id: 'details', label: 'Details', description: 'Business information and contact details.', icon: FileText },
-      { id: 'billing', label: 'Billing', description: 'Invoices and payment history.', icon: ReceiptText },
-      { id: 'staff', label: 'Staff', description: 'People who can manage this workspace.', icon: UsersRound },
-      { id: 'integrations', label: 'Integrations', description: 'Connected sales and payment tools.', icon: Link2 },
-    ],
-  },
+const settingsNavItems: Array<{
+  id: SettingsSectionId;
+  label: string;
+  description: string;
+  icon: any;
+  keywords: string[];
+}> = [
+  { id: 'shop', label: 'General', description: 'Store identity, seller handle, storefront logo, active channels, and currency.', icon: Settings2, keywords: ['general', 'shop', 'profile', 'name', 'handle', 'logo', 'currency', 'channels', 'whatsapp', 'bio'] },
+  { id: 'payments', label: 'Payments & Payouts', description: 'Payment defaults, deposit presets, and Mobile Money / Bank payout details.', icon: CreditCard, keywords: ['payments', 'payouts', 'momo', 'mobile money', 'bank', 'deposit', 'reserve', 'account'] },
+  { id: 'delivery', label: 'Fulfillment & Pickup', description: 'Fulfillment options, flat delivery fee, and store pickup location.', icon: Truck, keywords: ['delivery', 'fulfillment', 'pickup', 'shipping', 'fee', 'address', 'hours'] },
+  { id: 'preferences', label: 'Store Preferences', description: 'Workspace alert toggles, status updates, and table density.', icon: SlidersHorizontal, keywords: ['preferences', 'alerts', 'notifications', 'compact', 'tables', 'updates', 'stock'] },
+  { id: 'security', label: 'Security & Login', description: 'Active session, multi-factor authentication, and account access.', icon: ShieldCheck, keywords: ['security', 'login', 'mfa', 'auth', 'password', 'sign out', 'logout', 'session'] },
+  { id: 'billing', label: 'Billing & Subscription', description: 'TakeOrder Pro plan, billing status, and subscription management.', icon: Crown, keywords: ['billing', 'subscription', 'plan', 'pro', 'upgrade', 'revenuecat'] },
+  { id: 'data', label: 'Data & Export', description: 'Export order data to CSV, workspace reset, and data controls.', icon: Clipboard, keywords: ['data', 'export', 'csv', 'download', 'backup', 'reset', 'danger'] },
 ];
 
-const settingsItem = (id: SettingsSectionId) => settingsGroups.flatMap((group) => group.items).find((item) => item.id === id)!;
+const settingsItem = (id: string) => {
+  if (id === 'general') return settingsNavItems[0];
+  if (id === 'workflow' || id === 'advanced' || id === 'checkout') return settingsNavItems[3];
+  if (id === 'pro' || id === 'pricing') return settingsNavItems[5];
+  return settingsNavItems.find((item) => item.id === id) || settingsNavItems[0];
+};
 
-function SettingsToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return <label className="settings-row settings-toggle-row">
-    <span><span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-xs leading-5 text-[hsl(var(--muted-foreground))]">{description}</span></span>
-    <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="sr-only" />
-    <span className={cn('settings-switch', checked && 'is-on')} aria-hidden="true"><span /></span>
-  </label>;
+function SwitchControl({ checked, onChange, testId }: { checked: boolean; onChange: (checked: boolean) => void; testId?: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      data-testid={testId}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none',
+        checked ? 'bg-[#2563EB]' : 'bg-neutral-200 dark:bg-neutral-700'
+      )}
+    >
+      <span
+        className={cn(
+          'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out mt-0.5',
+          checked ? 'translate-x-5' : 'translate-x-0.5'
+        )}
+      />
+    </button>
+  );
 }
 
 function SettingsPage() {
   const queryClient = useQueryClient();
-  const [activeSection, setActiveSection] = useState<string>('general');
+  const [, setLocation] = useLocation();
+  const { userId, signOut } = useAppAuth();
+  const entitlements = useEntitlements(userId);
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>('shop');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showMfaBanner, setShowMfaBanner] = useState(true);
   const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [] });
   const [preferences, setPreferences] = useState<SellerSettingsPreferences>(() => readSellerSettings());
   const settingsQuery = useGetSellerSettings();
   const saveSettingsMutation = useUpdateSellerSettings();
+  const ordersQuery = useListOrders();
   const [settings, setSettings] = useState<SellerSettings>(emptySellerSettings);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [logoError, setLogoError] = useState('');
-  const active = settingsItem(activeSection as SettingsSectionId);
+  const [exported, setExported] = useState(false);
+  const [copiedPayment, setCopiedPayment] = useState(false);
+
+  const activeId: SettingsSectionId = activeSection === ('general' as any) ? 'shop' : activeSection;
+  const active = settingsItem(activeId);
 
   useEffect(() => {
     if (!settingsQuery.data) return;
@@ -2922,6 +7392,14 @@ function SettingsPage() {
       description: settingsQuery.data.description || local?.description || '',
       channels: settingsQuery.data.channels.length ? settingsQuery.data.channels : local?.channels || [],
       logoDataUrl: settingsQuery.data.logoDataUrl || local?.logoDataUrl || null,
+      organizationPhone: local?.whatsappPhone || settingsQuery.data.organizationPhone || '',
+      organizationAddress: local?.pickupAddress || settingsQuery.data.organizationAddress || '',
+      trackingId: local?.pickupHours || settingsQuery.data.trackingId || '',
+      seoTitle: local?.momoNetwork || settingsQuery.data.seoTitle || 'MTN MoMo',
+      customDomain: local?.momoNumber || settingsQuery.data.customDomain || '',
+      organizationName: local?.momoName || settingsQuery.data.organizationName || '',
+      organizationEmail: local?.bankName || settingsQuery.data.organizationEmail || '',
+      seoDescription: local?.bankAccount || settingsQuery.data.seoDescription || '',
     };
     setSettings(next);
     setProfile({
@@ -2929,6 +7407,15 @@ function SettingsPage() {
       businessName: next.businessName,
       description: next.description,
       channels: next.channels,
+      whatsappPhone: next.organizationPhone,
+      pickupAddress: next.organizationAddress,
+      pickupHours: next.trackingId,
+      momoNetwork: next.seoTitle,
+      momoNumber: next.customDomain,
+      momoName: next.organizationName,
+      bankName: next.organizationEmail,
+      bankAccount: next.seoDescription,
+      currency: next.currency,
       ...(next.logoDataUrl ? { logoDataUrl: next.logoDataUrl } : {}),
     });
     setPreferences({ orderUpdates: next.orderUpdates, stockAlerts: next.stockAlerts, compactTables: next.compactTables });
@@ -2940,18 +7427,7 @@ function SettingsPage() {
     setSaved(false);
     setSaveError('');
   };
-  const saveProfile = () => {
-    writeSellerProfile(profile);
-    saveSettingsMutation.mutate({ data: settings }, {
-      onSuccess: (data) => {
-        setSettings(data);
-        setSaved(true);
-        setSaveError('');
-        queryClient.setQueryData(getGetSellerSettingsQueryKey(), data);
-      },
-      onError: (error) => setSaveError(error instanceof Error ? error.message : 'Your settings could not be saved.'),
-    });
-  };
+
   const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -2976,6 +7452,7 @@ function SettingsPage() {
     reader.onerror = () => setLogoError('That image could not be read. Try another file.');
     reader.readAsDataURL(file);
   };
+
   const removeLogo = () => {
     setProfile((current) => {
       const next = { ...current };
@@ -2985,113 +7462,1211 @@ function SettingsPage() {
     setSettings((current) => ({ ...current, logoDataUrl: null }));
     setSaved(false);
   };
+
   const setPreference = (key: keyof SellerSettingsPreferences, value: boolean) => {
-    setPreferences((current) => ({ ...current, [key]: value }));
+    const updated = { ...preferences, [key]: value };
+    setPreferences(updated);
     setSettings((current) => ({ ...current, [key]: value }));
+    writeSellerSettings(updated);
+    if (key === 'compactTables') {
+      document.body.classList.toggle('compact-tables-active', value);
+    }
     setSaved(false);
   };
+
   const setSetting = <K extends keyof SellerSettings>(key: K, value: SellerSettings[K]) => {
     setSettings((current) => ({ ...current, [key]: value }));
     setSaved(false);
     setSaveError('');
   };
+
   const saveSettings = () => {
     setSaveError('');
     saveSettingsMutation.mutate({ data: settings }, {
       onSuccess: (data) => {
         setSettings(data);
-        setProfile({
+        const mergedProfile = {
+          ...profile,
           sellerName: data.sellerName,
           businessName: data.businessName,
           description: data.description,
           channels: data.channels,
+          currency: data.currency,
+          whatsappPhone: data.organizationPhone,
+          pickupAddress: data.organizationAddress,
+          pickupHours: data.trackingId,
+          momoNetwork: data.seoTitle,
+          momoNumber: data.customDomain,
+          momoName: data.organizationName,
+          bankName: data.organizationEmail,
+          bankAccount: data.seoDescription,
           ...(data.logoDataUrl ? { logoDataUrl: data.logoDataUrl } : {}),
-        });
-        writeSellerProfile({
-          sellerName: data.sellerName,
-          businessName: data.businessName,
-          description: data.description,
-          channels: data.channels,
-          ...(data.logoDataUrl ? { logoDataUrl: data.logoDataUrl } : {}),
-        });
+        };
+        setProfile(mergedProfile);
+        writeSellerProfile(mergedProfile);
+        writeSellerSettings({ orderUpdates: data.orderUpdates, stockAlerts: data.stockAlerts, compactTables: data.compactTables });
+        setActiveCurrency(data.currency);
         setSaved(true);
         queryClient.setQueryData(getGetSellerSettingsQueryKey(), data);
       },
-      onError: (error) => setSaveError(error instanceof Error ? error.message : 'Your settings could not be saved.'),
+      onError: (error) => setSaveError(formatUserFacingError(error, 'Your settings could not be saved. Try again.')),
     });
   };
 
-  const renderSettingsContent = () => {
-    if (settingsQuery.isLoading) return <div className="settings-card"><div className="flex items-center gap-3 text-sm font-semibold"><Loader2 size={16} className="animate-spin" />Loading saved settings</div><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your workspace settings are being restored.</p></div>;
-    if (settingsQuery.isError) return <div className="settings-card"><div className="text-sm font-semibold">Settings could not be loaded</div><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your saved settings are still safe. Try again to continue.</p><Button type="button" variant="outline" className="mt-4" onClick={() => settingsQuery.refetch()}>Try again</Button></div>;
-    const saveAction = <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[hsl(var(--border))] pt-5"><p className="text-xs text-[hsl(var(--muted-foreground))]">{saveError || (saved ? 'Saved to your seller workspace.' : 'Changes are ready to save.')}</p><Button type="button" onClick={saveSettings} disabled={saveSettingsMutation.isPending}>{saveSettingsMutation.isPending && <Loader2 size={15} className="animate-spin" />}{saved ? <><Check size={15} />Saved</> : 'Save changes'}</Button></div>;
-    if (activeSection === 'general') return <div className="space-y-5">
-      <div className="settings-card flex flex-col gap-5 sm:flex-row sm:items-center">
-        <SellerLogo businessName={settings.businessName || 'Your shop'} logoDataUrl={settings.logoDataUrl ?? undefined} className="settings-profile-logo" />
-        <div className="min-w-0 flex-1"><div className="text-sm font-semibold">{settings.logoDataUrl ? 'Your logo is ready' : 'Add a business logo'}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Use a square PNG, JPG, WebP, or SVG up to 2 MB. It appears on buyer order pages.</p><div className="mt-3 flex flex-wrap gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] px-3 py-2 text-[11px] font-semibold text-[hsl(var(--primary-foreground))]"><ImagePlus size={14} />{settings.logoDataUrl ? 'Replace logo' : 'Upload logo'}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" tabIndex={-1} className="sr-only" onChange={handleLogoChange} data-testid="input-settings-logo" /></label>{settings.logoDataUrl && <button type="button" onClick={removeLogo} className="inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--border))] px-3 py-2 text-[11px] font-semibold hover:bg-[hsl(var(--muted))]" data-testid="button-remove-settings-logo"><X size={14} />Remove</button>}</div>{logoError && <p role="alert" className="mt-2 text-xs text-[hsl(var(--destructive))]">{logoError}</p>}</div>
-      </div>
-      <div className="settings-card grid gap-5 sm:grid-cols-2">
-        <div><label className="field-label" htmlFor="settings-seller-name">Your name</label><input id="settings-seller-name" data-testid="input-settings-seller-name" className="field-input" value={settings.sellerName} onChange={(event) => updateProfile('sellerName', event.target.value)} placeholder="e.g. Amina Mensah" /></div>
-        <div><label className="field-label" htmlFor="settings-business-name">Business or shop name</label><input id="settings-business-name" data-testid="input-settings-business-name" className="field-input" value={settings.businessName} onChange={(event) => updateProfile('businessName', event.target.value)} placeholder="e.g. The Sunday Edit" /></div>
-        <div className="sm:col-span-2"><label className="field-label" htmlFor="settings-description">Short shop description</label><textarea id="settings-description" data-testid="input-settings-description" className="field-input resize-none leading-6" rows={4} value={settings.description} onChange={(event) => updateProfile('description', event.target.value)} placeholder="Tell buyers what you sell and where they can find you." /></div>
-        <div className="sm:col-span-2"><label className="field-label" htmlFor="settings-currency">Store currency</label><select id="settings-currency" data-testid="select-settings-currency" className="field-input" value={settings.currency} onChange={(event) => setSetting('currency', event.target.value as SellerSettings['currency'])}>{storeCurrencyOptions.map((option) => <option key={option.currency} value={option.currency}>{option.label} ({option.currency})</option>)}</select><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">This currency is used for your dashboard, seller tools, and every buyer link. Prices are not automatically converted.</p></div>
-        {saveAction}
-      </div>
-      <div className="settings-card"><div className="flex items-center gap-2 text-sm font-semibold"><Store size={16} />Public storefront</div><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">These saved details appear on shared buyer order pages.</p><div className="mt-4 flex flex-wrap gap-2">{profile.channels.length ? profile.channels.map((channel) => <span key={channel} className="rounded-full bg-[hsl(var(--muted))] px-3 py-1.5 text-[11px] font-semibold">{channel}</span>) : <span className="text-xs text-[hsl(var(--muted-foreground))]">No sales channels selected yet.</span>}</div></div>
-    </div>;
-    if (activeSection === 'workflow') return <div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Order updates" description="Keep order status changes visible in the workspace." checked={settings.orderUpdates} onChange={(value) => setPreference('orderUpdates', value)} /><SettingsToggle label="Stock alerts" description="Highlight products that are running low or out of stock." checked={settings.stockAlerts} onChange={(value) => setPreference('stockAlerts', value)} /><SettingsToggle label="Compact tables" description="Use tighter rows when scanning orders, clients, and expenses." checked={settings.compactTables} onChange={(value) => setPreference('compactTables', value)} /><div className="p-5">{saveAction}</div></div>;
-    if (activeSection === 'payments') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Payment behaviour</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">This default is used when you create a new buyer order link.</p></div><WalletCards size={19} className="text-[hsl(var(--muted-foreground))]" /></div><label className="field-label mt-5" htmlFor="settings-payment-mode">Default payment mode</label><select id="settings-payment-mode" className="field-input" value={settings.paymentMode} onChange={(event) => setSetting('paymentMode', event.target.value as SellerSettings['paymentMode'])}><option value="reserve">Reserve order and confirm payment later</option><option value="full">Pay now with demo payment</option><option value="deposit">Collect a deposit with demo payment</option></select>{saveAction}</div><div className="settings-note"><CreditCard size={16} /><p><strong>Payments are demo-only for now.</strong> No real card or mobile-money transaction is processed until a payment provider is connected.</p></div></div>;
-    if (activeSection === 'checkout') return <div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Ask for useful order details" description="Let buyers add delivery timing, access notes, or other context." checked={settings.checkoutAskForDetails} onChange={(value) => setSetting('checkoutAskForDetails', value)} /><SettingsToggle label="Allow reference images" description="Let buyers attach an image when a product needs visual guidance." checked={settings.checkoutAllowReferenceImages} onChange={(value) => setSetting('checkoutAllowReferenceImages', value)} /><div className="settings-row"><div><div className="text-sm font-semibold">Checkout reassurance</div><div className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Buyers see a clear summary before sending an order.</div></div><span className="settings-status"><Check size={13} />Enabled</span></div><div className="p-5">{saveAction}</div></div>;
-     if (activeSection === 'delivery') return <div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Fulfilment defaults</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">These saved values are copied to new buyer order links.</p></div><Truck size={19} className="text-[hsl(var(--muted-foreground))]" /></div><label className="field-label mt-5" htmlFor="settings-delivery-default">Default option</label><select id="settings-delivery-default" className="field-input" value={settings.deliveryDefault} onChange={(event) => setSetting('deliveryDefault', event.target.value as SellerSettings['deliveryDefault'])}><option value="pickup">Pickup</option><option value="delivery">Delivery</option><option value="both">Let buyers choose</option></select><label className="field-label mt-5" htmlFor="settings-delivery-fee">Flat delivery fee</label><div className="relative"><span className="pointer-events-none absolute left-3 top-2.5 text-xs text-[hsl(var(--muted-foreground))]">{currencySymbol()}</span><input id="settings-delivery-fee" className="field-input pl-7" type="number" min="0" step="0.01" value={settings.deliveryFee} onChange={(event) => setSetting('deliveryFee', Math.max(0, Number(event.target.value) || 0))} /></div>{saveAction}</div>;
-    if (activeSection === 'domains') return <div className="space-y-5"><div className="settings-card"><h3 className="text-sm font-semibold">Buyer link</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Shared order links continue to use the Take Order workspace domain.</p><div className="mt-4 flex items-center gap-3 rounded-[10px] bg-[hsl(var(--muted))] px-3 py-3 text-xs"><Globe2 size={15} /><span className="truncate">take-order.app/your-shop</span><span className="settings-status ml-auto">Live</span></div></div><div className="settings-card"><h3 className="text-sm font-semibold">Custom domain preference</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Save the domain you plan to use. Domain connection is not available yet, so it will not be shown as active.</p><div className="mt-4 flex gap-2"><input className="field-input" value={settings.customDomain} onChange={(event) => setSetting('customDomain', event.target.value)} placeholder="orders.yourshop.com" /><span className="settings-status self-center whitespace-nowrap">{settings.customDomain ? 'Saved preference' : 'Not configured'}</span></div>{saveAction}</div></div>;
-    if (activeSection === 'seo') return <div className="settings-card space-y-5"><div><label className="field-label" htmlFor="settings-seo-title">Store title</label><input id="settings-seo-title" className="field-input" value={settings.seoTitle} onChange={(event) => setSetting('seoTitle', event.target.value)} placeholder={settings.businessName || 'Your shop'} /></div><div><label className="field-label" htmlFor="settings-seo-description">Search description</label><textarea id="settings-seo-description" className="field-input resize-none" rows={3} value={settings.seoDescription} onChange={(event) => setSetting('seoDescription', event.target.value)} placeholder="A short description for search previews." /></div><div><label className="field-label" htmlFor="settings-tracking-id">Tracking ID <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><input id="settings-tracking-id" className="field-input" value={settings.trackingId} onChange={(event) => setSetting('trackingId', event.target.value)} placeholder="e.g. G-XXXXXXXXXX" /></div>{saveAction}</div>;
-    if (activeSection === 'advanced') return <div className="space-y-5"><div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Compact tables" description="Use tighter rows throughout the seller workspace." checked={settings.compactTables} onChange={(value) => setPreference('compactTables', value)} /><div className="settings-row"><div><div className="text-sm font-semibold">Server-saved data</div><div className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Profile and workspace preferences follow your authenticated seller account.</div></div><span className="settings-status"><Check size={13} />Private</span></div><div className="p-5">{saveAction}</div></div><div className="settings-card"><h3 className="text-sm font-semibold">Reset saved settings</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">This restores empty profile, delivery, checkout, SEO, and organization values. It does not delete products or orders.</p><button type="button" className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--destructive))]/35 px-3 py-2 text-xs font-semibold text-[hsl(var(--destructive))]" onClick={() => { if (!window.confirm('Reset saved seller settings?')) return; setSettings(emptySellerSettings); setProfile({ sellerName: '', businessName: '', description: '', channels: [] }); setPreferences(defaultSellerPreferences); setSaved(false); setSaveError(''); saveSettingsMutation.mutate({ data: emptySellerSettings }); }}>Reset settings</button></div></div>;
-    if (false) return <div className="settings-card grid gap-5 sm:grid-cols-2"><div><label className="field-label" htmlFor="settings-org-name">Legal or trading name</label><input id="settings-org-name" className="field-input" value={settings.organizationName} onChange={(event) => setSetting('organizationName', event.target.value)} /></div><div><label className="field-label" htmlFor="settings-org-email">Business email</label><input id="settings-org-email" className="field-input" type="email" value={settings.organizationEmail} onChange={(event) => setSetting('organizationEmail', event.target.value)} placeholder="you@example.com" /></div><div><label className="field-label" htmlFor="settings-org-phone">Business phone</label><input id="settings-org-phone" className="field-input" type="tel" value={settings.organizationPhone} onChange={(event) => setSetting('organizationPhone', event.target.value)} placeholder="+233 00 000 0000" /></div><div><label className="field-label" htmlFor="settings-org-country">Country or region</label><select id="settings-org-country" className="field-input" value={settings.organizationCountry} onChange={(event) => setSetting('organizationCountry', event.target.value)}><option value="gh">Ghana</option><option value="ng">Nigeria</option><option value="za">South Africa</option><option value="other">Other</option></select></div><div className="sm:col-span-2"><label className="field-label" htmlFor="settings-org-address">Business address</label><textarea id="settings-org-address" className="field-input resize-none" rows={3} value={settings.organizationAddress} onChange={(event) => setSetting('organizationAddress', event.target.value)} placeholder="Add an address for invoices and fulfilment." /></div><div className="sm:col-span-2">{saveAction}</div></div>;
-    if (activeSection === 'integrations') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Connected tools</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your selected tools are saved as preferences. No tool is authorized unless a connection is explicitly completed.</p></div><Link2 size={19} className="text-[hsl(var(--muted-foreground))]" /></div><div className="mt-4 text-xs text-[hsl(var(--muted-foreground))]">{settings.connectedTools.length ? `${settings.connectedTools.length} tool preference${settings.connectedTools.length === 1 ? '' : 's'} saved.` : 'No tool preferences saved yet.'}</div><Link href="/connect" className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--border))] px-3 py-2 text-xs font-semibold hover:bg-[hsl(var(--muted))]">Manage integrations <ArrowRight size={14} /></Link></div><div className="settings-note"><ShieldIcon /><p>Take Order never reads personal chats. Billing and staff access are not connected yet.</p></div></div>;
-    if (activeSection === 'general') return <div className="space-y-5">
-      <div className="settings-card flex flex-col gap-5 sm:flex-row sm:items-center">
-        <SellerLogo businessName={profile.businessName || 'Your shop'} logoDataUrl={profile.logoDataUrl} className="settings-profile-logo" />
-        <div className="min-w-0 flex-1"><div className="text-sm font-semibold">{profile.logoDataUrl ? 'Your logo is ready' : 'Add a business logo'}</div><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Use a square PNG, JPG, WebP, or SVG up to 2 MB. It appears on buyer order pages.</p><div className="mt-3 flex flex-wrap gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-[10px] bg-[hsl(var(--primary))] px-3 py-2 text-[11px] font-semibold text-[hsl(var(--primary-foreground))]"><ImagePlus size={14} />{profile.logoDataUrl ? 'Replace logo' : 'Upload logo'}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" tabIndex={-1} className="sr-only" onChange={handleLogoChange} data-testid="input-settings-logo" /></label>{profile.logoDataUrl && <button type="button" onClick={removeLogo} className="inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--border))] px-3 py-2 text-[11px] font-semibold hover:bg-[hsl(var(--muted))]" data-testid="button-remove-settings-logo"><X size={14} />Remove</button>}</div>{logoError && <p role="alert" className="mt-2 text-xs text-[hsl(var(--destructive))]">{logoError}</p>}</div>
-      </div>
-      <div className="settings-card grid gap-5 sm:grid-cols-2">
-        <div><label className="field-label" htmlFor="settings-seller-name">Your name</label><input id="settings-seller-name" data-testid="input-settings-seller-name" className="field-input" value={profile.sellerName} onChange={(event) => updateProfile('sellerName', event.target.value)} placeholder="e.g. Amina Mensah" /></div>
-        <div><label className="field-label" htmlFor="settings-business-name">Business or shop name</label><input id="settings-business-name" data-testid="input-settings-business-name" className="field-input" value={profile.businessName} onChange={(event) => updateProfile('businessName', event.target.value)} placeholder="e.g. The Sunday Edit" /></div>
-        <div className="sm:col-span-2"><label className="field-label" htmlFor="settings-description">Short shop description</label><textarea id="settings-description" data-testid="input-settings-description" className="field-input resize-none leading-6" rows={4} value={profile.description} onChange={(event) => updateProfile('description', event.target.value)} placeholder="Tell buyers what you sell and where they can find you." /></div>
-        <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2"><p className="text-xs text-[hsl(var(--muted-foreground))]">{saved ? 'Saved to this device.' : 'Changes stay on this device until you save them.'}</p><Button type="button" onClick={saveProfile} data-testid="button-save-settings-profile">{saved ? <><Check size={15} />Saved</> : 'Save profile'}</Button></div>
-      </div>
-      <div className="settings-card"><div className="flex items-center gap-2 text-sm font-semibold"><Store size={16} />Public storefront</div><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your profile details are used on shared buyer order pages. Product catalogue and order data remain separate from this public introduction.</p><div className="mt-4 flex flex-wrap gap-2">{profile.channels.length ? profile.channels.map((channel) => <span key={channel} className="rounded-full bg-[hsl(var(--muted))] px-3 py-1.5 text-[11px] font-semibold">{channel}</span>) : <span className="text-xs text-[hsl(var(--muted-foreground))]">No sales channels selected yet.</span>}</div></div>
-    </div>;
-    if (activeSection === 'workflow') return <div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Order updates" description="Keep order status changes visible in the workspace." checked={preferences.orderUpdates} onChange={(value) => setPreference('orderUpdates', value)} /><SettingsToggle label="Stock alerts" description="Highlight products that are running low or out of stock." checked={preferences.stockAlerts} onChange={(value) => setPreference('stockAlerts', value)} /><SettingsToggle label="Compact tables" description="Use tighter rows when scanning orders, clients, and expenses." checked={preferences.compactTables} onChange={(value) => setPreference('compactTables', value)} /></div>;
-    if (activeSection === 'payments') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Payment behaviour</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Choose what buyers can do from your shared order links.</p></div><WalletCards size={19} className="text-[hsl(var(--muted-foreground))]" /></div><label className="field-label mt-5" htmlFor="settings-payment-mode">Default payment mode</label><select id="settings-payment-mode" className="field-input" defaultValue="reserve"><option value="reserve">Reserve order and confirm payment later</option><option value="pay">Pay now with demo payment</option></select></div><div className="settings-note"><CreditCard size={16} /><p><strong>Payments are demo-only for now.</strong> No real card or mobile-money transaction is processed until a payment provider is connected.</p></div></div>;
-    if (activeSection === 'checkout') return <div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Ask for useful order details" description="Let buyers add delivery timing, access notes, or other context." checked={true} onChange={() => undefined} /><SettingsToggle label="Allow reference images" description="Let buyers attach an image when a product needs visual guidance." checked={true} onChange={() => undefined} /><div className="settings-row"><div><div className="text-sm font-semibold">Checkout reassurance</div><div className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Buyers see a clear summary before sending an order.</div></div><span className="settings-status"><Check size={13} />Enabled</span></div></div>;
-    if (activeSection === 'delivery') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Fulfilment defaults</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">These choices appear when you create a new buyer order link.</p></div><Truck size={19} className="text-[hsl(var(--muted-foreground))]" /></div><label className="field-label mt-5" htmlFor="settings-delivery-default">Default option</label><select id="settings-delivery-default" className="field-input" defaultValue="pickup"><option value="pickup">Pickup</option><option value="delivery">Delivery</option><option value="both">Let buyers choose</option></select><label className="field-label mt-5" htmlFor="settings-delivery-fee">Flat delivery fee</label><div className="relative"><span className="pointer-events-none absolute left-3 top-2.5 text-xs text-[hsl(var(--muted-foreground))]">$</span><input id="settings-delivery-fee" className="field-input pl-7" type="number" min="0" step="0.01" defaultValue="0" /></div></div></div>;
-    if (activeSection === 'domains') return <div className="space-y-5"><div className="settings-card"><h3 className="text-sm font-semibold">Buyer link</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Shared order links use your Take Order workspace domain.</p><div className="mt-4 flex items-center gap-3 rounded-[10px] bg-[hsl(var(--muted))] px-3 py-3 text-xs"><Globe2 size={15} /><span className="truncate">take-order.app/your-shop</span><span className="settings-status ml-auto">Live</span></div></div><div className="settings-card"><h3 className="text-sm font-semibold">Custom domain</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Connect a domain later to give buyers a branded link.</p><div className="mt-4 flex gap-2"><input className="field-input" placeholder="orders.yourshop.com" disabled /><Button type="button" variant="outline" disabled>Connect</Button></div></div></div>;
-    if (activeSection === 'membership') return <div className="settings-card"><div className="flex items-start justify-between gap-4"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Current workspace</div><h3 className="mt-2 font-display text-2xl font-bold">Starter</h3><p className="mt-2 max-w-[450px] text-xs leading-5 text-[hsl(var(--muted-foreground))]">Everything you need to create buyer links, manage products, and understand your day-to-day sales.</p></div><div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[hsl(var(--muted))]"><WalletCards size={18} /></div></div><div className="mt-6 grid gap-3 sm:grid-cols-3"><div className="settings-stat"><strong>1</strong><span>workspace</span></div><div className="settings-stat"><strong>Unlimited</strong><span>buyer links</span></div><div className="settings-stat"><strong>Local</strong><span>preferences</span></div></div></div>;
-    if (activeSection === 'seo') return <div className="settings-card space-y-5"><div><label className="field-label" htmlFor="settings-seo-title">Store title</label><input id="settings-seo-title" className="field-input" defaultValue={profile.businessName || 'Your shop'} /></div><div><label className="field-label" htmlFor="settings-seo-description">Search description</label><textarea id="settings-seo-description" className="field-input resize-none" rows={3} defaultValue={profile.description} placeholder="A short description for search previews." /></div><div><label className="field-label" htmlFor="settings-tracking-id">Tracking ID <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><input id="settings-tracking-id" className="field-input" placeholder="e.g. G-XXXXXXXXXX" /></div><Button type="button" variant="outline">Save SEO settings</Button></div>;
-    if (activeSection === 'advanced') return <div className="space-y-5"><div className="settings-card divide-y divide-[hsl(var(--border))] p-0"><SettingsToggle label="Compact tables" description="Use tighter rows throughout the seller workspace." checked={preferences.compactTables} onChange={(value) => setPreference('compactTables', value)} /><div className="settings-row"><div><div className="text-sm font-semibold">Browser-only data</div><div className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Profile, channel choices, and display preferences stay in this browser.</div></div><span className="settings-status"><Check size={13} />Private</span></div></div><div className="settings-card"><h3 className="text-sm font-semibold">Reset local preferences</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">This does not delete products or orders. It only clears seller profile and workspace preferences.</p><button type="button" className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--destructive))]/35 px-3 py-2 text-xs font-semibold text-[hsl(var(--destructive))]" onClick={() => { if (!window.confirm('Reset local seller preferences?')) return; window.localStorage.removeItem(ONBOARDING_KEY); window.localStorage.removeItem(SELLER_SETTINGS_KEY); setProfile({ sellerName: '', businessName: '', description: '', channels: [] }); setPreferences(defaultSellerPreferences); setSaved(false); }}>Reset preferences</button></div></div>;
-    if (activeSection === 'details') return <div className="settings-card grid gap-5 sm:grid-cols-2"><div><label className="field-label" htmlFor="settings-org-name">Legal or trading name</label><input id="settings-org-name" className="field-input" defaultValue={profile.businessName} /></div><div><label className="field-label" htmlFor="settings-org-email">Business email</label><input id="settings-org-email" className="field-input" type="email" placeholder="you@example.com" /></div><div><label className="field-label" htmlFor="settings-org-phone">Business phone</label><input id="settings-org-phone" className="field-input" type="tel" placeholder="+233 00 000 0000" /></div><div><label className="field-label" htmlFor="settings-org-country">Country or region</label><select id="settings-org-country" className="field-input" defaultValue="gh"><option value="gh">Ghana</option><option value="ng">Nigeria</option><option value="za">South Africa</option><option value="other">Other</option></select></div><div className="sm:col-span-2"><label className="field-label" htmlFor="settings-org-address">Business address</label><textarea id="settings-org-address" className="field-input resize-none" rows={3} placeholder="Add an address for invoices and fulfilment." /></div><Button type="button" variant="outline">Save organization details</Button></div>;
-    if (activeSection === 'billing') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Billing is not connected</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your Starter workspace has no subscription invoices or payment method yet.</p></div><ReceiptText size={19} className="text-[hsl(var(--muted-foreground))]" /></div><Button type="button" variant="outline" className="mt-5" disabled>Manage billing</Button></div><div className="settings-note"><ShieldIcon /><p>Billing details will appear here when a paid workspace plan is available.</p></div></div>;
-    if (activeSection === 'staff') return <div className="space-y-5"><div className="settings-card"><h3 className="text-sm font-semibold">Workspace staff</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Invite people to help manage products and orders. Staff access is not connected yet.</p><div className="mt-5 flex items-center gap-3 rounded-[12px] border border-[hsl(var(--border))] p-3"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--chart-3))] text-[11px] font-bold text-white">{initials(profile.sellerName || 'Owner')}</div><div><div className="text-sm font-semibold">{profile.sellerName || 'Workspace owner'}</div><div className="text-xs text-[hsl(var(--muted-foreground))]">Owner · full access</div></div><span className="settings-status ml-auto">Active</span></div><Button type="button" variant="outline" className="mt-4" disabled>Invite staff</Button></div></div>;
-    if (activeSection === 'integrations') return <div className="space-y-5"><div className="settings-card"><div className="flex items-start justify-between gap-4"><div><h3 className="text-sm font-semibold">Connected tools</h3><p className="mt-1 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Choose the channels and payment tools you use. Connections are optional.</p></div><Link2 size={19} className="text-[hsl(var(--muted-foreground))]" /></div><Link href="/connect" className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[hsl(var(--border))] px-3 py-2 text-xs font-semibold hover:bg-[hsl(var(--muted))]">Manage integrations <ArrowRight size={14} /></Link></div><div className="settings-note"><ShieldIcon /><p>Take Order never reads personal chats. Connecting a tool only saves your workspace preference until an integration is explicitly authorized.</p></div></div>;
-    return <div className="settings-card"><h3 className="text-sm font-semibold">This setting is ready for configuration</h3><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Review the options here and keep your store details up to date as your business grows.</p></div>;
+  const copyPaymentDetails = async () => {
+    const net = profile.momoNetwork || settings.seoTitle || 'MTN MoMo';
+    const num = profile.momoNumber || settings.customDomain || '';
+    const name = profile.momoName || settings.organizationName || profile.businessName || '';
+    const bank = profile.bankName || settings.organizationEmail || '';
+    const bankAcc = profile.bankAccount || settings.seoDescription || '';
+    let text = `💳 Payment Details for ${profile.businessName || 'our shop'}:\n`;
+    if (num) text += `• ${net}: ${num} (${name})\n`;
+    if (bank && bankAcc) text += `• Bank: ${bank} — A/C: ${bankAcc}\n`;
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(text);
+      setCopiedPayment(true);
+      setTimeout(() => setCopiedPayment(false), 2000);
+    } catch {
+      // fallback
+    }
   };
 
-  return <Shell><div className="settings-page">
-    <PageHeading eyebrow="Seller workspace" title="Profile & settings" description="Keep your shop identity, storefront behaviour, and organization details in one place." />
-    <div className="settings-layout">
-      <aside className="settings-nav" aria-label="Settings navigation">
-        {settingsGroups.map((group) => <div key={group.label} className="settings-nav-group"><div className="settings-nav-heading">{group.label}</div><nav>{group.items.map((item) => { const Icon = item.icon; return <button type="button" key={item.id} className={cn('settings-nav-item', activeSection === item.id && 'is-active')} onClick={() => setActiveSection(item.id)} aria-current={activeSection === item.id ? 'page' : undefined} data-testid={`button-settings-${item.id}`}><Icon size={15} /><span>{item.label}</span></button>; })}</nav></div>)}
-      </aside>
-      <section className="settings-content" aria-live="polite">
-        <div className="settings-content-heading"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Settings / {active.label}</div><h2 className="mt-2 font-display text-2xl font-bold tracking-[-.04em]">{active.label}</h2><p className="mt-2 max-w-[620px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{active.description}</p></div><div className="settings-content-icon"><active.icon size={19} /></div></div>
-        <div className="mt-6">{renderSettingsContent()}</div>
-      </section>
-    </div>
-    <footer className="settings-footer"><div><div className="font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Take Order</div><p className="mt-2 text-xs leading-5 text-[hsl(var(--muted-foreground))]">Clear tools for independent sellers. Review the rules that guide how the workspace works.</p></div><nav className="settings-footer-links" aria-label="Legal and policy links"><a href="#terms">Terms and conditions</a><a href="#regulations">Regulations</a><a href="#privacy">Privacy policy</a><a href="#cookies">Cookie policy</a><a href="#acceptable-use">Acceptable use</a></nav></footer>
-  </div></Shell>;
+  const testWhatsAppLink = () => {
+    const phone = profile.whatsappPhone || settings.organizationPhone;
+    if (!phone) {
+      alert('Please enter your WhatsApp contact number first.');
+      return;
+    }
+    openWhatsApp(phone, `Hello! Testing WhatsApp contact connection from ${profile.businessName || 'my Take Order store'}.`);
+  };
+
+  const exportOrdersToCsv = (orders: Order[]) => {
+    const headers = ['Order ID', 'Date', 'Customer Name', 'Phone', 'Product / Items', 'Channel', 'Delivery Fee', 'Total', 'Payment Mode', 'Status', 'Fulfillment'];
+    const rows = orders.map((o) => [
+      `"#${o.id}"`,
+      `"${o.createdAt ? new Date(o.createdAt).toLocaleDateString() : ''}"`,
+      `"${(o.customerName || '').replace(/"/g, '""')}"`,
+      `"${(o.customerPhone || '').replace(/"/g, '""')}"`,
+      `"${(o.productName || '').replace(/"/g, '""')}"`,
+      `"${o.channel || ''}"`,
+      (o.deliveryFee || 0).toFixed(2),
+      o.amount.toFixed(2),
+      `"${o.paymentMode || 'full'}"`,
+      `"${o.status}"`,
+      `"${o.fulfillment}"`,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `takeorder-orders-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const normalizedQuery = searchQuery.toLowerCase().trim();
+  const visibleNavItems = settingsNavItems.filter((item) => {
+    if (!normalizedQuery) return true;
+    return item.label.toLowerCase().includes(normalizedQuery) || item.keywords.some((k) => k.includes(normalizedQuery));
+  });
+
+  const renderActiveRows = () => {
+    if (settingsQuery.isLoading) {
+      return (
+        <div className="flex items-center gap-3 py-12 text-sm text-neutral-500">
+          <Loader2 size={16} className="animate-spin text-neutral-800" />
+          <span>Loading settings...</span>
+        </div>
+      );
+    }
+    if (settingsQuery.isError) {
+      return (
+        <div className="py-8 text-sm">
+          <p className="font-semibold text-neutral-900">Settings could not be loaded</p>
+          <p className="mt-1 text-xs text-neutral-500">Your saved settings are safe. Try reloading to continue.</p>
+          <Button type="button" variant="outline" className="mt-4" onClick={() => settingsQuery.refetch()}>
+            Try again
+          </Button>
+        </div>
+      );
+    }
+
+    // 1. General (Shop Profile)
+    if (activeId === 'shop') {
+      return (
+        <div className="space-y-1">
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-business-name" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Business or shop name
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">The storefront name displayed to buyers at checkout</p>
+            </div>
+            <input
+              id="settings-business-name"
+              data-testid="input-settings-business-name"
+              type="text"
+              value={settings.businessName}
+              onChange={(e) => updateProfile('businessName', e.target.value)}
+              placeholder="e.g. The Sunday Edit"
+              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
+            />
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-seller-name" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Seller handle or name
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Your personal or brand handle (e.g. @amina.style)</p>
+            </div>
+            <input
+              id="settings-seller-name"
+              data-testid="input-settings-seller-name"
+              type="text"
+              value={settings.sellerName}
+              onChange={(e) => updateProfile('sellerName', e.target.value)}
+              placeholder="e.g. @amina.style"
+              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
+            />
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="settings-whatsapp-phone" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                  WhatsApp contact number
+                </label>
+                {(profile.whatsappPhone || settings.organizationPhone) && (
+                  <button type="button" onClick={testWhatsAppLink} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline">
+                    <SiWhatsapp size={11} className="text-[#25D366]" />
+                    <span>Test link</span>
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-neutral-500 mt-0.5">Direct chat number for customer inquiries</p>
+            </div>
+            <input
+              id="settings-whatsapp-phone"
+              data-testid="input-settings-whatsapp-phone"
+              type="tel"
+              value={profile.whatsappPhone ?? settings.organizationPhone}
+              onChange={(e) => { updateProfile('whatsappPhone', e.target.value); setSetting('organizationPhone', e.target.value); }}
+              placeholder="e.g. +233 24 123 4567"
+              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
+            />
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-currency" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Store base currency
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Used across product pricing, orders, and reports</p>
+            </div>
+            <div className="relative">
+              <select
+                id="settings-currency"
+                data-testid="select-settings-currency"
+                value={settings.currency}
+                onChange={(e) => {
+                  const curr = e.target.value as SellerSettings['currency'];
+                  setSetting('currency', curr);
+                  updateProfile('currency', curr);
+                  setActiveCurrency(curr);
+                }}
+                className="appearance-none bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100/80 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 py-1.5 pl-3 pr-8 text-xs sm:text-sm font-medium text-neutral-800 dark:text-neutral-200 rounded-xl cursor-pointer focus:outline-none focus:ring-1 focus:ring-black"
+              >
+                {storeCurrencyOptions.map((opt) => (
+                  <option key={opt.currency} value={opt.currency}>
+                    {opt.label} ({opt.currency})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+            </div>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="sm:max-w-xs">
+              <label htmlFor="settings-description" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Shop bio / about
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Brief description shown on your storefront</p>
+            </div>
+            <textarea
+              id="settings-description"
+              data-testid="input-settings-description"
+              maxLength={300}
+              rows={2}
+              value={settings.description}
+              onChange={(e) => updateProfile('description', e.target.value)}
+              placeholder="Tell buyers what you sell..."
+              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black resize-none leading-relaxed"
+            />
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Storefront logo
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Custom badge displayed on orders and checkout</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <SellerLogo businessName={settings.businessName || 'Your shop'} logoDataUrl={settings.logoDataUrl ?? undefined} className="h-10 w-10 rounded-xl object-cover border border-neutral-200 shrink-0" />
+              <div className="flex items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 shadow-2xs transition">
+                  <ImagePlus size={13} />
+                  <span>{settings.logoDataUrl ? 'Change' : 'Upload'}</span>
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={handleLogoChange} />
+                </label>
+                {settings.logoDataUrl && (
+                  <button type="button" onClick={removeLogo} className="px-2.5 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 text-xs text-neutral-600 hover:text-red-600 hover:border-red-200 transition">
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          {logoError && <p className="text-xs text-red-600 pt-1">{logoError}</p>}
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Active sales channels
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Where you chat with buyers and share links</p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-w-sm justify-start sm:justify-end">
+              {[
+                { key: 'WhatsApp', mark: 'whatsapp' },
+                { key: 'Instagram', mark: 'instagram' },
+                { key: 'TikTok', mark: 'tiktok' },
+                { key: 'Snapchat', mark: 'snapchat' },
+                { key: 'Facebook', mark: 'facebook' },
+                { key: 'X', mark: 'x' },
+              ].map((ch) => {
+                const isActive = profile.channels.includes(ch.key);
+                return (
+                  <button
+                    type="button"
+                    key={ch.key}
+                    onClick={() => {
+                      const updated = isActive ? profile.channels.filter(c => c !== ch.key) : [...profile.channels, ch.key];
+                      setProfile(prev => ({ ...prev, channels: updated }));
+                      setSettings(prev => ({ ...prev, channels: updated }));
+                      setSaved(false);
+                    }}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                      isActive
+                        ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-white dark:text-neutral-900 dark:border-white'
+                        : 'bg-neutral-50 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300'
+                    )}
+                  >
+                    <ChannelMark value={ch.mark as any} size={12} colorful={!isActive} />
+                    <span>{ch.key}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Storefront Card Live Preview */}
+          <div className="mt-6 pt-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Buyer storefront preview</span>
+              <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">Live preview</span>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-neutral-50/70 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800">
+              <div className="flex items-center gap-3">
+                <SellerLogo businessName={settings.businessName || 'Your shop'} logoDataUrl={settings.logoDataUrl ?? undefined} className="h-11 w-11 rounded-xl object-cover shrink-0" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <strong className="text-sm font-bold text-neutral-900 dark:text-neutral-100">{settings.businessName || 'Your Shop Name'}</strong>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 size={10} />Verified
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-500 mt-0.5">{settings.sellerName || '@yourhandle'} · {currencySymbol()} {settings.currency}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1">
+                {profile.channels.map(ch => (
+                  <span key={ch} className="px-2 py-0.5 rounded-full bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-[11px] font-medium text-neutral-700 dark:text-neutral-300">
+                    {ch}
+                  </span>
+                ))}
+                {profile.channels.length === 0 && <span className="text-xs text-neutral-400 italic">No channels selected</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 2. Payments & Payouts
+    if (activeId === 'payments') {
+      return (
+        <div className="space-y-1">
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-payment-mode" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Default payment mode
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Preselected option presented to buyers at checkout</p>
+            </div>
+            <div className="relative">
+              <select
+                id="settings-payment-mode"
+                value={settings.paymentMode}
+                onChange={(e) => setSetting('paymentMode', e.target.value as SellerSettings['paymentMode'])}
+                className="appearance-none bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100/80 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 py-1.5 pl-3 pr-8 text-xs sm:text-sm font-medium text-neutral-800 dark:text-neutral-200 rounded-xl cursor-pointer focus:outline-none focus:ring-1 focus:ring-black"
+              >
+                <option value="full">Full Payment (pay total upfront)</option>
+                <option value="deposit">Pay a Deposit (part-payment upfront)</option>
+                <option value="reserve">Make Reservation (pay on delivery)</option>
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+            </div>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Deposit preset
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Default percentage required upfront for deposits</p>
+            </div>
+            <div className="inline-flex rounded-xl p-1 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
+              {[25, 50, 75].map((pct) => {
+                const isSelected = (profile.paymentInstructions === String(pct) || (!profile.paymentInstructions && pct === 50));
+                return (
+                  <button
+                    type="button"
+                    key={pct}
+                    onClick={() => { updateProfile('paymentInstructions', String(pct)); setSetting('organizationCountry', String(pct)); setSaved(false); }}
+                    className={cn(
+                      'px-3 py-1 text-xs font-semibold rounded-lg transition-all',
+                      isSelected ? 'bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 shadow-2xs' : 'text-neutral-500 hover:text-neutral-900'
+                    )}
+                  >
+                    {pct}%
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Mobile Money network
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Network name shown to buyers sending Mobile Money</p>
+            </div>
+            <div className="relative">
+              <select
+                value={profile.momoNetwork || settings.seoTitle || 'MTN MoMo'}
+                onChange={(e) => {
+                  updateProfile('momoNetwork', e.target.value);
+                  setSetting('seoTitle', e.target.value);
+                }}
+                className="appearance-none bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100/80 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 py-1.5 pl-3 pr-8 text-xs sm:text-sm font-medium text-neutral-800 dark:text-neutral-200 rounded-xl cursor-pointer focus:outline-none focus:ring-1 focus:ring-black"
+              >
+                {['MTN MoMo', 'Telecel Cash', 'AT Money', 'M-Pesa', 'Other'].map((net) => (
+                  <option key={net} value={net}>
+                    {net}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+            </div>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-momo-number" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                MoMo phone number
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">The recipient number buyers transfer funds to</p>
+            </div>
+            <input
+              id="settings-momo-number"
+              data-testid="input-settings-momo-number"
+              type="text"
+              value={profile.momoNumber ?? settings.customDomain}
+              onChange={(e) => { updateProfile('momoNumber', e.target.value); setSetting('customDomain', e.target.value); }}
+              placeholder="e.g. 024 123 4567"
+              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
+            />
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-momo-name" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Account registered name
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">The exact name shown to verify recipient on MoMo</p>
+            </div>
+            <input
+              id="settings-momo-name"
+              data-testid="input-settings-momo-name"
+              type="text"
+              value={profile.momoName ?? settings.organizationName}
+              onChange={(e) => { updateProfile('momoName', e.target.value); setSetting('organizationName', e.target.value); }}
+              placeholder="e.g. Amina Mensah / Sunday Edit"
+              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
+            />
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-bank-name" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Bank name (optional)
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">For buyers who prefer bank transfers</p>
+            </div>
+            <input
+              id="settings-bank-name"
+              data-testid="input-settings-bank-name"
+              type="text"
+              value={profile.bankName ?? settings.organizationEmail}
+              onChange={(e) => { updateProfile('bankName', e.target.value); setSetting('organizationEmail', e.target.value); }}
+              placeholder="e.g. Access Bank / Ecobank"
+              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
+            />
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-bank-account" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Bank account number / IBAN
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Account number matching the bank above</p>
+            </div>
+            <input
+              id="settings-bank-account"
+              data-testid="input-settings-bank-account"
+              type="text"
+              value={profile.bankAccount ?? settings.seoDescription}
+              onChange={(e) => { updateProfile('bankAccount', e.target.value); setSetting('seoDescription', e.target.value); }}
+              placeholder="e.g. 0123456789012"
+              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
+            />
+          </div>
+
+          {/* Payment prompt preview card */}
+          <div className="mt-6 pt-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Buyer payment card preview</span>
+              <button
+                type="button"
+                onClick={copyPaymentDetails}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 shadow-2xs transition"
+              >
+                {copiedPayment ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                <span>{copiedPayment ? 'Copied prompt' : 'Copy payment prompt'}</span>
+              </button>
+            </div>
+            <div className="bg-neutral-50/70 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl p-4 space-y-2">
+              <div className="flex items-center justify-between text-xs pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
+                <span className="font-semibold text-neutral-900 dark:text-neutral-100">{profile.momoNetwork || settings.seoTitle || 'MTN MoMo'}</span>
+                <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">Active payout rail</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                <div>
+                  <span className="text-neutral-500 block">Number:</span>
+                  <strong className="font-mono text-sm text-neutral-900 dark:text-neutral-100">{profile.momoNumber || settings.customDomain || '024 000 0000'}</strong>
+                </div>
+                <div>
+                  <span className="text-neutral-500 block">Name:</span>
+                  <strong className="text-sm text-neutral-900 dark:text-neutral-100">{profile.momoName || settings.organizationName || settings.businessName || 'Seller Name'}</strong>
+                </div>
+              </div>
+              {(profile.bankName || settings.organizationEmail) && (
+                <div className="pt-2 border-t border-neutral-200/60 dark:border-neutral-800 text-xs text-neutral-500">
+                  Bank: <strong className="text-neutral-800 dark:text-neutral-200">{profile.bankName || settings.organizationEmail}</strong> — A/C: <span className="font-mono font-semibold text-neutral-800 dark:text-neutral-200">{profile.bankAccount || settings.seoDescription}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 3. Fulfillment & Pickup
+    if (activeId === 'delivery') {
+      return (
+        <div className="space-y-1">
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-delivery-default" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Fulfillment method
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Options offered to buyers during checkout</p>
+            </div>
+            <div className="relative">
+              <select
+                id="settings-delivery-default"
+                value={settings.deliveryDefault}
+                onChange={(e) => setSetting('deliveryDefault', e.target.value as SellerSettings['deliveryDefault'])}
+                className="appearance-none bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100/80 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 py-1.5 pl-3 pr-8 text-xs sm:text-sm font-medium text-neutral-800 dark:text-neutral-200 rounded-xl cursor-pointer focus:outline-none focus:ring-1 focus:ring-black"
+              >
+                <option value="both">Let buyers choose (Delivery or Pickup)</option>
+                <option value="delivery">Delivery only</option>
+                <option value="pickup">Store pickup only</option>
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+            </div>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-delivery-fee" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Flat delivery fee
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Fixed shipping fee automatically applied when delivery is selected</p>
+            </div>
+            <div className="relative w-full sm:w-40">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-neutral-500">{currencySymbol()}</span>
+              <input
+                id="settings-delivery-fee"
+                data-testid="input-settings-delivery-fee"
+                type="number"
+                min="0"
+                step="0.01"
+                value={settings.deliveryFee}
+                onChange={(e) => setSetting('deliveryFee', Math.max(0, Number(e.target.value) || 0))}
+                className="w-full pl-8 pr-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-black"
+              />
+            </div>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-pickup-address" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Store pickup location
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Address where buyers collect orders in person</p>
+            </div>
+            <input
+              id="settings-pickup-address"
+              data-testid="input-settings-pickup-address"
+              type="text"
+              value={profile.pickupAddress ?? settings.organizationAddress}
+              onChange={(e) => { updateProfile('pickupAddress', e.target.value); setSetting('organizationAddress', e.target.value); }}
+              placeholder="e.g. Shop 14, Osu Oxford Street, Accra"
+              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
+            />
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <label htmlFor="settings-pickup-hours" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Collection hours
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Operating times when orders are ready for collection</p>
+            </div>
+            <input
+              id="settings-pickup-hours"
+              data-testid="input-settings-pickup-hours"
+              type="text"
+              value={profile.pickupHours ?? settings.trackingId}
+              onChange={(e) => { updateProfile('pickupHours', e.target.value); setSetting('trackingId', e.target.value); }}
+              placeholder="e.g. Mon–Sat 9:00 AM – 6:30 PM"
+              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // 4. Store Preferences
+    if (activeId === 'preferences') {
+      return (
+        <div className="space-y-1">
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Order status updates
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Notify you whenever a buyer completes checkout or makes a deposit</p>
+            </div>
+            <SwitchControl checked={settings.orderUpdates} onChange={(val) => setPreference('orderUpdates', val)} />
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Stock running low alerts
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Highlight products whose remaining stock drops below 5 units</p>
+            </div>
+            <SwitchControl checked={settings.stockAlerts} onChange={(val) => setPreference('stockAlerts', val)} />
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Compact tables
+              </label>
+              <p className="text-xs text-neutral-500 mt-0.5">Use tighter row padding for high-volume order management</p>
+            </div>
+            <SwitchControl checked={settings.compactTables} onChange={(val) => setPreference('compactTables', val)} />
+          </div>
+        </div>
+      );
+    }
+
+    // 5. Security & Login
+    if (activeId === 'security') {
+      return (
+        <div className="space-y-1">
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Signed-in account</span>
+              <p className="text-xs text-neutral-500 mt-0.5">Your active seller authentication session</p>
+            </div>
+            <div className="text-xs font-mono bg-neutral-100 dark:bg-neutral-800 px-3 py-1.5 rounded-lg text-neutral-700 dark:text-neutral-300">
+              {userId ? (userId.includes('@') ? userId : `User: ${userId.slice(0, 14)}...`) : 'Active session'}
+            </div>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Two-factor authentication (MFA)</span>
+              <p className="text-xs text-neutral-500 mt-0.5">Protect your seller workspace with an extra security verification step</p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800">
+              <ShieldCheck size={13} />
+              <span>Available via Clerk</span>
+            </span>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Current device session</span>
+              <p className="text-xs text-neutral-500 mt-0.5">Active web browser session</p>
+            </div>
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span>Active</span>
+            </span>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Log out of Take Order</span>
+              <p className="text-xs text-neutral-500 mt-0.5">End your session on this browser and return to sign in</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Are you sure you want to log out of your seller account?')) {
+                  void signOut();
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-100 transition shadow-2xs"
+            >
+              <LogOut size={13} />
+              <span>Log out</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // 6. Billing & Subscription
+    if (activeId === 'billing') {
+      const activeLinkTotal = entitlements.tier === 'free' ? FREE_ACTIVE_LINK_LIMIT : entitlements.tier === 'pro' || entitlements.tier === 'trial' ? PRO_ACTIVE_LINK_LIMIT : null;
+      const linksRemaining = activeLinkTotal !== null ? Math.max(0, activeLinkTotal - entitlements.usage.activeLinkCount) : null;
+
+      return (
+        <div className="space-y-2">
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Current plan</span>
+              <p className="text-xs text-neutral-500 mt-0.5">Your active seller tier and capability allowances</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {entitlements.isProPlus ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black">
+                  <Crown size={12} className="text-amber-400" />
+                  <span>TakeOrder Pro+</span>
+                </span>
+              ) : entitlements.isPro && !entitlements.isTrial ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black">
+                  <Crown size={12} className="text-amber-400" />
+                  <span>TakeOrder Pro</span>
+                </span>
+              ) : entitlements.isTrial ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-900/60 dark:text-amber-200">
+                  <Clock3 size={12} className="text-amber-600" />
+                  <span>Pro (7-Day Trial: {entitlements.trial.daysRemaining}d left)</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <span>TakeOrder Free</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+              <div>
+                <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Active Take Order links</span>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  {activeLinkTotal !== null
+                    ? `${entitlements.usage.activeLinkCount} of ${activeLinkTotal} links created`
+                    : `${entitlements.usage.activeLinkCount} active links created`}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-bold text-foreground">
+                  {linksRemaining !== null ? `${linksRemaining} links left` : 'Unlimited'}
+                </span>
+              </div>
+            </div>
+            {activeLinkTotal !== null && (
+              <div className="h-2 w-full bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden mt-1">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all',
+                    linksRemaining === 0 ? 'bg-amber-500' : 'bg-black dark:bg-white'
+                  )}
+                  style={{ width: `${Math.min(100, (entitlements.usage.activeLinkCount / activeLinkTotal) * 100)}%` }}
+                />
+              </div>
+            )}
+            <p className="text-[11px] text-neutral-400 mt-2">
+              Already created links continue to work permanently even if plan limits are reached.
+            </p>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Catalog items allowance</span>
+              <p className="text-xs text-neutral-500 mt-0.5">Unlimited catalog products across all plans</p>
+            </div>
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              Unlimited ({entitlements.usage.catalogProductCount} items saved)
+            </span>
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Business reports & analytics</span>
+              <p className="text-xs text-neutral-500 mt-0.5">Profit margins, COGS breakdowns, and sales velocity</p>
+            </div>
+            {entitlements.tier === 'free' ? (
+              <Link
+                to="/subscribe"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 hover:underline"
+              >
+                <span>Upgrade to unlock</span>
+                <ArrowRight size={12} />
+              </Link>
+            ) : (
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                Unlocked
+              </span>
+            )}
+          </div>
+
+          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Subscription & billing</span>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                {entitlements.tier === 'free'
+                  ? 'Upgrade for 500 links, reports, and advanced features'
+                  : 'Manage renewal intervals, invoices, and payment methods'}
+              </p>
+            </div>
+            <Link
+              to={entitlements.tier === 'free' ? '/subscribe' : '/account/billing'}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-xs font-semibold shadow-2xs transition"
+            >
+              <span>{entitlements.tier === 'free' ? 'Upgrade to Pro' : 'Manage Billing'}</span>
+              <ArrowRight size={13} />
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
+    // 7. Data & Export
+    return (
+      <div className="space-y-1">
+        <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Export order data</span>
+            <p className="text-xs text-neutral-500 mt-0.5">Download your complete order history as a spreadsheet-ready CSV file</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl h-9 px-3.5 text-xs font-semibold gap-1.5 shadow-2xs"
+            onClick={() => {
+              if (!ordersQuery.data || ordersQuery.data.length === 0) {
+                alert('No orders found to export yet.');
+                return;
+              }
+              exportOrdersToCsv(ordersQuery.data);
+              setExported(true);
+              setTimeout(() => setExported(false), 3000);
+            }}
+            disabled={ordersQuery.isLoading}
+            data-testid="button-export-orders-csv"
+          >
+            {exported ? <Check size={13} className="text-emerald-500" /> : <ArrowDown size={13} />}
+            <span>{exported ? 'Downloaded CSV' : 'Export Orders to CSV'}</span>
+          </Button>
+        </div>
+
+        <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span className="text-sm font-medium text-red-600 dark:text-red-400">Reset workspace settings</span>
+            <p className="text-xs text-neutral-500 mt-0.5">Clear shop bio, saved payment rails, and restore defaults</p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 dark:border-red-900 bg-red-50/60 dark:bg-red-950/30 px-3.5 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 transition shadow-2xs"
+            onClick={() => {
+              if (!window.confirm('Are you sure you want to reset your seller workspace settings? This will clear your custom profile and payment details.')) return;
+              setSettings(emptySellerSettings);
+              setProfile({ sellerName: '', businessName: '', description: '', channels: [] });
+              setPreferences(defaultSellerPreferences);
+              setSaved(false);
+              setSaveError('');
+              saveSettingsMutation.mutate({ data: emptySellerSettings });
+            }}
+          >
+            <Trash2 size={13} />
+            <span>Reset workspace</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Shell>
+      <div className="mx-auto max-w-[1040px] my-2 sm:my-4">
+        <div className="bg-white dark:bg-neutral-950 border border-neutral-200/90 dark:border-neutral-800 rounded-3xl shadow-xs overflow-hidden flex flex-col md:flex-row min-h-[680px]">
+          {/* Left Column Rail (Matching Reference Image) */}
+          <div className="w-full md:w-64 shrink-0 p-5 flex flex-col border-b md:border-b-0 md:border-r border-neutral-200/70 dark:border-neutral-800 bg-white dark:bg-neutral-950">
+            {/* Top Close Button (Back to Dashboard) */}
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setLocation('/')}
+                className="h-9 w-9 rounded-xl border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center text-neutral-800 dark:text-neutral-200 transition shadow-2xs"
+                aria-label="Close settings"
+                data-testid="button-close-settings"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative mt-4">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="Search settings"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-neutral-100/80 dark:bg-neutral-900 border border-transparent focus:border-neutral-300 dark:focus:border-neutral-700 rounded-xl outline-none text-neutral-800 dark:text-neutral-100 placeholder:text-neutral-400 transition"
+                data-testid="input-search-settings"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Category Navigation Items */}
+            <div className="mt-4 space-y-1 overflow-y-auto flex-1">
+              {visibleNavItems.map((item) => {
+                const Icon = item.icon;
+                const isCurrent = activeId === item.id;
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => setActiveSection(item.id)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs sm:text-sm transition-all text-left',
+                      isCurrent
+                        ? 'bg-neutral-100 dark:bg-neutral-800 font-semibold text-neutral-900 dark:text-neutral-100'
+                        : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 hover:text-neutral-900 dark:hover:text-neutral-100 font-normal'
+                    )}
+                    data-testid={`button-settings-${item.id}`}
+                  >
+                    <Icon size={17} className={isCurrent ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-500'} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+              {visibleNavItems.length === 0 && (
+                <p className="px-3 py-4 text-xs text-neutral-400 italic">No matching settings</p>
+              )}
+            </div>
+          </div>
+
+          {/* Right Content Panel */}
+          <div className="flex-1 min-w-0 p-6 sm:p-8 flex flex-col overflow-y-auto bg-white dark:bg-neutral-950">
+            {/* Header: Section Title + Sync Status + Executive Save Button */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-6 mb-6 border-b border-neutral-100 dark:border-neutral-800">
+              <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+                {active.label}
+              </h2>
+
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full',
+                    saved
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800'
+                  )}
+                >
+                  {saved ? (
+                    <>
+                      <CheckCircle2 size={13} className="text-emerald-500" />
+                      <span>All changes synced</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      <span>Unsaved changes</span>
+                    </>
+                  )}
+                </span>
+
+                <Button
+                  type="button"
+                  onClick={saveSettings}
+                  disabled={saveSettingsMutation.isPending}
+                  className="bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-xs font-semibold h-9 px-4 rounded-xl gap-2 shadow-2xs transition"
+                  data-testid="button-save-settings-header"
+                >
+                  {saveSettingsMutation.isPending ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : saved ? (
+                    <>
+                      <Check size={13} />
+                      <span>Saved</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={13} />
+                      <span>Save changes</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {saveError && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                {saveError}
+              </div>
+            )}
+
+            {/* Dismissible Security / MFA Banner (Matching Reference Image) */}
+            {showMfaBanner && (
+              <div className="relative rounded-2xl bg-[#f4f4f4] dark:bg-neutral-900/80 border border-neutral-200/60 dark:border-neutral-800 p-5 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setShowMfaBanner(false)}
+                  className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition"
+                  aria-label="Dismiss security recommendation"
+                >
+                  <X size={16} />
+                </button>
+                <div className="w-9 h-9 rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200/80 dark:border-neutral-700 shadow-2xs flex items-center justify-center text-neutral-800 dark:text-neutral-100 mb-3">
+                  <ShieldCheck size={18} />
+                </div>
+                <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Secure your account</h3>
+                <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1 max-w-lg leading-relaxed">
+                  Add multi-factor authentication (MFA), like a text message or authenticator app, to help protect your account when logging in.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('security')}
+                  className="mt-3.5 inline-flex items-center px-4 py-1.5 rounded-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-100 shadow-2xs hover:bg-neutral-50 dark:hover:bg-neutral-700 transition"
+                >
+                  Set up MFA
+                </button>
+              </div>
+            )}
+
+            {/* Divided Horizontal Row Controls */}
+            {renderActiveRows()}
+          </div>
+        </div>
+      </div>
+    </Shell>
+  );
 }
 
+
 function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3 5 6v5c0 4.5 3.8 8.2 7 10 3.2-1.8 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>; }
+
+export function OrderReceiptModal({ order, onClose }: { order: Order; onClose: () => void }) {
+  const profile = readSellerProfile();
+  const [copied, setCopied] = useState(false);
+  const collected = order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0;
+  const balance = Math.max(0, order.amount - collected);
+
+  const copyReceipt = async () => {
+    const text = buildTextReceipt({
+      order,
+      shopName: profile?.businessName || 'Take Order Store',
+      sellerHandle: profile?.sellerName,
+      currencySymbol: currencySymbol(),
+    });
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  const shareWhatsApp = () => {
+    const text = buildTextReceipt({
+      order,
+      shopName: profile?.businessName || 'Take Order Store',
+      sellerHandle: profile?.sellerName,
+      currencySymbol: currencySymbol(),
+    });
+    openWhatsApp(order.customerPhone || '', text);
+  };
+
+  return (
+    <div className="receipt-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="receipt-card receipt-print-area" role="dialog" aria-modal="true" aria-label="Official receipt">
+        <div className="receipt-header-row">
+          <div className="flex items-center gap-3">
+            <SellerLogo businessName={profile?.businessName || 'Take Order'} logoDataUrl={profile?.logoDataUrl} className="h-11 w-11 rounded-[12px]" />
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-bold text-[hsl(var(--foreground))]">{profile?.businessName || 'Take Order Store'}</h2>
+              <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{profile?.sellerName ? `Managed by ${profile.sellerName}` : 'Official Storefront'}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className={cn('receipt-stamp', order.status === 'paid' ? 'is-paid' : order.status === 'deposit_paid' ? 'is-deposit' : 'is-reserved')}>
+              {order.status === 'paid' ? <><Check size={12} /> PAID IN FULL</> : order.status === 'deposit_paid' ? 'DEPOSIT PAID' : 'RESERVED'}
+            </div>
+            <div className="mt-1.5 font-mono-ui text-xs text-[hsl(var(--muted-foreground))]">#{String(order.id).padStart(7, '0')}</div>
+          </div>
+        </div>
+
+        <div className="receipt-section">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="block text-xs text-[hsl(var(--muted-foreground))]">Customer</span>
+              <strong className="text-[15px] font-semibold text-[hsl(var(--foreground))]">{order.customerName || 'Customer'}</strong>
+              {order.customerPhone && <div className="text-xs text-[hsl(var(--muted-foreground))]">{order.customerPhone}</div>}
+            </div>
+            <div>
+              <span className="block text-xs text-[hsl(var(--muted-foreground))]">Date & Channel</span>
+              <strong className="font-semibold text-[hsl(var(--foreground))]">{dateShort(order.createdAt)}</strong>
+              <div className="capitalize text-xs text-[hsl(var(--muted-foreground))]">{channelName(order.channel)}</div>
+            </div>
+          </div>
+          {order.deliveryAddress && (
+            <div className="mt-3 text-sm">
+              <span className="block text-xs text-[hsl(var(--muted-foreground))]">Delivery address</span>
+              <p className="font-medium text-[hsl(var(--foreground))]">{order.deliveryAddress}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="receipt-section">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Order Items</div>
+          <div className="divide-y divide-[hsl(var(--border))]/50">
+            {order.items.map((item, idx) => {
+              const prefsObj = (item as { preferences?: Record<string, string> }).preferences;
+              return (
+                <div key={idx} className="receipt-line-item text-sm">
+                  <div>
+                    <div className="font-semibold">{item.productName}</div>
+                    <div className="text-xs text-[hsl(var(--muted-foreground))]">
+                      Qty: {item.quantity} × {moneyExact(item.amount)}
+                      {prefsObj && Object.entries(prefsObj).map(([k, v]) => ` · ${k}: ${v}`)}
+                    </div>
+                  </div>
+                  <div className="font-mono-ui font-semibold">{moneyExact(item.amount * item.quantity)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="receipt-section">
+          <div className="receipt-totals-row text-sm">
+            <span className="text-[hsl(var(--muted-foreground))]">Subtotal</span>
+            <span className="font-mono-ui">{moneyExact(order.amount - order.deliveryFee)}</span>
+          </div>
+          {order.deliveryFee > 0 && (
+            <div className="receipt-totals-row text-sm">
+              <span className="text-[hsl(var(--muted-foreground))]">Delivery fee</span>
+              <span className="font-mono-ui">{moneyExact(order.deliveryFee)}</span>
+            </div>
+          )}
+          <div className="receipt-totals-row border-t border-[hsl(var(--border))] pt-2 font-bold text-base">
+            <span>Total</span>
+            <span className="font-mono-ui text-lg">{moneyExact(order.amount)}</span>
+          </div>
+          <div className="receipt-totals-row text-sm text-[hsl(var(--muted-foreground))]">
+            <span>Amount paid</span>
+            <span className="font-mono-ui font-semibold text-emerald-600">{moneyExact(collected)}</span>
+          </div>
+          {balance > 0 && (
+            <div className="receipt-totals-row text-sm font-bold text-amber-600">
+              <span>Balance due on delivery</span>
+              <span className="font-mono-ui">{moneyExact(balance)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="no-print mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-[hsl(var(--border))] pt-4">
+          <button type="button" onClick={onClose} className="rounded-lg px-3.5 py-2 text-sm font-semibold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]">
+            Close
+          </button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={copyReceipt} className="px-3.5 py-2 text-sm">
+              <Copy size={14} /> {copied ? 'Copied!' : 'Copy text'}
+            </Button>
+            {order.customerPhone && (
+              <Button type="button" variant="outline" onClick={shareWhatsApp} className="border-emerald-600/40 text-emerald-700 dark:text-emerald-300 px-3.5 py-2 text-sm">
+                <SiWhatsapp size={14} /> Send on WhatsApp
+              </Button>
+            )}
+            <Button type="button" onClick={() => window.print()} className="px-3.5 py-2 text-sm">
+              <ReceiptText size={14} /> Print / Save PDF
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function OrderDetail() {
   const { id = '' } = useParams<{ id: string }>();
@@ -3102,13 +8677,19 @@ function OrderDetail() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [copied, setCopied] = useState(false);
+  const [riderCopied, setRiderCopied] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
+  const [whatsAppMenuOpen, setWhatsAppMenuOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const [actionError, setActionError] = useState('');
   const order = validOrderId ? query.data : undefined;
 
   const collected = order ? (order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0) : 0;
   const outstanding = order ? Math.max(0, order.amount - collected) : 0;
   const itemSubtotal = order?.items.reduce((sum, item) => sum + item.amount * item.quantity, 0) ?? 0;
-  const buyerLink = order ? `${window.location.origin}/o/${order.token}` : '';
+  const buyerLink = order ? buildPublicOrderLink(order.token) : '';
   const updateOrder = (data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => {
     if (!order) return;
     setActionError('');
@@ -3139,11 +8720,84 @@ function OrderDetail() {
       setActionError('The buyer link could not be copied. Select it from the order metadata instead.');
     }
   };
+  const copyRiderSlip = async () => {
+    if (!order) return;
+    const profile = readSellerProfile();
+    const slip = buildRiderDispatchSlip({
+      order,
+      shopName: profile?.businessName || 'Take Order Store',
+      sellerPhone: profile?.sellerName,
+      currencySymbol: currencySymbol(),
+    });
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(slip);
+      setRiderCopied(true);
+      window.setTimeout(() => setRiderCopied(false), 2000);
+    } catch {
+      setActionError('The rider slip could not be copied to clipboard.');
+    }
+  };
+  const copyAddress = async () => {
+    if (!order?.deliveryAddress) return;
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(order.deliveryAddress);
+      setCopiedAddress(true);
+      window.setTimeout(() => setCopiedAddress(false), 1800);
+    } catch {
+      setActionError('The delivery address could not be copied to clipboard.');
+    }
+  };
+  const copyToken = async () => {
+    if (!order?.token) return;
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(order.token);
+      setCopiedToken(true);
+      window.setTimeout(() => setCopiedToken(false), 1800);
+    } catch {
+      setActionError('The order token could not be copied to clipboard.');
+    }
+  };
+  const copyCustomerPhone = async () => {
+    if (!order?.customerPhone) return;
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(order.customerPhone);
+      setCopiedPhone(true);
+      window.setTimeout(() => setCopiedPhone(false), 1800);
+    } catch {
+      setActionError('The phone number could not be copied to clipboard.');
+    }
+  };
   const messageBuyer = () => {
     if (!order?.customerPhone) return;
-    const phone = order.customerPhone.replace(/[^\d+]/g, '');
-    const message = `Hi${order.customerName ? ` ${order.customerName}` : ''}, here is your Take Order link: ${buyerLink}`;
-    window.open(`https://wa.me/${phone.replace(/\+/g, '')}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    const profile = readSellerProfile();
+    const message = buildOrderConfirmationMessage({
+      order,
+      shopName: profile?.businessName || 'our shop',
+      buyerLink,
+      currencySymbol: currencySymbol(),
+    });
+    openWhatsApp(order.customerPhone, message);
+  };
+  const sendDispatchUpdate = () => {
+    if (!order?.customerPhone) return;
+    const profile = readSellerProfile();
+    const message = buildDeliveryDispatchMessage({
+      order,
+      shopName: profile?.businessName || 'our shop',
+      currencySymbol: currencySymbol(),
+    });
+    openWhatsApp(order.customerPhone, message);
+  };
+  const sendBalanceReminder = () => {
+    if (!order?.customerPhone) return;
+    const profile = readSellerProfile();
+    const message = buildPaymentReminderMessage({
+      order,
+      shopName: profile?.businessName || 'our shop',
+      buyerLink,
+      currencySymbol: currencySymbol(),
+    });
+    openWhatsApp(order.customerPhone, message);
   };
 
   if (!validOrderId) {
@@ -3162,11 +8816,80 @@ function OrderDetail() {
   return <Shell>
     <div className="order-detail-page" data-testid={`page-order-detail-${order.id}`}>
       <div className="order-detail-toolbar no-print">
-        <Link href="/orders" className="order-detail-back" data-testid="link-back-orders"><ArrowLeft size={15} />Back to orders</Link>
-        <div className="order-detail-actions">
-          <button type="button" className="order-action-button" onClick={messageBuyer} disabled={!order.customerPhone} data-testid="button-message-buyer" title={order.customerPhone ? 'Open WhatsApp conversation' : 'Buyer phone not available'}><MessageSquare size={15} />Message buyer</button>
-          <button type="button" className="order-action-button" onClick={copyBuyerLink} data-testid="button-copy-buyer-link"><Copy size={15} />{copied ? 'Copied' : 'Copy buyer link'}</button>
-          <button type="button" className="order-action-button order-action-primary" onClick={() => window.print()} data-testid="button-print-invoice"><ReceiptText size={15} />Print invoice</button>
+        <Link href="/orders" className="order-detail-back" data-testid="link-back-orders"><ArrowLeft size={16} />Back to orders</Link>
+        <div className="order-detail-actions flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              className="order-action-button"
+              onClick={() => setWhatsAppMenuOpen((prev) => !prev)}
+              disabled={!order.customerPhone}
+              data-testid="button-message-buyer"
+              title={order.customerPhone ? 'WhatsApp quick actions' : 'Buyer phone not available'}
+            >
+              <SiWhatsapp size={14} className="text-[#25D366]" />
+              Message buyer
+              <ChevronDown size={12} className={cn('transition-transform', whatsAppMenuOpen && 'rotate-180')} />
+            </button>
+            {whatsAppMenuOpen && (
+              <div className="absolute left-0 top-full mt-1.5 z-40 w-56 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1.5 shadow-lg">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-[hsl(var(--muted))]"
+                  onClick={() => { setWhatsAppMenuOpen(false); messageBuyer(); }}
+                >
+                  <MessageSquare size={13} className="text-emerald-600" />
+                  Order confirmation
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-[hsl(var(--muted))]"
+                  onClick={() => { setWhatsAppMenuOpen(false); sendDispatchUpdate(); }}
+                >
+                  <Truck size={13} className="text-blue-600" />
+                  Out for delivery notice
+                </button>
+                {outstanding > 0 && (
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-[hsl(var(--muted))]"
+                    onClick={() => { setWhatsAppMenuOpen(false); sendBalanceReminder(); }}
+                  >
+                    <CircleDollarSign size={13} className="text-amber-600" />
+                    Payment reminder
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            className="order-action-button"
+            onClick={copyRiderSlip}
+            data-testid="button-copy-rider-slip"
+            title="Copy formatted delivery slip for motorbike rider or courier app"
+          >
+            <Truck size={14} />
+            {riderCopied ? 'Copied slip!' : 'Copy rider slip'}
+          </button>
+          <button
+            type="button"
+            className="order-action-button"
+            onClick={() => setReceiptOpen(true)}
+            data-testid="button-view-receipt"
+            title="View branded digital receipt"
+          >
+            <Receipt size={14} />
+            E-Receipt
+          </button>
+          <button type="button" className="order-action-button" onClick={copyBuyerLink} data-testid="button-copy-buyer-link">
+            <Copy size={14} />
+            {copied ? 'Copied link' : 'Copy buyer link'}
+          </button>
+          <button type="button" className="order-action-button order-action-primary" onClick={() => window.print()} data-testid="button-print-invoice">
+            <ReceiptText size={14} />
+            Print invoice
+          </button>
         </div>
       </div>
 
@@ -3174,7 +8897,7 @@ function OrderDetail() {
         <div>
           <div className="order-detail-kicker">Order #{String(order.id).padStart(7, '0')} <span>·</span> {dateShort(order.createdAt)}</div>
           <h1 data-testid="text-order-detail-title">{order.customerName || 'Buyer pending'}</h1>
-          <p>{order.items.length} {order.items.length === 1 ? 'item' : 'items'} · {channelName(order.channel)} · {order.deliveryMethod === 'delivery' ? 'Delivery' : order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery method pending'}</p>
+          <p>{order.items.length} {order.items.length === 1 ? 'item' : 'items'} · Via {channelName(order.channel)} · {order.deliveryMethod === 'delivery' ? 'Courier Delivery' : order.deliveryMethod === 'pickup' ? 'Store Pickup' : 'Delivery method pending'}</p>
         </div>
         <div className="order-detail-header-status" data-testid="status-order-overview">
           <StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill>
@@ -3187,78 +8910,293 @@ function OrderDetail() {
       <div className="order-detail-layout">
         <main className="order-detail-main">
           <Card className="order-detail-card order-items-card">
-            <div className="order-card-heading"><div><div className="order-card-kicker">Order summary</div><h2>Items and total</h2></div><Package size={18} /></div>
+            <div className="order-card-heading">
+              <div>
+                <div className="order-card-kicker">Order summary</div>
+                <h2>Items and total</h2>
+              </div>
+              <Package size={18} />
+            </div>
             <div className="order-items-list">
-              {order.items.map((item, index) => <div className="order-item-row" key={`${item.productId}-${index}`} data-testid={`row-order-item-${item.productId}-${index}`}>
-                <img src={productImageFor(item.productName)} alt="" className="order-item-image" />
-                <div className="order-item-copy"><strong>{item.productName}</strong><span>{item.quantity} × {moneyExact(item.amount)}</span></div>
-                <div className="order-item-total">{moneyExact(item.amount * item.quantity)}</div>
-              </div>)}
+              {order.items.map((rawItem, index) => {
+                const item = rawItem as Order['items'][number] & {
+                  buyerVariant?: string | null;
+                  source?: string | null;
+                  sku?: string | null;
+                  buyerDetails?: string | null;
+                  imageUrls?: string[] | null;
+                };
+                const itemImg = item.imageUrls?.[0] || productImageFor(item.productName);
+                return (
+                  <div className="order-item-row" key={`${item.productId}-${index}`} data-testid={`row-order-item-${item.productId}-${index}`}>
+                    <img src={itemImg} alt={item.productName} className="order-item-image" />
+                    <div className="order-item-copy">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <strong>{item.productName}</strong>
+                        {item.buyerVariant && (
+                          <span className="order-item-variant-badge">
+                            {item.buyerVariant}
+                          </span>
+                        )}
+                        {item.source === 'custom' && (
+                          <span className="order-item-custom-badge">
+                            Custom item
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">
+                        <span>{item.quantity} × {moneyExact(item.amount)}</span>
+                        {item.sku && <span>· SKU: {item.sku}</span>}
+                      </div>
+                      {item.buyerDetails && (
+                        <div className="order-item-note mt-1 text-xs text-[hsl(var(--muted-foreground))] bg-slate-50 border border-slate-100 px-2 py-1 rounded-md">
+                          Note: {item.buyerDetails}
+                        </div>
+                      )}
+                    </div>
+                    <div className="order-item-total">{moneyExact(item.amount * item.quantity)}</div>
+                  </div>
+                );
+              })}
             </div>
             <div className="order-total-block">
               <div><span>Items subtotal</span><strong>{moneyExact(itemSubtotal)}</strong></div>
-              <div><span>Delivery fee</span><strong>{order.deliveryFee ? moneyExact(order.deliveryFee) : 'No fee'}</strong></div>
+              <div><span>Delivery fee</span><strong>{order.deliveryFee ? moneyExact(order.deliveryFee) : 'Free / No fee'}</strong></div>
               <div className="order-total-line"><span>Total order value</span><strong data-testid="text-order-total">{moneyExact(order.amount)}</strong></div>
               <div><span>Collected</span><strong className="order-collected" data-testid="text-order-collected">{moneyExact(collected)}</strong></div>
-              <div className="order-outstanding-line"><span>Outstanding</span><strong data-testid="text-order-outstanding">{moneyExact(outstanding)}</strong></div>
+              <div className="order-outstanding-line">
+                <span>Outstanding balance</span>
+                <strong data-testid="text-order-outstanding">
+                  {outstanding > 0 ? moneyExact(outstanding) : 'Cleared ($0.00)'}
+                </strong>
+              </div>
             </div>
           </Card>
 
           <Card className="order-detail-card order-status-card no-print">
-            <div className="order-card-heading"><div><div className="order-card-kicker">Order controls</div><h2>Keep the handoff current</h2></div><RefreshCw size={17} /></div>
+            <div className="order-card-heading">
+              <div>
+                <div className="order-card-kicker">Order controls</div>
+                <h2>Status & fulfillment</h2>
+              </div>
+              <RefreshCw size={17} />
+            </div>
             <div className="order-control-grid">
-              <div><span className="order-control-label">Payment status</span><div className="order-status-options">{(['reserved', 'deposit_paid', 'paid'] as const).map((status) => <button type="button" key={status} className={cn('order-status-option', order.status === status && 'is-active')} disabled={update.isPending || order.status === status} onClick={() => updateOrder({ status })} data-testid={`button-order-payment-${status}`}><span>{status === 'reserved' ? 'Reserved' : status === 'deposit_paid' ? 'Deposit paid' : 'Paid in full'}</span>{order.status === status && <Check size={14} />}</button>)}</div></div>
-              <div><span className="order-control-label">Fulfillment</span><div className="order-status-options">{(['pending', 'shipped', 'delivered'] as const).map((fulfillment) => <button type="button" key={fulfillment} className={cn('order-status-option', order.fulfillment === fulfillment && 'is-active')} disabled={update.isPending || order.fulfillment === fulfillment} onClick={() => updateOrder({ fulfillment })} data-testid={`button-order-fulfillment-${fulfillment}`}><span>{fulfillment === 'pending' ? 'To ship' : fulfillment[0].toUpperCase() + fulfillment.slice(1)}</span>{order.fulfillment === fulfillment && <Check size={14} />}</button>)}</div></div>
+              <div>
+                <span className="order-control-label">Payment status</span>
+                <div className="order-status-options">
+                  {(['reserved', 'deposit_paid', 'paid'] as const).map((status) => (
+                    <button
+                      type="button"
+                      key={status}
+                      className={cn('order-status-option', order.status === status && 'is-active')}
+                      disabled={update.isPending || order.status === status}
+                      onClick={() => updateOrder({ status })}
+                      data-testid={`button-order-payment-${status}`}
+                    >
+                      <span>{status === 'reserved' ? 'Reserved' : status === 'deposit_paid' ? 'Deposit paid' : 'Paid in full'}</span>
+                      {order.status === status && <Check size={14} className="ml-1" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span className="order-control-label">Fulfillment status</span>
+                <div className="order-status-options">
+                  {(['pending', 'shipped', 'delivered'] as const).map((fulfillment) => (
+                    <button
+                      type="button"
+                      key={fulfillment}
+                      className={cn('order-status-option', order.fulfillment === fulfillment && 'is-active')}
+                      disabled={update.isPending || order.fulfillment === fulfillment}
+                      onClick={() => updateOrder({ fulfillment })}
+                      data-testid={`button-order-fulfillment-${fulfillment}`}
+                    >
+                      <span>{fulfillment === 'pending' ? 'To ship' : fulfillment[0].toUpperCase() + fulfillment.slice(1)}</span>
+                      {order.fulfillment === fulfillment && <Check size={14} className="ml-1" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </Card>
 
-          {(order.referenceImage || order.buyerDetails) && <Card className="order-detail-card order-context-card">
-            <div className="order-card-heading"><div><div className="order-card-kicker">Buyer context</div><h2>Notes from checkout</h2></div><Clipboard size={17} /></div>
-            {order.referenceImage && <a href={order.referenceImage} target="_blank" rel="noreferrer" className="order-reference-image-link" data-testid="link-order-reference-image"><img src={order.referenceImage} alt="Buyer reference" className="order-reference-image" /><span>Open reference image <ExternalLink size={13} /></span></a>}
-            {order.buyerDetails && <p className="order-buyer-details" data-testid="text-order-buyer-details">{order.buyerDetails}</p>}
-          </Card>}
+          {(order.referenceImage || order.buyerDetails) && (
+            <Card className="order-detail-card order-context-card">
+              <div className="order-card-heading">
+                <div>
+                  <div className="order-card-kicker">Buyer context</div>
+                  <h2>Notes from checkout</h2>
+                </div>
+                <Clipboard size={17} />
+              </div>
+              {order.referenceImage && (
+                <div className="p-4 pb-0">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Attached reference photo</span>
+                  <a href={order.referenceImage} target="_blank" rel="noreferrer" className="order-reference-image-link group" data-testid="link-order-reference-image">
+                    <img src={order.referenceImage} alt="Buyer reference" className="order-reference-image" />
+                    <span className="order-reference-caption">
+                      Open full reference image <ExternalLink size={13} />
+                    </span>
+                  </a>
+                </div>
+              )}
+              {order.buyerDetails && (
+                <div className="p-4 pt-3">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Special buyer instructions</span>
+                  <p className="order-buyer-details" data-testid="text-order-buyer-details">{order.buyerDetails}</p>
+                </div>
+              )}
+            </Card>
+          )}
         </main>
 
         <aside className="order-detail-sidebar">
           <Card className="order-detail-card customer-card">
-            <div className="order-card-heading"><div><div className="order-card-kicker">Customer</div><h2>{order.customerName || 'Buyer pending'}</h2></div><div className="customer-avatar">{initials(order.customerName || 'Buyer')}</div></div>
-            <div className="customer-contact-list">
-              <div><span>Phone</span><strong data-testid="text-order-customer-phone">{order.customerPhone || 'Not provided'}</strong></div>
-              <div><span>Channel</span><strong className="customer-channel"><ChannelMark value={order.channel} size={14} />{channelName(order.channel)}</strong></div>
-              <div><span>Payment plan</span><strong>{order.paymentMode === 'deposit' ? `Deposit · ${moneyExact(order.depositAmount ?? 0)}` : order.paymentMode === 'reserve' ? 'Reserve' : 'Full payment'}</strong></div>
+            <div className="order-card-heading">
+              <div>
+                <div className="order-card-kicker">Customer</div>
+                <h2>{order.customerName || 'Buyer pending'}</h2>
+              </div>
+              <div className="customer-avatar">{initials(order.customerName || 'Buyer')}</div>
             </div>
-            {order.customerPhone && <button type="button" className="customer-message-button" onClick={messageBuyer} data-testid="button-message-buyer-sidebar"><MessageSquare size={15} />Message on WhatsApp</button>}
+            <div className="customer-contact-list">
+              <div>
+                <span>Phone</span>
+                <div className="inline-flex items-center justify-end gap-1.5">
+                  <strong data-testid="text-order-customer-phone">{order.customerPhone || 'Not provided'}</strong>
+                  {order.customerPhone && (
+                    <button
+                      type="button"
+                      onClick={copyCustomerPhone}
+                      className="inline-flex items-center text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
+                      title={copiedPhone ? 'Copied phone!' : 'Copy phone number'}
+                      aria-label="Copy customer phone"
+                      data-testid="button-copy-customer-phone"
+                    >
+                      {copiedPhone ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <span>Channel</span>
+                <strong className="customer-channel">
+                  <ChannelMark value={order.channel} size={14} />
+                  {channelName(order.channel)}
+                </strong>
+              </div>
+              <div>
+                <span>Payment plan</span>
+                <strong>{order.paymentMode === 'deposit' ? `Deposit · ${moneyExact(order.depositAmount ?? 0)}` : order.paymentMode === 'reserve' ? 'Reserve only' : 'Full payment'}</strong>
+              </div>
+            </div>
+            {order.customerPhone && (
+              <div className="px-5 pt-3">
+                <button
+                  type="button"
+                  className="customer-message-button"
+                  onClick={messageBuyer}
+                  data-testid="button-message-buyer-sidebar"
+                >
+                  <SiWhatsapp size={14} className="text-[#25D366]" />
+                  Chat on WhatsApp
+                </button>
+              </div>
+            )}
           </Card>
+
           <Card className="order-detail-card delivery-card">
-            <div className="order-card-heading"><div><div className="order-card-kicker">Handoff</div><h2>Delivery details</h2></div><Truck size={17} /></div>
+            <div className="order-card-heading">
+              <div>
+                <div className="order-card-kicker">Handoff</div>
+                <h2>Delivery details</h2>
+              </div>
+              <Truck size={17} />
+            </div>
             <dl className="order-metadata-list">
-              <div><dt>Method</dt><dd>{order.deliveryMethod === 'delivery' ? 'Delivery' : order.deliveryMethod === 'pickup' ? 'Pickup' : 'Not selected'}</dd></div>
-              <div><dt>Fee</dt><dd>{order.deliveryFee ? moneyExact(order.deliveryFee) : 'No fee'}</dd></div>
-              <div><dt>Address</dt><dd data-testid="text-order-delivery-address">{order.deliveryAddress || 'Address not provided'}</dd></div>
+              <div>
+                <dt>Method</dt>
+                <dd>
+                  <span className={cn(
+                    'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
+                    order.deliveryMethod === 'delivery' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                    order.deliveryMethod === 'pickup' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                    'bg-slate-100 text-slate-600'
+                  )}>
+                    {order.deliveryMethod === 'delivery' ? 'Courier Delivery' : order.deliveryMethod === 'pickup' ? 'Store Pickup' : 'Not selected'}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>Fee</dt>
+                <dd>{order.deliveryFee ? moneyExact(order.deliveryFee) : 'Free / No fee'}</dd>
+              </div>
+              <div>
+                <dt>Address</dt>
+                <dd className="space-y-1.5" data-testid="text-order-delivery-address">
+                  <div>{order.deliveryAddress || 'Address not provided'}</div>
+                  {order.deliveryAddress && (
+                    <button
+                      type="button"
+                      onClick={copyAddress}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full transition-colors"
+                      data-testid="button-copy-delivery-address"
+                    >
+                      {copiedAddress ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                      {copiedAddress ? 'Address copied' : 'Copy address'}
+                    </button>
+                  )}
+                </dd>
+              </div>
             </dl>
           </Card>
+
           <Card className="order-detail-card activity-card">
-            <div className="order-card-heading"><div><div className="order-card-kicker">Activity</div><h2>Order metadata</h2></div><Clock3 size={17} /></div>
+            <div className="order-card-heading">
+              <div>
+                <div className="order-card-kicker">Activity</div>
+                <h2>Order metadata</h2>
+              </div>
+              <Clock3 size={17} />
+            </div>
             <dl className="order-metadata-list">
-              <div><dt>Created</dt><dd>{new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(order.createdAt))}</dd></div>
-              <div><dt>Buyer link opens</dt><dd>{number(order.linkOpens)}</dd></div>
-              <div><dt>Shares / likes</dt><dd>{order.shares ?? '—'} / {order.likes ?? '—'}</dd></div>
-              <div><dt>Order token</dt><dd className="order-token">{order.token}</dd></div>
+              <div>
+                <dt>Placed</dt>
+                <dd>{new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(order.createdAt))}</dd>
+              </div>
+              <div>
+                <dt>Buyer link opens</dt>
+                <dd>{number(order.linkOpens)}</dd>
+              </div>
+              <div>
+                <dt>Shares / Likes</dt>
+                <dd>{order.shares ?? '—'} / {order.likes ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Order token</dt>
+                <dd className="space-y-1">
+                  <div className="order-token">{order.token}</div>
+                  <button
+                    type="button"
+                    onClick={copyToken}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+                    data-testid="button-copy-order-token"
+                  >
+                    {copiedToken ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
+                    {copiedToken ? 'Token copied' : 'Copy token'}
+                  </button>
+                </dd>
+              </div>
             </dl>
           </Card>
         </aside>
       </div>
     </div>
+    {receiptOpen && <OrderReceiptModal order={order} onClose={() => setReceiptOpen(false)} />}
   </Shell>;
 }
 
-const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
-const browserHostname = typeof window === 'undefined' ? 'localhost' : window.location.hostname;
-const browserOrigin = typeof window === 'undefined' ? '' : window.location.origin;
-const clerkPubKey = runtimeEnv.VITE_CLERK_PUBLISHABLE_KEY
-  ? publishableKeyFromHost(browserHostname, runtimeEnv.VITE_CLERK_PUBLISHABLE_KEY)
-  : '';
-const clerkProxyUrl = runtimeEnv.VITE_CLERK_PROXY_URL || '';
 const stripBase = (path: string) => basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
 const clerkAppearance = {
   theme: shadcn,
@@ -3282,40 +9220,74 @@ const clerkAppearance = {
   },
   elements: {
     rootBox: 'w-full flex justify-center',
-    cardBox: 'bg-white rounded-2xl w-[440px] max-w-full overflow-hidden',
-    card: '!shadow-none !border-0 !bg-transparent !rounded-none',
+    cardBox: 'w-full !shadow-none !border-0 !bg-transparent !p-0',
+    card: '!shadow-none !border-0 !bg-transparent !rounded-none !p-0',
     footer: '!shadow-none !border-0 !bg-transparent !rounded-none',
-    headerTitle: 'text-neutral-950',
-    headerSubtitle: 'text-neutral-600',
-    socialButtonsBlockButtonText: 'text-neutral-900',
-    formFieldLabel: 'text-neutral-800',
-    footerActionLink: 'text-neutral-950',
-    footerActionText: 'text-neutral-600',
-    dividerText: 'text-neutral-500',
-    formButtonPrimary: 'bg-neutral-950 hover:bg-neutral-800',
-    formFieldInput: 'border-neutral-300 text-neutral-950',
-    logoBox: 'h-10',
-    logoImage: 'max-h-10',
+    headerTitle: 'text-2xl font-bold tracking-tight text-neutral-900',
+    headerSubtitle: 'text-sm text-neutral-600 mt-1',
+    socialButtonsBlockButtonText: 'text-neutral-900 font-medium',
+    formFieldLabel: 'text-xs font-semibold text-neutral-800 mb-1',
+    footerActionLink: 'text-sm font-semibold text-neutral-900 underline',
+    footerActionText: 'text-sm text-neutral-600',
+    dividerText: 'text-neutral-400 text-xs',
+    formButtonPrimary: 'bg-neutral-900 hover:bg-neutral-800 text-white rounded-[10px] py-2.5 font-semibold text-sm shadow-xs',
+    formFieldInput: 'border-neutral-200 focus:border-neutral-900 rounded-[10px] text-neutral-900 py-2.5 shadow-xs',
+    logoBox: 'hidden',
+    logoImage: 'hidden',
   },
 };
 
 function ClerkShell() {
   const [, setLocation] = useLocation();
-  const app = <QueryClientProvider client={queryClient}><TooltipProvider><Router /><Toaster /></TooltipProvider></QueryClientProvider>;
-  if (!clerkPubKey) return app;
-  return <ClerkProvider
-    publishableKey={clerkPubKey}
-    proxyUrl={clerkProxyUrl}
-    appearance={clerkAppearance}
-    signInUrl={`${basePath}/sign-in`}
-    signUpUrl={`${basePath}/sign-up`}
-    localization={{
-      signIn: { start: { title: 'Welcome back', subtitle: 'Sign in to access your workspace' } },
-      signUp: { start: { title: 'Create your account', subtitle: 'Set up your private seller workspace' } },
-    }}
-    routerPush={(to) => setLocation(stripBase(to))}
-    routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
-  >{app}</ClerkProvider>;
+  const innerApp = (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <PaywallProvider>
+          <Router />
+          <Toaster />
+        </PaywallProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+
+  if (!clerkPubKey) {
+    const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
+    const testUserId = typeof window !== 'undefined' ? ((window as any).__DUKA_TEST_USER_ID__ || localStorage.getItem('duka-test-user-id') || 'test-seller-id') : 'test-seller-id';
+    const effectiveUserId = isTestAuth ? testUserId : null;
+    const testSignOut = async () => {
+      localStorage.removeItem('duka-test-auth');
+      localStorage.removeItem('duka-test-user-id');
+      localStorage.removeItem('duka-auth-user');
+      localStorage.removeItem('duka-seller-profile');
+      localStorage.removeItem('duka-onboarding-dismissed');
+      window.location.href = '/sign-in';
+    };
+    return (
+      <AuthContext.Provider value={{ isLoaded: true, isSignedIn: Boolean(isTestAuth), userId: effectiveUserId, signOut: testSignOut }}>
+        {innerApp}
+      </AuthContext.Provider>
+    );
+  }
+
+  return (
+    <ClerkProvider
+      publishableKey={clerkPubKey}
+      proxyUrl={clerkProxyUrl}
+      appearance={clerkAppearance}
+      signInUrl={`${basePath}/sign-in`}
+      signUpUrl={`${basePath}/sign-up`}
+      localization={{
+        signIn: { start: { title: 'Welcome back', subtitle: 'Sign in to access your workspace' } },
+        signUp: { start: { title: 'Create your account', subtitle: 'Set up your private seller workspace' } },
+      }}
+      routerPush={(to) => setLocation(stripBase(to))}
+      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+    >
+      <ClerkAuthBridge>
+        {innerApp}
+      </ClerkAuthBridge>
+    </ClerkProvider>
+  );
 }
 
 function Router() {
@@ -3336,6 +9308,15 @@ function Router() {
     <Route path="/clients" component={() => <ProtectedRoute page={Clients} />} />
     <Route path="/expenses" component={() => <ProtectedRoute page={Expenses} />} />
     <Route path="/take-order" component={() => <ProtectedRoute page={MultiItemTakeOrderModern} />} />
+    <Route path="/subscribe" component={SubscribePage} />
+    <Route path="/account/billing" component={BillingPage} />
+    <Route path="/billing" component={() => <Redirect to="/account/billing" />} />
+    <Route path="/subscription" component={() => <Redirect to="/subscribe" />} />
+    <Route path="/paywall" component={() => <Redirect to="/subscribe" />} />
+    <Route path="/pricing" component={() => <Redirect to="/subscribe" />} />
+    <Route path="/settings/billing" component={() => <Redirect to="/account/billing" />} />
+    <Route path="/settings/subscription" component={() => <Redirect to="/account/billing" />} />
+    <Route path="/settings/pro" component={() => <Redirect to="/account/billing" />} />
     <Route path="/settings" component={() => <ProtectedRoute page={SettingsPage} />} />
     <Route path="/connect" component={() => <ProtectedRoute page={Connect} />} />
     <Route path="/o/:token" component={PublicOrderPage} />
@@ -3344,6 +9325,12 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const prefs = readSellerSettings();
+      document.body.classList.toggle('compact-tables-active', prefs.compactTables);
+    }
+  }, []);
   return <WouterRouter base={basePath}><ClerkShell /></WouterRouter>;
 }
 export default App;
@@ -3368,13 +9355,8 @@ export function BuyerOrderForm({
   itemIndex = 0,
   itemCount = 1,
   items: providedItems,
-  contactStep = false,
-  contactComplete = false,
-  checkout = false,
   form,
   itemForm = emptyBuyerItemForm(),
-  mockPayment,
-  showMockPayment,
   submitPending,
   submitError,
   onSubmit,
@@ -3382,14 +9364,14 @@ export function BuyerOrderForm({
   onItemChange = () => undefined,
   onQuantityChange = () => undefined,
   onPreferenceChange = () => undefined,
+  onNextItem = () => undefined,
+  onPrevItem = () => undefined,
   onBack = () => undefined,
-  onMockPaymentChange,
   onReferenceImageChange,
-  onPaymentAction,
-  onBackToReview,
   itemForms: providedItemForms,
+  onError,
 }: {
-  paymentMode: 'full' | 'deposit' | 'reserve';
+  paymentMode: 'full' | 'deposit' | 'reserve' | null;
   amount: number;
   depositAmount: number | null | undefined;
   deliveryFee?: number;
@@ -3405,8 +9387,8 @@ export function BuyerOrderForm({
   checkout?: boolean;
   form: BuyerOrderFormValues;
   itemForm?: BuyerItemFormValues;
-  mockPayment: MockPaymentValues;
-  showMockPayment: boolean;
+  mockPayment?: MockPaymentValues;
+  showMockPayment?: boolean;
   submitPending: boolean;
   submitError?: string;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
@@ -3414,188 +9396,707 @@ export function BuyerOrderForm({
   onItemChange?: (key: Exclude<keyof BuyerItemFormValues, 'quantity'>, value: string) => void;
   onQuantityChange?: (value: number) => void;
   onPreferenceChange?: (label: string, value: string) => void;
+  onNextItem?: () => void;
+  onPrevItem?: () => void;
   onBack?: () => void;
-  onMockPaymentChange: (key: keyof MockPaymentValues, value: string) => void;
+  onMockPaymentChange?: (key: keyof MockPaymentValues, value: string) => void;
   onReferenceImageChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onPaymentAction: (action: 'pay' | 'reserve') => void;
+  onPaymentAction?: (action: 'pay' | 'reserve') => void;
   onBackToReview?: () => void;
+  onError?: (message: string) => void;
 }) {
   const item = providedItem ?? { productId: 0, productName: 'Your item', amount, variants: [], preferences: [], source: 'custom' as const };
   const items = providedItems ?? [item];
-  const itemForms = providedItemForms ?? [];
-  const selectedDeliveryMethod = form.deliveryMethod;
+  const itemForms = providedItemForms;
+  const totalItemCount = providedItems?.length ?? itemCount ?? 1;
+  const selectedDeliveryMethod = form.deliveryMethod ?? (deliveryFee === 0 ? 'pickup' : undefined);
   const deliveryCharge = selectedDeliveryMethod === 'delivery' ? deliveryFee : 0;
   const payableDeposit = Math.min((depositAmount ?? 0) + deliveryCharge, amount);
-  const [editingContact, setEditingContact] = useState(false);
-  const [reviewConfirmed, setReviewConfirmed] = useState(false);
-  const [paymentMethodConfirmed, setPaymentMethodConfirmed] = useState(false);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
+  const [checkoutStep, setCheckoutStep] = useState<'contact' | 'payment'>('contact');
+  const [paymentProvider, setPaymentProvider] = useState<'momo' | 'card' | 'reserve' | 'bank'>(
+    paymentMode === 'reserve' ? 'reserve' : 'momo'
+  );
+  const [momoNetwork, setMomoNetwork] = useState<'mtn' | 'telecel' | 'at'>('mtn');
+  const [momoPhone, setMomoPhone] = useState(form.phone || '');
+  const [cardData, setCardData] = useState({ number: '', expiry: '', cvc: '', name: form.name || '' });
+
+  useEffect(() => {
+    if (form.phone && !momoPhone) setMomoPhone(form.phone);
+  }, [form.phone]);
+
+  useEffect(() => {
+    if (form.name && !cardData.name) setCardData((c) => ({ ...c, name: form.name }));
+  }, [form.name]);
+
+  const handleProceedToPayment = (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.preventDefault();
+    try {
+      if (items && items.length > 0) {
+        for (let i = 0; i < items.length; i++) {
+          const itm = items[i];
+          const f = itemForms?.[i] ?? (i === itemIndex ? itemForm : undefined);
+          if (f && itm.preferences && itm.preferences.length > 0) {
+            const missingPref = itm.preferences.find((p) => !f.preferences?.[p.label]);
+            if (missingPref) {
+              onError?.(`Please choose an option for ${missingPref.label}`);
+              return;
+            }
+            if (allowReferenceImages !== false && itm.source === 'custom' && !f.imagePreview) {
+              onError?.(`Please attach a reference photo for ${itm.productName}`);
+              return;
+            }
+          }
+        }
+      }
+
+      if (!form.name?.trim()) {
+        onError?.('Please enter your name');
+        const el = document.getElementById('buyer-name') as HTMLInputElement;
+        if (el) el.focus();
+        return;
+      }
+      if (!form.phone?.trim() || form.phone.trim().length < 5) {
+        onError?.('Please enter your phone number');
+        const el = document.getElementById('buyer-phone') as HTMLInputElement;
+        if (el) el.focus();
+        return;
+      }
+      const finalDelivery = form.deliveryMethod ?? (deliveryFee === 0 ? 'pickup' : undefined);
+      if (!finalDelivery) {
+        onError?.('Please choose a delivery service');
+        return;
+      }
+      if (!form.deliveryMethod && deliveryFee === 0) {
+        onChange('deliveryMethod', 'pickup');
+      }
+      if (finalDelivery === 'delivery' && !form.address?.trim()) {
+        onError?.('Please enter your delivery address');
+        const el = document.getElementById('buyer-address') as HTMLTextAreaElement;
+        if (el) el.focus();
+        return;
+      }
+
+      onError?.('');
+      if (!momoPhone.trim()) setMomoPhone(form.phone || '');
+      if (!cardData.name.trim()) setCardData((c) => ({ ...c, name: form.name || '' }));
+      setCheckoutStep('payment');
+    } catch (err: any) {
+      console.error('Error proceeding to payment:', err);
+      onError?.(err?.message || 'Failed to proceed to payment');
+    }
+  };
+
+  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (checkoutStep === 'contact') {
+      handleProceedToPayment(event);
+      return;
+    }
+    if (paymentProvider === 'momo' && (!momoPhone.trim() || momoPhone.trim().length < 5)) {
+      onError?.('Please enter your Mobile Money phone number');
+      return;
+    }
+    onSubmit(event);
+  };
+
   const galleryImages = useMemo(() => {
     if (item.imageUrls?.length) return item.imageUrls;
     if (item.imageUrl) return [item.imageUrl];
     return [productImageFor(item.productName)];
   }, [item.imageUrl, item.imageUrls, item.productName]);
   const activeGalleryImage = galleryImages[Math.min(activeGalleryIndex, galleryImages.length - 1)] ?? productImageFor(item.productName);
-  const itemRequirementsMet = item.preferences.every((preference) => Boolean(itemForm.preferences[preference.label]))
-    && (item.source !== 'custom' || !allowReferenceImages || Boolean(itemForm.imagePreview))
-    && (item.source === 'custom' || (item.available !== false && itemForm.quantity <= (item.stock ?? 0)));
+
   useEffect(() => {
-    setEditingContact(false);
     setActiveGalleryIndex(0);
-    setReviewConfirmed(false);
-    setPaymentMethodConfirmed(false);
-  }, [itemIndex, contactStep, checkout]);
+  }, [itemIndex]);
+
   if (!providedItem) {
     return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="space-y-5" data-ask-for-details={askForDetails} data-allow-reference-images={allowReferenceImages}>
-       {submitError && <div className="rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-public-order-error">{submitError}</div>}
-      <div><label htmlFor="buyer-name" className="field-label">Your name</label><input id="buyer-name" data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div>
-      <div><label htmlFor="buyer-phone" className="field-label">Phone number</label><input id="buyer-phone" data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>
-       {askForDetails && <div><label htmlFor="buyer-details" className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-details" data-testid="input-buyer-details" value={form.details ?? ''} onChange={(event) => onChange('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>}
-       {allowReferenceImages && <div><span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span><label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{form.image ? form.image : 'Attach an image'}</label><input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />{form.imagePreview && <img src={form.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>}
-      {showMockPayment && <div className="buyer-mock-payment" aria-labelledby="mock-payment-heading"><div className="flex items-center justify-between gap-3"><h3 id="mock-payment-heading" className="flex items-center gap-2 text-sm font-bold"><WalletCards aria-hidden="true" size={16} />Mock payment checkout</h3><StatusPill tone="gold">Demo</StatusPill></div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">No real charge will be made. Use any test details to continue.</p><div className="mt-4 space-y-3"><div><label htmlFor="mock-card-number" className="field-label">Card number</label><input id="mock-card-number" data-testid="input-mock-card-number" required inputMode="numeric" value={mockPayment.cardNumber} onChange={(event) => onMockPaymentChange('cardNumber', event.target.value)} placeholder="4242 4242 4242 4242" className="field-input" /></div><div className="grid grid-cols-2 gap-3"><div><label htmlFor="mock-expiry" className="field-label">Expiry</label><input id="mock-expiry" data-testid="input-mock-expiry" required value={mockPayment.expiry} onChange={(event) => onMockPaymentChange('expiry', event.target.value)} placeholder="12/30" className="field-input" /></div><div><label htmlFor="mock-cvc" className="field-label">CVC</label><input id="mock-cvc" data-testid="input-mock-cvc" required inputMode="numeric" value={mockPayment.cvc} onChange={(event) => onMockPaymentChange('cvc', event.target.value)} placeholder="123" className="field-input" /></div></div></div></div>}
-       {paymentMode !== 'reserve' && <fieldset className="grid grid-cols-2 gap-2" aria-label="Payment options"><legend className="sr-only">Payment options</legend><button type="button" role="radio" aria-checked={form.action === 'pay'} onClick={() => onPaymentAction('pay')} data-testid="button-buyer-pay" className={cn('buyer-payment-option', form.action === 'pay' && 'is-selected')}>{paymentMode === 'deposit' ? `Pay deposit · ${moneyExact(payableDeposit)}` : `Pay ${moneyExact(amount)}`}</button><button type="button" role="radio" aria-checked={form.action === 'reserve'} onClick={() => onPaymentAction('reserve')} data-testid="button-buyer-reserve" className={cn('buyer-payment-option', form.action === 'reserve' && 'is-selected')}>Reserve for later</button></fieldset>}
-      <Button type="submit" disabled={submitPending || (paymentMode !== 'reserve' && !form.action)} className="w-full py-3.5" data-testid="button-submit-public-order">{submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}{paymentMode === 'reserve' || form.action === 'reserve' ? 'Reserve these items' : showMockPayment ? 'Complete mock payment' : 'Continue to mock payment'} <ArrowUpRight aria-hidden="true" size={15} /></Button>
+      {submitError && <div className="rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-public-order-error">{submitError}</div>}
+      <div><label htmlFor="buyer-name" className="field-label">Your name <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label><input id="buyer-name" data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div>
+      <div><label htmlFor="buyer-phone" className="field-label">Phone number <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label><input id="buyer-phone" data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>
+      {askForDetails && <div><label htmlFor="buyer-details" className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-details" data-testid="input-buyer-details" value={form.details ?? ''} onChange={(event) => onChange('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>}
+      {allowReferenceImages && <div><span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span><label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{form.image ? form.image : 'Attach an image'}</label><input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />{form.imagePreview && <img src={form.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>}
+      <Button type="submit" disabled={submitPending} className="w-full py-3.5" data-testid="button-submit-public-order">
+        {submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}
+        {paymentMode === 'reserve' ? 'Reserve order' : paymentMode === 'deposit' ? `Make payment · ${moneyExact(payableDeposit)}` : `Make payment · ${moneyExact(amount)}`} <ArrowUpRight aria-hidden="true" size={15} />
+      </Button>
     </form>;
   }
-  return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="buyer-order-form" data-ask-for-details={askForDetails} data-allow-reference-images={allowReferenceImages}>
-     {submitError && <div className="mb-5 rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-public-order-error">{submitError}</div>}
-    {!checkout ? contactStep ? <div className="buyer-item-entry">
-       <section className="buyer-buyer-details-section" aria-labelledby="buyer-details-heading"><div className="buyer-section-heading"><h2 id="buyer-details-heading">Contact information</h2></div><div className="buyer-form-module buyer-contact-module"><div className="buyer-contact-fields"><div><label htmlFor="buyer-name" className="field-label">Your name</label><input id="buyer-name" data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div><div><label htmlFor="buyer-phone" className="field-label">Phone number</label><input id="buyer-phone" data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div></div></div><div className="buyer-subsection-heading"><h3>Delivery service <span className="font-normal text-[hsl(var(--muted-foreground))]">(required)</span></h3></div><div className="buyer-form-module buyer-delivery-module"><fieldset className="buyer-delivery-fields"><legend className="sr-only">Choose a delivery service</legend><div className="buyer-service-choice-grid"><label className={cn('buyer-service-choice', selectedDeliveryMethod === 'pickup' && 'is-selected')}><input className="buyer-service-choice-input" type="radio" name="buyer-delivery-method" value="pickup" checked={selectedDeliveryMethod === 'pickup'} onChange={(event) => onChange('deliveryMethod', event.target.value)} required /><span className="buyer-service-choice-check" aria-hidden="true">{selectedDeliveryMethod === 'pickup' && <Check size={12} strokeWidth={3} />}</span><span className="buyer-service-choice-copy"><strong>Pick up</strong><small>No delivery fee</small></span></label><label className={cn('buyer-service-choice', selectedDeliveryMethod === 'delivery' && 'is-selected')}><input className="buyer-service-choice-input" type="radio" name="buyer-delivery-method" value="delivery" checked={selectedDeliveryMethod === 'delivery'} onChange={(event) => onChange('deliveryMethod', event.target.value)} /><span className="buyer-service-choice-check" aria-hidden="true">{selectedDeliveryMethod === 'delivery' && <Check size={12} strokeWidth={3} />}</span><span className="buyer-service-choice-copy"><strong>Delivery</strong><small>{deliveryFee > 0 ? `Flat fee · ${moneyExact(deliveryFee)}` : 'No extra fee'}</small></span></label></div>{selectedDeliveryMethod === 'delivery' && <div className="page-in"><label htmlFor="buyer-address" className="field-label">Delivery address</label><textarea id="buyer-address" data-testid="input-buyer-address" required value={form.address ?? ''} onChange={(event) => onChange('address', event.target.value)} placeholder="Street, area, landmark, or pickup details..." rows={2} className="field-input resize-none" /></div>}<div><label htmlFor="buyer-order-details" className="field-label">Useful details <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-order-details" data-testid="input-buyer-order-details" value={form.orderDetails ?? ''} onChange={(event) => onChange('orderDetails', event.target.value)} placeholder="Delivery timing, access notes, or anything already agreed..." rows={2} className="field-input resize-none" /></div></fieldset></div></section>
-        <div className="buyer-form-actions"><span /><Button type="submit" disabled={submitPending} data-testid="button-submit-public-order">Continue to payment <ArrowRight size={15} /></Button></div>
-      </div> : <div className="buyer-item-entry">
-         {contactComplete && <div className="buyer-contact-summary">
-          <div className="buyer-contact-confirmed"><CheckCircle2 size={15} /><span>Contact details saved for {form.name || 'this order'}</span><button type="button" aria-expanded={editingContact} aria-controls="buyer-inline-contact-editor" onClick={() => setEditingContact((current) => !current)} data-testid="button-edit-buyer-contact"><Pencil aria-hidden="true" size={13} />Edit</button></div>
-          {editingContact && <section id="buyer-inline-contact-editor" className="buyer-inline-contact-editor page-in" aria-labelledby="buyer-inline-contact-heading">
-            <div className="buyer-subsection-heading"><h3 id="buyer-inline-contact-heading">Edit contact information</h3></div>
-            <div className="buyer-contact-fields">
-              <div><label htmlFor="buyer-inline-name" className="field-label">Your name</label><input id="buyer-inline-name" data-testid="input-buyer-inline-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div>
-               <div><label htmlFor="buyer-inline-phone" className="field-label">Phone number</label><input id="buyer-inline-phone" data-testid="input-buyer-inline-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>
-             </div>
-            <div className="buyer-subsection-heading"><h3>Delivery service <span className="font-normal text-[hsl(var(--muted-foreground))]">(required)</span></h3></div>
-            <fieldset className="buyer-delivery-fields">
-              <legend className="sr-only">Choose a delivery service</legend>
-              <div className="buyer-service-choice-grid">
-                <label className={cn('buyer-service-choice', selectedDeliveryMethod === 'pickup' && 'is-selected')}><input className="buyer-service-choice-input" type="radio" name="buyer-inline-delivery-method" value="pickup" checked={selectedDeliveryMethod === 'pickup'} onChange={(event) => onChange('deliveryMethod', event.target.value)} required /><span className="buyer-service-choice-check" aria-hidden="true">{selectedDeliveryMethod === 'pickup' && <Check size={12} strokeWidth={3} />}</span><span className="buyer-service-choice-copy"><strong>Pick up</strong><small>No delivery fee</small></span></label>
-                <label className={cn('buyer-service-choice', selectedDeliveryMethod === 'delivery' && 'is-selected')}><input className="buyer-service-choice-input" type="radio" name="buyer-inline-delivery-method" value="delivery" checked={selectedDeliveryMethod === 'delivery'} onChange={(event) => onChange('deliveryMethod', event.target.value)} /><span className="buyer-service-choice-check" aria-hidden="true">{selectedDeliveryMethod === 'delivery' && <Check size={12} strokeWidth={3} />}</span><span className="buyer-service-choice-copy"><strong>Delivery</strong><small>{deliveryFee > 0 ? `Flat fee · ${moneyExact(deliveryFee)}` : 'No extra fee'}</small></span></label>
+
+  return <form noValidate onSubmit={handleFormSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="buyer-order-detail-layout" data-ask-for-details={askForDetails} data-allow-reference-images={allowReferenceImages}>
+    {/* Left Column: Product Customization & Preferences */}
+    <div className="buyer-order-detail-card p-6 sm:p-8">
+      {submitError && <div className="mb-5 rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-public-order-error">{submitError}</div>}
+      
+      <section className={cn('buyer-item-preferences-section buyer-product-detail', item.preferences.length > 0 && 'has-variants')} aria-labelledby="buyer-item-preferences-heading">
+        <div className="buyer-item-preferences-layout">
+          <div className={cn('buyer-item-visual', item.source === 'custom' ? 'buyer-custom-item-visual' : 'buyer-product-gallery')}>
+            {item.source === 'custom' && allowReferenceImages ? <>
+              <label htmlFor="buyer-reference-image" className="buyer-custom-upload-area">
+                {itemForm?.imagePreview ? <img src={itemForm.imagePreview} alt="Selected item reference" /> : <><ImagePlus size={24} aria-hidden="true" /><strong>Upload an item image <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></strong><span>Add a reference photo for the seller.</span></>}
+              </label>
+              <input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Upload an item image" aria-required="true" type="file" accept="image/*" className="sr-only" onChange={onReferenceImageChange} />
+              <div className="buyer-gallery-caption"><ImagePlus size={13} aria-hidden="true" /> Buyer upload</div>
+            </> : <>
+              <div className="buyer-item-hero-image buyer-product-gallery-main">
+                <img src={activeGalleryImage} alt={`${item.productName} product view ${activeGalleryIndex + 1}`} />
+                {galleryImages.length > 1 && <div className="buyer-gallery-controls">
+                  <button type="button" aria-label="Previous product image" onClick={() => setActiveGalleryIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length)}><ChevronLeft size={16} /></button>
+                  <span>{String(activeGalleryIndex + 1).padStart(2, '0')} / {String(galleryImages.length).padStart(2, '0')}</span>
+                  <button type="button" aria-label="Next product image" onClick={() => setActiveGalleryIndex((current) => (current + 1) % galleryImages.length)}><ChevronRight size={16} /></button>
+                </div>}
               </div>
-              {selectedDeliveryMethod === 'delivery' && <div className="page-in"><label htmlFor="buyer-inline-address" className="field-label">Delivery address</label><textarea id="buyer-inline-address" data-testid="input-buyer-inline-address" required value={form.address ?? ''} onChange={(event) => onChange('address', event.target.value)} placeholder="Street, area, landmark, or pickup details..." rows={2} className="field-input resize-none" /></div>}
-            </fieldset>
-            <div><label htmlFor="buyer-inline-order-details" className="field-label">Useful details <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-inline-order-details" data-testid="input-buyer-inline-order-details" value={form.orderDetails ?? ''} onChange={(event) => onChange('orderDetails', event.target.value)} placeholder="Delivery timing, access notes, or anything already agreed..." rows={2} className="field-input resize-none" /></div>
-            <button type="button" className="buyer-inline-contact-done" onClick={() => setEditingContact(false)} data-testid="button-done-editing-buyer-contact">Done editing</button>
-           </section>}
-         </div>}
-         <section className={cn('buyer-item-preferences-section buyer-product-detail', item.preferences.length > 0 && 'has-variants')} aria-labelledby="buyer-item-preferences-heading">
-          <div className="buyer-item-preferences-layout">
-              <div className={cn('buyer-item-visual', item.source === 'custom' ? 'buyer-custom-item-visual' : 'buyer-product-gallery')}>
-               {item.source === 'custom' && allowReferenceImages ? <>
-                 <label htmlFor="buyer-reference-image" className="buyer-custom-upload-area">
-                   {itemForm.imagePreview ? <img src={itemForm.imagePreview} alt="Selected item reference" /> : <><ImagePlus size={24} aria-hidden="true" /><strong>Upload an item image</strong><span>Add a reference photo for the seller.</span></>}
-                 </label>
-                  <input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Upload an item image" aria-required="true" type="file" accept="image/*" className="sr-only" onChange={onReferenceImageChange} />
-                 <div className="buyer-gallery-caption"><ImagePlus size={13} aria-hidden="true" /> Buyer upload</div>
-               </> : <>
-                 <div className="buyer-item-hero-image buyer-product-gallery-main">
-                   <img src={activeGalleryImage} alt={`${item.productName} product view ${activeGalleryIndex + 1}`} />
-                   {galleryImages.length > 1 && <div className="buyer-gallery-controls">
-                     <button type="button" aria-label="Previous product image" onClick={() => setActiveGalleryIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length)}><ChevronLeft size={16} /></button>
-                     <span>{String(activeGalleryIndex + 1).padStart(2, '0')} / {String(galleryImages.length).padStart(2, '0')}</span>
-                     <button type="button" aria-label="Next product image" onClick={() => setActiveGalleryIndex((current) => (current + 1) % galleryImages.length)}><ChevronRight size={16} /></button>
-                   </div>}
-                 </div>
-                 <div className="buyer-product-gallery-thumbs" aria-label="Product images">
-                   {galleryImages.map((image, imageIndex) => <button type="button" key={`${image}-${imageIndex}`} className={cn('buyer-product-gallery-thumb', activeGalleryIndex === imageIndex && 'is-selected')} onClick={() => setActiveGalleryIndex(imageIndex)} aria-label={`Show product image ${imageIndex + 1}`} aria-pressed={activeGalleryIndex === imageIndex}><img src={image} alt="" /></button>)}
-                 </div>
-                 <div className="buyer-gallery-caption"><Package size={13} aria-hidden="true" /> Product preview</div>
-               </>}
-             </div>
-            <div className="buyer-item-preferences-content buyer-product-detail-content">
-              <div className="buyer-item-description buyer-product-detail-header">
-                 <h2 id="buyer-item-preferences-heading">{item.productName}</h2>
-                  <div className="buyer-product-price-row"><strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong>{item.compareAtPrice && item.compareAtPrice > item.amount && <del className="text-xs text-[hsl(var(--muted-foreground))]">{moneyExact(item.compareAtPrice)}</del>}</div>
-                  {item.description && <p>{item.description}</p>}
-                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">{item.sku && <span>SKU · {item.sku}</span>}{item.source === 'catalog' && <span className={item.available === false ? 'text-[hsl(var(--destructive))]' : ''}>{item.available === false ? 'Unavailable' : `${item.stock ?? 0} available`}</span>}</div>
-                  <p>{item.preferences.length > 0 ? 'Choose your options' : 'This item is ready to add to your order.'}</p>
-                  <div className="mt-4 flex items-center justify-between rounded-[10px] border border-[hsl(var(--border))] p-3"><div><div className="field-label">Quantity</div><div className="text-[11px] text-[hsl(var(--muted-foreground))]">{item.source === 'catalog' ? `Up to ${item.stock ?? 0} available` : 'Choose how many you need'}</div></div><div className="flex items-center gap-2"><button type="button" aria-label={`Decrease quantity for ${item.productName}`} disabled={itemForm.quantity <= 1} onClick={() => onQuantityChange(Math.max(1, itemForm.quantity - 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--border))] text-lg disabled:opacity-40">−</button><output aria-label={`Quantity for ${item.productName}`} className="min-w-6 text-center text-sm font-bold">{itemForm.quantity}</output><button type="button" aria-label={`Increase quantity for ${item.productName}`} disabled={item.source === 'catalog' && itemForm.quantity >= (item.stock ?? 0)} onClick={() => onQuantityChange(itemForm.quantity + 1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--border))] text-lg disabled:opacity-40">+</button></div></div>
+              <div className="buyer-product-gallery-thumbs" aria-label="Product images">
+                {galleryImages.map((image, imageIndex) => <button type="button" key={`${image}-${imageIndex}`} className={cn('buyer-product-gallery-thumb', activeGalleryIndex === imageIndex && 'is-selected')} onClick={() => setActiveGalleryIndex(imageIndex)} aria-label={`Show product image ${imageIndex + 1}`} aria-pressed={activeGalleryIndex === imageIndex}><img src={image} alt="" /></button>)}
               </div>
-              {item.preferences.map((preference, preferenceIndex) => {
-                const preferenceLabel = preference.label.trim().toLowerCase();
-                const isSizePreference = preferenceLabel === 'size';
-                const isSwatchPreference = /colou?r|finish/.test(preferenceLabel);
-                return <fieldset className={cn('buyer-color-field', isSizePreference && 'buyer-size-field', !isSizePreference && !isSwatchPreference && 'buyer-choice-field')} key={`${item.productId}-${preference.label}`}>
-                  <legend className="buyer-preference-legend"><span>{preference.label}</span>{isSizePreference && <small>Select one</small>}</legend>
-                  <div className={isSizePreference ? 'buyer-size-options' : isSwatchPreference ? 'buyer-color-options' : 'buyer-choice-options'}>
-                    {preference.options.map((option) => isSizePreference
-                      ? <label key={option} className={cn('buyer-size-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
-                          <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} aria-required="true" />
-                          <span className="buyer-size-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
-                          <span>{option}</span>
-                        </label>
-                      : isSwatchPreference
-                        ? <label key={option} className={cn('buyer-color-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
-                            <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} aria-required="true" />
-                            <span className="buyer-color-option-image"><img src={productImageFor(`${item.productName} ${preference.label} ${option}`)} alt="" /></span>
-                            <span className="buyer-color-option-label">{option}</span>
-                            <span className="buyer-color-check" aria-hidden="true">{itemForm.preferences[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
-                          </label>
-                         : <label key={option} className={cn('buyer-choice-option', itemForm.preferences[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
-                             <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm.preferences[preference.label] === option} onChange={() => onPreferenceChange(preference.label, option)} aria-required="true" />
-                            <span>{option}</span>
-                            {itemForm.preferences[preference.label] === option && <Check size={13} aria-hidden="true" />}
-                          </label>)}
-                  </div>
-                </fieldset>;
-              })}
-              <div className="buyer-product-note-field">
-                <label htmlFor="buyer-item-details" className="field-label">Note for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label>
-                <textarea id="buyer-item-details" data-testid="input-buyer-item-details" value={itemForm.details} onChange={(event) => onChange('details', event.target.value)} placeholder="Add a detail about this item..." rows={2} className="field-input resize-none" />
+              <div className="buyer-gallery-caption"><Package size={13} aria-hidden="true" /> Product preview</div>
+            </>}
+          </div>
+
+          <div className="buyer-item-preferences-content buyer-product-detail-content">
+            <div className="buyer-item-description buyer-product-detail-header">
+              <h2 id="buyer-item-preferences-heading">{item.productName}</h2>
+              <div className="buyer-product-price-row"><strong className="buyer-item-description-price">{moneyExact(item.amount)}</strong>{item.compareAtPrice && item.compareAtPrice > item.amount && <del className="text-xs text-[hsl(var(--muted-foreground))]">{moneyExact(item.compareAtPrice)}</del>}</div>
+              {item.description && <p>{item.description}</p>}
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">{item.sku && <span>SKU · {item.sku}</span>}{item.source === 'catalog' && <span className={item.available === false ? 'text-[hsl(var(--destructive))]' : ''}>{item.available === false ? 'Unavailable' : `${item.stock ?? 0} available`}</span>}</div>
+              <p>{item.preferences.length > 0 ? 'Choose your options' : 'This item is ready to add to your order.'}</p>
+              <div className="mt-4 flex items-center justify-between rounded-[10px] border border-[hsl(var(--border))] p-3">
+                <div>
+                  <div className="field-label">Quantity</div>
+                  <div className="text-[11px] text-[hsl(var(--muted-foreground))]">{item.source === 'catalog' ? `Up to ${item.stock ?? 0} available` : 'Choose how many you need'}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" aria-label={`Decrease quantity for ${item.productName}`} disabled={itemForm.quantity <= 1} onClick={() => onQuantityChange(Math.max(1, itemForm.quantity - 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--border))] text-lg disabled:opacity-40">−</button>
+                  <output aria-label={`Quantity for ${item.productName}`} className="min-w-6 text-center text-sm font-bold">{itemForm.quantity}</output>
+                  <button type="button" aria-label={`Increase quantity for ${item.productName}`} disabled={item.source === 'catalog' && itemForm.quantity >= (item.stock ?? 0)} onClick={() => onQuantityChange(itemForm.quantity + 1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-[hsl(var(--border))] text-lg disabled:opacity-40">+</button>
+                </div>
               </div>
             </div>
+
+            {item.preferences.map((preference, preferenceIndex) => {
+              const preferenceLabel = preference.label.trim().toLowerCase();
+              const isSizePreference = preferenceLabel === 'size';
+              const isSwatchPreference = /colou?r|finish/.test(preferenceLabel);
+              const isPreferenceMissing = Boolean(
+                submitError &&
+                submitError.toLowerCase().includes(preference.label.toLowerCase()) &&
+                !itemForm?.preferences?.[preference.label]
+              );
+              return <fieldset
+                className={cn(
+                  'buyer-color-field transition-all',
+                  isSizePreference && 'buyer-size-field',
+                  !isSizePreference && !isSwatchPreference && 'buyer-choice-field',
+                  isPreferenceMissing && 'p-3 rounded-xl border border-rose-300 bg-rose-50/50 ring-1 ring-rose-200'
+                )}
+                key={`${item.productId}-${preference.label}`}
+              >
+                <legend className="buyer-preference-legend">
+                  <span>{preference.label}</span>
+                  <b className="text-rose-500 font-bold ml-1" aria-hidden="true">*</b>
+                  {isSizePreference && <small>Select one</small>}
+                </legend>
+                <div className={isSizePreference ? 'buyer-size-options' : isSwatchPreference ? 'buyer-color-options' : 'buyer-choice-options'}>
+                  {preference.options.map((option) => isSizePreference
+                    ? <label key={option} className={cn('buyer-size-option', itemForm?.preferences?.[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
+                        <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm?.preferences?.[preference.label] === option} onChange={() => onPreferenceChange?.(preference.label, option)} aria-required="true" />
+                        <span className="buyer-size-check" aria-hidden="true">{itemForm?.preferences?.[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
+                        <span>{option}</span>
+                      </label>
+                    : isSwatchPreference
+                      ? <label key={option} className={cn('buyer-color-option', itemForm?.preferences?.[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
+                          <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm?.preferences?.[preference.label] === option} onChange={() => onPreferenceChange?.(preference.label, option)} aria-required="true" />
+                          <span className="buyer-color-option-image"><img src={productImageFor(`${item.productName} ${preference.label} ${option}`)} alt="" /></span>
+                          <span className="buyer-color-option-label">{option}</span>
+                          <span className="buyer-color-check" aria-hidden="true">{itemForm?.preferences?.[preference.label] === option && <Check size={11} strokeWidth={3} />}</span>
+                        </label>
+                       : <label key={option} className={cn('buyer-choice-option', itemForm?.preferences?.[preference.label] === option && 'is-selected')} aria-label={`${preference.label}: ${option}`}>
+                           <input type="radio" name={`buyer-preference-${item.productId}-${preferenceIndex}`} value={option} checked={itemForm?.preferences?.[preference.label] === option} onChange={() => onPreferenceChange?.(preference.label, option)} aria-required="true" />
+                          <span>{option}</span>
+                          {itemForm?.preferences?.[preference.label] === option && <Check size={13} aria-hidden="true" />}
+                        </label>)}
+                </div>
+                {isPreferenceMissing && (
+                  <div className="mt-2.5 flex items-center gap-1.5 text-xs font-semibold text-rose-600 page-in" role="alert">
+                    <AlertCircle size={14} className="shrink-0 text-rose-500" />
+                    <span>Please choose an option for {preference.label}</span>
+                  </div>
+                )}
+              </fieldset>;
+            })}
+
+            <div className="buyer-product-note-field">
+              <label htmlFor="buyer-item-details" className="field-label">Note for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label>
+              <textarea id="buyer-item-details" data-testid="input-buyer-item-details" value={itemForm.details} onChange={(event) => onChange('details', event.target.value)} placeholder="Add a detail about this item..." rows={2} className="field-input resize-none" />
+            </div>
           </div>
-        </section>
-        <div className="buyer-form-actions">{itemIndex > 0 ? <Button type="button" variant="ghost" onClick={onBack}><ArrowLeft size={15} />Back</Button> : <span /> }<Button type="submit" disabled={submitPending || !itemRequirementsMet} data-testid="button-submit-public-order">{itemIndex + 1 < itemCount ? 'Next item' : 'Continue to contact information'} <ArrowRight size={15} /></Button></div>
-       </div> : (reviewConfirmed && !paymentMethodConfirmed) ? <div className="buyer-payment-page">
-       <div className="buyer-final-heading"><div><div className="take-order-section-eyebrow">Payment</div><h2 id="buyer-order-form-heading">Choose how to pay.</h2></div><WalletCards size={20} /></div>
-        {paymentMode !== 'reserve' && <fieldset className="buyer-payment-options" aria-label="Payment options"><legend className="field-label">How would you like to complete this</legend><button type="button" role="radio" aria-checked={form.action === 'pay'} onClick={() => onPaymentAction('pay')} data-testid="button-buyer-pay" className={cn('buyer-payment-option', form.action === 'pay' && 'is-selected')}>{paymentMode === 'deposit' ? `Pay deposit · ${moneyExact(payableDeposit)}` : `Pay ${moneyExact(amount)}`}</button><button type="button" role="radio" aria-checked={form.action === 'reserve'} onClick={() => onPaymentAction('reserve')} data-testid="button-buyer-reserve" className={cn('buyer-payment-option', form.action === 'reserve' && 'is-selected')}>Reserve for later</button></fieldset>}
-        <div className="buyer-form-actions"><Button type="button" variant="ghost" onClick={() => { setReviewConfirmed(false); setPaymentMethodConfirmed(false); onBackToReview?.(); }}><ArrowLeft size={15} />Back to review</Button><Button type="button" disabled={paymentMode !== 'reserve' && !form.action} onClick={() => setPaymentMethodConfirmed(true)} data-testid="button-continue-payment-method">Continue to payment <ArrowRight size={15} /></Button></div>
-     </div> : paymentMethodConfirmed ? <div className="buyer-payment-completion-page">
-       <div className="buyer-final-heading"><div><div className="take-order-section-eyebrow">Payment</div><h2 id="buyer-order-form-heading">{form.action === 'reserve' ? 'Reserve your order.' : 'Complete your payment.'}</h2></div><WalletCards size={20} /></div>
-       {form.action === 'pay' && <div className="buyer-mock-payment" aria-labelledby="mock-payment-heading"><div className="flex items-center justify-between gap-3"><h3 id="mock-payment-heading" className="flex items-center gap-2 text-sm font-bold"><WalletCards aria-hidden="true" size={16} />Card payment</h3><StatusPill tone="gold">Demo</StatusPill></div><p className="mt-2 text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">No real charge will be made. Use any test details to continue.</p><div className="mt-4 space-y-3"><div><label htmlFor="mock-card-number" className="field-label">Card number</label><input id="mock-card-number" data-testid="input-mock-card-number" required inputMode="numeric" value={mockPayment.cardNumber} onChange={(event) => onMockPaymentChange('cardNumber', event.target.value)} placeholder="4242 4242 4242 4242" className="field-input" /></div><div className="grid grid-cols-2 gap-3"><div><label htmlFor="mock-expiry" className="field-label">Expiry</label><input id="mock-expiry" data-testid="input-mock-expiry" required value={mockPayment.expiry} onChange={(event) => onMockPaymentChange('expiry', event.target.value)} placeholder="12/30" className="field-input" /></div><div><label htmlFor="mock-cvc" className="field-label">CVC</label><input id="mock-cvc" data-testid="input-mock-cvc" required inputMode="numeric" value={mockPayment.cvc} onChange={(event) => onMockPaymentChange('cvc', event.target.value)} placeholder="123" className="field-input" /></div></div></div></div>}
-       {form.action !== 'pay' && <div className="buyer-payment-reserve-note"><CheckCircle2 size={18} /><div><strong>Reserve these items</strong><p>The seller will receive your order details and follow up with the next step.</p></div></div>}
-       <div className="buyer-form-actions"><Button type="button" variant="ghost" onClick={() => { setPaymentMethodConfirmed(false); onBackToReview?.(); }}><ArrowLeft size={15} />Back to payment method</Button><Button type="submit" disabled={submitPending || (paymentMode !== 'reserve' && form.action !== 'pay' && form.action !== 'reserve')} data-testid="button-submit-public-order">{submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}{form.action === 'reserve' || paymentMode === 'reserve' ? 'Reserve these items' : 'Complete checkout'} <ArrowUpRight aria-hidden="true" size={15} /></Button></div>
-     </div> : <div className="buyer-final-checkout">
-       <div className="buyer-final-heading"><div><div className="take-order-section-eyebrow">Final checkout</div><h2 id="buyer-order-form-heading">Review your order.</h2><p>Check your items, preferences, and contact details before moving to payment.</p></div><CheckCircle2 size={20} /></div>
-        <section className="buyer-review-card buyer-review-items" aria-labelledby="buyer-review-items-heading">
-          <div className="buyer-review-card-heading"><div><div className="take-order-section-eyebrow">Order summary</div><h3 id="buyer-review-items-heading">Items in your order</h3></div><span>{items.length} {items.length === 1 ? 'item' : 'items'}</span></div>
-          <div className="buyer-summary-list">{items.map((orderItem, index) => {
-            const selectedPreferences = itemForms[index]?.preferences ?? (itemIndex === index ? itemForm.preferences : {});
-            const preferenceSummary = Object.values(selectedPreferences).filter(Boolean).join(' · ');
-             return <div key={`${orderItem.productId}-${index}`} className="buyer-summary-row"><div><strong>{orderItem.productName}</strong>{preferenceSummary && <small>{preferenceSummary}</small>}</div><b>{moneyExact(orderItem.amount)}</b></div>;
-          })}{deliveryCharge > 0 && <div className="buyer-summary-row"><span>+</span><div><strong>Delivery</strong><small>Flat delivery fee</small></div><b>{moneyExact(deliveryCharge)}</b></div>}<div className="buyer-summary-total"><span>Total</span><strong>{moneyExact(amount)}</strong></div></div>
-        </section>
-        <section className="buyer-review-card buyer-review-contact" aria-labelledby="buyer-review-contact-heading">
-          <div className="buyer-review-card-heading"><div><div className="take-order-section-eyebrow">Contact information</div><h3 id="buyer-review-contact-heading">Where should we reach you?</h3></div><button type="button" className="buyer-review-edit" aria-expanded={editingContact} aria-controls="buyer-inline-contact-editor" onClick={() => { setReviewConfirmed(false); setEditingContact((current) => !current); }} data-testid="button-edit-buyer-contact"><Pencil aria-hidden="true" size={13} />{editingContact ? 'Close editor' : 'Edit'}</button></div>
-          <div className="buyer-review-contact-grid"><div><span>Name</span><strong>{form.name}</strong></div><div><span>Phone</span><strong>{form.phone}</strong></div><div><span>Fulfilment</span><strong>{selectedDeliveryMethod === 'delivery' ? 'Delivery' : 'Pick up'}</strong></div>{selectedDeliveryMethod === 'delivery' && <div className="buyer-review-contact-wide"><span>Address</span><strong>{form.address}</strong></div>}{form.orderDetails && <div className="buyer-review-contact-wide"><span>Useful details</span><strong>{form.orderDetails}</strong></div>}</div>
-        </section>
-       {editingContact && <section id="buyer-inline-contact-editor" className="buyer-inline-contact-editor page-in" aria-labelledby="buyer-inline-contact-heading">
-         <div className="buyer-subsection-heading"><h3 id="buyer-inline-contact-heading">Edit contact information</h3></div>
-         <div className="buyer-contact-fields">
-           <div><label htmlFor="buyer-inline-name" className="field-label">Your name</label><input id="buyer-inline-name" data-testid="input-buyer-inline-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div>
-           <div><label htmlFor="buyer-inline-phone" className="field-label">Phone number</label><input id="buyer-inline-phone" data-testid="input-buyer-inline-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>
-         </div>
-         <div className="buyer-subsection-heading"><h3>Delivery service <span className="font-normal text-[hsl(var(--muted-foreground))]">(required)</span></h3></div>
-         <fieldset className="buyer-delivery-fields">
-           <legend className="sr-only">Choose a delivery service</legend>
-           <div className="buyer-service-choice-grid">
-             <label className={cn('buyer-service-choice', selectedDeliveryMethod === 'pickup' && 'is-selected')}><input className="buyer-service-choice-input" type="radio" name="buyer-inline-delivery-method" value="pickup" checked={selectedDeliveryMethod === 'pickup'} onChange={(event) => onChange('deliveryMethod', event.target.value)} required /><span className="buyer-service-choice-check" aria-hidden="true">{selectedDeliveryMethod === 'pickup' && <Check size={12} strokeWidth={3} />}</span><span className="buyer-service-choice-copy"><strong>Pick up</strong><small>No delivery fee</small></span></label>
-             <label className={cn('buyer-service-choice', selectedDeliveryMethod === 'delivery' && 'is-selected')}><input className="buyer-service-choice-input" type="radio" name="buyer-inline-delivery-method" value="delivery" checked={selectedDeliveryMethod === 'delivery'} onChange={(event) => onChange('deliveryMethod', event.target.value)} /><span className="buyer-service-choice-check" aria-hidden="true">{selectedDeliveryMethod === 'delivery' && <Check size={12} strokeWidth={3} />}</span><span className="buyer-service-choice-copy"><strong>Delivery</strong><small>{deliveryFee > 0 ? `Flat fee · ${moneyExact(deliveryFee)}` : 'No extra fee'}</small></span></label>
-           </div>
-           {selectedDeliveryMethod === 'delivery' && <div className="page-in"><label htmlFor="buyer-inline-address" className="field-label">Delivery address</label><textarea id="buyer-inline-address" data-testid="input-buyer-inline-address" required value={form.address ?? ''} onChange={(event) => onChange('address', event.target.value)} placeholder="Street, area, landmark, or pickup details..." rows={2} className="field-input resize-none" /></div>}
-         </fieldset>
-         <div><label htmlFor="buyer-inline-order-details" className="field-label">Useful details <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-inline-order-details" data-testid="input-buyer-inline-order-details" value={form.orderDetails ?? ''} onChange={(event) => onChange('orderDetails', event.target.value)} placeholder="Delivery timing, access notes, or anything already agreed..." rows={2} className="field-input resize-none" /></div>
-         <button type="button" className="buyer-inline-contact-done" onClick={() => setEditingContact(false)} data-testid="button-done-editing-buyer-contact">Done editing</button>
-       </section>}
-        <div className="buyer-form-actions"><Button type="button" variant="ghost" onClick={onBack}><ArrowLeft size={15} />Back to items</Button><Button type="button" onClick={() => setReviewConfirmed(true)} data-testid="button-confirm-buyer-review">Confirm order details <Check size={15} /></Button></div>
-    </div>}
+        </div>
+      </section>
+
+      {/* If checkout contains multiple items, show Next / Previous under catalog item preview */}
+      {totalItemCount > 1 && (
+        <div className="mt-6 pt-5 border-t border-[hsl(var(--border))] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {itemIndex > 0 ? (
+              <Button type="button" variant="outline" onClick={onPrevItem ?? onBack} data-testid="button-prev-item" className="gap-1.5">
+                <ArrowLeft size={14} /> Previous
+              </Button>
+            ) : null}
+            <span className="text-xs text-slate-500 font-medium">Item {itemIndex + 1} of {totalItemCount}</span>
+          </div>
+
+          {itemIndex + 1 < totalItemCount ? (
+            <Button type="button" onClick={onNextItem} data-testid="button-next-item" className="gap-1.5">
+              Next <ArrowRight size={14} />
+            </Button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+              <CheckCircle2 size={13} /> All items customized
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+
+    {/* Right Column: Contact Information step followed by Payment Provider selection step */}
+    <aside className="buyer-product-rail" aria-label={checkoutStep === 'payment' ? 'Payment method' : 'Contact information'}>
+      <div className="buyer-rail-card space-y-4">
+        {checkoutStep === 'contact' ? (
+          <>
+            <div className="buyer-section-heading">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-600 mb-1">
+                <span>Step 1 of 2</span>
+                <span className="text-slate-300">·</span>
+                <span className="text-slate-500 font-normal">Contact & Delivery</span>
+              </div>
+              <h2 id="buyer-details-heading" className="text-base font-bold text-slate-900">Contact information</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Enter your details to complete your order</p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="buyer-name" className="field-label">Your name <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
+                <input
+                  id="buyer-name"
+                  data-testid="input-buyer-name"
+                  value={form.name}
+                  onChange={(event) => onChange('name', event.target.value)}
+                  placeholder="Full name"
+                  className="field-input"
+                />
+              </div>
+              <div>
+                <label htmlFor="buyer-phone" className="field-label">Phone number <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
+                <input
+                  id="buyer-phone"
+                  data-testid="input-buyer-phone"
+                  value={form.phone}
+                  onChange={(event) => onChange('phone', event.target.value)}
+                  placeholder="Best number to reach you"
+                  className="field-input"
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <div className="field-label mb-2 font-semibold text-slate-800">Delivery service <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className={cn('buyer-service-choice', selectedDeliveryMethod === 'pickup' && 'is-selected')}>
+                  <input
+                    className="buyer-service-choice-input"
+                    type="radio"
+                    name="buyer-delivery-method"
+                    value="pickup"
+                    checked={selectedDeliveryMethod === 'pickup'}
+                    onChange={(event) => onChange('deliveryMethod', event.target.value)}
+                  />
+                  <span className="buyer-service-choice-check" aria-hidden="true">{selectedDeliveryMethod === 'pickup' && <Check size={12} strokeWidth={3} />}</span>
+                  <span className="buyer-service-choice-copy"><strong>Pick up</strong><small>No delivery fee</small></span>
+                </label>
+                <label className={cn('buyer-service-choice', selectedDeliveryMethod === 'delivery' && 'is-selected')}>
+                  <input
+                    className="buyer-service-choice-input"
+                    type="radio"
+                    name="buyer-delivery-method"
+                    value="delivery"
+                    checked={selectedDeliveryMethod === 'delivery'}
+                    onChange={(event) => onChange('deliveryMethod', event.target.value)}
+                  />
+                  <span className="buyer-service-choice-check" aria-hidden="true">{selectedDeliveryMethod === 'delivery' && <Check size={12} strokeWidth={3} />}</span>
+                  <span className="buyer-service-choice-copy"><strong>Delivery</strong><small>{deliveryFee > 0 ? moneyExact(deliveryFee) : 'Free'}</small></span>
+                </label>
+              </div>
+
+              {selectedDeliveryMethod === 'delivery' && (
+                <div className="mt-3 page-in">
+                  <label htmlFor="buyer-address" className="field-label">Delivery address <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
+                  <textarea
+                    id="buyer-address"
+                    data-testid="input-buyer-address"
+                    value={form.address ?? ''}
+                    onChange={(event) => onChange('address', event.target.value)}
+                    placeholder="Street, area, landmark, or delivery directions..."
+                    rows={2}
+                    className="field-input resize-none"
+                  />
+                </div>
+              )}
+
+              {askForDetails && (
+                <div className="mt-3">
+                  <label htmlFor="buyer-order-details" className="field-label">Useful details <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label>
+                  <textarea
+                    id="buyer-order-details"
+                    data-testid="input-buyer-order-details"
+                    value={form.orderDetails ?? ''}
+                    onChange={(event) => onChange('orderDetails', event.target.value)}
+                    placeholder="Delivery timing, access notes, or anything agreed..."
+                    rows={2}
+                    className="field-input resize-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {submitError && (
+              <div data-testid="status-public-order-error" className="rounded-[10px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 flex items-center gap-2 page-in" role="alert">
+                <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                <span>{submitError}</span>
+              </div>
+            )}
+
+            {/* Action button going to making the payment */}
+            <div className="pt-3 border-t border-slate-100">
+              <Button
+                type="submit"
+                onClick={handleProceedToPayment}
+                className="w-full py-3.5 text-base font-semibold"
+                data-testid="button-continue-payment"
+              >
+                Continue to payment <ArrowRight aria-hidden="true" size={16} />
+              </Button>
+              <p className="mt-2 text-center text-[11px] text-slate-500">
+                Select your payment provider on the next step
+              </p>
+            </div>
+          </>
+        ) : (
+          /* Payment Step: Select payment provider and make payment */
+          <>
+            {/* Contact recap card with Edit button */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-1.5 page-in">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Order Contact</span>
+                <button
+                  type="button"
+                  onClick={() => setCheckoutStep('contact')}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 underline"
+                >
+                  Edit
+                </button>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-medium text-slate-800">
+                <UserRound size={13} className="text-slate-400 shrink-0" />
+                <span className="truncate">{form.name}</span>
+                <span className="text-slate-300">·</span>
+                <span className="font-mono text-slate-600">{form.phone}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <Truck size={13} className="text-slate-400 shrink-0" />
+                <span className="truncate">
+                  {selectedDeliveryMethod === 'delivery' ? `Delivery: ${form.address}` : 'Store Pickup (Free)'}
+                </span>
+              </div>
+            </div>
+
+            <div className="buyer-section-heading">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-600 mb-1">
+                <span>Step 2 of 2</span>
+                <span className="text-slate-300">·</span>
+                <span className="text-slate-500 font-normal">Payment</span>
+              </div>
+              <h2 id="buyer-payment-heading" className="text-base font-bold text-slate-900">Select payment provider</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {paymentMode === 'reserve' ? 'Select how you would like to settle your order' : 'Select a provider to make your payment'}
+              </p>
+            </div>
+
+            {/* Payment provider options styled like modern checkout */}
+            <div className="rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-200/80 bg-white shadow-xs">
+              {/* Option 1: Mobile Money */}
+              <div className={cn('p-3.5 transition-colors', paymentProvider === 'momo' && 'bg-blue-50/20')}>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="buyer-payment-provider"
+                    value="momo"
+                    checked={paymentProvider === 'momo'}
+                    onChange={() => setPaymentProvider('momo')}
+                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-sm text-slate-900 flex items-center gap-2">
+                        <Smartphone size={16} className="text-blue-600" />
+                        Mobile Money
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Instant</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">MTN MoMo, Telecel Cash, AT Money</p>
+                  </div>
+                </label>
+                {paymentProvider === 'momo' && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 page-in">
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-600 mb-1.5 block">Select network provider</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setMomoNetwork('mtn')}
+                          className={cn('py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center', momoNetwork === 'mtn' ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-xs' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
+                        >
+                          MTN MoMo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMomoNetwork('telecel')}
+                          className={cn('py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center', momoNetwork === 'telecel' ? 'border-rose-400 bg-rose-50 text-rose-900 shadow-xs' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
+                        >
+                          Telecel Cash
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMomoNetwork('at')}
+                          className={cn('py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center', momoNetwork === 'at' ? 'border-blue-400 bg-blue-50 text-blue-900 shadow-xs' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
+                        >
+                          AT Money
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="momo-phone-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Mobile Money number</label>
+                      <input
+                        id="momo-phone-input"
+                        data-testid="input-momo-phone"
+                        type="tel"
+                        value={momoPhone}
+                        onChange={(e) => setMomoPhone(e.target.value)}
+                        placeholder="024 XXX XXXX"
+                        className="field-input text-sm"
+                      />
+                      <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                        <Info size={12} className="text-slate-400 shrink-0" />
+                        A prompt will be sent to this number to approve payment.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Option 2: Card Payment */}
+              <div className={cn('p-3.5 transition-colors', paymentProvider === 'card' && 'bg-blue-50/20')}>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="buyer-payment-provider"
+                    value="card"
+                    checked={paymentProvider === 'card'}
+                    onChange={() => setPaymentProvider('card')}
+                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-sm text-slate-900 flex items-center gap-2">
+                        <CreditCard size={16} className="text-slate-700" />
+                        Debit / Credit Card
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">VISA</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">Mastercard</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">Pay securely with bank card</p>
+                  </div>
+                </label>
+                {paymentProvider === 'card' && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 page-in">
+                    <div>
+                      <label htmlFor="card-number-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Card number</label>
+                      <input
+                        id="card-number-input"
+                        data-testid="input-card-number"
+                        type="text"
+                        value={cardData.number}
+                        onChange={(e) => setCardData((c) => ({ ...c, number: e.target.value }))}
+                        placeholder="4000 1234 5678 9010"
+                        maxLength={19}
+                        className="field-input text-sm font-mono"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label htmlFor="card-expiry-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Expiry date</label>
+                        <input
+                          id="card-expiry-input"
+                          data-testid="input-card-expiry"
+                          type="text"
+                          value={cardData.expiry}
+                          onChange={(e) => setCardData((c) => ({ ...c, expiry: e.target.value }))}
+                          placeholder="MM / YY"
+                          maxLength={5}
+                          className="field-input text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="card-cvc-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Security code (CVC)</label>
+                        <input
+                          id="card-cvc-input"
+                          data-testid="input-card-cvc"
+                          type="password"
+                          value={cardData.cvc}
+                          onChange={(e) => setCardData((c) => ({ ...c, cvc: e.target.value }))}
+                          placeholder="123"
+                          maxLength={4}
+                          className="field-input text-sm font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="card-name-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Name on card</label>
+                      <input
+                        id="card-name-input"
+                        data-testid="input-card-name"
+                        type="text"
+                        value={cardData.name}
+                        onChange={(e) => setCardData((c) => ({ ...c, name: e.target.value }))}
+                        placeholder="Full name on card"
+                        className="field-input text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Option 3: Pay on Delivery / Collection (if reserve mode) or Bank Transfer */}
+              {paymentMode === 'reserve' ? (
+                <div className={cn('p-3.5 transition-colors', paymentProvider === 'reserve' && 'bg-blue-50/20')}>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="buyer-payment-provider"
+                      value="reserve"
+                      checked={paymentProvider === 'reserve'}
+                      onChange={() => setPaymentProvider('reserve')}
+                      className="mt-1 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-sm text-slate-900 flex items-center gap-2">
+                          <Package size={16} className="text-slate-700" />
+                          Pay on Delivery / Pickup
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Cash / MoMo</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">Pay when your order is delivered or collected</p>
+                    </div>
+                  </label>
+                </div>
+              ) : (
+                <div className={cn('p-3.5 transition-colors', paymentProvider === 'bank' && 'bg-blue-50/20')}>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="buyer-payment-provider"
+                      value="bank"
+                      checked={paymentProvider === 'bank'}
+                      onChange={() => setPaymentProvider('bank')}
+                      className="mt-1 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-sm text-slate-900 flex items-center gap-2">
+                          <Building2 size={16} className="text-slate-700" />
+                          Bank Transfer
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Direct</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">Direct transfer to merchant bank account</p>
+                    </div>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Order breakdown summary */}
+            <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/80 space-y-1.5 text-xs">
+              <div className="flex justify-between text-slate-500">
+                <span>Subtotal</span>
+                <span className="font-mono-ui font-medium">{moneyExact(amount - (selectedDeliveryMethod === 'delivery' ? (deliveryFee || 0) : 0))}</span>
+              </div>
+              {deliveryFee > 0 && (
+                <div className="flex justify-between text-slate-500">
+                  <span>Delivery fee ({selectedDeliveryMethod === 'delivery' ? 'Courier' : 'Pickup'})</span>
+                  <span className="font-mono-ui font-medium">{selectedDeliveryMethod === 'delivery' ? moneyExact(deliveryFee) : 'Free'}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2 border-t border-slate-200 font-bold text-slate-900 text-sm">
+                <span>{paymentMode === 'deposit' ? 'Deposit payable today' : 'Total payable'}</span>
+                <span className="font-mono-ui text-base font-extrabold text-slate-900">
+                  {moneyExact(paymentMode === 'deposit' ? payableDeposit : amount)}
+                </span>
+              </div>
+              {paymentMode === 'deposit' && (
+                <p className="text-[11px] text-slate-500 pt-0.5">
+                  Remaining balance of {moneyExact(amount - payableDeposit)} payable upon delivery.
+                </p>
+              )}
+            </div>
+
+            {submitError && (
+              <div className="rounded-[10px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 flex items-center gap-2 page-in" role="alert">
+                <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                <span>{submitError}</span>
+              </div>
+            )}
+
+            {/* Primary Action Button: Make payment */}
+            <div className="pt-2 space-y-2">
+              <Button
+                type="submit"
+                disabled={submitPending}
+                className="w-full py-3.5 text-base font-semibold"
+                data-testid="button-submit-public-order"
+              >
+                {submitPending && <Loader2 aria-hidden="true" size={16} className="animate-spin" />}
+                {paymentMode === 'reserve' && paymentProvider === 'reserve'
+                  ? 'Confirm reservation · Pay on delivery'
+                  : paymentProvider === 'momo'
+                    ? `Pay ${moneyExact(payableDeposit || amount)} via Mobile Money`
+                    : paymentProvider === 'card'
+                      ? `Pay ${moneyExact(payableDeposit || amount)} with Card`
+                      : `Make payment · ${moneyExact(payableDeposit || amount)}`}
+                <ArrowUpRight aria-hidden="true" size={16} />
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => setCheckoutStep('contact')}
+                className="w-full text-center text-xs text-slate-500 hover:text-slate-800 transition-colors py-1 flex items-center justify-center gap-1 font-medium"
+              >
+                <ArrowLeft size={13} /> Back to contact information
+              </button>
+
+              <div className="flex items-center justify-center gap-1.5 text-center text-[11px] text-slate-400 pt-1">
+                <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
+                <span>256-bit encrypted · Direct payment to seller</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </aside>
   </form>;
 }
 

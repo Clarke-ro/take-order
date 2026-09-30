@@ -363,6 +363,15 @@ export async function customFetch<T = unknown>(
   const response = await fetch(input, { ...init, method, headers });
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (!path.includes('/sign-in') && !path.includes('/sign-up') && !path.includes('/o/')) {
+        localStorage.removeItem('duka-test-auth');
+        localStorage.removeItem('duka-test-user-id');
+        localStorage.removeItem('duka-auth-user');
+        window.location.href = '/sign-in';
+      }
+    }
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
   }
