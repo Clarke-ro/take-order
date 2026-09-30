@@ -459,18 +459,26 @@ export function SubscribePage() {
             <p className="text-center text-sm text-muted-foreground">
               Then {selectedPrice}, auto-renewing. Cancel anytime.
             </p>
+            <p className="text-center text-xs text-muted-foreground/80 leading-normal">
+              By subscribing, you agree to our{' '}
+              <Link to="/terms" className="underline hover:text-foreground font-medium">Terms of Service</Link>,{' '}
+              <Link to="/privacy" className="underline hover:text-foreground font-medium">Privacy Policy</Link>, and{' '}
+              <Link to="/refund-policy" className="underline hover:text-foreground font-medium">Refund Policy</Link>.
+            </p>
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-center gap-5 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
           <button type="button" disabled={restoring} onClick={handleRestore} className="hover:text-foreground transition-colors disabled:opacity-50">
             {restoring ? 'Restoring…' : 'Restore Purchases'}
           </button>
           <span style={{ color: '#d1d5db' }}>·</span>
-          <a href="#terms" onClick={(e) => { e.preventDefault(); alert('Subscriptions auto-renew unless cancelled at least 24 hours before the period ends.'); }} className="hover:text-foreground transition-colors">Terms</a>
+          <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
           <span style={{ color: '#d1d5db' }}>·</span>
-          <a href="#privacy" onClick={(e) => { e.preventDefault(); alert('Billing is handled securely by RevenueCat.'); }} className="hover:text-foreground transition-colors">Privacy</a>
+          <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+          <span style={{ color: '#d1d5db' }}>·</span>
+          <Link to="/refund-policy" className="hover:text-foreground transition-colors">Refund Policy</Link>
         </div>
 
         <div className="flex items-center justify-center gap-1.5 text-sm" style={{ color: '#9ca3af' }}>

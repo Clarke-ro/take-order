@@ -27,6 +27,9 @@ import {
 } from '@workspace/api-client-react';
 import type { Expense, ExpenseInput, ExpenseUpdate, Order, OrderInput, Product, ProductInput, ProductPreferenceGroup, PublicOrderInput, SellerSettings } from '@workspace/api-client-react';
 import NotFound from '@/pages/not-found';
+import { TermsPage } from '@/pages/terms';
+import { PrivacyPage } from '@/pages/privacy';
+import { RefundPolicyPage } from '@/pages/refund-policy';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -940,6 +943,13 @@ export function Sidebar({
               </span>
               {isPro && <span className="text-[9px] font-bold uppercase text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Pro</span>}
             </Link>
+            <Link
+              href="/terms"
+              className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium rounded-xl text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
+            >
+              <FileText size={14} className="text-[hsl(var(--muted-foreground))]" />
+              <span>Terms & Policies</span>
+            </Link>
           </div>
           <div className="border-t border-[hsl(var(--border))] mt-1.5 pt-1">
             <button
@@ -1489,14 +1499,18 @@ function AuthSplitLayout({
         </main>
 
         {/* Bottom Legal Links */}
-        <footer className="pt-6 border-t border-neutral-100 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-neutral-400">
-          <button type="button" onClick={() => alert('Take Order Terms & Conditions: Your seller data and transaction history are private to your account.')} className="hover:text-neutral-600 transition-colors">
-            Terms and conditions
-          </button>
+        <footer className="pt-6 border-t border-neutral-100 flex flex-wrap items-center justify-center sm:justify-start gap-3.5 text-xs text-neutral-400">
+          <Link href="/terms" className="hover:text-neutral-700 transition-colors">
+            Terms of Service
+          </Link>
           <span>·</span>
-          <button type="button" onClick={() => alert('Take Order Privacy Policy: Buyer order links remain shareable without exposing internal seller finances.')} className="hover:text-neutral-600 transition-colors">
-            Privacy policy
-          </button>
+          <Link href="/privacy" className="hover:text-neutral-700 transition-colors">
+            Privacy Policy
+          </Link>
+          <span>·</span>
+          <Link href="/refund-policy" className="hover:text-neutral-700 transition-colors">
+            Refund Policy
+          </Link>
           <span>·</span>
           <span className="inline-flex items-center gap-1.5 text-neutral-500">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
@@ -2142,6 +2156,17 @@ function NativeSignInForm({ onDemoLogin }: { onDemoLogin: () => void }) {
         </button>
       </div>
 
+      <div className="pt-2 text-center text-[11px] text-neutral-500 leading-normal">
+        By logging in, you agree to our{' '}
+        <Link href="/terms" className="text-neutral-800 underline font-medium hover:text-neutral-900">
+          Terms
+        </Link>{' '}
+        and{' '}
+        <Link href="/privacy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
+          Privacy Policy
+        </Link>.
+      </div>
+
       <div className="pt-4 border-t border-neutral-100">
         <button
           type="button"
@@ -2283,6 +2308,19 @@ function NativeSignUpForm({ onDemoLogin }: { onDemoLogin: () => void }) {
         </button>
       </div>
 
+      <div className="pt-2 text-center text-[11px] text-neutral-500 leading-normal">
+        By creating an account, you agree to our{' '}
+        <Link href="/terms" className="text-neutral-800 underline font-medium hover:text-neutral-900">
+          Terms of Service
+        </Link>,{' '}
+        <Link href="/privacy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
+          Privacy Policy
+        </Link>, and{' '}
+        <Link href="/refund-policy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
+          Refund Policy
+        </Link>.
+      </div>
+
       <div className="pt-4 border-t border-neutral-100">
         <button
           type="button"
@@ -2329,7 +2367,17 @@ function SignInPage() {
       {clerkPubKey && useClerkView ? (
         <div className="w-full">
           <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-          <div className="mt-4 text-center">
+          <div className="mt-3 text-center text-[11px] text-neutral-500 leading-normal">
+            By signing in, you agree to our{' '}
+            <Link href="/terms" className="text-neutral-800 underline font-medium hover:text-neutral-900">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
+              Privacy Policy
+            </Link>.
+          </div>
+          <div className="mt-3 text-center">
             <button
               type="button"
               onClick={() => setUseClerkView(false)}
@@ -2396,7 +2444,19 @@ function SignUpPage() {
             fallbackRedirectUrl={`${basePath}/onboarding`}
             forceRedirectUrl={`${basePath}/onboarding`}
           />
-          <div className="mt-4 text-center">
+          <div className="mt-3 text-center text-[11px] text-neutral-500 leading-normal">
+            By creating an account, you agree to Take Order's{' '}
+            <Link href="/terms" className="text-neutral-800 underline font-medium hover:text-neutral-900">
+              Terms of Service
+            </Link>,{' '}
+            <Link href="/privacy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
+              Privacy Policy
+            </Link>, and{' '}
+            <Link href="/refund-policy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
+              Refund Policy
+            </Link>.
+          </div>
+          <div className="mt-3 text-center">
             <button
               type="button"
               onClick={() => setUseClerkView(false)}
@@ -7261,7 +7321,7 @@ function PublicOrderPage() {
     });
   };
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8"><div className="mx-auto max-w-[1180px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} customLayout={true}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} form={form} itemForm={currentItemForm} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => { setSubmitError(''); setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item)); }} onNextItem={handleNextItem} onPrevItem={handlePrevItem} onBack={handlePrevItem} onReferenceImageChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setSubmitError(''); changeItem('imagePreview', URL.createObjectURL(file)); changeItem('image', file.name); const uploadedUrl = await uploadReferenceImage(file); changeItem('image', uploadedUrl); }} onError={setSubmitError} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Powered by Take Order · made for small businesses</div></div></div>;
+  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8"><div className="mx-auto max-w-[1180px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} customLayout={true}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} form={form} itemForm={currentItemForm} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => { setSubmitError(''); setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item)); }} onNextItem={handleNextItem} onPrevItem={handlePrevItem} onBack={handlePrevItem} onReferenceImageChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setSubmitError(''); changeItem('imagePreview', URL.createObjectURL(file)); changeItem('image', file.name); const uploadedUrl = await uploadReferenceImage(file); changeItem('image', uploadedUrl); }} onError={setSubmitError} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] flex flex-wrap items-center justify-center gap-2"><span>Powered by Take Order · made for small businesses</span><span>·</span><Link href="/terms" target="_blank" className="hover:underline">Terms</Link><span>·</span><Link href="/privacy" target="_blank" className="hover:underline">Privacy</Link><span>·</span><Link href="/refund-policy" target="_blank" className="hover:underline">Refund Policy</Link></div></div></div>;
 }
 
 export function Connect() {
@@ -9319,6 +9379,13 @@ function Router() {
     <Route path="/settings/pro" component={() => <Redirect to="/account/billing" />} />
     <Route path="/settings" component={() => <ProtectedRoute page={SettingsPage} />} />
     <Route path="/connect" component={() => <ProtectedRoute page={Connect} />} />
+    <Route path="/terms" component={TermsPage} />
+    <Route path="/terms-of-service" component={() => <Redirect to="/terms" />} />
+    <Route path="/privacy" component={PrivacyPage} />
+    <Route path="/privacy-policy" component={() => <Redirect to="/privacy" />} />
+    <Route path="/refund-policy" component={RefundPolicyPage} />
+    <Route path="/refunds" component={() => <Redirect to="/refund-policy" />} />
+    <Route path="/cancellation-policy" component={() => <Redirect to="/refund-policy" />} />
     <Route path="/o/:token" component={PublicOrderPage} />
     <Route component={NotFound} />
   </Switch></ErrorBoundary>;
@@ -9522,6 +9589,12 @@ export function BuyerOrderForm({
         {submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}
         {paymentMode === 'reserve' ? 'Reserve order' : paymentMode === 'deposit' ? `Make payment · ${moneyExact(payableDeposit)}` : `Make payment · ${moneyExact(amount)}`} <ArrowUpRight aria-hidden="true" size={15} />
       </Button>
+      <div className="text-center text-[11px] text-neutral-400 pt-1 leading-normal">
+        By placing your order, you agree to Take Order's{' '}
+        <Link href="/terms" target="_blank" className="underline hover:text-neutral-600">Terms</Link>,{' '}
+        <Link href="/privacy" target="_blank" className="underline hover:text-neutral-600">Privacy Policy</Link>, and{' '}
+        <Link href="/refund-policy" target="_blank" className="underline hover:text-neutral-600">Refund Policy</Link>.
+      </div>
     </form>;
   }
 
@@ -10091,6 +10164,13 @@ export function BuyerOrderForm({
               <div className="flex items-center justify-center gap-1.5 text-center text-[11px] text-slate-400 pt-1">
                 <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
                 <span>256-bit encrypted · Direct payment to seller</span>
+              </div>
+
+              <div className="text-center text-[10.5px] text-slate-400 pt-0.5 leading-normal">
+                By placing your order, you agree to Take Order's{' '}
+                <Link href="/terms" target="_blank" className="underline hover:text-slate-600">Terms</Link>,{' '}
+                <Link href="/privacy" target="_blank" className="underline hover:text-slate-600">Privacy</Link>, and{' '}
+                <Link href="/refund-policy" target="_blank" className="underline hover:text-slate-600">Refund Policy</Link>.
               </div>
             </div>
           </>

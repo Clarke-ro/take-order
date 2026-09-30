@@ -459,9 +459,18 @@ export function BillingPage() {
         </section>
 
         {/* Footer */}
-        <div className="pb-6 flex items-center justify-center gap-1.5 text-xs text-muted-foreground/60">
-          <ShieldCheck size={12} className="text-emerald-500" />
-          Secured by RevenueCat
+        <div className="pb-6 flex flex-col items-center justify-center gap-2 text-xs text-muted-foreground/60">
+          <div className="flex items-center gap-3">
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
+            <span>·</span>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+            <span>·</span>
+            <Link to="/refund-policy" className="hover:text-foreground transition-colors">Refund Policy</Link>
+          </div>
+          <div className="flex items-center justify-center gap-1.5">
+            <ShieldCheck size={12} className="text-emerald-500" />
+            <span>Secured by RevenueCat</span>
+          </div>
         </div>
       </main>
     </div>

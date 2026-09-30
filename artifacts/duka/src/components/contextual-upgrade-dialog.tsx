@@ -157,6 +157,12 @@ export function ContextualUpgradeDialog({
             </Button>
           </Link>
         </div>
+
+        <div className="text-center text-[10.5px] text-slate-400 pt-1">
+          7-day free trial on all plans. Review our{' '}
+          <Link href="/terms" onClick={() => onOpenChange(false)} className="underline hover:text-slate-600">Terms</Link> and{' '}
+          <Link href="/refund-policy" onClick={() => onOpenChange(false)} className="underline hover:text-slate-600">Refund Policy</Link>.
+        </div>
       </DialogContent>
     </Dialog>
   );
