@@ -71,11 +71,28 @@ export function createApp(database: typeof db, options: { authMiddleware?: expre
   );
   app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-  const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean)
+  const configuredOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",")
+        .map((origin) => origin.trim().replace(/\/+$/, ""))
+        .filter(Boolean)
+    : null;
+
+  const corsOrigin = configuredOrigins
+    ? (origin: string | undefined, callback: (err: Error | null, origin?: any) => void) => {
+        if (!origin) return callback(null, true);
+        const normalized = origin.trim().replace(/\/+$/, "");
+        if (
+          configuredOrigins.includes(normalized) ||
+          configuredOrigins.includes("*") ||
+          (configuredOrigins.some((o) => o.includes(".vercel.app")) && normalized.endsWith(".vercel.app"))
+        ) {
+          return callback(null, true);
+        }
+        return callback(null, false);
+      }
     : true;
 
-  app.use(cors({ credentials: true, origin: allowedOrigins }));
+  app.use(cors({ credentials: true, origin: corsOrigin }));
   app.use(express.json({ limit: "6mb" }));
   app.use(express.urlencoded({ extended: true }));
 

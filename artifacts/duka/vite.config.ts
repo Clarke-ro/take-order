@@ -9,7 +9,12 @@ const basePath = process.env.BASE_PATH || '/';
 export default defineConfig({
   base: basePath,
   envDir: path.resolve(import.meta.dirname, '../../'),
-  envPrefix: ['VITE_', 'CLERK_PUBLISHABLE_KEY', 'CLERK_PROXY_URL'],
+  envPrefix: ['VITE_', 'API_URL', 'CLERK_PUBLISHABLE_KEY', 'CLERK_PROXY_URL'],
+  define: {
+    'import.meta.env.VITE_API_URL': JSON.stringify(
+      process.env.VITE_API_URL || process.env.API_URL || process.env.VITE_API_BASE_URL || ''
+    ),
+  },
   plugins: [
     react(),
     tailwindcss({ optimize: false }),
@@ -31,6 +36,7 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
     sourcemap: false,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       onwarn(warning, warn) {
         if (warning.code === 'SOURCEMAP_ERROR') return;
@@ -43,6 +49,11 @@ export default defineConfig({
           if (id.includes('lucide-react') || id.includes('react-icons')) return 'vendor-icons';
           if (id.includes('@radix-ui')) return 'vendor-radix';
           if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/') || id.includes('/node_modules/scheduler/')) return 'vendor-react';
+          if (id.includes('@clerk')) return 'vendor-clerk';
+          if (id.includes('@tanstack/react-query')) return 'vendor-query';
+          if (id.includes('@revenuecat')) return 'vendor-revenuecat';
+          if (id.includes('framer-motion')) return 'vendor-motion';
+          if (id.includes('date-fns')) return 'vendor-date';
           return 'vendor';
         },
       },
