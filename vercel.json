@@ -3,7 +3,6 @@
   "framework": "vite",
   "buildCommand": "pnpm run build:web",
   "outputDirectory": "artifacts/duka/dist/public",
-  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/o/:token",
@@ -17,7 +16,7 @@
       "destination": "https://takeorderapp-api-6a7a2c1bbf3e.herokuapp.com/api/public/order-preview/:token"
     },
     {
-      "source": "/:match*",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
