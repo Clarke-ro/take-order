@@ -9,10 +9,13 @@ const basePath = process.env.BASE_PATH || '/';
 export default defineConfig({
   base: basePath,
   envDir: path.resolve(import.meta.dirname, '../../'),
-  envPrefix: ['VITE_', 'API_URL', 'CLERK_PUBLISHABLE_KEY', 'CLERK_PROXY_URL'],
+  envPrefix: ['VITE_', 'API_URL', 'CLERK_PUBLISHABLE_KEY', 'CLERK_PROXY_URL', 'RC_API_KEY', 'REVENUECAT_'],
   define: {
     'import.meta.env.VITE_API_URL': JSON.stringify(
       process.env.VITE_API_URL || process.env.API_URL || process.env.VITE_API_BASE_URL || ''
+    ),
+    'import.meta.env.VITE_RC_API_KEY': JSON.stringify(
+      process.env.VITE_RC_API_KEY || process.env.RC_API_KEY || process.env.REVENUECAT_API_KEY || 'pdl_vcGFFumhSZjAmNqTiDIbNlenSEvU'
     ),
   },
   plugins: [
