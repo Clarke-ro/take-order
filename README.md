@@ -102,4 +102,4 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0-only) - see the [LICENSE](LICENSE) file for details.
 
-Copyright (c) 2026 &lt;my name&gt;
+Copyright (c) 2026 &lt;clarke adjorlolo&gt;
