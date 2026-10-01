@@ -1432,8 +1432,8 @@ function AuthSplitLayout({
             <header className="flex items-center justify-between pb-4 w-full">
               <Link href="/" aria-label="Take Order home" className="inline-flex items-center gap-2.5" data-testid="link-auth-logo">
                 <img src={brandAssets.icon} alt="Take Order" className="h-8 w-auto rounded-xl object-contain shadow-xs" />
-                <span className="font-extrabold tracking-tight text-lg text-neutral-800 leading-none">
-                  Take<span className="text-[#F5B418]">Order</span>
+                <span className="font-extrabold tracking-tight text-lg text-neutral-900 leading-none">
+                  Take Order
                 </span>
               </Link>
             </header>

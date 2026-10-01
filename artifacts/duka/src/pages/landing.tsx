@@ -189,8 +189,8 @@ export function LandingPage() {
               className="h-9 w-9 rounded-xl object-contain shadow-xs group-hover:scale-105 transition-transform"
             />
             <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-xl leading-none text-neutral-800">
-                Take<span className="text-[#F5B418]">Order</span>
+              <span className="font-bold tracking-tight text-xl leading-none text-neutral-900">
+                Take Order
               </span>
               <span className="text-[10px] uppercase tracking-wider font-semibold text-neutral-400 mt-0.5">
                 Social Commerce OS
@@ -1151,8 +1151,8 @@ export function LandingPage() {
                   alt="Take Order"
                   className="h-10 w-10 rounded-xl object-contain shadow-xs"
                 />
-                <span className="font-bold tracking-tight text-2xl text-neutral-800">
-                  Take<span className="text-[#F5B418]">Order</span>
+                <span className="font-bold tracking-tight text-2xl text-neutral-900">
+                  Take Order
                 </span>
               </Link>
               <p className="text-sm text-neutral-500 max-w-sm leading-relaxed">

@@ -38,8 +38,8 @@ export function LegalLayout({
               <div className="h-8 w-8 rounded-lg bg-neutral-900 flex items-center justify-center text-white font-bold text-base shadow-xs group-hover:bg-neutral-800 transition-colors">
                 T
               </div>
-              <span className="font-extrabold tracking-tight text-lg">
-                Take<span className="text-[#F5B418]">Order</span>
+              <span className="font-extrabold tracking-tight text-lg text-neutral-900">
+                Take Order
               </span>
             </Link>
           </div>

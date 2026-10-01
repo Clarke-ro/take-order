@@ -15,7 +15,7 @@ export const REVENUECAT_API_KEY =
   runtimeEnv.VITE_RC_API_KEY ||
   runtimeEnv.RC_API_KEY ||
   runtimeEnv.REVENUECAT_API_KEY ||
-  'pdl_vcGFFumhSZjAmNqTiDIbNlenSEvU';
+  'rcb_sb_HXGmjiScvdUHSTWLYKCOQgWBl';
 
 export const PRO_ENTITLEMENT_ID =
   runtimeEnv.VITE_RC_ENTITLEMENT_PRO || 'take_order_app_pro';
@@ -452,11 +452,10 @@ export async function purchaseProPackage(
     if (
       anyErr?.extra?.backendErrorCode === 8101 ||
       anyErr?.errorCode === 8101 ||
-      errorMessage.includes('8101') ||
-      errorMessage.includes('Paddle checkout is not fully configured')
+      errorMessage.includes('8101')
     ) {
       errorMessage =
-        'Paddle checkout is not fully configured. In your Paddle dashboard, set a Default Payment Link in Checkout Settings and ensure your domain is active under Website Approval.';
+        'Purchase could not be started (error code 8101). Please try again or check your RevenueCat web billing configuration.';
     }
 
     return {

@@ -152,7 +152,7 @@ export function SubscribePage() {
           <div className="flex items-center gap-2.5">
             <img src="/branding/takeorder-icon.png" alt="Take Order" className="h-7 w-7 rounded-lg object-contain shadow-2xs" />
             <span className="font-black tracking-tight text-lg text-neutral-900 leading-none">
-              Take<span className="text-[#F5B418]">Order</span>
+              Take Order
             </span>
           </div>
           {hasActiveSub ? (

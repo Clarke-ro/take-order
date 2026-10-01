@@ -21,7 +21,7 @@ import {
 import { ErrorCode } from '@revenuecat/purchases-js';
 
 test('RevenueCat configuration has correct default public API key and package constants', () => {
-  assert.equal(REVENUECAT_API_KEY, 'pdl_vcGFFumhSZjAmNqTiDIbNlenSEvU');
+  assert.equal(REVENUECAT_API_KEY, 'rcb_sb_HXGmjiScvdUHSTWLYKCOQgWBl');
   assert.equal(PRO_ENTITLEMENT_ID, 'take_order_app_pro');
   assert.equal(PRO_PLUS_ENTITLEMENT_ID, 'take_order_app_pro_plus');
   assert.equal(PACKAGE_ID_PRO_MONTHLY, '$rc_monthly');
