@@ -411,28 +411,31 @@
 html, body, #root { min-height: 100%; }
 body { background: hsl(var(--background)); font-family: var(--app-font-family); font-size: var(--app-text-body); font-style: normal; font-weight: 400; line-height: 1.55; letter-spacing: 0; opacity: 1; }
 .app-card {
-  border: 1px solid hsl(var(--card-border));
-  border-radius: 16px;
+  border: 1px solid hsl(var(--card-border) / 0.85);
+  border-radius: 18px;
   background: hsl(var(--card));
-  box-shadow: 0 1px 3px hsl(var(--foreground) / .04), 0 8px 24px hsl(var(--foreground) / .04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 6px 20px rgba(0, 0, 0, 0.02);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 }
+.app-card:hover {
+  border-color: hsl(var(--card-border));
+}
 .metric-card {
-  border: 1px solid hsl(var(--card-border));
-  border-radius: 16px;
+  border: 1px solid hsl(var(--card-border) / 0.85);
+  border-radius: 18px;
   background: hsl(var(--card));
   min-height: 176px;
-  padding: 1.5rem 1.625rem;
+  padding: 1.625rem 1.75rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: 0 1px 3px hsl(var(--foreground) / .04), 0 8px 24px hsl(var(--foreground) / .04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 6px 20px rgba(0, 0, 0, 0.02);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .metric-card:hover {
   transform: translateY(-2px);
-  border-color: hsl(var(--foreground) / .24);
-  box-shadow: 0 6px 20px hsl(var(--foreground) / .07), 0 16px 36px hsl(var(--foreground) / .06);
+  border-color: hsl(var(--foreground) / .18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05), 0 18px 40px rgba(0, 0, 0, 0.03);
 }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }

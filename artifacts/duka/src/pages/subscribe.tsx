@@ -170,7 +170,7 @@ export function SubscribePage() {
 
         {/* Headline */}
         <div className="text-center space-y-2">
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Upgrade TakeOrder</h1>
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Upgrade Take Order</h1>
           <p className="text-base text-muted-foreground">All plans include a 7-day free trial. Cancel anytime.</p>
         </div>
 

@@ -232,7 +232,7 @@ export function BillingPage() {
                 <div>
                   <div className="text-muted-foreground mb-0.5">Edition</div>
                   <div className="font-semibold text-foreground truncate">
-                    {details.tier === 'pro_plus' ? 'TakeOrder Pro+' : 'TakeOrder Pro'}
+                    {details.tier === 'pro_plus' ? 'Take Order Pro+' : 'Take Order Pro'}
                   </div>
                 </div>
                 <div>
@@ -256,7 +256,7 @@ export function BillingPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-lg leading-none">TakeOrder Pro</h3>
+                      <h3 className="font-bold text-lg leading-none">Take Order Pro</h3>
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
                         7-DAY FREE TRIAL
                       </span>
@@ -298,7 +298,7 @@ export function BillingPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-lg leading-none">TakeOrder Free Plan</h3>
+                      <h3 className="font-bold text-lg leading-none">Take Order Free Plan</h3>
                       <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                         Active Free Tier
                       </span>

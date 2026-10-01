@@ -393,8 +393,8 @@ function BrandMark({ variant = 'app', className = '' }: { variant?: keyof typeof
 
 function BrandWordmark({ inverted = false, className = '' }: { inverted?: boolean; className?: string }) {
   return (
-    <span className={cn('inline-flex items-center font-black tracking-tight leading-none select-none text-[1.1em]', inverted ? 'text-white' : 'text-neutral-900', className)}>
-      Take<span className="text-[#F5B418]">Order</span>
+    <span className={cn('inline-flex items-center font-bold tracking-tight leading-none select-none text-[1.15em]', inverted ? 'text-white' : 'text-neutral-900 dark:text-white', className)}>
+      Take Order
     </span>
   );
 }
@@ -417,9 +417,9 @@ function PoweredByTakeOrder({ className = '' }: { className?: string }) {
   return (
     <div className={cn('flex items-center justify-center gap-1.5 text-[11px] text-[hsl(var(--muted-foreground))]', className)}>
       <span>Powered by</span>
-      <div className="inline-flex items-center gap-1 font-bold text-neutral-800 dark:text-neutral-200">
+      <div className="inline-flex items-center gap-1 font-bold text-neutral-900 dark:text-neutral-100">
         <img src={brandAssets.icon} alt="" className="h-3.5 w-3.5 rounded-[4px] object-contain shadow-2xs" />
-        <span>Take<span className="text-[#F5B418]">Order</span></span>
+        <span>Take Order</span>
       </div>
     </div>
   );
@@ -717,18 +717,18 @@ export function Sidebar({
               {seller?.businessName || 'The Sunday Edit'}
             </div>
             {isProPlus ? (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-900 text-amber-300 dark:bg-amber-400 dark:text-slate-900 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-xs shrink-0" data-testid="sidebar-pro-plus-badge">
-                <Crown size={9} strokeWidth={2.5} />
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-950 text-white dark:bg-slate-900 border border-slate-800 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-2xs shrink-0" data-testid="sidebar-pro-plus-badge">
+                <Crown size={9} strokeWidth={2.5} className="text-amber-400" />
                 PRO+
               </span>
             ) : isTrial ? (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white shadow-xs shrink-0" data-testid="sidebar-pro-badge" title={`7-Day Free Pro Trial: ${entitlements.trial.daysRemaining} days remaining`}>
-                <Crown size={9} strokeWidth={2.5} />
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-900 text-white border border-slate-700/80 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-2xs shrink-0" data-testid="sidebar-pro-badge" title={`7-Day Free Pro Trial: ${entitlements.trial.daysRemaining} days remaining`}>
+                <Crown size={9} strokeWidth={2.5} className="text-amber-400" />
                 TRIAL · {entitlements.trial.daysRemaining}D
               </span>
             ) : isPro ? (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white shadow-xs shrink-0" data-testid="sidebar-pro-badge">
-                <Crown size={9} strokeWidth={2.5} />
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-900 text-white border border-slate-700/80 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-2xs shrink-0" data-testid="sidebar-pro-badge">
+                <Crown size={9} strokeWidth={2.5} className="text-amber-400" />
                 PRO
               </span>
             ) : null}
@@ -767,7 +767,7 @@ export function Sidebar({
                 <div className="flex items-center justify-between flex-1">
                   <span>{label}</span>
                   {!entitlements.isLoading && entitlements.tier === 'free' && href === '/reports' && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs">
                       PRO
                     </span>
                   )}
@@ -824,28 +824,28 @@ export function Sidebar({
           {collapsed ? (
             <Link
               href="/subscribe"
-              title="Upgrade to TakeOrder Pro"
+              title="Upgrade to Take Order Pro"
               data-testid="sidebar-button-upgrade-pro-collapsed"
-              className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs hover:brightness-105 transition-all cursor-pointer"
+              className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl bg-slate-900 text-white border border-slate-800 shadow-xs hover:bg-slate-800 transition-all cursor-pointer"
             >
-              <Crown size={18} />
+              <Crown size={18} className="text-amber-400" />
             </Link>
           ) : (
             <Link
               href="/subscribe"
               data-testid="sidebar-button-upgrade-pro"
-              className="w-full flex items-center justify-between rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/15 to-orange-500/10 border border-amber-500/30 p-2.5 text-left text-xs font-semibold text-amber-900 dark:text-amber-200 hover:border-amber-500/50 hover:bg-amber-500/20 transition-all shadow-xs group cursor-pointer"
+              className="w-full flex items-center justify-between rounded-xl bg-slate-900 border border-slate-800 p-2.5 text-left text-xs font-semibold text-white hover:bg-slate-850 hover:border-slate-700 transition-all shadow-xs group cursor-pointer"
             >
-              <div className="flex items-center gap-2">
-                <div className="rounded-lg bg-amber-500 p-1 text-white shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="rounded-lg bg-slate-800 p-1.5 text-amber-400 border border-slate-700/80 shadow-xs">
                   <Crown size={13} />
                 </div>
                 <div>
-                  <div className="text-[11px] font-bold text-amber-900 dark:text-amber-100 uppercase tracking-wider">TakeOrder Pro</div>
-                  <div className="text-[10px] text-amber-700/80 dark:text-amber-300/80 font-normal">Unlock all features</div>
+                  <div className="text-[11px] font-bold text-white uppercase tracking-wider">Take Order Pro</div>
+                  <div className="text-[10px] text-slate-300 font-normal">Unlock all features</div>
                 </div>
               </div>
-              <Sparkles size={12} className="text-amber-500 group-hover:scale-110 transition-transform" />
+              <Sparkles size={12} className="text-amber-400 group-hover:scale-110 transition-transform" />
             </Link>
           )}
         </div>
@@ -1031,7 +1031,7 @@ function Shell({ children }: { children: ReactNode }) {
       <MobileTopbar />
       <main
         className={cn(
-          'page-content min-h-[100dvh] px-5 py-7 transition-all duration-200 ease-in-out md:px-10 md:py-9 lg:px-14',
+          'page-content min-h-[100dvh] px-6 py-8 transition-all duration-200 ease-in-out md:px-12 md:py-10 lg:px-16 max-w-[1500px]',
           collapsed ? 'md:ml-[72px]' : 'md:ml-[250px]'
         )}
       >
@@ -1042,7 +1042,7 @@ function Shell({ children }: { children: ReactNode }) {
 }
 
 function PageHeading({ eyebrow, title, description, action }: { eyebrow?: string; title: string; description?: string; action?: ReactNode }) {
-  return <div className="page-heading mb-6 flex flex-col justify-between gap-4 border-b border-[hsl(var(--border))] pb-5 sm:flex-row sm:items-center">
+  return <div className="page-heading mb-8 flex flex-col justify-between gap-4 border-b border-[hsl(var(--border))] pb-6 sm:flex-row sm:items-center">
     <div className="min-w-0">
       {eyebrow && <div className="type-eyebrow mb-1">{eyebrow}</div>}
       <h1 className="type-h1">{title}</h1>
@@ -2457,7 +2457,8 @@ function SellerRoute({ children }: { children: ReactNode }) {
       setLocation('/sign-in');
       return;
     }
-    if (settingsQuery.isLoading) {
+    // Do not redirect while query is resolving on initial load or refresh
+    if (clerkPubKey && (settingsQuery.isLoading || settingsQuery.isPending) && !settingsQuery.data) {
       return;
     }
     const completed = readOnboardingComplete(userId);
@@ -2468,12 +2469,13 @@ function SellerRoute({ children }: { children: ReactNode }) {
       finishOnboarding(userId);
     }
 
-    if (!completed && !hasBusinessProfile) {
+    // Only redirect to /onboarding if query succeeded and user definitely has no business setup
+    if (settingsQuery.isSuccess && !completed && !hasBusinessProfile) {
       setLocation('/onboarding');
       return;
     }
     setReady(true);
-  }, [isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.isLoading, settingsQuery.isSuccess, settingsQuery.data?.businessName, setLocation]);
+  }, [isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.isLoading, settingsQuery.isPending, settingsQuery.isSuccess, settingsQuery.data?.businessName, setLocation]);
 
   setActiveCurrency(settingsQuery.data?.currency ?? 'GHS');
   if (!clerkPubKey && !isTestAuth) return <Redirect to="/sign-in" />;
@@ -2517,6 +2519,7 @@ function OnboardingRoute() {
       setLocation('/sign-in');
       return;
     }
+    if (clerkPubKey && (settingsQuery.isLoading || settingsQuery.isPending) && !settingsQuery.data) return;
     const completed = readOnboardingComplete(userId);
     const localProfile = readSellerProfile(userId);
     const hasBusinessProfile = Boolean(settingsQuery.data?.businessName?.trim() || localProfile?.businessName?.trim());
@@ -2526,7 +2529,7 @@ function OnboardingRoute() {
       }
       setLocation('/dashboard');
     }
-  }, [isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.data?.businessName, setLocation]);
+  }, [isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.isLoading, settingsQuery.isPending, settingsQuery.data?.businessName, setLocation]);
 
   if (!isLoaded && !isTestAuth) {
     return (
@@ -7338,7 +7341,7 @@ const settingsNavItems: Array<{
   { id: 'delivery', label: 'Fulfillment & Pickup', description: 'Fulfillment options, flat delivery fee, and store pickup location.', icon: Truck, keywords: ['delivery', 'fulfillment', 'pickup', 'shipping', 'fee', 'address', 'hours'] },
   { id: 'preferences', label: 'Store Preferences', description: 'Workspace alert toggles, status updates, and table density.', icon: SlidersHorizontal, keywords: ['preferences', 'alerts', 'notifications', 'compact', 'tables', 'updates', 'stock'] },
   { id: 'security', label: 'Security & Login', description: 'Active session, multi-factor authentication, and account access.', icon: ShieldCheck, keywords: ['security', 'login', 'mfa', 'auth', 'password', 'sign out', 'logout', 'session'] },
-  { id: 'billing', label: 'Billing & Subscription', description: 'TakeOrder Pro plan, billing status, and subscription management.', icon: Crown, keywords: ['billing', 'subscription', 'plan', 'pro', 'upgrade', 'revenuecat'] },
+  { id: 'billing', label: 'Billing & Subscription', description: 'Take Order Pro plan, billing status, and subscription management.', icon: Crown, keywords: ['billing', 'subscription', 'plan', 'pro', 'upgrade', 'revenuecat'] },
   { id: 'data', label: 'Data & Export', description: 'Export order data to CSV, workspace reset, and data controls.', icon: Clipboard, keywords: ['data', 'export', 'csv', 'download', 'backup', 'reset', 'danger'] },
 ];
 
@@ -8207,21 +8210,21 @@ function SettingsPage() {
               {entitlements.isProPlus ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black">
                   <Crown size={12} className="text-amber-400" />
-                  <span>TakeOrder Pro+</span>
+                  <span>Take Order Pro+</span>
                 </span>
               ) : entitlements.isPro && !entitlements.isTrial ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black">
                   <Crown size={12} className="text-amber-400" />
-                  <span>TakeOrder Pro</span>
+                  <span>Take Order Pro</span>
                 </span>
               ) : entitlements.isTrial ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-900/60 dark:text-amber-200">
-                  <Clock3 size={12} className="text-amber-600" />
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-slate-900 text-white border border-slate-700/80">
+                  <Crown size={12} className="text-amber-400" />
                   <span>Pro (7-Day Trial: {entitlements.trial.daysRemaining}d left)</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                  <span>TakeOrder Free</span>
+                  <span>Take Order Free</span>
                 </span>
               )}
             </div>

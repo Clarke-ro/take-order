@@ -39,8 +39,8 @@ export function ProUpgradeFeatureCard({
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
               {pageTitle}
             </h2>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-              <Crown size={11} className="text-amber-500" />
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-white border border-slate-800 shadow-2xs">
+              <Crown size={10} className="text-amber-400" />
               <span>PRO</span>
             </span>
           </div>
@@ -51,8 +51,8 @@ export function ProUpgradeFeatureCard({
         {/* Left Side */}
         <div className="p-7 sm:p-10 flex flex-col justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              <Crown size={14} className="text-amber-500" />
+            <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200">
+              <Crown size={13} className="text-amber-400" />
               <span>Pro Analytics</span>
             </div>
             <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
