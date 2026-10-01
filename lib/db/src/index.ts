@@ -68,15 +68,28 @@ if (isStaging) {
   }
 }
 
+function normalizeDatabaseUrl(rawUrl: string): string {
+  let url = rawUrl.trim();
+  // Bridge known non-existent Supabase pooler host pattern: [ref].pooler.supabase.com -> aws-0-us-west-2.pooler.supabase.com
+  if (url.includes("pzycvutijbvjktjrxmdn.pooler.supabase.com")) {
+    url = url.replace("pzycvutijbvjktjrxmdn.pooler.supabase.com", "aws-0-us-west-2.pooler.supabase.com");
+    if (!url.includes("postgres.pzycvutijbvjktjrxmdn")) {
+      url = url.replace("postgres:", "postgres.pzycvutijbvjktjrxmdn:");
+    }
+  }
+  return url;
+}
+
+const dbConnectionString = normalizeDatabaseUrl(process.env.DATABASE_URL);
 const poolMax = Number(process.env.DB_POOL_MAX || (process.env.NODE_ENV === "production" ? 5 : 10));
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: dbConnectionString,
   connectionTimeoutMillis: 15000,
   idleTimeoutMillis: 20000,
   max: Number.isFinite(poolMax) && poolMax > 0 ? poolMax : 10,
   keepAlive: true,
-  ssl: process.env.DATABASE_URL.includes("sslmode=require") || process.env.NODE_ENV === "production"
+  ssl: dbConnectionString.includes("sslmode=require") || process.env.NODE_ENV === "production"
     ? { rejectUnauthorized: false }
     : undefined,
 });

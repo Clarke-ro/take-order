@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction, type ErrorRequestHandler } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -70,30 +70,40 @@ export function createApp(database: typeof db, options: { authMiddleware?: expre
   );
   app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
+  const defaultOrigins = [
+    "https://www.usetakeorder.app",
+    "https://usetakeorder.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+  ];
+
   const configuredOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(",")
         .map((origin) => origin.trim().replace(/\/+$/, ""))
         .filter(Boolean)
-    : null;
+    : [];
 
-  const corsOrigin = configuredOrigins
-    ? (origin: string | undefined, callback: (err: Error | null, origin?: any) => void) => {
-        if (!origin) return callback(null, true);
-        const normalized = origin.trim().replace(/\/+$/, "");
-        if (
-          configuredOrigins.includes(normalized) ||
-          configuredOrigins.includes("*") ||
-          (configuredOrigins.some((o) => o.includes(".vercel.app")) && normalized.endsWith(".vercel.app"))
-        ) {
-          return callback(null, true);
-        }
-        return callback(null, false);
-      }
-    : true;
+  const allAllowedOrigins = new Set([...defaultOrigins, ...configuredOrigins]);
+
+  const corsOrigin = (origin: string | undefined, callback: (err: Error | null, origin?: any) => void) => {
+    if (!origin) return callback(null, true);
+    const normalized = origin.trim().replace(/\/+$/, "");
+    if (
+      allAllowedOrigins.has(normalized) ||
+      allAllowedOrigins.has("*") ||
+      normalized.endsWith("usetakeorder.app") ||
+      normalized.endsWith(".vercel.app") ||
+      normalized.includes("localhost") ||
+      normalized.includes("127.0.0.1")
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  };
 
   app.use(cors({ credentials: true, origin: corsOrigin }));
-  app.use(express.json({ limit: "6mb" }));
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: "25mb" }));
+  app.use(express.urlencoded({ limit: "25mb", extended: true }));
 
   const publicLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -217,6 +227,16 @@ export function createApp(database: typeof db, options: { authMiddleware?: expre
   }
 
   app.use("/api", createRouter(database, options.authMiddleware ?? requireAuth));
+
+  // Global JSON error handler ensures CORS and formatted errors
+  const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+    logger.error({ err }, "Unhandled API server error");
+    if (res.headersSent) return;
+    const status = (err as any)?.status || (err as any)?.statusCode || 500;
+    const message = err instanceof Error ? err.message : "Internal Server Error";
+    res.status(typeof status === "number" ? status : 500).json({ error: message });
+  };
+  app.use(errorHandler);
 
   return app;
 }

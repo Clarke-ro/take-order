@@ -331,11 +331,11 @@ export function LandingPage() {
           </div>
 
           {/* Main Headline */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08] text-neutral-950 max-w-5xl mx-auto">
-            <span className="text-neutral-400 font-extrabold block text-3xl sm:text-5xl lg:text-5xl mb-2">
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.12] text-neutral-800 max-w-5xl mx-auto">
+            <span className="text-neutral-400 font-medium block text-2xl sm:text-4xl lg:text-5xl mb-3">
               The order platform social sellers use to
             </span>
-            <span>turn chats into paid orders.</span>
+            <span className="text-neutral-900 font-black">turn chats into paid orders.</span>
           </h1>
 
           {/* Subtitle */}
@@ -512,10 +512,10 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
             <div>
-              <p className="text-xs uppercase tracking-widest font-black text-neutral-500">
+              <p className="text-xs uppercase tracking-widest font-bold text-neutral-500">
                 Verified Social Sellers
               </p>
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-950 mt-2">
+              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-800 mt-2">
                 Grow sales like these merchants
               </h2>
             </div>
@@ -529,13 +529,13 @@ export function LandingPage() {
             {stories.map((story, idx) => (
               <div
                 key={idx}
-                className="group p-5 rounded-2xl bg-white border border-neutral-200 hover:border-neutral-950 hover:shadow-md transition-all flex flex-col justify-between"
+                className="group p-5 rounded-2xl bg-white border border-neutral-200 hover:border-neutral-900 hover:shadow-md transition-all flex flex-col justify-between"
               >
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-neutral-100 text-neutral-700">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-neutral-100 text-neutral-700">
                     {story.tag}
                   </span>
-                  <div className="text-3xl font-black text-neutral-950 mt-4 tracking-tight">
+                  <div className="text-3xl font-extrabold text-neutral-800 mt-4 tracking-tight">
                     {story.metric}
                   </div>
                   <p className="text-xs font-semibold text-neutral-500 mt-1">
@@ -564,10 +564,10 @@ export function LandingPage() {
       <section id="features" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs uppercase tracking-widest font-black text-neutral-500">
+            <span className="text-xs uppercase tracking-widest font-bold text-neutral-500">
               Complete Commerce System
             </span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 mt-3">
+            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-neutral-800 mt-3">
               With Take Order, you get more sales, faster payments, zero chaos
             </h2>
             <p className="mt-4 text-base sm:text-lg text-neutral-600">
@@ -584,8 +584,8 @@ export function LandingPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-5 py-3 rounded-full text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                   activeTab === tab.id
-                    ? 'bg-neutral-950 text-white shadow-xs'
-                    : 'bg-neutral-100 border border-neutral-200 text-neutral-600 hover:text-black hover:bg-neutral-200'
+                    ? 'bg-neutral-900 text-white shadow-xs'
+                    : 'bg-neutral-100 border border-neutral-200 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200'
                 }`}
               >
                 {tab.title}
@@ -598,10 +598,10 @@ export function LandingPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
               {/* Left Column: Description & Value Points */}
               <div className="lg:col-span-6 space-y-6">
-                <span className="inline-block px-3 py-1 rounded-full text-xs font-black tracking-wide uppercase bg-neutral-200 text-neutral-900">
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase bg-neutral-200 text-neutral-800">
                   {featureTabs[activeTab].badge}
                 </span>
-                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-neutral-950 leading-tight">
+                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-neutral-800 leading-tight">
                   {featureTabs[activeTab].headline}
                 </h3>
                 <p className="text-neutral-600 text-base leading-relaxed">
@@ -745,10 +745,10 @@ export function LandingPage() {
       <section id="how-it-works" className="py-24 bg-neutral-50 border-y border-neutral-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs uppercase tracking-widest font-black text-neutral-500">
+            <span className="text-xs uppercase tracking-widest font-bold text-neutral-500">
               Direct Comparison
             </span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 mt-3">
+            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-neutral-800 mt-3">
               Why modern sellers are leaving manual WhatsApp DM selling behind
             </h2>
           </div>
@@ -756,10 +756,10 @@ export function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* The Old Way */}
             <div className="p-8 rounded-3xl bg-white border border-neutral-200 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-black uppercase tracking-wider border border-neutral-200">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-bold uppercase tracking-wider border border-neutral-200">
                 <span>The Chaotic DM Way</span>
               </div>
-              <h3 className="text-xl font-black text-neutral-900">
+              <h3 className="text-xl font-bold text-neutral-800">
                 Messy chats, lost buyers, and fake payment slips
               </h3>
               <ul className="space-y-4 text-sm text-neutral-600">
@@ -784,10 +784,10 @@ export function LandingPage() {
 
             {/* The Take Order Way */}
             <div className="p-8 rounded-3xl bg-neutral-950 text-white shadow-xl border border-neutral-800 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-800 text-white text-xs font-black uppercase tracking-wider border border-neutral-700">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider border border-neutral-700">
                 <span>The Take Order Standard</span>
               </div>
-              <h3 className="text-xl font-black text-white">
+              <h3 className="text-xl font-bold text-white">
                 One-tap order link, automated payments, clean pipeline
               </h3>
               <ul className="space-y-4 text-sm text-neutral-300">
@@ -817,10 +817,10 @@ export function LandingPage() {
       <section id="pricing" className="py-24 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs uppercase tracking-widest font-black text-neutral-500">
+            <span className="text-xs uppercase tracking-widest font-bold text-neutral-500">
               Transparent Subscriptions
             </span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 mt-3">
+            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-neutral-800 mt-3">
               Simple pricing with a 7-day free trial
             </h2>
             <p className="mt-4 text-base sm:text-lg text-neutral-600">
@@ -831,17 +831,17 @@ export function LandingPage() {
           {/* Exactly Two Tiers: Pro and Pro+ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
             {/* Pro Plan ($9.99/month) */}
-            <div className="rounded-3xl bg-white border-2 border-neutral-200 p-8 sm:p-10 shadow-xs flex flex-col justify-between hover:border-neutral-950 transition-all">
+            <div className="rounded-3xl bg-white border-2 border-neutral-200 p-8 sm:p-10 shadow-xs flex flex-col justify-between hover:border-neutral-800 transition-all">
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full bg-neutral-100 text-neutral-900 text-xs font-black uppercase tracking-wider border border-neutral-200">
+                  <span className="px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-bold uppercase tracking-wider border border-neutral-200">
                     Pro
                   </span>
                   <span className="text-xs text-neutral-500 font-semibold">Monthly Plan</span>
                 </div>
 
                 <div className="mt-6 flex items-baseline gap-1">
-                  <span className="text-5xl font-black text-neutral-950 tracking-tight">$9.99</span>
+                  <span className="text-5xl font-extrabold text-neutral-800 tracking-tight">$9.99</span>
                   <span className="text-sm font-bold text-neutral-500">/ month</span>
                 </div>
 
@@ -979,10 +979,10 @@ export function LandingPage() {
       <section id="faqs" className="py-24 bg-neutral-50 border-t border-neutral-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <span className="text-xs uppercase tracking-widest font-black text-neutral-500">
+            <span className="text-xs uppercase tracking-widest font-bold text-neutral-500">
               Clear Answers
             </span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 mt-3">
+            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-neutral-800 mt-3">
               Frequently Asked Questions
             </h2>
             <p className="mt-3 text-sm sm:text-base text-neutral-500">
@@ -1001,7 +1001,7 @@ export function LandingPage() {
                   <button
                     type="button"
                     onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full p-6 text-left flex items-center justify-between gap-4 font-bold text-base sm:text-lg text-neutral-900 hover:text-black cursor-pointer"
+                    className="w-full p-6 text-left flex items-center justify-between gap-4 font-bold text-base sm:text-lg text-neutral-800 hover:text-neutral-950 cursor-pointer"
                   >
                     <span>{faq.q}</span>
                     <ChevronDown
@@ -1026,7 +1026,7 @@ export function LandingPage() {
       {/* ── 7. Final High-Contrast CTA Banner (Monochrome with touch of yellow) ── */}
       <section className="py-20 bg-neutral-950 text-white relative overflow-hidden">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-neutral-800 text-neutral-300 border border-neutral-700 mb-6">
+          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-neutral-800 text-neutral-300 border border-neutral-700 mb-6">
             Get Started Today
           </span>
           <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
@@ -1039,7 +1039,7 @@ export function LandingPage() {
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/sign-up"
-              className="w-full sm:w-auto px-8 py-4 rounded-full bg-white text-neutral-950 text-base font-black hover:bg-neutral-200 transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-8 py-4 rounded-full bg-white text-neutral-950 text-base font-bold hover:bg-neutral-200 transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
             >
               <span>Start Your 7-Day Free Trial</span>
               <ArrowRight size={16} />
@@ -1065,7 +1065,7 @@ export function LandingPage() {
                 <div className="h-9 w-9 rounded-xl bg-neutral-950 flex items-center justify-center text-white font-extrabold text-lg">
                   <ShoppingBag size={18} className="text-[#F5B418]" />
                 </div>
-                <span className="font-extrabold tracking-tight text-xl text-neutral-950">
+                <span className="font-extrabold tracking-tight text-xl text-neutral-800">
                   Take<span className="text-[#F5B418]">Order</span>
                 </span>
               </Link>

@@ -3634,8 +3634,58 @@ export function resolveStockStatus(stock: string | number) {
   }
   return { label: 'In stock', tone: 'mint' as const, quantity: stockNum };
 }
-const PRODUCT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+const PRODUCT_IMAGE_MAX_BYTES = 15 * 1024 * 1024; // 15 MB
 const PRODUCT_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+
+async function compressImageFile(file: File, maxDim = 1400, quality = 0.85): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      if (typeof dataUrl !== 'string') {
+        reject(new Error('Failed reading image'));
+        return;
+      }
+      if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
+        resolve(dataUrl);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width <= maxDim && height <= maxDim && file.size < 800 * 1024) {
+          resolve(dataUrl);
+          return;
+        }
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    };
+    reader.onerror = () => reject(new Error('Failed reading image'));
+    reader.readAsDataURL(file);
+  });
+}
 const isProductImageValue = (value: string) => /^https?:\/\//i.test(value) || /^data:image\/(png|jpeg|webp|gif);base64,/i.test(value);
 const accentOptions = [
   { value: '#E6B85C', label: 'gold' },
@@ -4572,34 +4622,28 @@ export function ProductModal({ product, onClose, fullPage = false }: { product?:
         return;
       }
       if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
-        setImageError(`"${file.name}" is larger than 2 MB. Choose images under 2 MB.`);
+        setImageError(`"${file.name}" is larger than 15 MB. Choose images under 15 MB.`);
         return;
       }
     }
 
     setImageError('');
-    Promise.all(files.map((file) => new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') resolve(reader.result);
-        else reject(new Error('Failed reading image'));
-      };
-      reader.onerror = () => reject(new Error('Failed reading image'));
-      reader.readAsDataURL(file);
-    }))).then((dataUrls) => {
-      setForm((current) => {
-        const existing = current.images ?? (current.imageUrl ? [current.imageUrl] : []);
-        const combined = Array.from(new Set([...existing, ...dataUrls]));
-        return {
-          ...current,
-          images: combined,
-          imageUrl: combined[0] || '',
-          imageUrls: combined.slice(1).join('\n'),
-        };
+    Promise.all(files.map((file) => compressImageFile(file, 1400, 0.85)))
+      .then((dataUrls) => {
+        setForm((current) => {
+          const existing = current.images ?? (current.imageUrl ? [current.imageUrl] : []);
+          const combined = Array.from(new Set([...existing, ...dataUrls]));
+          return {
+            ...current,
+            images: combined,
+            imageUrl: combined[0] || '',
+            imageUrls: combined.slice(1).join('\n'),
+          };
+        });
+      })
+      .catch(() => {
+        setImageError('One or more images could not be read. Try another file.');
       });
-    }).catch(() => {
-      setImageError('One or more images could not be read. Try another file.');
-    });
   };
 
   const removeImageAt = (index: number) => {
@@ -7492,21 +7536,18 @@ function SettingsPage() {
       setLogoError('Choose an image file.');
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setLogoError('Choose an image smaller than 2 MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      setLogoError('Choose an image smaller than 10 MB.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') return;
+    compressImageFile(file, 600, 0.9).then((logoDataUrl) => {
       setLogoError('');
-      const logoDataUrl = reader.result as string;
       setProfile((current) => ({ ...current, logoDataUrl }));
       setSettings((current) => ({ ...current, logoDataUrl }));
       setSaved(false);
-    };
-    reader.onerror = () => setLogoError('That image could not be read. Try another file.');
-    reader.readAsDataURL(file);
+    }).catch(() => {
+      setLogoError('That image could not be read. Try another file.');
+    });
   };
 
   const removeLogo = () => {

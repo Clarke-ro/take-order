@@ -8,7 +8,7 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/gif",
 ]);
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
 
 export function createUploadRouter(): IRouter {
   const router: IRouter = Router();
@@ -80,7 +80,7 @@ export function createUploadRouter(): IRouter {
       const buffer = Buffer.from(base64Data, "base64");
 
       if (buffer.length > MAX_FILE_SIZE_BYTES) {
-        res.status(400).json({ error: "File exceeds the 5MB size limit" });
+        res.status(400).json({ error: "File exceeds the 15MB size limit" });
         return;
       }
 
