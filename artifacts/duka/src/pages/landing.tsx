@@ -76,7 +76,7 @@ export function LandingPage() {
       label: 'Growth in repeat orders',
       name: 'Kwame Asante',
       role: 'Owner, Accra Artisan Bakes',
-      tag: 'Bakery & Desserts',
+      tag: 'Bakery & Food',
       image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
     },
     {
@@ -100,7 +100,7 @@ export function LandingPage() {
       label: 'Verified payment confirmation',
       name: 'Nana Yaa Boateng',
       role: 'Owner, Spice & Savor Kitchen',
-      tag: 'Food & Catering',
+      tag: 'Catering & Meals',
       image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&q=80',
     },
   ];
@@ -110,41 +110,37 @@ export function LandingPage() {
       id: 0,
       title: 'One-Tap Order Links',
       badge: 'Frictionless Checkout',
-      headline: 'Turn your bio link into an instant storefront',
+      headline: 'Turn your social bio link into a high-converting storefront',
       description:
-        'Instead of sending messy price lists in WhatsApp and Instagram chats, drop a clean Take Order link. Buyers browse real photos, select variants, and order in under 40 seconds without creating an account.',
-      metrics: ['Zero app downloads required for buyers', 'Instant WhatsApp order summary', 'Works across IG, TikTok, WhatsApp & Twitter'],
-      mockupType: 'link',
+        'Instead of typing prices back and forth in WhatsApp and Instagram chats, share a sleek Take Order link. Buyers browse your catalog, select variants, and complete orders in under 40 seconds without creating an account.',
+      metrics: ['Zero app downloads required for buyers', 'Instant order summary sent to WhatsApp', 'Works across WhatsApp, Instagram, TikTok & DMs'],
     },
     {
       id: 1,
       title: 'Automated Payment Verification',
       badge: 'Zero Fake Proofs',
-      headline: 'Stop matching bank screenshots by hand',
+      headline: 'Stop matching bank and Momo screenshots by hand',
       description:
-        'Buyers upload their Mobile Money transaction ID or payment slip directly into the checkout flow. Take Order verifies the details, notifies you instantly, and keeps your records neat and audit-ready.',
-      metrics: ['Mobile Money (MTN, Telecel, AT) support', 'Bank card & transfer reconciliation', 'Fraud protection with image proof storage'],
-      mockupType: 'payment',
+        'Buyers upload their Mobile Money transaction ID or payment slip directly into the checkout flow. Take Order verifies the submission, notifies you immediately, and keeps every transaction organized and audit-ready.',
+      metrics: ['Mobile Money (MTN, Telecel, AT) support', 'Bank card & transfer reconciliation', 'Proof of payment stored securely with each order'],
     },
     {
       id: 2,
       title: 'Customer CRM & Repeat Orders',
       badge: 'Loyalty Engine',
-      headline: 'Build a private list of your highest-paying regulars',
+      headline: 'Build a private list of your highest-paying regular customers',
       description:
-        'Every order automatically logs customer contact details, past purchase amounts, and favorite items. Send one-click WhatsApp dispatch updates and re-engage VIP customers with new releases.',
-      metrics: ['Full customer order history & lifetime value', 'Automated dispatch & pickup SMS/WhatsApp text', 'One-click customer re-engagement'],
-      mockupType: 'crm',
+        'Every completed order automatically logs the customer contact details, past purchase amounts, and favorite items. Send one-click WhatsApp dispatch updates and re-engage VIP customers with new drops.',
+      metrics: ['Full customer order history & lifetime value', 'One-click WhatsApp dispatch & delivery texts', 'Automatic repeat-buyer tags'],
     },
     {
       id: 3,
       title: 'Realtime Stock & Profit Tracker',
       badge: 'Business Operations',
-      headline: 'Never sell an item twice or lose money on delivery',
+      headline: 'Never sell an item twice or lose money on delivery fees',
       description:
         'Stock counts auto-deduct the second an order is confirmed. Log delivery rider fees, product costs, and monitor your exact daily profit margins straight from your seller dashboard.',
       metrics: ['Live stock alerts before you run out', 'Delivery fee & distance manager', 'Daily net profit and margin analytics'],
-      mockupType: 'inventory',
     },
   ];
 
@@ -159,7 +155,11 @@ export function LandingPage() {
     },
     {
       q: 'What is the difference between Pro ($9.99/mo) and Pro+ ($20/mo)?',
-      a: 'Pro ($9.99/mo) gives you unlimited active order links, up to 100 catalog products, automated receipts, and core sales tracking. Pro+ ($20/mo) unlocks unlimited catalog products, custom branding with your own store logo/colors, multi-currency support, customer CRM insights, and VIP concierge support.',
+      a: 'Pro ($9.99/mo) gives you unlimited active order links, up to 100 catalog products, automated receipts, and core sales tracking. Pro+ ($20/mo) unlocks unlimited catalog products, custom branding with your own store logo/colors, multi-currency display, customer CRM insights, and VIP concierge support.',
+    },
+    {
+      q: 'How long is the free trial for Take Order?',
+      a: 'Take Order includes a full 7-day free trial on both Pro and Pro+ plans. You can set up your catalog, generate live order links, and test real checkouts. You will not be charged during the 7-day trial, and you can cancel anytime with one click in your account settings.',
     },
     {
       q: 'Can I cancel my subscription at any time?',
@@ -169,23 +169,19 @@ export function LandingPage() {
       q: 'How do I share my order links on social media?',
       a: 'Take Order generates custom, short links for your entire store (e.g., usetakeorder.app/store/yourbrand) as well as specific single-product links. You can paste them into your Instagram bio, WhatsApp Status, TikTok link-in-bio, or directly in customer DMs.',
     },
-    {
-      q: 'Is there a free trial to test Take Order?',
-      a: 'Yes! Every new seller gets full access to set up their catalog, customize their store, and experience the workflow before billing starts. We offer a 14-day money-back satisfaction guarantee on all plans.',
-    },
   ];
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-[#121212] font-sans selection:bg-amber-200 selection:text-neutral-900 antialiased">
-      {/* ── Top Header / Navigation (Owner.com Replica Style) ── */}
-      <header className="sticky top-0 z-50 bg-[#FDFBF7]/90 backdrop-blur-md border-b border-black/[0.06] transition-all">
+    <div className="min-h-screen bg-white text-neutral-950 font-sans selection:bg-neutral-900 selection:text-white antialiased">
+      {/* ── Top Header / Navigation (Black & White Minimalist) ── */}
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 group cursor-pointer">
-            <div className="h-10 w-10 rounded-xl bg-[#121212] flex items-center justify-center text-white font-extrabold text-xl shadow-sm group-hover:scale-105 transition-transform">
+            <div className="h-10 w-10 rounded-xl bg-neutral-950 flex items-center justify-center text-white font-extrabold text-xl shadow-xs group-hover:scale-105 transition-transform">
               <ShoppingBag size={20} className="text-[#F5B418]" />
             </div>
             <div className="flex flex-col">
-              <span className="font-extrabold tracking-tight text-xl leading-none text-[#121212]">
+              <span className="font-extrabold tracking-tight text-xl leading-none text-neutral-950">
                 Take<span className="text-[#F5B418]">Order</span>
               </span>
               <span className="text-[10px] uppercase tracking-widest font-semibold text-neutral-400 mt-0.5">
@@ -199,35 +195,35 @@ export function LandingPage() {
             <button
               type="button"
               onClick={() => scrollToSection('features')}
-              className="hover:text-black transition-colors cursor-pointer"
+              className="hover:text-neutral-950 transition-colors cursor-pointer"
             >
               Product
             </button>
             <button
               type="button"
               onClick={() => scrollToSection('how-it-works')}
-              className="hover:text-black transition-colors cursor-pointer"
+              className="hover:text-neutral-950 transition-colors cursor-pointer"
             >
               How it works
             </button>
             <button
               type="button"
               onClick={() => scrollToSection('stories')}
-              className="hover:text-black transition-colors cursor-pointer"
+              className="hover:text-neutral-950 transition-colors cursor-pointer"
             >
               Stories
             </button>
             <button
               type="button"
               onClick={() => scrollToSection('pricing')}
-              className="hover:text-black transition-colors cursor-pointer"
+              className="hover:text-neutral-950 transition-colors cursor-pointer"
             >
               Pricing
             </button>
             <button
               type="button"
               onClick={() => scrollToSection('faqs')}
-              className="hover:text-black transition-colors cursor-pointer"
+              className="hover:text-neutral-950 transition-colors cursor-pointer"
             >
               FAQs
             </button>
@@ -237,15 +233,15 @@ export function LandingPage() {
           <div className="hidden md:flex items-center gap-3">
             <Link
               href="/sign-in"
-              className="px-4 py-2.5 rounded-full text-sm font-semibold text-neutral-700 hover:text-black hover:bg-black/5 transition-all"
+              className="px-4 py-2.5 rounded-full text-sm font-semibold text-neutral-700 hover:text-neutral-950 hover:bg-neutral-100 transition-all"
             >
               Sign In
             </Link>
             <Link
               href="/sign-up"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#121212] text-white text-sm font-bold hover:bg-neutral-800 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 shadow-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <span>Start Free Trial</span>
+              <span>Start 7-Day Trial</span>
               <ArrowRight size={14} className="text-[#F5B418]" />
             </Link>
           </div>
@@ -254,14 +250,14 @@ export function LandingPage() {
           <div className="md:hidden flex items-center gap-2">
             <Link
               href="/sign-in"
-              className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#121212] text-white"
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-neutral-950 text-white"
             >
               Sign In
             </Link>
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-neutral-700 hover:bg-black/5"
+              className="p-2 rounded-lg text-neutral-700 hover:bg-neutral-100"
             >
               {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
@@ -270,62 +266,59 @@ export function LandingPage() {
 
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[#FDFBF7] border-b border-black/10 px-4 pt-3 pb-6 space-y-3">
+          <div className="md:hidden bg-white border-b border-neutral-200 px-4 pt-3 pb-6 space-y-3">
             <button
               type="button"
               onClick={() => scrollToSection('features')}
-              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-black"
+              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-neutral-950"
             >
               Product
             </button>
             <button
               type="button"
               onClick={() => scrollToSection('how-it-works')}
-              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-black"
+              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-neutral-950"
             >
               How it works
             </button>
             <button
               type="button"
               onClick={() => scrollToSection('stories')}
-              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-black"
+              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-neutral-950"
             >
               Stories
             </button>
             <button
               type="button"
               onClick={() => scrollToSection('pricing')}
-              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-black"
+              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-neutral-950"
             >
               Pricing
             </button>
             <button
               type="button"
               onClick={() => scrollToSection('faqs')}
-              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-black"
+              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-neutral-950"
             >
               FAQs
             </button>
-            <div className="pt-2 border-t border-black/10 flex flex-col gap-2">
+            <div className="pt-2 border-t border-neutral-200 flex flex-col gap-2">
               <Link
                 href="/sign-up"
-                className="w-full text-center py-2.5 rounded-xl bg-[#121212] text-white font-bold text-sm"
+                className="w-full text-center py-2.5 rounded-xl bg-neutral-950 text-white font-bold text-sm"
               >
-                Start Free Trial
+                Start 7-Day Free Trial
               </Link>
             </div>
           </div>
         )}
       </header>
 
-      {/* ── 1. Hero Section (Owner.com Replica Architecture) ── */}
-      <section className="relative pt-12 pb-20 md:pt-20 md:pb-32 overflow-hidden">
-        {/* Subtle Ambient Radial Glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-gradient-to-tr from-amber-200/30 via-yellow-100/20 to-transparent blur-3xl pointer-events-none -z-10" />
-
+      {/* ── 1. Hero Section (Owner.com Replica Architecture in Clean Black & White) ── */}
+      <section className="relative pt-12 pb-20 md:pt-20 md:pb-32 overflow-hidden bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           {/* Top Rating Badge */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-black/[0.04] border border-black/[0.08] mb-8">
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-neutral-100 border border-neutral-200 mb-8">
             <span className="text-xs font-black text-neutral-900 tracking-tight">4.9</span>
             <div className="flex items-center text-[#F5B418]">
               {[...Array(5)].map((_, i) => (
@@ -338,25 +331,23 @@ export function LandingPage() {
           </div>
 
           {/* Main Headline */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08] text-[#121212] max-w-5xl mx-auto">
-            <span className="text-neutral-500 font-extrabold block text-3xl sm:text-5xl lg:text-5xl mb-2">
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08] text-neutral-950 max-w-5xl mx-auto">
+            <span className="text-neutral-400 font-extrabold block text-3xl sm:text-5xl lg:text-5xl mb-2">
               The order platform social sellers use to
             </span>
-            <span className="bg-gradient-to-r from-neutral-950 via-neutral-800 to-amber-700 bg-clip-text text-transparent">
-              turn chats into paid orders.
-            </span>
+            <span>turn chats into paid orders.</span>
           </h1>
 
           {/* Subtitle */}
           <p className="mt-6 text-lg sm:text-xl text-neutral-600 max-w-2xl mx-auto font-normal leading-relaxed">
-            Replace messy WhatsApp &amp; Instagram chat negotiations with branded order links, automated Mobile Money payment confirmation, and real-time inventory tracking.
+            Replace chaotic WhatsApp &amp; Instagram chat negotiations with branded order links, automated Mobile Money payment confirmation, and real-time inventory tracking.
           </p>
 
           {/* Interactive Input Form (Owner.com Replica Bar) */}
           <div className="mt-10 max-w-2xl mx-auto">
             <form
               onSubmit={handleStorePreview}
-              className="p-2 sm:p-2.5 rounded-2xl sm:rounded-full bg-white border border-black/10 shadow-lg shadow-black/[0.04] flex flex-col sm:flex-row items-center gap-2 focus-within:border-black/30 focus-within:ring-4 focus-within:ring-amber-500/10 transition-all"
+              className="p-2 sm:p-2.5 rounded-2xl sm:rounded-full bg-white border-2 border-neutral-200 shadow-sm flex flex-col sm:flex-row items-center gap-2 focus-within:border-neutral-950 transition-all"
             >
               <div className="flex items-center gap-2.5 px-4 w-full">
                 <span className="text-neutral-400 font-semibold text-sm">usetakeorder.app/store/</span>
@@ -370,14 +361,14 @@ export function LandingPage() {
               </div>
               <button
                 type="submit"
-                className="w-full sm:w-auto shrink-0 px-6 py-3.5 rounded-xl sm:rounded-full bg-[#121212] text-white text-sm font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 group cursor-pointer shadow-sm hover:scale-[1.02]"
+                className="w-full sm:w-auto shrink-0 px-6 py-3.5 rounded-xl sm:rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 group cursor-pointer shadow-xs hover:scale-[1.02]"
               >
                 <span>Preview My Link</span>
                 <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform text-[#F5B418]" />
               </button>
             </form>
             <p className="mt-3 text-xs text-neutral-500 flex items-center justify-center gap-4">
-              <span>✓ Free 14-day trial</span>
+              <span>✓ 7-day free trial</span>
               <span>✓ No credit card needed</span>
               <span>✓ Zero commissions</span>
             </p>
@@ -385,13 +376,13 @@ export function LandingPage() {
 
           {/* Interactive UI Showcase Mockup */}
           <div className="mt-14 max-w-4xl mx-auto relative">
-            <div className="relative rounded-3xl bg-neutral-900 p-3 sm:p-6 shadow-2xl border border-neutral-800 text-left overflow-hidden">
+            <div className="relative rounded-3xl bg-neutral-950 p-4 sm:p-7 shadow-2xl border border-neutral-800 text-left overflow-hidden">
               {/* Window Header */}
               <div className="flex items-center justify-between pb-4 border-b border-neutral-800">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-green-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-neutral-700" />
+                  <div className="w-3 h-3 rounded-full bg-neutral-700" />
+                  <div className="w-3 h-3 rounded-full bg-neutral-700" />
                   <span className="ml-3 text-xs text-neutral-400 font-mono">
                     https://www.usetakeorder.app/store/{previewHandle}
                   </span>
@@ -410,22 +401,22 @@ export function LandingPage() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-6 items-center">
                 {/* Mobile Preview Screen */}
                 <div className="md:col-span-6 flex justify-center">
-                  <div className="w-full max-w-[320px] rounded-3xl bg-white text-neutral-900 p-4 shadow-xl border-4 border-neutral-800">
+                  <div className="w-full max-w-[320px] rounded-3xl bg-white text-neutral-950 p-4 shadow-xl border-4 border-neutral-800">
                     <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                       <div>
                         <h4 className="font-extrabold text-sm capitalize">@{previewHandle}</h4>
-                        <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                        <p className="text-[11px] text-neutral-600 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#F5B418] inline-block" />
                           Accepting Orders Now
                         </p>
                       </div>
-                      <div className="h-7 w-7 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-900">
+                      <div className="h-7 w-7 rounded-full bg-neutral-100 flex items-center justify-center text-xs font-bold text-neutral-900 border border-neutral-200">
                         TO
                       </div>
                     </div>
 
                     <div className="mt-3 space-y-2.5">
-                      <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-200 flex items-center gap-3">
                         <div className="w-12 h-12 rounded-lg bg-neutral-200 shrink-0 overflow-hidden">
                           <img
                             src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=150&q=80"
@@ -437,12 +428,12 @@ export function LandingPage() {
                           <p className="font-bold text-xs truncate">Signature Urban Runner</p>
                           <p className="text-xs font-black text-neutral-900 mt-0.5">₵450.00</p>
                         </div>
-                        <span className="text-[10px] font-bold px-2 py-1 rounded bg-black text-white shrink-0">
+                        <span className="text-[10px] font-bold px-2 py-1 rounded bg-neutral-950 text-white shrink-0">
                           1x
                         </span>
                       </div>
 
-                      <div className="p-2.5 rounded-xl bg-amber-50/60 border border-amber-200/60 text-xs">
+                      <div className="p-2.5 rounded-xl bg-neutral-100/70 border border-neutral-200 text-xs">
                         <div className="flex justify-between font-semibold text-neutral-700">
                           <span>Subtotal</span>
                           <span>₵450.00</span>
@@ -451,22 +442,22 @@ export function LandingPage() {
                           <span>Dispatch / Delivery</span>
                           <span>₵35.00</span>
                         </div>
-                        <div className="flex justify-between font-black text-neutral-950 pt-2 border-t border-amber-200/50 mt-1.5">
+                        <div className="flex justify-between font-black text-neutral-950 pt-2 border-t border-neutral-300 mt-1.5">
                           <span>Total</span>
                           <span>₵485.00</span>
                         </div>
                       </div>
 
-                      <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2">
-                        <Check size={16} className="text-emerald-600 shrink-0" />
-                        <span className="text-[11px] font-bold text-emerald-800">
+                      <div className="p-2.5 rounded-xl bg-neutral-100 border border-neutral-300 flex items-center gap-2">
+                        <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
+                        <span className="text-[11px] font-bold text-neutral-900">
                           MTN Momo Payment Slip Attached
                         </span>
                       </div>
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-neutral-100 text-center">
-                      <div className="w-full py-2.5 rounded-xl bg-[#121212] text-white text-xs font-bold shadow-xs">
+                      <div className="w-full py-2.5 rounded-xl bg-neutral-950 text-white text-xs font-bold shadow-xs">
                         Place Order in 1 Tap
                       </div>
                     </div>
@@ -475,24 +466,24 @@ export function LandingPage() {
 
                 {/* Seller Live Alerts & Highlights */}
                 <div className="md:col-span-6 space-y-4 text-white">
-                  <div className="p-4 rounded-2xl bg-neutral-800/80 border border-neutral-700/80">
+                  <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800">
                     <div className="flex items-center justify-between text-xs text-neutral-400 mb-1">
                       <span>Realtime Seller Alert</span>
-                      <span className="text-emerald-400 font-semibold">Just now</span>
+                      <span className="text-neutral-300 font-semibold">Just now</span>
                     </div>
                     <p className="font-bold text-base text-neutral-100 flex items-center gap-2">
-                      <PackageCheck size={18} className="text-emerald-400" />
+                      <PackageCheck size={18} className="text-[#F5B418]" />
                       <span>New Order #1042 Received</span>
                     </p>
                     <p className="text-xs text-neutral-400 mt-1">
-                      Kofi Adams placed an order for ₵485.00. Momo proof verified. Stock auto-reserved.
+                      Kofi Adams placed an order for ₵485.00. Momo proof attached. Stock auto-reserved.
                     </p>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-neutral-800/80 border border-neutral-700/80 flex items-center justify-between">
+                  <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
                     <div>
                       <p className="text-xs text-neutral-400">Total Sales Today</p>
-                      <p className="text-xl font-black text-[#F5B418] mt-0.5">₵3,840.00</p>
+                      <p className="text-xl font-black text-white mt-0.5">₵3,840.00</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-neutral-400">Paid Orders</p>
@@ -500,12 +491,12 @@ export function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
-                    <p className="font-bold flex items-center gap-1.5 mb-1">
+                  <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs">
+                    <p className="font-bold flex items-center gap-1.5 mb-1 text-white">
                       <Sparkles size={14} className="text-[#F5B418]" />
                       <span>Zero DM Negotiation Chaos</span>
                     </p>
-                    <p className="text-amber-200/80 leading-relaxed">
+                    <p className="text-neutral-400 leading-relaxed">
                       All orders arrive categorized with delivery address, phone number, and payment status ready for your dispatch rider.
                     </p>
                   </div>
@@ -516,15 +507,15 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── 2. Metric Stories ("Grow sales like these owners" - Owner.com Replica) ── */}
-      <section id="stories" className="py-20 bg-white border-y border-black/[0.06]">
+      {/* ── 2. Metric Stories ("Grow sales like these merchants" - Black & White) ── */}
+      <section id="stories" className="py-20 bg-neutral-50 border-y border-neutral-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
             <div>
-              <p className="text-xs uppercase tracking-widest font-black text-[#E5A00D]">
+              <p className="text-xs uppercase tracking-widest font-black text-neutral-500">
                 Verified Social Sellers
               </p>
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-[#121212] mt-2">
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-950 mt-2">
                 Grow sales like these merchants
               </h2>
             </div>
@@ -538,10 +529,10 @@ export function LandingPage() {
             {stories.map((story, idx) => (
               <div
                 key={idx}
-                className="group p-5 rounded-2xl bg-[#FDFBF7] border border-black/[0.08] hover:border-black/20 hover:shadow-md transition-all flex flex-col justify-between"
+                className="group p-5 rounded-2xl bg-white border border-neutral-200 hover:border-neutral-950 hover:shadow-md transition-all flex flex-col justify-between"
               >
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-black/5 text-neutral-600">
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-neutral-100 text-neutral-700">
                     {story.tag}
                   </span>
                   <div className="text-3xl font-black text-neutral-950 mt-4 tracking-tight">
@@ -552,11 +543,11 @@ export function LandingPage() {
                   </p>
                 </div>
 
-                <div className="mt-8 pt-4 border-t border-black/5 flex items-center gap-3">
+                <div className="mt-8 pt-4 border-t border-neutral-100 flex items-center gap-3">
                   <img
                     src={story.image}
                     alt={story.name}
-                    className="w-10 h-10 rounded-full object-cover border border-black/10"
+                    className="w-10 h-10 rounded-full object-cover border border-neutral-200"
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-neutral-900 truncate">{story.name}</p>
@@ -569,14 +560,14 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── 3. Owner-Stack Feature Tabs ("With Take Order, you get...") ── */}
-      <section id="features" className="py-24 bg-[#FDFBF7]">
+      {/* ── 3. Feature Tabs ("With Take Order, you get...") ── */}
+      <section id="features" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs uppercase tracking-widest font-black text-[#E5A00D]">
+            <span className="text-xs uppercase tracking-widest font-black text-neutral-500">
               Complete Commerce System
             </span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-[#121212] mt-3">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 mt-3">
               With Take Order, you get more sales, faster payments, zero chaos
             </h2>
             <p className="mt-4 text-base sm:text-lg text-neutral-600">
@@ -593,8 +584,8 @@ export function LandingPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-5 py-3 rounded-full text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                   activeTab === tab.id
-                    ? 'bg-[#121212] text-white shadow-md scale-105'
-                    : 'bg-white border border-black/10 text-neutral-600 hover:text-black hover:bg-neutral-50'
+                    ? 'bg-neutral-950 text-white shadow-xs'
+                    : 'bg-neutral-100 border border-neutral-200 text-neutral-600 hover:text-black hover:bg-neutral-200'
                 }`}
               >
                 {tab.title}
@@ -603,11 +594,11 @@ export function LandingPage() {
           </div>
 
           {/* Active Tab Panel */}
-          <div className="rounded-3xl bg-white border border-black/[0.08] p-6 sm:p-10 lg:p-12 shadow-sm">
+          <div className="rounded-3xl bg-neutral-50 border border-neutral-200 p-6 sm:p-10 lg:p-12 shadow-xs">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
               {/* Left Column: Description & Value Points */}
               <div className="lg:col-span-6 space-y-6">
-                <span className="inline-block px-3 py-1 rounded-full text-xs font-black tracking-wide uppercase bg-amber-100 text-amber-900">
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-black tracking-wide uppercase bg-neutral-200 text-neutral-900">
                   {featureTabs[activeTab].badge}
                 </span>
                 <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-neutral-950 leading-tight">
@@ -620,8 +611,8 @@ export function LandingPage() {
                 <div className="space-y-3 pt-2">
                   {featureTabs[activeTab].metrics.map((point, i) => (
                     <div key={i} className="flex items-center gap-3">
-                      <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                        <Check size={13} strokeWidth={3} />
+                      <div className="h-5 w-5 rounded-full bg-neutral-950 text-white flex items-center justify-center shrink-0">
+                        <Check size={12} strokeWidth={3} className="text-[#F5B418]" />
                       </div>
                       <span className="text-sm font-semibold text-neutral-800">{point}</span>
                     </div>
@@ -631,9 +622,9 @@ export function LandingPage() {
                 <div className="pt-4">
                   <Link
                     href="/sign-up"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#121212] text-white text-sm font-bold hover:bg-neutral-800 shadow-sm transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 shadow-xs transition-all"
                   >
-                    <span>Try it free on your store</span>
+                    <span>Start 7-Day Free Trial</span>
                     <ArrowRight size={14} className="text-[#F5B418]" />
                   </Link>
                 </div>
@@ -641,29 +632,29 @@ export function LandingPage() {
 
               {/* Right Column: Visual Component */}
               <div className="lg:col-span-6">
-                <div className="rounded-2xl bg-neutral-900 p-6 text-white shadow-xl border border-neutral-800 min-h-[340px] flex flex-col justify-center">
+                <div className="rounded-2xl bg-neutral-950 p-6 text-white shadow-xl border border-neutral-800 min-h-[340px] flex flex-col justify-center">
                   {activeTab === 0 && (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between pb-3 border-b border-neutral-800 text-xs">
                         <span className="text-neutral-400 font-mono">takeorder.link/glow</span>
-                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">
+                        <span className="px-2 py-0.5 rounded bg-neutral-800 text-[#F5B418] font-bold text-[10px] border border-neutral-700">
                           Active Bio Link
                         </span>
                       </div>
-                      <div className="p-4 rounded-xl bg-neutral-800/90 border border-neutral-700 space-y-3">
+                      <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-sm">Glow Radiance Serum</span>
-                          <span className="font-black text-[#F5B418]">₵180.00</span>
+                          <span className="font-black text-white">₵180.00</span>
                         </div>
                         <p className="text-xs text-neutral-400">
                           Selected variant: 50ml Bottle • Free dispatch rider within Accra
                         </p>
-                        <div className="w-full py-2.5 rounded-lg bg-[#F5B418] text-neutral-950 font-black text-xs text-center">
+                        <div className="w-full py-2.5 rounded-lg bg-white text-neutral-950 font-black text-xs text-center">
                           Buy Now via WhatsApp / Card
                         </div>
                       </div>
                       <p className="text-xs text-neutral-400 text-center">
-                        ⚡ 83% of buyers complete order within 45 seconds of tapping.
+                        ⚡ 83% of buyers complete orders within 45 seconds of tapping.
                       </p>
                     </div>
                   )}
@@ -672,23 +663,23 @@ export function LandingPage() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between pb-3 border-b border-neutral-800 text-xs">
                         <span className="text-neutral-400">Payment Verification Engine</span>
-                        <span className="text-emerald-400 font-bold">100% Direct</span>
+                        <span className="text-neutral-300 font-bold">100% Direct</span>
                       </div>
-                      <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/30 space-y-2">
-                        <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-                          <ShieldCheck size={18} />
+                      <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2">
+                        <div className="flex items-center gap-2 text-white font-bold text-sm">
+                          <ShieldCheck size={18} className="text-[#F5B418]" />
                           <span>MTN Mobile Money Verified</span>
                         </div>
                         <p className="text-xs text-neutral-300 font-mono">
                           Transaction ID: 29840192837 • ₵320.00
                         </p>
                         <p className="text-[11px] text-neutral-400">
-                          Buyer payment snapshot securely stored in Supabase private vault.
+                          Buyer payment snapshot securely stored in private storage.
                         </p>
                       </div>
                       <div className="flex justify-between text-xs text-neutral-400 px-1">
                         <span>Fake slip risk: 0%</span>
-                        <span>Auto-sms receipt: Sent</span>
+                        <span>Auto-receipt: Sent</span>
                       </div>
                     </div>
                   )}
@@ -700,21 +691,21 @@ export function LandingPage() {
                         <span className="text-[#F5B418] font-bold">VIP Hub</span>
                       </div>
                       <div className="space-y-2">
-                        <div className="p-3 rounded-xl bg-neutral-800 border border-neutral-700 flex items-center justify-between text-xs">
+                        <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between text-xs">
                           <div>
                             <p className="font-bold text-white">Esi Mensah</p>
                             <p className="text-neutral-400 text-[11px]">8 orders • ₵2,450 spent</p>
                           </div>
-                          <span className="px-2 py-1 rounded bg-amber-500/20 text-[#F5B418] font-bold text-[10px]">
+                          <span className="px-2 py-1 rounded bg-neutral-800 text-[#F5B418] font-bold text-[10px] border border-neutral-700">
                             VIP Buyer
                           </span>
                         </div>
-                        <div className="p-3 rounded-xl bg-neutral-800 border border-neutral-700 flex items-center justify-between text-xs">
+                        <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between text-xs">
                           <div>
                             <p className="font-bold text-white">Michael Addo</p>
                             <p className="text-neutral-400 text-[11px]">5 orders • ₵1,800 spent</p>
                           </div>
-                          <span className="px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">
+                          <span className="px-2 py-1 rounded bg-neutral-800 text-neutral-300 font-bold text-[10px] border border-neutral-700">
                             Regular
                           </span>
                         </div>
@@ -726,20 +717,20 @@ export function LandingPage() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between pb-3 border-b border-neutral-800 text-xs">
                         <span className="text-neutral-400">Inventory &amp; Margins</span>
-                        <span className="text-emerald-400 font-bold">Realtime</span>
+                        <span className="text-neutral-300 font-bold">Realtime</span>
                       </div>
                       <div className="grid grid-cols-2 gap-3 text-center">
-                        <div className="p-3 rounded-xl bg-neutral-800 border border-neutral-700">
+                        <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800">
                           <p className="text-xs text-neutral-400">Remaining Stock</p>
                           <p className="text-xl font-black text-white mt-1">42 units</p>
                         </div>
-                        <div className="p-3 rounded-xl bg-neutral-800 border border-neutral-700">
+                        <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800">
                           <p className="text-xs text-neutral-400">Net Profit Margin</p>
-                          <p className="text-xl font-black text-emerald-400 mt-1">68.4%</p>
+                          <p className="text-xl font-black text-white mt-1">68.4%</p>
                         </div>
                       </div>
                       <p className="text-xs text-neutral-400 text-center">
-                        Auto-alerts you before stock depletes so you never disappoint buyers.
+                        Auto-alerts you before stock runs out so you never disappoint buyers.
                       </p>
                     </div>
                   )}
@@ -751,21 +742,21 @@ export function LandingPage() {
       </section>
 
       {/* ── 4. Comparison Section ("The Old Way vs Take Order Way") ── */}
-      <section id="how-it-works" className="py-24 bg-white border-y border-black/[0.06]">
+      <section id="how-it-works" className="py-24 bg-neutral-50 border-y border-neutral-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs uppercase tracking-widest font-black text-[#E5A00D]">
+            <span className="text-xs uppercase tracking-widest font-black text-neutral-500">
               Direct Comparison
             </span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-[#121212] mt-3">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 mt-3">
               Why modern sellers are leaving manual WhatsApp DM selling behind
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* The Old Way */}
-            <div className="p-8 rounded-3xl bg-neutral-50 border border-neutral-200/80 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 text-red-800 text-xs font-black uppercase tracking-wider">
+            <div className="p-8 rounded-3xl bg-white border border-neutral-200 space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-black uppercase tracking-wider border border-neutral-200">
                 <span>The Chaotic DM Way</span>
               </div>
               <h3 className="text-xl font-black text-neutral-900">
@@ -773,28 +764,27 @@ export function LandingPage() {
               </h3>
               <ul className="space-y-4 text-sm text-neutral-600">
                 <li className="flex items-start gap-3">
-                  <span className="text-red-500 font-bold text-base mt-0.5">✕</span>
+                  <span className="text-neutral-400 font-bold text-base mt-0.5">✕</span>
                   <span><strong>15+ back-and-forth messages</strong> just to confirm price, size, and delivery address.</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-red-500 font-bold text-base mt-0.5">✕</span>
+                  <span className="text-neutral-400 font-bold text-base mt-0.5">✕</span>
                   <span><strong>Customers ghost halfway</strong> through chat negotiations and buy elsewhere.</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-red-500 font-bold text-base mt-0.5">✕</span>
+                  <span className="text-neutral-400 font-bold text-base mt-0.5">✕</span>
                   <span><strong>Risk of fake edited screenshots</strong> causing you to dispatch unpaid goods.</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-red-500 font-bold text-base mt-0.5">✕</span>
+                  <span className="text-neutral-400 font-bold text-base mt-0.5">✕</span>
                   <span><strong>Items oversold</strong> because inventory is tracked in your head or loose paper notebooks.</span>
                 </li>
               </ul>
             </div>
 
             {/* The Take Order Way */}
-            <div className="p-8 rounded-3xl bg-neutral-950 text-white shadow-xl border border-neutral-800 space-y-6 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider">
+            <div className="p-8 rounded-3xl bg-neutral-950 text-white shadow-xl border border-neutral-800 space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-800 text-white text-xs font-black uppercase tracking-wider border border-neutral-700">
                 <span>The Take Order Standard</span>
               </div>
               <h3 className="text-xl font-black text-white">
@@ -802,19 +792,19 @@ export function LandingPage() {
               </h3>
               <ul className="space-y-4 text-sm text-neutral-300">
                 <li className="flex items-start gap-3">
-                  <span className="text-emerald-400 font-bold text-base mt-0.5">✓</span>
+                  <span className="text-[#F5B418] font-bold text-base mt-0.5">✓</span>
                   <span><strong>38-second average checkout</strong> directly from your Instagram bio, TikTok, or WhatsApp status.</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-emerald-400 font-bold text-base mt-0.5">✓</span>
+                  <span className="text-[#F5B418] font-bold text-base mt-0.5">✓</span>
                   <span><strong>Verified Mobile Money &amp; Card proof</strong> attached directly to the order record.</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-emerald-400 font-bold text-base mt-0.5">✓</span>
+                  <span className="text-[#F5B418] font-bold text-base mt-0.5">✓</span>
                   <span><strong>Automatic stock reservation</strong> prevents overselling popular variants.</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-emerald-400 font-bold text-base mt-0.5">✓</span>
+                  <span className="text-[#F5B418] font-bold text-base mt-0.5">✓</span>
                   <span><strong>Live seller dashboard</strong> with dispatch statuses, customer phone numbers, and profit metrics.</span>
                 </li>
               </ul>
@@ -823,15 +813,15 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── 5. Pricing Section (Exact User Specifications: Pro $9.99/mo, Pro+ $20/mo) ── */}
-      <section id="pricing" className="py-24 bg-[#FDFBF7]">
+      {/* ── 5. Pricing Section (Two Paywalls: Pro $9.99/mo and Pro+ $20/mo with 7-Day Free Trial) ── */}
+      <section id="pricing" className="py-24 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs uppercase tracking-widest font-black text-[#E5A00D]">
+            <span className="text-xs uppercase tracking-widest font-black text-neutral-500">
               Transparent Subscriptions
             </span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-[#121212] mt-3">
-              Simple pricing that pays for itself in one order
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 mt-3">
+              Simple pricing with a 7-day free trial
             </h2>
             <p className="mt-4 text-base sm:text-lg text-neutral-600">
               Zero commissions on your sales. Keep 100% of customer payments. Cancel anytime with one click.
@@ -841,13 +831,13 @@ export function LandingPage() {
           {/* Exactly Two Tiers: Pro and Pro+ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
             {/* Pro Plan ($9.99/month) */}
-            <div className="rounded-3xl bg-white border border-black/10 p-8 sm:p-10 shadow-sm flex flex-col justify-between hover:border-black/20 transition-all">
+            <div className="rounded-3xl bg-white border-2 border-neutral-200 p-8 sm:p-10 shadow-xs flex flex-col justify-between hover:border-neutral-950 transition-all">
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-black uppercase tracking-wider">
+                  <span className="px-3 py-1 rounded-full bg-neutral-100 text-neutral-900 text-xs font-black uppercase tracking-wider border border-neutral-200">
                     Pro
                   </span>
-                  <span className="text-xs text-neutral-400 font-semibold">Monthly Plan</span>
+                  <span className="text-xs text-neutral-500 font-semibold">Monthly Plan</span>
                 </div>
 
                 <div className="mt-6 flex items-baseline gap-1">
@@ -859,33 +849,33 @@ export function LandingPage() {
                   Ideal for rising social sellers ready to eliminate manual chat order negotiations and organize their catalog.
                 </p>
 
-                <div className="mt-8 pt-6 border-t border-black/5 space-y-3.5 text-sm font-medium text-neutral-700">
+                <div className="mt-8 pt-6 border-t border-neutral-100 space-y-3.5 text-sm font-medium text-neutral-700">
                   <div className="flex items-center gap-3">
-                    <Check size={16} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
+                    <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
                     <span><strong>Unlimited</strong> active order links &amp; checkouts</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Check size={16} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
+                    <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
                     <span>Up to <strong>100 catalog products</strong></span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Check size={16} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
+                    <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
                     <span>Automated Mobile Money &amp; Card payment proof</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Check size={16} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
+                    <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
                     <span>WhatsApp &amp; SMS customer receipt templates</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Check size={16} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
+                    <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
                     <span>Real-time inventory reservation</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Check size={16} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
+                    <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
                     <span>Standard sales analytics &amp; order export</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Check size={16} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
+                    <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
                     <span>Dedicated email &amp; in-app support</span>
                   </div>
                 </div>
@@ -894,29 +884,29 @@ export function LandingPage() {
               <div className="mt-10">
                 <Link
                   href="/sign-up?plan=pro"
-                  className="w-full py-4 rounded-full bg-[#121212] text-white text-sm font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 shadow-sm"
+                  className="w-full py-4 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 shadow-xs"
                 >
-                  <span>Start Pro Plan</span>
+                  <span>Start 7-Day Free Trial</span>
                   <ArrowRight size={14} className="text-[#F5B418]" />
                 </Link>
-                <p className="mt-2 text-center text-xs text-neutral-400">
-                  14-day free trial • Cancel anytime
+                <p className="mt-2.5 text-center text-xs text-neutral-400">
+                  Includes full 7-day trial • Cancel anytime
                 </p>
               </div>
             </div>
 
             {/* Pro+ Plan ($20.00/month - Featured) */}
-            <div className="rounded-3xl bg-neutral-950 text-white border-2 border-[#F5B418] p-8 sm:p-10 shadow-xl flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-[#F5B418] text-neutral-950 text-[11px] font-black uppercase tracking-wider px-4 py-1 rounded-bl-xl shadow-xs">
+            <div className="rounded-3xl bg-neutral-950 text-white border-2 border-neutral-800 p-8 sm:p-10 shadow-xl flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-white text-neutral-950 text-[11px] font-black uppercase tracking-wider px-4 py-1 rounded-bl-xl shadow-xs">
                 Most Popular
               </div>
 
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full bg-[#F5B418]/20 text-[#F5B418] text-xs font-black uppercase tracking-wider">
+                  <span className="px-3 py-1 rounded-full bg-neutral-800 text-white text-xs font-black uppercase tracking-wider border border-neutral-700">
                     Pro+
                   </span>
-                  <span className="text-xs text-neutral-400 font-semibold">Ultimate Growth</span>
+                  <span className="text-xs text-neutral-400 font-semibold">Ultimate Scale</span>
                 </div>
 
                 <div className="mt-6 flex items-baseline gap-1">
@@ -925,7 +915,7 @@ export function LandingPage() {
                 </div>
 
                 <p className="mt-3 text-sm text-neutral-300 leading-relaxed">
-                  For established brands and high-volume sellers needing unlimited capacity, custom branding, and VIP support.
+                  For established brands and high-volume sellers needing unlimited capacity, custom branding, and priority support.
                 </p>
 
                 <div className="mt-8 pt-6 border-t border-neutral-800 space-y-3.5 text-sm font-medium text-neutral-200">
@@ -951,7 +941,7 @@ export function LandingPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <Check size={16} className="text-[#F5B418] shrink-0" strokeWidth={2.5} />
-                    <span>Multi-currency display for diaspora buyers</span>
+                    <span>Multi-currency display for international buyers</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Check size={16} className="text-[#F5B418] shrink-0" strokeWidth={2.5} />
@@ -963,13 +953,13 @@ export function LandingPage() {
               <div className="mt-10">
                 <Link
                   href="/sign-up?plan=pro_plus"
-                  className="w-full py-4 rounded-full bg-[#F5B418] text-neutral-950 text-sm font-black hover:bg-yellow-400 transition-all flex items-center justify-center gap-2 shadow-sm"
+                  className="w-full py-4 rounded-full bg-white text-neutral-950 text-sm font-black hover:bg-neutral-100 transition-all flex items-center justify-center gap-2 shadow-xs"
                 >
-                  <span>Start Pro+ Plan</span>
+                  <span>Start 7-Day Free Trial</span>
                   <ArrowRight size={14} className="text-neutral-950" />
                 </Link>
-                <p className="mt-2 text-center text-xs text-neutral-400">
-                  14-day free trial • Cancel anytime
+                <p className="mt-2.5 text-center text-xs text-neutral-400">
+                  Includes full 7-day trial • Cancel anytime
                 </p>
               </div>
             </div>
@@ -979,24 +969,24 @@ export function LandingPage() {
           <div className="mt-12 text-center text-xs text-neutral-500 max-w-xl mx-auto flex items-center justify-center gap-2">
             <Lock size={13} className="text-neutral-400 shrink-0" />
             <span>
-              Secure checkout handled by Paddle. 100% money-back guarantee within 14 days. Zero hidden transaction fees.
+              Secure billing handled by Paddle. Zero hidden transaction fees. Cancel anytime in one click.
             </span>
           </div>
         </div>
       </section>
 
       {/* ── 6. Frequently Asked Questions (Accordion) ── */}
-      <section id="faqs" className="py-24 bg-white border-t border-black/[0.06]">
+      <section id="faqs" className="py-24 bg-neutral-50 border-t border-neutral-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <span className="text-xs uppercase tracking-widest font-black text-[#E5A00D]">
+            <span className="text-xs uppercase tracking-widest font-black text-neutral-500">
               Clear Answers
             </span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-[#121212] mt-3">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 mt-3">
               Frequently Asked Questions
             </h2>
             <p className="mt-3 text-sm sm:text-base text-neutral-500">
-              Have questions? We are here to help you get started smoothly.
+              Everything you need to know about setting up Take Order for your store.
             </p>
           </div>
 
@@ -1006,7 +996,7 @@ export function LandingPage() {
               return (
                 <div
                   key={idx}
-                  className="rounded-2xl border border-black/[0.08] bg-[#FDFBF7] overflow-hidden transition-all"
+                  className="rounded-2xl border border-neutral-200 bg-white overflow-hidden transition-all"
                 >
                   <button
                     type="button"
@@ -1022,7 +1012,7 @@ export function LandingPage() {
                     />
                   </button>
                   {isOpen && (
-                    <div className="px-6 pb-6 text-sm text-neutral-600 leading-relaxed border-t border-black/[0.04] pt-4">
+                    <div className="px-6 pb-6 text-sm text-neutral-600 leading-relaxed border-t border-neutral-100 pt-4">
                       {faq.a}
                     </div>
                   )}
@@ -1033,11 +1023,10 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── 7. Final High-Contrast CTA Banner (Owner.com Replica) ── */}
+      {/* ── 7. Final High-Contrast CTA Banner (Monochrome with touch of yellow) ── */}
       <section className="py-20 bg-neutral-950 text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-amber-600/10 via-transparent to-yellow-600/10 pointer-events-none" />
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-white/10 text-amber-300 mb-6">
+          <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-neutral-800 text-neutral-300 border border-neutral-700 mb-6">
             Get Started Today
           </span>
           <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
@@ -1050,15 +1039,15 @@ export function LandingPage() {
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/sign-up"
-              className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#F5B418] text-neutral-950 text-base font-black hover:bg-yellow-400 transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-8 py-4 rounded-full bg-white text-neutral-950 text-base font-black hover:bg-neutral-200 transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
             >
-              <span>Start Your Free Trial</span>
+              <span>Start Your 7-Day Free Trial</span>
               <ArrowRight size={16} />
             </Link>
             <button
               type="button"
               onClick={() => scrollToSection('pricing')}
-              className="w-full sm:w-auto px-8 py-4 rounded-full bg-white/10 text-white text-base font-bold hover:bg-white/15 transition-all cursor-pointer"
+              className="w-full sm:w-auto px-8 py-4 rounded-full bg-neutral-900 border border-neutral-800 text-white text-base font-bold hover:bg-neutral-800 transition-all cursor-pointer"
             >
               View Pricing ($9.99 / $20)
             </button>
@@ -1067,16 +1056,16 @@ export function LandingPage() {
       </section>
 
       {/* ── 8. Footer (Fully Compliant for Paddle & Legal Audits) ── */}
-      <footer className="bg-white border-t border-black/10 py-16 text-neutral-600 text-sm">
+      <footer className="bg-white border-t border-neutral-200 py-16 text-neutral-600 text-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-10">
             {/* Brand column */}
             <div className="md:col-span-2 space-y-4">
               <Link href="/" className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-[#121212] flex items-center justify-center text-white font-extrabold text-lg">
+                <div className="h-9 w-9 rounded-xl bg-neutral-950 flex items-center justify-center text-white font-extrabold text-lg">
                   <ShoppingBag size={18} className="text-[#F5B418]" />
                 </div>
-                <span className="font-extrabold tracking-tight text-xl text-[#121212]">
+                <span className="font-extrabold tracking-tight text-xl text-neutral-950">
                   Take<span className="text-[#F5B418]">Order</span>
                 </span>
               </Link>
@@ -1084,7 +1073,7 @@ export function LandingPage() {
                 The all-in-one order management and social commerce platform for independent sellers. Generate instant checkout links, track inventory, and verify Mobile Money &amp; Card payments.
               </p>
               <div className="pt-2 text-xs text-neutral-400">
-                <p>Support: <a href="mailto:support@usetakeorder.app" className="text-black font-semibold underline underline-offset-2">support@usetakeorder.app</a></p>
+                <p>Support: <a href="mailto:support@usetakeorder.app" className="text-neutral-950 font-semibold underline underline-offset-2">support@usetakeorder.app</a></p>
               </div>
             </div>
 
@@ -1139,7 +1128,7 @@ export function LandingPage() {
             </div>
           </div>
 
-          <div className="mt-14 pt-8 border-t border-black/5 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-400 gap-4">
+          <div className="mt-14 pt-8 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-400 gap-4">
             <p>© {new Date().getFullYear()} Take Order. All rights reserved.</p>
             <p>Built for ambitious social commerce brands worldwide.</p>
           </div>
