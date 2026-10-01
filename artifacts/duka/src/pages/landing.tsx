@@ -487,6 +487,33 @@ export function LandingPage() {
               </div>
             </div>
           </div>
+
+          {/* Studio Photography Showcase Banner */}
+          <div className="mt-10 max-w-4xl mx-auto rounded-3xl overflow-hidden border border-neutral-200/90 shadow-xl relative group text-left">
+            <img
+              src="/illustrations/hero-showcase.jpg"
+              alt="Take Order Apparel & Orders Boutique Collection"
+              className="w-full h-auto max-h-[440px] object-cover object-center transform group-hover:scale-[1.01] transition-transform duration-500"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent pointer-events-none" />
+            <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 text-white">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#F5B418] bg-black/40 px-2.5 py-1 rounded-md border border-neutral-700/60 backdrop-blur-xs">
+                  Modern Social Commerce
+                </span>
+                <h3 className="text-xl sm:text-2xl font-extrabold mt-2 tracking-tight text-white drop-shadow-xs">
+                  Built for fashion boutiques, streetwear drops, and online merchants
+                </h3>
+              </div>
+              <Link
+                href="/sign-up"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-neutral-950 text-xs font-bold hover:bg-neutral-100 transition-all shadow-md shrink-0 self-start sm:self-auto cursor-pointer"
+              >
+                <span>Start Free Trial</span>
+                <ArrowRight size={13} className="text-[#F5B418]" />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

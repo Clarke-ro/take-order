@@ -4584,42 +4584,55 @@ button[data-testid^="button-filter-"]:focus-visible {
 }
 
 /* ==============================================================================
-   AUTH & SPLIT-SCREEN SHOWCASE (REVENUECAT-INSPIRED)
+   AUTH & SPLIT-SCREEN SHOWCASE (FIXED, NON-SCROLLABLE DESKTOP)
    ============================================================================== */
 .auth-split-wrapper {
   display: flex;
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
   width: 100%;
   background-color: #ffffff;
+  overflow: hidden;
 }
 
 .auth-split-left {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
+  align-items: center;
   width: 100%;
-  min-height: 100dvh;
-  padding: 2.25rem 1.75rem;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 1.5rem 1.25rem;
   background-color: #ffffff;
+  overflow-y: auto;
+}
+
+.auth-split-left.is-onboarding {
+  justify-content: space-between;
 }
 
 @media (min-width: 640px) {
   .auth-split-left {
-    padding: 3rem 3.5rem;
+    padding: 2rem 2.5rem;
   }
 }
 
 @media (min-width: 1024px) {
   .auth-split-left {
     width: 56%;
-    padding: 3rem 4rem;
+    padding: 2.5rem 3.5rem;
+    overflow-y: hidden;
+  }
+  .auth-split-left.is-onboarding {
+    overflow-y: auto;
   }
 }
 
 @media (min-width: 1280px) {
   .auth-split-left {
     width: 58%;
-    padding: 3.5rem 5rem;
+    padding: 3rem 4.5rem;
   }
 }
 
@@ -4634,7 +4647,8 @@ button[data-testid^="button-filter-"]:focus-visible {
     align-items: center;
     justify-content: center;
     flex: 1;
-    min-height: 100dvh;
+    height: 100dvh;
+    max-height: 100dvh;
     padding: 0;
     background-color: #0c0d10;
     position: relative;

@@ -1,7 +1,7 @@
 import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Redirect, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
-import { ClerkProvider, SignIn, SignUp, useAuth, useClerk } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, AuthenticateWithRedirectCallback } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
 import {
   AlertCircle, AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
@@ -1195,13 +1195,13 @@ function AuthShowcaseCard() {
     <div className="relative w-full h-full min-h-screen overflow-hidden flex items-center justify-center bg-[#0d0e12]">
       <img
         src="/illustrations/auth-showcase-mosaic.jpg"
-        alt="Take Order App Showcase"
+        alt="Take Order Apparel & Orders Showcase"
         className="w-full h-full min-h-screen object-cover object-center select-none pointer-events-none transform scale-100"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
       <div className="absolute bottom-6 right-6 px-4 py-2 rounded-full bg-neutral-900/80 backdrop-blur-md border border-neutral-700/60 text-white text-xs font-semibold flex items-center gap-2 shadow-lg">
         <span className="w-2 h-2 rounded-full bg-[#F5B418] animate-pulse" />
-        <span>Live Take Order Mobile Storefronts</span>
+        <span>Curated Orders &amp; Boutique Collection</span>
       </div>
     </div>
   );
@@ -1423,10 +1423,10 @@ function AuthSplitLayout({
 }) {
   return (
     <div className="auth-split-wrapper">
-      <div className="auth-split-left">
+      <div className={cn("auth-split-left", rightVariant === 'onboarding' && 'is-onboarding')}>
         {rightVariant === 'onboarding' ? (
           <>
-            <header className="flex items-center justify-between pb-4">
+            <header className="flex items-center justify-between pb-4 w-full">
               <Link href="/" aria-label="Take Order home" className="inline-flex items-center gap-2.5" data-testid="link-auth-logo">
                 <img src={brandAssets.icon} alt="Take Order" className="h-8 w-auto rounded-xl object-contain shadow-xs" />
                 <span className="font-extrabold tracking-tight text-lg text-neutral-800 leading-none">
@@ -1434,15 +1434,15 @@ function AuthSplitLayout({
                 </span>
               </Link>
             </header>
-            <main className="w-full max-w-[460px] mx-auto my-auto py-6">
+            <main className="w-full max-w-[460px] mx-auto my-auto py-4">
               {children}
             </main>
-            <footer className="pt-4 text-xs text-neutral-400 text-center sm:text-left">
+            <footer className="pt-4 text-xs text-neutral-400 text-center sm:text-left w-full">
               <span>Step-by-step store setup • Take Order</span>
             </footer>
           </>
         ) : (
-          <main className="w-full max-w-[420px] mx-auto my-auto py-8">
+          <main className="w-full max-w-[390px] mx-auto my-auto py-2">
             {children}
           </main>
         )}
@@ -1976,25 +1976,190 @@ export function Onboarding() {
   );
 }
 
-function NativeSignInForm() {
+function ClerkUnifiedSignInForm() {
+  const clerk = useClerk() as any;
+  const [email, setEmail] = useState(() => readDraftAuth().signInEmail || '');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, setLocation] = useLocation();
+
+  const handleGoogleAuth = async () => {
+    if (!clerk) return;
+    try {
+      if (clerk.authenticateWithRedirect) {
+        await clerk.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: '/sso-callback',
+          redirectUrlComplete: '/',
+        });
+      }
+    } catch (err: any) {
+      console.warn('Google sign in error', err);
+      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Google sign in failed';
+      setError(message);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setError('Please enter your email address');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password');
+      return;
+    }
+
+    if (!clerk) return;
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const signInClient = clerk.client?.signIn || clerk.signIn;
+      const result = await signInClient.create({
+        identifier: email.trim(),
+        password,
+      });
+
+      if (result.status === 'complete') {
+        clearDraftAuth(['signInEmail']);
+        if (clerk.setActive) {
+          await clerk.setActive({ session: result.createdSessionId });
+        }
+        setLocation('/');
+      } else {
+        setError('Additional verification required. Please check your email.');
+      }
+    } catch (err: any) {
+      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Invalid email or password.';
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="w-full">
+      {/* Centered App Logo */}
+      <div className="flex justify-center mb-5">
+        <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
+          <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
+        </Link>
+      </div>
+
+      <div className="text-center mb-6">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
+          Welcome back
+        </h1>
+        <p className="mt-1.5 text-xs sm:text-sm text-neutral-500">
+          Log in to access your orders, products, and seller dashboard.
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+          {error}
+        </div>
+      )}
+
+      {/* Continue with Google button */}
+      <button
+        type="button"
+        onClick={handleGoogleAuth}
+        className="w-full h-11 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+      >
+        <GoogleIcon className="h-5 w-5" />
+        <span>Continue with Google</span>
+      </button>
+
+      {/* Subtle "or" divider */}
+      <div className="relative my-5 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-neutral-200" />
+        </div>
+        <span className="relative px-3 bg-white text-xs text-neutral-400 font-medium">or</span>
+      </div>
+
+      {/* Email + Password Form */}
+      <form onSubmit={handleSubmit} className="space-y-3.5">
+        <div>
+          <input
+            id="signin-email"
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              writeDraftAuth({ signInEmail: e.target.value });
+              setError('');
+            }}
+            placeholder="Enter email address"
+            autoComplete="email"
+            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+          />
+        </div>
+
+        <div>
+          <div className="relative">
+            <input
+              id="signin-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              autoComplete="current-password"
+              className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            />
+          </div>
+          <div className="flex justify-end mt-1.5">
+            <button
+              type="button"
+              onClick={() => alert('Password reset instructions will be sent to your registered email.')}
+              className="text-xs text-neutral-500 hover:text-neutral-900 underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60 transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
+          data-testid="button-auth-login"
+        >
+          {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Log in'}
+        </button>
+      </form>
+
+      {/* Single clean legal disclaimer */}
+      <p className="mt-4 text-center text-xs text-neutral-400 leading-relaxed">
+        By continuing, you agree to Take Order's{' '}
+        <Link href="/terms" className="text-neutral-700 underline underline-offset-2 hover:text-black">Terms of Service</Link>{' '}
+        and{' '}
+        <Link href="/privacy" className="text-neutral-700 underline underline-offset-2 hover:text-black">Privacy Policy</Link>.
+      </p>
+
+      {/* Account switch */}
+      <div className="mt-5 text-center text-sm text-neutral-600">
+        Don't have an account?{' '}
+        <Link href="/sign-up" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-up">
+          Sign up
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function FallbackSignInForm() {
   const [email, setEmail] = useState(() => readDraftAuth().signInEmail || '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [, setLocation] = useLocation();
 
   const handleGoogleAuth = () => {
-    if (clerkPubKey && (window as any).Clerk) {
-      try {
-        (window as any).Clerk.authenticateWithRedirect({
-          strategy: 'oauth_google',
-          redirectUrl: '/onboarding',
-          redirectUrlComplete: '/',
-        });
-        return;
-      } catch (e) {
-        console.warn('Clerk OAuth redirect fallback', e);
-      }
-    }
     const derivedUserId = `seller_google_${Date.now()}`;
     localStorage.setItem('duka-test-auth', 'true');
     localStorage.setItem('duka-test-user-id', derivedUserId);
@@ -2008,7 +2173,7 @@ function NativeSignInForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
+    if (!email.trim()) {
       setError('Please enter your email address');
       return;
     }
@@ -2034,18 +2199,17 @@ function NativeSignInForm() {
 
   return (
     <div className="w-full">
-      {/* Centered App Logo */}
-      <div className="flex justify-center mb-6">
+      <div className="flex justify-center mb-5">
         <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
-          <img src={brandAssets.icon} alt="Take Order" className="h-12 w-12 rounded-2xl object-contain shadow-xs" />
+          <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
         </Link>
       </div>
 
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
           Welcome back
         </h1>
-        <p className="mt-2 text-sm text-neutral-500">
+        <p className="mt-1.5 text-xs sm:text-sm text-neutral-500">
           Log in to access your orders, products, and seller dashboard.
         </p>
       </div>
@@ -2056,29 +2220,26 @@ function NativeSignInForm() {
         </div>
       )}
 
-      {/* Continue with Google button */}
       <button
         type="button"
         onClick={handleGoogleAuth}
-        className="w-full h-12 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+        className="w-full h-11 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
       >
         <GoogleIcon className="h-5 w-5" />
         <span>Continue with Google</span>
       </button>
 
-      {/* Subtle "or" divider */}
-      <div className="relative my-6 flex items-center justify-center">
+      <div className="relative my-5 flex items-center justify-center">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-neutral-200" />
         </div>
         <span className="relative px-3 bg-white text-xs text-neutral-400 font-medium">or</span>
       </div>
 
-      {/* Email + Password Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
           <input
-            id="signin-email"
+            id="signin-email-fallback"
             type="email"
             value={email}
             onChange={(e) => {
@@ -2088,20 +2249,20 @@ function NativeSignInForm() {
             }}
             placeholder="Enter email address"
             autoComplete="email"
-            className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
           />
         </div>
 
         <div>
           <div className="relative">
             <input
-              id="signin-password"
+              id="signin-password-fallback"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
               autoComplete="current-password"
-              className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+              className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
             />
           </div>
           <div className="flex justify-end mt-1.5">
@@ -2117,15 +2278,316 @@ function NativeSignInForm() {
 
         <button
           type="submit"
-          className="w-full h-12 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
+          className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
           data-testid="button-auth-login"
         >
-          Continue
+          Log in
+        </button>
+      </form>
+
+      <p className="mt-4 text-center text-xs text-neutral-400 leading-relaxed">
+        By continuing, you agree to Take Order's{' '}
+        <Link href="/terms" className="text-neutral-700 underline underline-offset-2 hover:text-black">Terms of Service</Link>{' '}
+        and{' '}
+        <Link href="/privacy" className="text-neutral-700 underline underline-offset-2 hover:text-black">Privacy Policy</Link>.
+      </p>
+
+      <div className="mt-5 text-center text-sm text-neutral-600">
+        Don't have an account?{' '}
+        <Link href="/sign-up" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-up">
+          Sign up
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function ClerkUnifiedSignUpForm() {
+  const clerk = useClerk() as any;
+  const draft = readDraftAuth();
+  const [businessName, setBusinessName] = useState(() => draft.signUpFullName || '');
+  const [email, setEmail] = useState(() => draft.signUpEmail || '');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [, setLocation] = useLocation();
+
+  const handleGoogleAuth = async () => {
+    if (!clerk) return;
+    try {
+      if (clerk.authenticateWithRedirect) {
+        await clerk.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: '/sso-callback',
+          redirectUrlComplete: '/onboarding',
+        });
+      }
+    } catch (err: any) {
+      console.warn('Google sign up error', err);
+      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Google sign up failed';
+      setError(message);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setError('Please enter your email address');
+      return;
+    }
+    if (!password) {
+      setError('Please create a password (at least 8 characters)');
+      return;
+    }
+
+    if (!clerk) return;
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const signUpClient = clerk.client?.signUp || clerk.signUp;
+      const result = await signUpClient.create({
+        emailAddress: email.trim(),
+        password,
+        firstName: businessName.trim() || undefined,
+      });
+
+      if (result.status === 'complete') {
+        clearDraftAuth(['signUpFullName', 'signUpEmail']);
+        if (clerk.setActive) {
+          await clerk.setActive({ session: result.createdSessionId });
+        }
+        const newUserId = result.createdUserId || `seller_${Date.now()}`;
+        if (businessName.trim()) {
+          writeSellerProfile({
+            ...defaultSellerProfile,
+            businessName: businessName.trim(),
+            sellerName: businessName.trim(),
+          }, newUserId);
+        }
+        writeOnboardingStep(0, newUserId);
+        setLocation('/onboarding');
+      } else if (result.status === 'missing_requirements' || result.unverifiedFields?.includes('email_address')) {
+        if (signUpClient.prepareEmailAddressVerification) {
+          await signUpClient.prepareEmailAddressVerification({ strategy: 'email_code' });
+        }
+        setPendingVerification(true);
+      }
+    } catch (err: any) {
+      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Failed to create account.';
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationCode.trim()) {
+      setError('Please enter the verification code');
+      return;
+    }
+
+    if (!clerk) return;
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const signUpClient = clerk.client?.signUp || clerk.signUp;
+      const result = await signUpClient.attemptEmailAddressVerification({
+        code: verificationCode.trim(),
+      });
+
+      if (result.status === 'complete') {
+        clearDraftAuth(['signUpFullName', 'signUpEmail']);
+        if (clerk.setActive) {
+          await clerk.setActive({ session: result.createdSessionId });
+        }
+        const newUserId = result.createdUserId || `seller_${Date.now()}`;
+        if (businessName.trim()) {
+          writeSellerProfile({
+            ...defaultSellerProfile,
+            businessName: businessName.trim(),
+            sellerName: businessName.trim(),
+          }, newUserId);
+        }
+        writeOnboardingStep(0, newUserId);
+        setLocation('/onboarding');
+      } else {
+        setError('Verification incomplete. Please try again.');
+      }
+    } catch (err: any) {
+      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Invalid verification code.';
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (pendingVerification) {
+    return (
+      <div className="w-full">
+        <div className="flex justify-center mb-5">
+          <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
+            <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
+          </Link>
+        </div>
+
+        <div className="text-center mb-6">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
+            Check your email
+          </h1>
+          <p className="mt-1.5 text-xs sm:text-sm text-neutral-500">
+            We sent a verification code to <span className="font-semibold text-neutral-800">{email}</span>.
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleVerifyCode} className="space-y-4">
+          <div>
+            <input
+              id="signup-verification-code"
+              type="text"
+              value={verificationCode}
+              onChange={(e) => {
+                setVerificationCode(e.target.value);
+                setError('');
+              }}
+              placeholder="Enter 6-digit code"
+              autoComplete="one-time-code"
+              className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-center tracking-widest text-lg font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60 transition-all shadow-xs cursor-pointer flex items-center justify-center"
+          >
+            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Verify & Continue'}
+          </button>
+        </form>
+
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => setPendingVerification(false)}
+            className="text-xs text-neutral-500 hover:text-neutral-900 underline"
+          >
+            Back to edit email
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full">
+      {/* Centered App Logo */}
+      <div className="flex justify-center mb-5">
+        <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
+          <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
+        </Link>
+      </div>
+
+      <div className="text-center mb-6">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
+          Create your free account
+        </h1>
+        <p className="mt-1.5 text-xs sm:text-sm text-neutral-500">
+          Set up your online order link in seconds. No credit card required.
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+          {error}
+        </div>
+      )}
+
+      {/* Continue with Google button */}
+      <button
+        type="button"
+        onClick={handleGoogleAuth}
+        className="w-full h-11 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+      >
+        <GoogleIcon className="h-5 w-5" />
+        <span>Continue with Google</span>
+      </button>
+
+      {/* Subtle "or" divider */}
+      <div className="relative my-5 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-neutral-200" />
+        </div>
+        <span className="relative px-3 bg-white text-xs text-neutral-400 font-medium">or</span>
+      </div>
+
+      {/* Form Fields */}
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <input
+            id="signup-email"
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              writeDraftAuth({ signUpEmail: e.target.value });
+              setError('');
+            }}
+            placeholder="Enter email address"
+            autoComplete="email"
+            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+          />
+        </div>
+
+        <div>
+          <input
+            id="signup-name"
+            type="text"
+            value={businessName}
+            onChange={(e) => {
+              setBusinessName(e.target.value);
+              writeDraftAuth({ signUpFullName: e.target.value });
+            }}
+            placeholder="Store or business name (optional)"
+            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+          />
+        </div>
+
+        <div>
+          <input
+            id="signup-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Create password"
+            autoComplete="new-password"
+            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60 transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
+          data-testid="button-auth-signup"
+        >
+          {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Continue'}
         </button>
       </form>
 
       {/* Single clean legal disclaimer */}
-      <p className="mt-5 text-center text-xs text-neutral-400 leading-relaxed">
+      <p className="mt-4 text-center text-xs text-neutral-400 leading-relaxed">
         By continuing, you agree to Take Order's{' '}
         <Link href="/terms" className="text-neutral-700 underline underline-offset-2 hover:text-black">Terms of Service</Link>{' '}
         and{' '}
@@ -2133,29 +2595,17 @@ function NativeSignInForm() {
       </p>
 
       {/* Account switch */}
-      <div className="mt-7 text-center text-sm text-neutral-600">
-        Don't have an account?{' '}
-        <Link href="/sign-up" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-up">
-          Sign up
+      <div className="mt-5 text-center text-sm text-neutral-600">
+        Already have an account?{' '}
+        <Link href="/sign-in" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-in">
+          Log in
         </Link>
-      </div>
-
-      {/* Social proof at bottom like reference */}
-      <div className="mt-12 pt-8 border-t border-neutral-100 text-center">
-        <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-4">
-          Trusted by modern sellers on
-        </p>
-        <div className="flex items-center justify-center gap-6 text-neutral-400 text-xs font-semibold">
-          <span className="flex items-center gap-1.5"><SiInstagram size={14} /> Instagram</span>
-          <span className="flex items-center gap-1.5"><SiWhatsapp size={14} /> WhatsApp</span>
-          <span className="flex items-center gap-1.5"><SiTiktok size={13} /> TikTok</span>
-        </div>
       </div>
     </div>
   );
 }
 
-function NativeSignUpForm() {
+function FallbackSignUpForm() {
   const draft = readDraftAuth();
   const [businessName, setBusinessName] = useState(() => draft.signUpFullName || '');
   const [email, setEmail] = useState(() => draft.signUpEmail || '');
@@ -2164,18 +2614,6 @@ function NativeSignUpForm() {
   const [, setLocation] = useLocation();
 
   const handleGoogleAuth = () => {
-    if (clerkPubKey && (window as any).Clerk) {
-      try {
-        (window as any).Clerk.authenticateWithRedirect({
-          strategy: 'oauth_google',
-          redirectUrl: '/onboarding',
-          redirectUrlComplete: '/',
-        });
-        return;
-      } catch (e) {
-        console.warn('Clerk OAuth redirect fallback', e);
-      }
-    }
     const newUserId = `seller_google_${Date.now()}`;
     localStorage.setItem('duka-test-auth', 'true');
     localStorage.setItem('duka-test-user-id', newUserId);
@@ -2190,7 +2628,7 @@ function NativeSignUpForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
+    if (!email.trim()) {
       setError('Please enter your email address');
       return;
     }
@@ -2219,19 +2657,18 @@ function NativeSignUpForm() {
 
   return (
     <div className="w-full">
-      {/* Centered App Logo */}
-      <div className="flex justify-center mb-6">
+      <div className="flex justify-center mb-5">
         <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
-          <img src={brandAssets.icon} alt="Take Order" className="h-12 w-12 rounded-2xl object-contain shadow-xs" />
+          <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
         </Link>
       </div>
 
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
           Create your free account
         </h1>
-        <p className="mt-2 text-sm text-neutral-500">
-          Create your free account to set up your online order link in seconds. No credit card required.
+        <p className="mt-1.5 text-xs sm:text-sm text-neutral-500">
+          Set up your online order link in seconds. No credit card required.
         </p>
       </div>
 
@@ -2241,29 +2678,26 @@ function NativeSignUpForm() {
         </div>
       )}
 
-      {/* Continue with Google button */}
       <button
         type="button"
         onClick={handleGoogleAuth}
-        className="w-full h-12 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+        className="w-full h-11 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
       >
         <GoogleIcon className="h-5 w-5" />
         <span>Continue with Google</span>
       </button>
 
-      {/* Subtle "or" divider */}
-      <div className="relative my-6 flex items-center justify-center">
+      <div className="relative my-5 flex items-center justify-center">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-neutral-200" />
         </div>
         <span className="relative px-3 bg-white text-xs text-neutral-400 font-medium">or</span>
       </div>
 
-      {/* Form Fields */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <input
-            id="signup-email"
+            id="signup-email-fallback"
             type="email"
             value={email}
             onChange={(e) => {
@@ -2273,13 +2707,13 @@ function NativeSignUpForm() {
             }}
             placeholder="Enter email address"
             autoComplete="email"
-            className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
           />
         </div>
 
         <div>
           <input
-            id="signup-name"
+            id="signup-name-fallback"
             type="text"
             value={businessName}
             onChange={(e) => {
@@ -2287,57 +2721,43 @@ function NativeSignUpForm() {
               writeDraftAuth({ signUpFullName: e.target.value });
             }}
             placeholder="Store or business name (optional)"
-            className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
           />
         </div>
 
         <div>
           <input
-            id="signup-password"
+            id="signup-password-fallback"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Create password"
             autoComplete="new-password"
-            className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
           />
         </div>
 
         <button
           type="submit"
-          className="w-full h-12 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
+          className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
           data-testid="button-auth-signup"
         >
           Continue
         </button>
       </form>
 
-      {/* Single clean legal disclaimer */}
-      <p className="mt-5 text-center text-xs text-neutral-400 leading-relaxed">
+      <p className="mt-4 text-center text-xs text-neutral-400 leading-relaxed">
         By continuing, you agree to Take Order's{' '}
         <Link href="/terms" className="text-neutral-700 underline underline-offset-2 hover:text-black">Terms of Service</Link>{' '}
         and{' '}
         <Link href="/privacy" className="text-neutral-700 underline underline-offset-2 hover:text-black">Privacy Policy</Link>.
       </p>
 
-      {/* Account switch */}
-      <div className="mt-7 text-center text-sm text-neutral-600">
+      <div className="mt-5 text-center text-sm text-neutral-600">
         Already have an account?{' '}
         <Link href="/sign-in" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-in">
           Log in
         </Link>
-      </div>
-
-      {/* Social proof at bottom like reference */}
-      <div className="mt-12 pt-8 border-t border-neutral-100 text-center">
-        <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-4">
-          Trusted by modern sellers on
-        </p>
-        <div className="flex items-center justify-center gap-6 text-neutral-400 text-xs font-semibold">
-          <span className="flex items-center gap-1.5"><SiInstagram size={14} /> Instagram</span>
-          <span className="flex items-center gap-1.5"><SiWhatsapp size={14} /> WhatsApp</span>
-          <span className="flex items-center gap-1.5"><SiTiktok size={13} /> TikTok</span>
-        </div>
       </div>
     </div>
   );
@@ -2348,8 +2768,6 @@ function SignInPage() {
   const { isLoaded, isSignedIn } = useAppAuth();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
-  const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
-  const [useClerkView, setUseClerkView] = useState(false);
 
   useEffect(() => {
     if (isLoaded && effectiveSignedIn) {
@@ -2359,35 +2777,7 @@ function SignInPage() {
 
   return (
     <AuthSplitLayout>
-      {clerkPubKey && useClerkView ? (
-        <div className="w-full">
-          <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setUseClerkView(false)}
-              className="text-xs text-neutral-500 hover:text-neutral-900 underline cursor-pointer"
-            >
-              Switch to simple email log in
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="w-full">
-          <NativeSignInForm />
-          {clerkPubKey && (
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => setUseClerkView(true)}
-                className="text-xs text-neutral-400 hover:text-neutral-700 underline cursor-pointer"
-              >
-                Sign in with Clerk account
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {clerkPubKey ? <ClerkUnifiedSignInForm /> : <FallbackSignInForm />}
     </AuthSplitLayout>
   );
 }
@@ -2397,8 +2787,6 @@ function SignUpPage() {
   const { isLoaded, isSignedIn } = useAppAuth();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
-  const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
-  const [useClerkView, setUseClerkView] = useState(false);
 
   useEffect(() => {
     if (isLoaded && effectiveSignedIn) {
@@ -2408,41 +2796,7 @@ function SignUpPage() {
 
   return (
     <AuthSplitLayout>
-      {clerkPubKey && useClerkView ? (
-        <div className="w-full">
-          <SignUp
-            routing="path"
-            path={`${basePath}/sign-up`}
-            signInUrl={`${basePath}/sign-in`}
-            fallbackRedirectUrl={`${basePath}/onboarding`}
-            forceRedirectUrl={`${basePath}/onboarding`}
-          />
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setUseClerkView(false)}
-              className="text-xs text-neutral-500 hover:text-neutral-900 underline cursor-pointer"
-            >
-              Switch to simple email sign up
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="w-full">
-          <NativeSignUpForm />
-          {clerkPubKey && (
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => setUseClerkView(true)}
-                className="text-xs text-neutral-400 hover:text-neutral-700 underline cursor-pointer"
-              >
-                Sign up with Clerk account
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {clerkPubKey ? <ClerkUnifiedSignUpForm /> : <FallbackSignUpForm />}
     </AuthSplitLayout>
   );
 }
@@ -9352,6 +9706,7 @@ function Router() {
   const [location] = useLocation();
   return <ErrorBoundary resetKey={location}><Switch>
     <Route path="/auth" component={() => <Redirect to="/sign-in" />} />
+    <Route path="/sso-callback" component={() => <AuthenticateWithRedirectCallback />} />
     <Route path="/sign-in/*?" component={SignInPage} />
     <Route path="/sign-up/*?" component={SignUpPage} />
     <Route path="/onboarding" component={OnboardingRoute} />
