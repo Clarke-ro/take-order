@@ -12,7 +12,7 @@ export default defineConfig({
   envPrefix: ['VITE_', 'API_URL', 'CLERK_PUBLISHABLE_KEY', 'CLERK_PROXY_URL', 'RC_API_KEY', 'REVENUECAT_'],
   define: {
     'import.meta.env.VITE_API_URL': JSON.stringify(
-      process.env.VITE_API_URL || process.env.API_URL || process.env.VITE_API_BASE_URL || ''
+      (process.env.VITE_API_URL || process.env.API_URL || process.env.VITE_API_BASE_URL || 'https://api.usetakeorder.app').replace(/\/+$/, '')
     ),
     'import.meta.env.VITE_RC_API_KEY': JSON.stringify(
       process.env.VITE_RC_API_KEY || process.env.RC_API_KEY || process.env.REVENUECAT_API_KEY || 'pdl_vcGFFumhSZjAmNqTiDIbNlenSEvU'

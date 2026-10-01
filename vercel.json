@@ -13,7 +13,11 @@
           "value": "(?i).*(facebookexternalhit|whatsapp|facebot|twitterbot|telegrambot|slackbot|discordbot|applebot|pinterest|googlebot|bingbot).*"
         }
       ],
-      "destination": "https://takeorderapp-api-6a7a2c1bbf3e.herokuapp.com/api/public/order-preview/:token"
+      "destination": "https://api.usetakeorder.app/api/public/order-preview/:token"
+    },
+    {
+      "source": "/api/:match*",
+      "destination": "https://api.usetakeorder.app/api/:match*"
     },
     {
       "source": "/(.*)",
