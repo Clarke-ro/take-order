@@ -495,8 +495,9 @@ sellerRouter.post("/products", requireSellerAuth, async (req, res): Promise<void
       .returning();
     res.status(201).json(CreateProductResponse.parse(productResponse(product)));
   } catch (err: unknown) {
-    logger.error({ err }, "Error creating product in catalog");
-    res.status(500).json({ error: err instanceof Error ? err.message : "Failed to create product" });
+    const rootMessage = (err as any)?.cause?.message || (err instanceof Error ? err.message : "Failed to create product");
+    logger.error({ err, rootMessage }, "Error creating product in catalog");
+    res.status(500).json({ error: rootMessage });
   }
 });
 
@@ -565,8 +566,9 @@ sellerRouter.patch("/products/:id", requireSellerAuth, async (req, res): Promise
     }
     res.json(UpdateProductResponse.parse(productResponse(product)));
   } catch (err: unknown) {
-    logger.error({ err }, "Error updating product in catalog");
-    res.status(500).json({ error: err instanceof Error ? err.message : "Failed to update product" });
+    const rootMessage = (err as any)?.cause?.message || (err instanceof Error ? err.message : "Failed to update product");
+    logger.error({ err, rootMessage }, "Error updating product in catalog");
+    res.status(500).json({ error: rootMessage });
   }
 });
 
