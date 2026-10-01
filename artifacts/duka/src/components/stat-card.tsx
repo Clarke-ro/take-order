@@ -116,13 +116,10 @@ export function StatCard({
         </button>
       </div>
 
-      {/* Middle Row: Value WITH Icon right beside it */}
-      <div className="my-3.5 flex items-center justify-between gap-3">
-        <div className="text-2xl sm:text-[28px] font-extrabold text-slate-950 tracking-tight truncate">
+      {/* Middle Row: Clean Value (No icon) */}
+      <div className="my-3.5">
+        <div className="text-2xl sm:text-[28px] font-extrabold text-slate-950 dark:text-white tracking-tight truncate">
           {value}
-        </div>
-        <div className={`h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 p-1.5 shadow-2xs ${iconBg}`}>
-          {renderIcon()}
         </div>
       </div>
 

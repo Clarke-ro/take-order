@@ -3191,31 +3191,25 @@ export function Overview() {
               <ErrorState retry={() => summaryQuery.refetch()} />
             ) : (
               <>
-                {/* 4 StatCards with icon beside values matching user's design */}
+                {/* 4 StatCards with clean values matching theme */}
                 <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
                   <StatCard
                     label="Total Sales"
                     value={money(summary?.revenue ?? 0)}
-                    iconType="cart"
                     trend={revenueTrend ? { direction: revenueTrend.direction, percentage: revenueTrend.percentage, periodLabel: periodLabel } : undefined}
                   />
                   <StatCard
                     label="Total Orders"
                     value={ordersQuery.isLoading ? '—' : periodOrders.length}
-                    iconType="box"
                     trend={salesTrend ? { direction: salesTrend.direction, percentage: salesTrend.percentage, periodLabel: periodLabel } : undefined}
                   />
                   <StatCard
                     label="Average Order Value"
                     value={money(summary?.orders ? (summary.revenue / summary.orders) : 0)}
-                    iconType="tag"
-                    trend={undefined}
                   />
                   <StatCard
                     label="Outstanding Balance"
                     value={money(summary?.outstanding ?? 0)}
-                    iconType="clock"
-                    trend={undefined}
                   />
                 </div>
 
