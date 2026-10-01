@@ -9660,6 +9660,15 @@ function ClientDetailRoute() {
   );
 }
 
+function ConnectRoute() {
+  return (
+    <Shell>
+      <IntegrationsComingSoonPage />
+    </Shell>
+  );
+}
+
+
 function AnalyticsRoute() {
   return (
     <Shell>
@@ -9703,8 +9712,8 @@ function Router() {
     <Route path="/settings/subscription" component={() => <Redirect to="/account/billing" />} />
     <Route path="/settings/pro" component={() => <Redirect to="/account/billing" />} />
     <Route path="/settings" component={() => <ProtectedRoute page={SettingsPage} />} />
-    <Route path="/connect" component={() => <ProtectedRoute page={IntegrationsComingSoonPage} />} />
-    <Route path="/integrations" component={() => <ProtectedRoute page={IntegrationsComingSoonPage} />} />
+    <Route path="/connect" component={() => <SellerRoute><ConnectRoute /></SellerRoute>} />
+    <Route path="/integrations" component={() => <SellerRoute><ConnectRoute /></SellerRoute>} />
     <Route path="/terms" component={TermsPage} />
     <Route path="/terms-of-service" component={() => <Redirect to="/terms" />} />
     <Route path="/privacy" component={PrivacyPage} />

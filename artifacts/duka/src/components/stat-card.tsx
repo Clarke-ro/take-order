@@ -1,25 +1,78 @@
 import React, { type ReactNode } from 'react';
-import { TrendingUp, TrendingDown, MoreHorizontal } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 export interface StatCardProps {
   label: string;
   value: string | number;
-  icon?: ReactNode;
-  iconType?: 'cart' | 'tag' | 'box' | 'clock';
-  iconBg?: string;
   trend?: {
     percentage: number | null;
     direction: 'up' | 'down';
     periodLabel?: string;
   };
   subtitle?: string;
-  onMenuClick?: () => void;
   onClick?: () => void;
   active?: boolean;
   className?: string;
+  // kept for API compat but unused
+  icon?: ReactNode;
+  iconType?: 'cart' | 'tag' | 'box' | 'clock';
+  iconBg?: string;
+  onMenuClick?: () => void;
 }
 
-/* Vector silhouettes matching the user-attached icon designs */
+export function StatCard({
+  label,
+  value,
+  trend,
+  subtitle,
+  onClick,
+  active = false,
+  className = '',
+}: StatCardProps) {
+  return (
+    <div
+      onClick={onClick}
+      className={[
+        'group flex flex-col justify-between rounded-xl border p-4 transition-all shadow-2xs',
+        'bg-neutral-50/50 border-neutral-200/80',
+        'hover:border-neutral-900 hover:bg-white',
+        'dark:border-neutral-800 dark:bg-neutral-900/50 dark:hover:border-neutral-700',
+        active ? 'border-neutral-900 bg-white dark:border-neutral-700 dark:bg-neutral-900' : '',
+        onClick ? 'cursor-pointer' : '',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {/* Label + value */}
+      <div>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+          {label}
+        </span>
+        <div className="mt-1.5 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
+          {value}
+        </div>
+        {trend && trend.percentage != null && (
+          <div className="mt-0.5 text-[11px] text-neutral-500">
+            {trend.direction === 'up' ? '↑' : '↓'} {trend.percentage}%{' '}
+            <span className="text-neutral-400">{trend.periodLabel || 'vs. last period'}</span>
+          </div>
+        )}
+        {!trend && subtitle && (
+          <div className="mt-0.5 text-[11px] text-neutral-400">{subtitle}</div>
+        )}
+      </div>
+
+      {/* Bottom arrow row */}
+      <div className="mt-3 flex items-center gap-1 text-xs font-semibold text-neutral-800 group-hover:underline dark:text-neutral-200">
+        <span>View details</span>
+        <ChevronRight size={13} />
+      </div>
+    </div>
+  );
+}
+
+/* Keep icon components exported in case they're used elsewhere */
 export function DashboardCartIcon({ className = 'h-8 w-8 text-slate-900' }: { className?: string }) {
   return (
     <svg viewBox="0 0 100 100" fill="currentColor" className={className} aria-hidden="true">
@@ -33,7 +86,6 @@ export function DashboardCartIcon({ className = 'h-8 w-8 text-slate-900' }: { cl
 export function DashboardTagIcon({ className = 'h-8 w-8 text-slate-900' }: { className?: string }) {
   return (
     <svg viewBox="0 0 100 100" fill="currentColor" className={className} aria-hidden="true">
-      {/* Black price tag with angled hole and % cut-out */}
       <path fillRule="evenodd" d="M52 14 L30 36 C28 38 27 41 27 44 L27 82 C27 86 30 90 35 90 L73 90 C77 90 81 86 81 82 L81 44 C81 41 80 38 78 36 L56 14 C55 13 53 13 52 14 Z M54 28 C56.2 28 58 29.8 58 32 C58 34.2 56.2 36 54 36 C51.8 36 50 34.2 50 32 C50 29.8 51.8 28 54 28 Z M45 48 C47.2 48 49 49.8 49 52 C49 54.2 47.2 56 45 56 C42.8 56 41 54.2 41 52 C41 49.8 42.8 48 45 48 Z M63 70 C65.2 70 67 71.8 67 74 C67 76.2 65.2 78 63 78 C60.8 78 59 76.2 59 74 C59 71.8 60.8 70 63 70 Z M64.5 49 L43.5 77 L40 74.5 L61 46.5 Z" clipRule="evenodd" />
     </svg>
   );
@@ -42,7 +94,6 @@ export function DashboardTagIcon({ className = 'h-8 w-8 text-slate-900' }: { cla
 export function DashboardBoxIcon({ className = 'h-8 w-8 text-slate-900' }: { className?: string }) {
   return (
     <svg viewBox="0 0 100 100" fill="currentColor" className={className} aria-hidden="true">
-      {/* 3D Package Isometric box with center tape strip */}
       <path d="M50 12 L86 28 L50 45 L14 28 Z" fill="#1e293b" />
       <path d="M14 31 L48 48 L48 88 L14 71 Z" fill="#0f172a" />
       <path d="M52 48 L86 31 L86 71 L52 88 Z" fill="#334155" />
@@ -57,100 +108,5 @@ export function DashboardClockIcon({ className = 'h-8 w-8 text-slate-900' }: { c
       <circle cx="50" cy="50" r="44" fill="#0f172a" />
       <path d="M50 24 L50 52 L68 52" stroke="#ffffff" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </svg>
-  );
-}
-
-export function StatCard({
-  label,
-  value,
-  icon,
-  iconType,
-  iconBg = 'bg-slate-100 text-slate-900',
-  trend,
-  subtitle,
-  onMenuClick,
-  onClick,
-  active = false,
-  className = '',
-}: StatCardProps) {
-  const renderIcon = () => {
-    if (icon) return icon;
-    switch (iconType) {
-      case 'cart':
-        return <DashboardCartIcon className="h-7 w-7 text-slate-900" />;
-      case 'tag':
-        return <DashboardTagIcon className="h-7 w-7 text-slate-900" />;
-      case 'box':
-        return <DashboardBoxIcon className="h-7 w-7 text-slate-900" />;
-      case 'clock':
-        return <DashboardClockIcon className="h-7 w-7 text-slate-900" />;
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div
-      onClick={onClick}
-      className={`rounded-2xl border transition-all flex flex-col justify-between p-5 sm:p-6 bg-white shadow-xs ${
-        active
-          ? 'border-slate-900 ring-2 ring-slate-900/10 shadow-sm'
-          : 'border-slate-200/80 hover:border-slate-300 hover:shadow-sm'
-      } ${onClick ? 'cursor-pointer' : ''} ${className}`}
-    >
-      {/* Top Header Row: Label & Options Menu */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs sm:text-sm font-semibold tracking-tight text-slate-500">
-          {label}
-        </span>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onMenuClick?.();
-          }}
-          aria-label={`Options for ${label}`}
-          className="text-slate-400 hover:text-slate-600 transition-colors p-1 -mr-1.5 -mt-1 rounded-lg hover:bg-slate-100 cursor-pointer"
-        >
-          <MoreHorizontal size={16} />
-        </button>
-      </div>
-
-      {/* Middle Row: Clean Value (No icon) */}
-      <div className="my-3.5">
-        <div className="text-2xl sm:text-[28px] font-extrabold text-slate-950 dark:text-white tracking-tight truncate">
-          {value}
-        </div>
-      </div>
-
-      {/* Bottom Row: Trend badge & Period indicator (No graph) */}
-      <div className="flex items-center justify-between pt-1 border-t border-slate-100/80 text-xs">
-        {trend ? (
-          <div className="flex items-center gap-1.5 font-bold">
-            <span
-              className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] ${
-                trend.direction === 'up'
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'bg-rose-50 text-rose-700'
-              }`}
-            >
-              {trend.direction === 'up' ? (
-                <TrendingUp size={12} strokeWidth={2.5} />
-              ) : (
-                <TrendingDown size={12} strokeWidth={2.5} />
-              )}
-              {trend.direction === 'up' ? '↑' : '↓'} {trend.percentage != null ? `${trend.percentage}%` : 'Steady'}
-            </span>
-            <span className="text-[11px] text-slate-400 font-medium">
-              {trend.periodLabel || 'vs. previous 7 days'}
-            </span>
-          </div>
-        ) : (
-          <span className="text-[11px] text-slate-400 font-medium">
-            {subtitle || 'Live store data'}
-          </span>
-        )}
-      </div>
-    </div>
   );
 }
