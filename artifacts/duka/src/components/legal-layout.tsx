@@ -126,19 +126,21 @@ export function LegalLayout({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-neutral-900 mb-1">
-                Have questions about these terms or your privacy?
+                Have questions about our software terms or subscriptions?
               </h3>
               <p className="text-xs text-neutral-500 leading-relaxed">
-                Our support and data protection compliance team is ready to assist you.
+                Take Order Technologies • Accra, Ghana • Support &amp; compliance team ready to assist.
               </p>
             </div>
-            <a
-              href="mailto:adjorloloclarke@gmail.com"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 shadow-xs transition-colors shrink-0"
-            >
-              <Mail size={14} />
-              <span>adjorloloclarke@gmail.com</span>
-            </a>
+            <div className="flex items-center gap-3 shrink-0">
+              <a
+                href="mailto:support@usetakeorder.app"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 shadow-xs transition-colors"
+              >
+                <Mail size={14} />
+                <span>support@usetakeorder.app</span>
+              </a>
+            </div>
           </div>
         </div>
       </main>
@@ -146,10 +148,12 @@ export function LegalLayout({
       {/* Footer */}
       <footer className="border-t border-neutral-200/80 bg-white py-8 mt-16">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-neutral-900">Take Order</span>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <span className="font-bold text-neutral-900">Take Order Technologies</span>
             <span>·</span>
-            <span>© 2026 Take Order. All rights reserved.</span>
+            <span>Accra, Ghana</span>
+            <span>·</span>
+            <span>© 2026. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/terms" className="hover:text-neutral-900 transition-colors">
@@ -164,6 +168,9 @@ export function LegalLayout({
               Refund Policy
             </Link>
           </div>
+        </div>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-3 text-center text-[11px] text-neutral-400">
+          Take Order is a B2B Software-as-a-Service (SaaS) platform. Paddle.com is the authorized Merchant of Record for all Take Order Pro subscriptions.
         </div>
       </footer>
     </div>

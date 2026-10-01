@@ -43,13 +43,16 @@ export function RefundPolicyPage() {
           </div>
 
           <div>
-            <h3 className="text-base font-bold text-neutral-900 mb-1">A3. Refunds</h3>
+            <h3 className="text-base font-bold text-neutral-900 mb-1">A3. 14-Day Refund Guarantee</h3>
             <ul className="list-disc pl-5 mt-2 space-y-2">
               <li>
-                Charges already processed for Pro or Pro+ (Monthly or Annual) are generally non-refundable, except where required by law or where we determine, at our discretion, that a refund is appropriate (for example, a billing error or duplicate charge).
+                We provide a full 14-day refund guarantee for all first-time Take Order Pro and Pro+ subscription payments. If you are not satisfied with the software for any reason, you may request a 100% refund within 14 days of your initial charge by contacting support@usetakeorder.app or directly through Paddle&apos;s buyer support portal at{' '}
+                <a href="https://paddle.net" target="_blank" rel="noreferrer" className="underline font-semibold text-neutral-900">
+                  paddle.net
+                </a>.
               </li>
               <li>
-                Refund requests should be sent to the contact address below. Approved refunds are processed back to your original payment method through our billing provider (RevenueCat, via Stripe or Paddle) and may take several business days to appear, depending on your bank or mobile money provider.
+                Approved refunds are processed back to your original payment method via our Merchant of Record, Paddle, and typically appear within 3–5 business days depending on your bank.
               </li>
               <li>
                 <strong>Switching tiers:</strong> Upgrades and tier changes take effect immediately with billing adjusted according to provider guidelines.
@@ -58,7 +61,14 @@ export function RefundPolicyPage() {
           </div>
 
           <div>
-            <h3 className="text-base font-bold text-neutral-900 mb-1">A4. Billing issues</h3>
+            <h3 className="text-base font-bold text-neutral-900 mb-1">A4. Instant Digital Delivery</h3>
+            <p>
+              Take Order Pro and Pro+ subscriptions are digital software-as-a-service products. Access to paid features, expanded catalog limits, and premium analytics is delivered immediately to your account upon successful completion of checkout through Paddle.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-base font-bold text-neutral-900 mb-1">A5. Billing issues</h3>
             <p>
               If a renewal payment fails (for example, an expired card or insufficient funds), we provide a grace period before access is suspended, to give you a chance to update your payment method. The length of this grace period is shown in your account and billing provider settings.
             </p>
@@ -72,10 +82,10 @@ export function RefundPolicyPage() {
               Part B
             </span>
             <h2 className="text-xl font-bold text-neutral-900 mt-2">
-              Orders between buyers and sellers (marketplace transactions)
+              Orders between buyers and sellers (independent merchant sales)
             </h2>
             <p className="text-sm text-neutral-600 mt-1">
-              This section applies to a purchase you made or received through a Take Order link.
+              This section applies to orders placed directly with an independent seller using a Take Order link.
             </p>
           </div>
 
@@ -84,7 +94,7 @@ export function RefundPolicyPage() {
               B1. Take Order is not a party to this transaction
             </h3>
             <p>
-              As set out in our Terms of Service, when a buyer completes an order through a Take Order link, the contract of sale is between the buyer and the seller — not with Take Order. Take Order provides the order-link and payment-routing tool; we do not manufacture, ship, warehouse, or guarantee the item or service being sold.
+              As set out in our Terms of Service, when a buyer places an order through a Take Order link, the contract of sale is between the buyer and the seller — not with Take Order. Take Order provides cloud software for inventory management and order communication; we do not process, touch, or route customer payments, nor do we manufacture, ship, warehouse, or guarantee the item or service being sold.
             </p>
           </div>
 
@@ -94,13 +104,13 @@ export function RefundPolicyPage() {
             </h3>
             <ul className="list-disc pl-5 mt-2 space-y-2">
               <li>
-                Refunds, exchanges, and cancellations for a specific order are between the buyer and the seller, and are subject to whatever terms the seller has communicated for that sale.
+                Refunds, exchanges, and cancellations for an order placed with a merchant are between the buyer and the seller, and are subject to whatever terms the seller has communicated for that sale.
               </li>
               <li>
-                Take Order does not currently mediate or guarantee the outcome of a dispute between a buyer and a seller.
+                Take Order does not hold funds and does not mediate or guarantee the outcome of a dispute between a buyer and a seller.
               </li>
               <li>
-                If a payment was made through an integrated payment provider (such as Paystack, once live) and needs to be reversed, that reversal is subject to the payment provider's own refund and dispute process. Sellers are responsible for honoring reasonable, good-faith refund requests where a good or service was not delivered as agreed.
+                Any customer refunds for items purchased from a merchant must be requested directly from the seller through their agreed payment method.
               </li>
             </ul>
           </div>
@@ -110,7 +120,7 @@ export function RefundPolicyPage() {
               B3. Deposits and reservations
             </h3>
             <p>
-              Where an order was placed with a deposit or as a reservation (with no payment collected upfront), the terms of that deposit or reservation — including whether it is refundable if the buyer or seller cancels — are set by the seller at the time the order link was created, and should be confirmed directly with the seller.
+              Where an order was placed with a deposit or as a reservation, the terms of that deposit or reservation are set by the seller at the time the order link was created, and should be confirmed directly with the seller.
             </p>
           </div>
 
@@ -119,7 +129,7 @@ export function RefundPolicyPage() {
               B4. Reporting a problem
             </h3>
             <p>
-              If you believe a seller has acted fraudulently, or a transaction violates our Terms of Service, you can report it to us at the contact address below. We may investigate and take action against an account, including suspension, but this does not guarantee a refund of the underlying transaction — that remains between you and the seller.
+              If you believe a seller has acted fraudulently, or a transaction violates our Terms of Service, you can report it to us at the contact address below. We may investigate and take action against an account, including suspension.
             </p>
           </div>
         </div>
@@ -127,17 +137,29 @@ export function RefundPolicyPage() {
         {/* Contact */}
         <div className="pt-2">
           <h2 className="text-xl font-bold text-neutral-900 border-b border-neutral-100 pb-2">
-            Contact
+            Contact &amp; Support
           </h2>
-          <p className="mt-3">
-            Questions about billing, cancellations, or a transaction dispute can be sent to:{' '}
-            <a
-              href="mailto:adjorloloclarke@gmail.com"
-              className="text-neutral-900 underline font-semibold hover:text-amber-600 transition-colors"
-            >
-              adjorloloclarke@gmail.com
-            </a>
-          </p>
+          <div className="mt-3 space-y-1.5 text-sm text-neutral-700">
+            <p><strong>Platform:</strong> Take Order (https://usetakeorder.app)</p>
+            <p><strong>Operator:</strong> Take Order Technologies</p>
+            <p><strong>Physical Address:</strong> Accra, Greater Accra Region, Republic of Ghana</p>
+            <p>
+              <strong>Customer Support:</strong>{' '}
+              <a
+                href="mailto:support@usetakeorder.app"
+                className="text-neutral-900 underline font-semibold hover:text-amber-600 transition-colors"
+              >
+                support@usetakeorder.app
+              </a>{' '}
+              / <a href="mailto:adjorloloclarke@gmail.com" className="text-neutral-900 underline">adjorloloclarke@gmail.com</a>
+            </p>
+            <p className="text-xs text-neutral-500 pt-1">
+              For subscription refund requests, you may also reach out directly to Paddle at{' '}
+              <a href="https://paddle.net" target="_blank" rel="noreferrer" className="underline font-semibold text-neutral-900">
+                paddle.net
+              </a>.
+            </p>
+          </div>
         </div>
       </section>
     </LegalLayout>

@@ -98,7 +98,7 @@ export function LandingPage() {
     },
     {
       metric: '99.4%',
-      label: 'Verified payment confirmation',
+      label: 'Instant order confirmation',
       name: 'Nana Yaa Boateng',
       role: 'Owner, Spice & Savor Kitchen',
       tag: 'Catering & Meals',
@@ -110,7 +110,7 @@ export function LandingPage() {
     {
       id: 0,
       title: 'One-Tap Order Links',
-      badge: 'Frictionless Checkout',
+      badge: 'Fast Order Flow',
       headline: 'Turn your social bio link into a high-converting storefront',
       description:
         'Instead of typing prices back and forth in WhatsApp and Instagram chats, share a sleek Take Order link. Buyers browse your catalog, select variants, and complete orders in under 40 seconds without creating an account.',
@@ -118,12 +118,12 @@ export function LandingPage() {
     },
     {
       id: 1,
-      title: 'Automated Payment Verification',
-      badge: 'Zero Fake Proofs',
-      headline: 'Stop matching bank and Momo screenshots by hand',
+      title: 'Order Slip & Receipt Verification',
+      badge: 'Order Slip Verification',
+      headline: 'Capture customer order receipts and delivery confirmations seamlessly',
       description:
-        'Buyers upload their Mobile Money transaction ID or payment slip directly into the checkout flow. Take Order verifies the submission, notifies you immediately, and keeps every transaction organized and audit-ready.',
-      metrics: ['Mobile Money (MTN, Telecel, AT) support', 'Bank card & transfer reconciliation', 'Proof of payment stored securely with each order'],
+        'Buyers attach their transaction confirmation slip or receipt directly into the order flow. Take Order attaches the submission, notifies you immediately, and keeps every order organized and audit-ready.',
+      metrics: ['Order receipt capture (MoMo & bank slips)', 'Instant seller order notifications', 'Proof of order stored securely with each submission'],
     },
     {
       id: 2,
@@ -151,8 +151,8 @@ export function LandingPage() {
       a: 'No! Buyers never need to download an app or create an account. When they tap your Take Order link in WhatsApp, Instagram, or TikTok, your store opens immediately in their mobile browser for a lightning-fast 30-second checkout.',
     },
     {
-      q: 'How does payment processing work with Take Order?',
-      a: 'Take Order enables seamless checkout for your customers. Buyers can pay via Mobile Money (MTN, Telecel, AT), Debit/Credit cards, or Bank Transfer, and upload proof directly. You retain 100% of your customer funds directly without middleman holdbacks.',
+      q: 'How do customers complete orders with Take Order?',
+      a: 'Take Order is a SaaS order management platform. Customers select products, provide delivery information, and submit their order confirmation directly to your dashboard. Take Order does not process or touch customer payments; you receive 100% of your customer funds directly through your own chosen accounts.',
     },
     {
       q: 'What is the difference between Pro ($9.99/mo) and Pro+ ($20/mo)?',
@@ -328,7 +328,7 @@ export function LandingPage() {
 
           {/* Subtitle */}
           <p className="mt-5 text-base sm:text-lg text-neutral-600 max-w-2xl mx-auto font-normal leading-relaxed">
-            Replace chaotic WhatsApp &amp; Instagram DM negotiations with branded order links, automated Mobile Money payment confirmation, and real-time inventory tracking.
+            Replace chaotic WhatsApp &amp; Instagram DM negotiations with branded order links, organized customer order slips, and real-time inventory tracking.
           </p>
 
           {/* Action CTAs */}
@@ -434,7 +434,7 @@ export function LandingPage() {
                       <div className="p-2.5 rounded-xl bg-neutral-100 border border-neutral-300 flex items-center gap-2">
                         <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
                         <span className="text-[11px] font-bold text-neutral-900">
-                          MTN Momo Payment Slip Attached
+                          Customer Order Slip Attached
                         </span>
                       </div>
                     </div>
@@ -459,18 +459,18 @@ export function LandingPage() {
                       <span>New Order #1042 Received</span>
                     </p>
                     <p className="text-xs text-neutral-400 mt-1">
-                      Kofi Adams placed an order for ₵485.00. Momo proof attached. Stock auto-reserved.
+                      Kofi Adams placed an order for ₵485.00. Order slip attached. Stock auto-reserved.
                     </p>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-neutral-400">Total Sales Today</p>
+                      <p className="text-xs text-neutral-400">Total Orders Today</p>
                       <p className="text-xl font-black text-white mt-0.5">₵3,840.00</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-neutral-400">Paid Orders</p>
-                      <p className="text-xl font-black text-white mt-0.5">14 completed</p>
+                      <p className="text-xs text-neutral-400">Completed Orders</p>
+                      <p className="text-xl font-black text-white mt-0.5">14 confirmed</p>
                     </div>
                   </div>
 
@@ -480,7 +480,7 @@ export function LandingPage() {
                       <span>Zero DM Negotiation Chaos</span>
                     </p>
                     <p className="text-neutral-400 leading-relaxed">
-                      All orders arrive categorized with delivery address, phone number, and payment status ready for your dispatch rider.
+                      All orders arrive categorized with delivery address, phone number, and fulfillment status ready for your dispatch rider.
                     </p>
                   </div>
                 </div>
@@ -572,7 +572,7 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-800">
-              With Take Order, you get more sales, faster payments, zero chaos
+              With Take Order, you get more sales, faster order turnaround, zero chaos
             </h2>
             <p className="mt-4 text-base sm:text-lg text-neutral-600">
               Everything you need to turn casual Instagram scrollers and WhatsApp contacts into loyal paying customers.
@@ -666,24 +666,24 @@ export function LandingPage() {
                   {activeTab === 1 && (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between pb-3 border-b border-neutral-800 text-xs">
-                        <span className="text-neutral-400">Payment Verification Engine</span>
+                        <span className="text-neutral-400">Order Verification System</span>
                         <span className="text-neutral-300 font-bold">100% Direct</span>
                       </div>
                       <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2">
                         <div className="flex items-center gap-2 text-white font-bold text-sm">
                           <ShieldCheck size={18} className="text-[#F5B418]" />
-                          <span>MTN Mobile Money Verified</span>
+                          <span>Customer Slip Attached</span>
                         </div>
                         <p className="text-xs text-neutral-300 font-mono">
-                          Transaction ID: 29840192837 • ₵320.00
+                          Order Reference: #1042 • ₵320.00
                         </p>
                         <p className="text-[11px] text-neutral-400">
-                          Buyer payment snapshot securely stored in private storage.
+                          Order confirmation slip securely stored with customer record.
                         </p>
                       </div>
                       <div className="flex justify-between text-xs text-neutral-400 px-1">
-                        <span>Fake slip risk: 0%</span>
-                        <span>Auto-receipt: Sent</span>
+                        <span>Slip verification: Complete</span>
+                        <span>Auto-summary: Sent</span>
                       </div>
                     </div>
                   )}
@@ -761,7 +761,7 @@ export function LandingPage() {
                 <span>The Chaotic DM Way</span>
               </div>
               <h3 className="text-xl font-bold text-neutral-800">
-                Messy chats, lost buyers, and fake payment slips
+                Messy chats, lost buyers, and unorganized orders
               </h3>
               <ul className="space-y-4 text-sm text-neutral-600">
                 <li className="flex items-start gap-3">
@@ -774,7 +774,7 @@ export function LandingPage() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-neutral-400 font-bold text-base mt-0.5">✕</span>
-                  <span><strong>Risk of fake edited screenshots</strong> causing you to dispatch unpaid goods.</span>
+                  <span><strong>Unorganized chat screenshots</strong> causing delayed dispatches and missed details.</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-neutral-400 font-bold text-base mt-0.5">✕</span>
@@ -789,7 +789,7 @@ export function LandingPage() {
                 <span>The Take Order Standard</span>
               </div>
               <h3 className="text-xl font-bold text-white">
-                One-tap order link, automated payments, clean pipeline
+                One-tap order link, structured order slips, clean pipeline
               </h3>
               <ul className="space-y-4 text-sm text-neutral-300">
                 <li className="flex items-start gap-3">
@@ -798,7 +798,7 @@ export function LandingPage() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-[#F5B418] font-bold text-base mt-0.5">✓</span>
-                  <span><strong>Verified Mobile Money &amp; Card proof</strong> attached directly to the order record.</span>
+                  <span><strong>Customer order slip &amp; delivery details</strong> attached directly to the order record.</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-[#F5B418] font-bold text-base mt-0.5">✓</span>
@@ -822,7 +822,7 @@ export function LandingPage() {
               Simple pricing with a 7-day free trial
             </h2>
             <p className="mt-4 text-base sm:text-lg text-neutral-600">
-              Zero commissions on your sales. Keep 100% of customer payments. Cancel anytime with one click.
+              Zero commissions on your sales. Take Order never touches your customer funds. Cancel anytime with one click.
             </p>
 
             {/* Billing Cycle Toggle (Annual Save 25% / Monthly) */}
@@ -898,7 +898,7 @@ export function LandingPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
-                    <span>Automated Mobile Money &amp; Card payment proof</span>
+                    <span>Automated customer order receipt &amp; slip capture</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Check size={16} className="text-neutral-950 shrink-0" strokeWidth={2.5} />
@@ -1069,10 +1069,10 @@ export function LandingPage() {
       <section className="py-24 bg-neutral-950 text-white relative overflow-hidden">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight text-white">
-            Over 70% of social media sellers lose orders to messy DMs and fake payment screenshots.
+            Over 70% of social media sellers lose orders to messy DMs and chaotic order tracking.
           </h2>
           <p className="mt-5 text-neutral-300 text-base sm:text-lg max-w-2xl mx-auto font-normal leading-relaxed">
-            Take Order replaces manual chat confusion with 1-tap checkout links, verified payments, and automated stock reservation.
+            Take Order replaces manual chat confusion with 1-tap order links, organized order slips, and automated stock reservation.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -1111,10 +1111,16 @@ export function LandingPage() {
                 </span>
               </Link>
               <p className="text-sm text-neutral-500 max-w-sm leading-relaxed">
-                The all-in-one order management and social commerce platform for independent sellers. Generate instant checkout links, track inventory, and verify Mobile Money &amp; Card payments.
+                The all-in-one order management and social commerce software platform for independent sellers. Generate instant order links, track inventory stock, and manage customer dispatch records.
               </p>
-              <div className="pt-2 text-xs text-neutral-400">
+              <div className="pt-2 text-xs text-neutral-400 space-y-1">
                 <p>Support: <a href="mailto:support@usetakeorder.app" className="text-neutral-900 font-semibold underline underline-offset-2">support@usetakeorder.app</a></p>
+                <p className="text-[11px] text-neutral-500">
+                  Take Order is a B2B Software-as-a-Service (SaaS) order &amp; inventory tracking platform.
+                </p>
+                <p className="text-[11px] text-neutral-500">
+                  Subscription orders are processed by our Merchant of Record, Paddle.com.
+                </p>
               </div>
             </div>
 
@@ -1127,7 +1133,7 @@ export function LandingPage() {
                 </p>
                 <ul className="space-y-3.5 text-sm text-neutral-500 font-medium">
                   <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-neutral-900 transition-colors cursor-pointer">Order Links</button></li>
-                  <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-neutral-900 transition-colors cursor-pointer">Payment Proof</button></li>
+                  <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-neutral-900 transition-colors cursor-pointer">Order Verification</button></li>
                   <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-neutral-900 transition-colors cursor-pointer">Customer CRM</button></li>
                   <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-neutral-900 transition-colors cursor-pointer">Stock Management</button></li>
                   <li><button type="button" onClick={() => scrollToSection('pricing')} className="hover:text-neutral-900 transition-colors cursor-pointer">Pricing</button></li>

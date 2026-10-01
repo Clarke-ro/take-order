@@ -45,19 +45,28 @@ export function TermsPage() {
             3. What Take Order is — and what it is not
           </h2>
           <p>
-            Take Order is a tool, not the seller, and not a payment processor. This distinction matters and governs several sections below:
+            Take Order is a B2B Software-as-a-Service (SaaS) business management tool, not the seller, and strictly not a payment processor. This distinction matters and governs several sections below:
           </p>
           <ul className="list-disc pl-5 mt-2 space-y-2">
             <li>
-              Take Order provides sellers with a catalog manager, an order-link generator, and business analytics. Take Order is not a party to the sale between a seller and a buyer.
+              Take Order provides sellers with cloud software for catalog management, digital order-link generation, and business operations tracking. Take Order is not a party to any sale between a seller and a buyer.
             </li>
             <li>
-              Take Order does not hold, custody, or transmit buyer or seller funds itself. All payment processing for orders is handled by licensed third-party payment providers (currently, or in future, including Paystack). All subscription billing for Take Order's own seller plans is handled by licensed third-party billing providers (currently RevenueCat, using Stripe and/or Paddle as the underlying processor). Your use of those payment features is also subject to those providers' own terms.
+              Take Order does NOT process, handle, touch, hold, custody, or transmit funds between buyers and sellers. Take Order is not a bank, payment processor, payment gateway, money transmitter, or financial intermediary. Buyers do not pay sellers through Take Order; transactions occur directly between the buyer and the seller through their own independently arranged channels.
             </li>
             <li>
               Take Order does not read, monitor, or access sellers' personal messaging accounts (WhatsApp, Instagram, TikTok, Snapchat, or any other platform). Sellers choose what information to enter into Take Order themselves; nothing is collected from their personal conversations.
             </li>
           </ul>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-bold text-neutral-900 border-b border-neutral-100 pb-2">
+            3.1 Merchant of Record for Take Order Subscriptions
+          </h2>
+          <p>
+            Our order process for Take Order Pro and Pro+ SaaS subscription plans is conducted by our online reseller and Merchant of Record, Paddle.com. Paddle.com is the Merchant of Record for all our subscription orders. Paddle provides customer service inquiries, tax remittance, and handles returns/refunds for subscription payments.
+          </p>
         </div>
 
         <div>
@@ -111,7 +120,7 @@ export function TermsPage() {
               Subscriptions renew automatically at the end of each billing period unless cancelled beforehand. You can cancel at any time through your account's subscription management page; cancellation takes effect at the end of the current billing period, and you retain access until then.
             </li>
             <li>
-              Billing, payment method management, and receipts for subscriptions are handled by our billing provider (RevenueCat, and the underlying processor — Stripe or Paddle, depending on your region and how the platform is configured at the time). Refunds for subscription charges are governed by our separate Refund &amp; Cancellation Policy.
+              Billing, payment method management, and receipts for Take Order Pro subscriptions are handled by our authorized Merchant of Record, Paddle.com. Refunds for subscription charges are governed by our separate Refund &amp; Cancellation Policy.
             </li>
             <li>
               We may change subscription pricing with advance notice; changes will not apply retroactively to an already-paid billing period.
@@ -192,23 +201,32 @@ export function TermsPage() {
             14. Governing law and disputes
           </h2>
           <p>
-            These Terms are governed by the laws of the Republic of Ghana. Any dispute arising from these Terms or the Service will first be attempted to be resolved informally by contacting us at the address below; [insert a chosen dispute resolution mechanism — arbitration, courts of Ghana, etc. — once confirmed with a lawyer].
+            These Terms are governed by the laws of the Republic of Ghana. Any dispute arising from these Terms or the Service will first be attempted to be resolved informally by contacting us at the address below.
           </p>
         </div>
 
         <div>
           <h2 className="text-xl font-bold text-neutral-900 border-b border-neutral-100 pb-2">
-            15. Contact
+            15. Contact &amp; Business Information
           </h2>
-          <p>
-            Questions about these Terms can be sent to:{' '}
-            <a
-              href="mailto:adjorloloclarke@gmail.com"
-              className="text-neutral-900 underline font-semibold hover:text-amber-600 transition-colors"
-            >
-              adjorloloclarke@gmail.com
-            </a>
-          </p>
+          <div className="space-y-1.5 text-sm text-neutral-700">
+            <p><strong>Platform:</strong> Take Order (https://usetakeorder.app)</p>
+            <p><strong>Operator:</strong> Take Order Technologies</p>
+            <p><strong>Physical Address:</strong> Accra, Greater Accra Region, Republic of Ghana</p>
+            <p>
+              <strong>Official Support:</strong>{' '}
+              <a href="mailto:support@usetakeorder.app" className="underline font-semibold text-neutral-900">
+                support@usetakeorder.app
+              </a>{' '}
+              / <a href="mailto:adjorloloclarke@gmail.com" className="underline text-neutral-900">adjorloloclarke@gmail.com</a>
+            </p>
+            <p className="text-xs text-neutral-500 pt-1">
+              For billing inquiries regarding subscription charges, you may also contact Paddle directly at{' '}
+              <a href="https://paddle.net" target="_blank" rel="noreferrer" className="underline font-semibold text-neutral-900">
+                paddle.net
+              </a>.
+            </p>
+          </div>
         </div>
       </section>
     </LegalLayout>

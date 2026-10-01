@@ -98,12 +98,9 @@ export function PrivacyPage() {
           </p>
           <ul className="list-disc pl-5 mt-2 space-y-1.5">
             <li><strong>Clerk</strong> — authentication and account management</li>
-            <li><strong>Supabase</strong> — database and file storage</li>
+            <li><strong>Supabase</strong> — database and secure file storage</li>
             <li>
-              <strong>RevenueCat</strong>, and the underlying billing processor it uses (Stripe and/or Paddle) — subscription billing; they, not Take Order, hold your card or payment details
-            </li>
-            <li>
-              <strong>Paystack</strong> (once integrated) — order payment processing; they, not Take Order, hold buyer payment details
+              <strong>Paddle.com</strong> — Merchant of Record for software subscription billing; Paddle securely handles customer billing details and tax compliance
             </li>
             <li>Our hosting and infrastructure providers, as necessary to run the Service</li>
           </ul>
@@ -181,17 +178,20 @@ export function PrivacyPage() {
 
         <div>
           <h2 className="text-xl font-bold text-neutral-900 border-b border-neutral-100 pb-2">
-            11. Contact us
+            11. Contact &amp; Data Protection Officer
           </h2>
-          <p>
-            For questions about this policy, or to exercise your rights over your personal data, contact us at:{' '}
-            <a
-              href="mailto:adjorloloclarke@gmail.com"
-              className="text-neutral-900 underline font-semibold hover:text-amber-600 transition-colors"
-            >
-              adjorloloclarke@gmail.com
-            </a>
-          </p>
+          <div className="mt-3 space-y-1.5 text-sm text-neutral-700">
+            <p><strong>Platform:</strong> Take Order (https://usetakeorder.app)</p>
+            <p><strong>Operator:</strong> Take Order Technologies</p>
+            <p><strong>Physical Address:</strong> Accra, Greater Accra Region, Republic of Ghana</p>
+            <p>
+              <strong>Data Inquiries &amp; Privacy:</strong>{' '}
+              <a href="mailto:support@usetakeorder.app" className="underline font-semibold text-neutral-900">
+                support@usetakeorder.app
+              </a>{' '}
+              / <a href="mailto:adjorloloclarke@gmail.com" className="underline text-neutral-900">adjorloloclarke@gmail.com</a>
+            </p>
+          </div>
         </div>
       </section>
     </LegalLayout>
