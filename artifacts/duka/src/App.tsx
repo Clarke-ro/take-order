@@ -5895,22 +5895,22 @@ function Orders() {
       onError: (error) => setMutationError(formatUserFacingError(error, 'That order update could not be saved. Try again.')),
     });
   };
-  const orderFilterOptions = [
-    { value: 'all', label: 'All' },
-    { value: 'to_ship', label: 'To ship' },
-    { value: 'paid', label: 'Paid' },
-    { value: 'deposit_paid', label: 'Deposit' },
-    { value: 'reserved', label: 'Reserved' },
-    { value: 'shipped', label: 'Shipped' },
-    { value: 'delivered', label: 'Delivered' },
-  ];
+  const orderFilterOptions = useMemo(() => [
+    { value: 'all', label: 'All', count: allOrders.length },
+    { value: 'to_ship', label: 'To ship', count: allOrders.filter((o) => o.fulfillment === 'pending').length },
+    { value: 'paid', label: 'Paid', count: allOrders.filter((o) => o.status === 'paid').length },
+    { value: 'deposit_paid', label: 'Deposit', count: allOrders.filter((o) => o.status === 'deposit_paid').length },
+    { value: 'reserved', label: 'Reserved', count: allOrders.filter((o) => o.status === 'reserved').length },
+    { value: 'shipped', label: 'Shipped', count: allOrders.filter((o) => o.fulfillment === 'shipped').length },
+    { value: 'delivered', label: 'Delivered', count: allOrders.filter((o) => o.fulfillment === 'delivered').length },
+  ], [allOrders]);
   const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value;
 
   return <Shell>
     <div className="flex items-center justify-between gap-4 mb-5">
-      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-        Orders ({allOrders.length})
-      </div>
+      <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+        Orders
+      </h1>
       <Link href="/take-order" data-testid="link-take-order-orders">
         <Button><Plus size={16} />Take an order</Button>
       </Link>
@@ -5935,24 +5935,24 @@ function Orders() {
       <>
         <section className="space-y-5">
           {mutationError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="inline-flex items-center gap-1 rounded-xl bg-slate-100/90 p-1 text-xs" role="group" aria-label="Order status filter">
-              {orderFilterOptions.map((opt) => (
-                <button
-                  type="button"
-                  key={opt.value}
-                  onClick={() => setActiveFilter(opt.value)}
-                  className={cn(
-                    'rounded-lg px-3 py-1.5 font-medium transition-all cursor-pointer',
-                    (activeFilter === opt.value || (opt.value === 'to_ship' && activeFilter === 'pending'))
-                      ? 'bg-white font-semibold text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  )}
-                  data-testid={`button-order-filter-${opt.value}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+          <div className="table-toolbar orders-workspace-controls flex flex-wrap items-center justify-between gap-4">
+            <div className="category-filter-card orders-filter-scroll" role="group" aria-label="Order status filter">
+              {orderFilterOptions.map((opt) => {
+                const isActive = activeFilter === opt.value || (opt.value === 'to_ship' && activeFilter === 'pending');
+                return (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    onClick={() => setActiveFilter(opt.value)}
+                    className={cn('category-filter-tab orders-filter-button', isActive && 'is-active')}
+                    aria-pressed={isActive}
+                    data-testid={`button-order-filter-${opt.value}`}
+                  >
+                    <span>{opt.label}</span>
+                    <strong className="tab-count">{opt.count}</strong>
+                  </button>
+                );
+              })}
             </div>
             <div className="table-search-shell list-search-shell min-w-[200px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
@@ -9652,6 +9652,23 @@ function ClerkShell() {
   );
 }
 
+function ClientDetailRoute() {
+  const params = useParams<{ key?: string }>();
+  return (
+    <Shell>
+      <ClientDetailPage params={params} />
+    </Shell>
+  );
+}
+
+function AnalyticsRoute() {
+  return (
+    <Shell>
+      <AnalyticsPage />
+    </Shell>
+  );
+}
+
 function Router() {
   const [location] = useLocation();
   return <ErrorBoundary resetKey={location}><Switch>
@@ -9671,9 +9688,9 @@ function Router() {
     <Route path="/orders/:id" component={() => <ProtectedRoute page={OrderDetail} />} />
     <Route path="/orders" component={() => <ProtectedRoute page={Orders} />} />
     <Route path="/reports/channel-conversion" component={() => <ProtectedRoute page={ChannelConversionInsight} />} />
-    <Route path="/analytics" component={() => <ProtectedRoute page={AnalyticsPage} />} />
-    <Route path="/reports" component={() => <ProtectedRoute page={AnalyticsPage} />} />
-    <Route path="/clients/:key" component={() => <ProtectedRoute page={ClientDetailPage} />} />
+    <Route path="/analytics" component={() => <ProtectedRoute page={AnalyticsRoute} />} />
+    <Route path="/reports" component={() => <ProtectedRoute page={AnalyticsRoute} />} />
+    <Route path="/clients/:key" component={() => <ProtectedRoute page={ClientDetailRoute} />} />
     <Route path="/clients" component={() => <ProtectedRoute page={Clients} />} />
     <Route path="/expenses" component={() => <ProtectedRoute page={Expenses} />} />
     <Route path="/take-order" component={() => <ProtectedRoute page={MultiItemTakeOrderModern} />} />

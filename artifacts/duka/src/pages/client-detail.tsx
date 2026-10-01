@@ -25,24 +25,61 @@ import { useListOrders } from '@/lib/api-hooks';
 import { moneyExact, dateShort, initials, channelName, paymentTone, paymentLabel, openWhatsApp } from '@/lib/formatters';
 import type { Order } from '@/lib/types';
 
-export function ClientDetailPage() {
-  const { key = '' } = useParams<{ key: string }>();
-  const decodedKey = decodeURIComponent(key);
+export function ClientDetailPage({ params }: { params?: { key?: string } } = {}) {
+  const routeParams = useParams<{ key: string }>();
+  const rawKey = params?.key ?? routeParams?.key ?? '';
+  let decodedKey = rawKey;
+  try {
+    decodedKey = decodeURIComponent(rawKey);
+  } catch {
+    decodedKey = rawKey;
+  }
   const [, setLocation] = useLocation();
   const query = useListOrders();
 
   const allOrders = query.data ?? [];
 
   const clientData = useMemo(() => {
-    if (!allOrders.length || !decodedKey) return null;
+    if (!allOrders.length || (!decodedKey && !rawKey)) return null;
+
+    const cleanDecoded = decodedKey.trim().toLowerCase();
+    const cleanRaw = rawKey.trim().toLowerCase();
+
+    // Extract identifier without the prefix if present (e.g. "phone:" or "name:")
+    const strippedDecoded = cleanDecoded.replace(/^(phone|name):/, '').trim();
+    const strippedRaw = cleanRaw.replace(/^(phone|name):/, '').trim();
 
     // Filter orders matching this client key
     const clientOrders = allOrders.filter((order) => {
-      const phone = order.customerPhone?.trim() ?? '';
-      const name = order.customerName?.trim() ?? '';
+      const phone = (order.customerPhone ?? '').trim().toLowerCase();
+      const name = (order.customerName ?? '').trim().toLowerCase();
       const identity = phone || name;
-      const orderKey = `${phone ? 'phone' : 'name'}:${identity.toLowerCase()}`;
-      return orderKey === decodedKey || name.toLowerCase() === decodedKey.toLowerCase() || phone === decodedKey;
+      if (!identity) return false;
+      const orderKey = `${phone ? 'phone' : 'name'}:${identity}`;
+
+      if (orderKey === cleanDecoded || orderKey === cleanRaw) return true;
+      if (phone && (
+        phone === cleanDecoded ||
+        phone === cleanRaw ||
+        phone === strippedDecoded ||
+        phone === strippedRaw ||
+        cleanDecoded.includes(phone) ||
+        cleanRaw.includes(phone)
+      )) return true;
+      if (name && (
+        name === cleanDecoded ||
+        name === cleanRaw ||
+        name === strippedDecoded ||
+        name === strippedRaw
+      )) return true;
+
+      const targetDigits = strippedDecoded.replace(/\D/g, '');
+      const orderPhoneDigits = phone.replace(/\D/g, '');
+      if (targetDigits.length >= 7 && orderPhoneDigits.length >= 7 && (targetDigits === orderPhoneDigits || orderPhoneDigits.endsWith(targetDigits) || targetDigits.endsWith(orderPhoneDigits))) {
+        return true;
+      }
+
+      return false;
     });
 
     if (!clientOrders.length) return null;
@@ -79,7 +116,7 @@ export function ClientDetailPage() {
       latestOrderDate: latest.createdAt,
       orders: clientOrders,
     };
-  }, [allOrders, decodedKey]);
+  }, [allOrders, decodedKey, rawKey]);
 
   if (query.isLoading) {
     return (
