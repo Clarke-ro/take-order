@@ -33,7 +33,12 @@ export function SidebarProCard({
     );
   }
 
-  if (isPro) {
+  // For already subscribed users, remove the subscription card from the sidebar
+  if (isPro && !isTrial) {
+    return null;
+  }
+
+  if (isTrial) {
     return (
       <div className="px-3 pb-2">
         <Link
@@ -44,7 +49,7 @@ export function SidebarProCard({
             <div className="text-xs font-bold text-slate-900 leading-tight flex items-center gap-1.5">
               <span>{isProPlus ? 'Take Order Pro+' : 'Take Order Pro'}</span>
               <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
-                {isTrial ? `${daysRemaining}D TRIAL` : 'ACTIVE'}
+                {daysRemaining}D TRIAL
               </span>
             </div>
             <div className="text-[11px] text-slate-500 font-normal mt-0.5">Manage billing & plan</div>

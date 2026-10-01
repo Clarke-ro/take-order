@@ -639,7 +639,7 @@ export function LandingPage() {
                       <div className="space-y-2">
                         <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between text-xs">
                           <div>
-                            <p className="font-bold text-white">Esi Mensah</p>
+                            <p className="font-bold text-white">Client via WhatsApp</p>
                             <p className="text-neutral-400 text-[11px]">8 orders • ₵2,450 spent</p>
                           </div>
                           <span className="px-2 py-1 rounded bg-neutral-800 text-[#F5B418] font-bold text-[10px] border border-neutral-700">
@@ -648,7 +648,7 @@ export function LandingPage() {
                         </div>
                         <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between text-xs">
                           <div>
-                            <p className="font-bold text-white">Michael Addo</p>
+                            <p className="font-bold text-white">Client via Instagram</p>
                             <p className="text-neutral-400 text-[11px]">5 orders • ₵1,800 spent</p>
                           </div>
                           <span className="px-2 py-1 rounded bg-neutral-800 text-neutral-300 font-bold text-[10px] border border-neutral-700">
@@ -681,6 +681,65 @@ export function LandingPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Story / The DM Selling Reality ── */}
+      <section className="py-20 bg-white border-t border-neutral-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-left space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-bold uppercase tracking-wider border border-neutral-200">
+            <span>Built For Social Commerce</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-neutral-900 leading-tight">
+            No more taking orders in your DMs and hoping you don't lose track.
+          </h2>
+          <div className="text-base sm:text-lg text-neutral-600 space-y-4 leading-relaxed">
+            <p>
+              Millions of people run real businesses from their personal social media accounts. They sell clothes, shoes, hair, bags, and food through Instagram, WhatsApp, TikTok, and Snapchat. The sale happens in a DM: a customer sees a post, messages the seller, they negotiate, and money changes hands.
+            </p>
+            <p>
+              Then it all disappears into the chat. The seller has no business infrastructure, because a personal account has no order system, no records, and no analytics. Bolting a business layer onto a personal account is hard, and often impossible. So most sellers fall back on what they've always done: scribbling orders in a notebook, scrolling up through old chats, and hoping nothing gets lost.
+            </p>
+            <p>
+              Then the chaos sets in. Buyers flood the DMs asking about the status of their orders. Some want to cancel, and others demand refunds. Others call non-stop asking when their order will be delivered or fulfilled. Every message pulls the seller back into scrolling through old conversations, trying to piece together who ordered what, what price was agreed, and who has paid. Frustration builds, and the business starts to feel like a burden instead of an income.
+            </p>
+            <p>
+              We watched this happen again and again, and that's where Take Order comes from. Sellers don't need a complicated business suite. They need a simple way to manage every order that starts in their DMs, without leaving their personal accounts.
+            </p>
+          </div>
+
+          <div className="p-6 sm:p-8 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-4 mt-6">
+            <h3 className="text-xl font-bold text-neutral-900">What Take Order does</h3>
+            <p className="text-sm sm:text-base text-neutral-600 leading-relaxed">
+              Take Order is an order management and record-keeping app for sellers who do business in their DMs. It never connects to their chat accounts.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3.5 pt-2 text-sm text-neutral-700">
+              <div className="flex items-start gap-2.5">
+                <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+                  <Check size={12} strokeWidth={3} />
+                </div>
+                <span><strong>Instant order link:</strong> Lock in price, deposit, or reserve right in chat.</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+                  <Check size={12} strokeWidth={3} />
+                </div>
+                <span><strong>Track by status:</strong> New, paid, out for delivery, and fulfilled.</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+                  <Check size={12} strokeWidth={3} />
+                </div>
+                <span><strong>Know who owes what:</strong> Clear deposit and balance tracking.</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+                  <Check size={12} strokeWidth={3} />
+                </div>
+                <span><strong>One-tap dispatch:</strong> Send delivery details straight to riders.</span>
               </div>
             </div>
           </div>
