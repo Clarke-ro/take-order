@@ -244,7 +244,7 @@ export function SubscribePage() {
           </div>
         ) : (
           <div
-            className="grid grid-cols-1 md:grid-cols-2 gap-5"
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
             style={{
               opacity: cardsReady ? 1 : 0,
               transform: cardsReady ? 'translateY(0)' : 'translateY(12px)',
@@ -255,168 +255,116 @@ export function SubscribePage() {
             <button
               type="button"
               onClick={() => setSelectedTier('pro')}
-              className="relative text-left rounded-2xl flex flex-col gap-6 transition-all duration-200 focus:outline-none group overflow-hidden"
-              style={{
-                background: '#fff',
-                padding: '28px',
-                boxShadow: selectedTier === 'pro'
-                  ? '0 0 0 2px hsl(222 47% 11%), 0 8px 24px rgba(0,0,0,0.1)'
-                  : '0 1px 4px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04)',
-                transform: selectedTier === 'pro' ? 'translateY(-2px)' : 'translateY(0)',
-              }}
+              className={`relative text-left rounded-3xl flex flex-col justify-between p-8 sm:p-10 transition-all duration-200 focus:outline-none cursor-pointer border-2 ${
+                selectedTier === 'pro'
+                  ? 'border-neutral-900 shadow-md ring-2 ring-neutral-900/10'
+                  : 'border-neutral-200 shadow-xs hover:border-neutral-400'
+              } bg-white`}
             >
-              {/* Selection dot */}
-              <span
-                className="absolute top-5 right-5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200"
-                style={{
-                  borderColor: selectedTier === 'pro' ? 'hsl(222 47% 11%)' : '#d1d5db',
-                  background: selectedTier === 'pro' ? 'hsl(222 47% 11%)' : 'transparent',
-                }}
-              >
-                {selectedTier === 'pro' && <Check size={11} className="text-white stroke-[3]" />}
-              </span>
-
-              {activeTier === 'pro' && (
-                <span className="absolute top-5 left-5 text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  Current
-                </span>
-              )}
-
-              {/* Header */}
-              <div className="space-y-3 pt-1">
-                <div>
-                  <h2 className="text-2xl font-extrabold tracking-tight text-foreground">Pro</h2>
-                  <p className="text-sm text-muted-foreground mt-1">For solo sellers &amp; small shops</p>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-bold uppercase tracking-wider border border-neutral-200">
+                    Pro
+                  </span>
+                  <span className="text-xs text-neutral-500 font-semibold">
+                    {billingPeriod === 'annual' ? 'Annual (25% off)' : 'Monthly'}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-4xl font-extrabold tracking-tight text-foreground">{proPrice}</span>
-                  {billingPeriod === 'annual' && (
-                    <p className="text-sm text-muted-foreground mt-1">{proEquiv}/mo billed annually</p>
-                  )}
+
+                <div className="mt-6 flex items-baseline gap-1">
+                  <span className="text-4xl sm:text-5xl font-bold text-neutral-800 tracking-tight">{proPrice}</span>
+                </div>
+                {billingPeriod === 'annual' && (
+                  <p className="text-xs text-neutral-500 mt-1 font-medium">{proEquiv}/mo billed annually</p>
+                )}
+
+                <p className="mt-3 text-sm text-neutral-600 leading-relaxed">
+                  For rising sellers ready to eliminate manual chat order negotiations and organize their catalog.
+                </p>
+
+                <div className="mt-8 pt-6 border-t border-neutral-100 space-y-3.5 text-sm font-medium text-neutral-700">
+                  {PRO_FEATURES.map((f) => (
+                    <div key={f} className="flex items-center gap-3">
+                      <div className="h-5 w-5 rounded-full bg-neutral-100 flex items-center justify-center shrink-0">
+                        <Check size={12} className="text-neutral-900 stroke-[3]" />
+                      </div>
+                      <span>{f}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid #f0ede8' }} />
-
-              {/* Features */}
-              <div className="flex-1 flex flex-col gap-3.5">
-                {PRO_FEATURES.map((f) => (
-                  <div key={f} className="flex items-center gap-3">
-                    <span
-                      className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-colors duration-200"
-                      style={{
-                        background: selectedTier === 'pro' ? 'hsl(222 47% 11%)' : '#f0ede8',
-                      }}
-                    >
-                      <Check
-                        size={11}
-                        className="stroke-[3]"
-                        style={{ color: selectedTier === 'pro' ? '#fff' : '#9ca3af' }}
-                      />
-                    </span>
-                    <span className="text-sm font-medium text-foreground">{f}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Bottom pill */}
-              <div
-                className="py-3 rounded-xl text-sm font-bold text-center transition-all duration-200"
-                style={{
-                  background: selectedTier === 'pro' ? 'hsl(222 47% 11%)' : '#f0ede8',
-                  color: selectedTier === 'pro' ? '#fff' : '#6b7280',
-                }}
-              >
-                {selectedTier === 'pro' ? '✓ Selected' : 'Select Pro'}
+              <div className="mt-10">
+                <div
+                  className={`w-full py-3.5 rounded-full text-sm font-bold text-center transition-all ${
+                    selectedTier === 'pro'
+                      ? 'bg-neutral-950 text-white shadow-xs'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  {selectedTier === 'pro' ? '✓ Selected Plan' : 'Select Pro'}
+                </div>
               </div>
             </button>
 
-            {/* ── Pro+ Card ── */}
+            {/* ── Pro+ Card (Featured High-Contrast) ── */}
             <button
               type="button"
               onClick={() => setSelectedTier('pro_plus')}
-              className="relative text-left rounded-2xl flex flex-col gap-6 transition-all duration-200 focus:outline-none group overflow-hidden"
-              style={{
-                background: '#fff',
-                padding: '28px',
-                boxShadow: selectedTier === 'pro_plus'
-                  ? '0 0 0 2px hsl(222 47% 11%), 0 8px 24px rgba(0,0,0,0.1)'
-                  : '0 1px 4px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04)',
-                transform: selectedTier === 'pro_plus' ? 'translateY(-2px)' : 'translateY(0)',
-              }}
+              className={`relative text-left rounded-3xl flex flex-col justify-between p-8 sm:p-10 transition-all duration-200 focus:outline-none cursor-pointer border-2 ${
+                selectedTier === 'pro_plus'
+                  ? 'border-[#F5B418] shadow-xl ring-2 ring-[#F5B418]/20'
+                  : 'border-neutral-800 shadow-lg hover:border-neutral-700'
+              } bg-neutral-950 text-white overflow-hidden`}
             >
-              {/* Most Popular badge — centred top */}
-              <span
-                className="absolute -top-px left-0 right-0 h-1 rounded-t-2xl"
-                style={{ background: 'hsl(222 47% 11%)' }}
-              />
-              <span
-                className="absolute top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-extrabold uppercase tracking-widest px-3 py-0.5 rounded-full text-white"
-                style={{ background: 'hsl(222 47% 11%)' }}
-              >
+              {/* Most Popular badge */}
+              <div className="absolute top-0 right-0 bg-[#F5B418] text-neutral-950 text-[11px] font-bold uppercase tracking-wider px-4 py-1 rounded-bl-xl shadow-xs">
                 Most Popular
-              </span>
+              </div>
 
-              {/* Selection dot */}
-              <span
-                className="absolute top-5 right-5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200"
-                style={{
-                  borderColor: selectedTier === 'pro_plus' ? 'hsl(222 47% 11%)' : '#d1d5db',
-                  background: selectedTier === 'pro_plus' ? 'hsl(222 47% 11%)' : 'transparent',
-                }}
-              >
-                {selectedTier === 'pro_plus' && <Check size={11} className="text-white stroke-[3]" />}
-              </span>
-
-              {activeTier === 'pro_plus' && (
-                <span className="absolute top-5 left-5 text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  Current
-                </span>
-              )}
-
-              <div className="space-y-3 pt-5">
-                <div>
-                  <h2 className="text-2xl font-extrabold tracking-tight text-foreground">Pro+</h2>
-                  <p className="text-sm text-muted-foreground mt-1">For growing teams &amp; businesses</p>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="px-3 py-1 rounded-full bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider border border-neutral-700">
+                    Pro+
+                  </span>
+                  <span className="text-xs text-neutral-400 font-semibold">
+                    {billingPeriod === 'annual' ? 'Annual (25% off)' : 'Monthly'}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-4xl font-extrabold tracking-tight text-foreground">{proPlusPrice}</span>
-                  {billingPeriod === 'annual' && (
-                    <p className="text-sm text-muted-foreground mt-1">{proPlusEquiv}/mo billed annually</p>
-                  )}
+
+                <div className="mt-6 flex items-baseline gap-1">
+                  <span className="text-4xl sm:text-5xl font-bold text-white tracking-tight">{proPlusPrice}</span>
+                </div>
+                {billingPeriod === 'annual' && (
+                  <p className="text-xs text-neutral-400 mt-1 font-medium">{proPlusEquiv}/mo billed annually</p>
+                )}
+
+                <p className="mt-3 text-sm text-neutral-300 leading-relaxed">
+                  For high-volume merchants needing unlimited capacity, custom branding, and priority support.
+                </p>
+
+                <div className="mt-8 pt-6 border-t border-neutral-800 space-y-3.5 text-sm font-medium text-neutral-200">
+                  {PRO_PLUS_FEATURES.map((f) => (
+                    <div key={f} className="flex items-center gap-3">
+                      <div className="h-5 w-5 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center shrink-0">
+                        <Check size={12} className="text-[#F5B418] stroke-[3]" />
+                      </div>
+                      <span>{f}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid #f0ede8' }} />
-
-              <div className="flex-1 flex flex-col gap-3.5">
-                {PRO_PLUS_FEATURES.map((f) => (
-                  <div key={f} className="flex items-center gap-3">
-                    <span
-                      className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-colors duration-200"
-                      style={{
-                        background: selectedTier === 'pro_plus' ? 'hsl(222 47% 11%)' : '#f0ede8',
-                      }}
-                    >
-                      <Check
-                        size={11}
-                        className="stroke-[3]"
-                        style={{ color: selectedTier === 'pro_plus' ? '#fff' : '#9ca3af' }}
-                      />
-                    </span>
-                    <span className="text-sm font-medium text-foreground">{f}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div
-                className="py-3 rounded-xl text-sm font-bold text-center transition-all duration-200"
-                style={{
-                  background: selectedTier === 'pro_plus' ? 'hsl(222 47% 11%)' : '#f0ede8',
-                  color: selectedTier === 'pro_plus' ? '#fff' : '#6b7280',
-                }}
-              >
-                {selectedTier === 'pro_plus' ? '✓ Selected' : 'Select Pro+'}
+              <div className="mt-10">
+                <div
+                  className={`w-full py-3.5 rounded-full text-sm font-bold text-center transition-all ${
+                    selectedTier === 'pro_plus'
+                      ? 'bg-white text-neutral-950 shadow-xs'
+                      : 'bg-neutral-800 text-white hover:bg-neutral-700'
+                  }`}
+                >
+                  {selectedTier === 'pro_plus' ? '✓ Selected Plan' : 'Select Pro+'}
+                </div>
               </div>
             </button>
           </div>

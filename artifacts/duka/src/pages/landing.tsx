@@ -36,6 +36,7 @@ export function LandingPage() {
   const [storeNameInput, setStoreNameInput] = useState('');
   const [previewHandle, setPreviewHandle] = useState('mystore');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
 
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false);
@@ -177,14 +178,16 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 group cursor-pointer">
-            <div className="h-10 w-10 rounded-xl bg-neutral-950 flex items-center justify-center text-white font-extrabold text-xl shadow-xs group-hover:scale-105 transition-transform">
-              <ShoppingBag size={20} className="text-[#F5B418]" />
-            </div>
+            <img
+              src="/branding/takeorder-icon.png"
+              alt="Take Order"
+              className="h-9 w-9 rounded-xl object-contain shadow-xs group-hover:scale-105 transition-transform"
+            />
             <div className="flex flex-col">
-              <span className="font-extrabold tracking-tight text-xl leading-none text-neutral-950">
+              <span className="font-bold tracking-tight text-xl leading-none text-neutral-800">
                 Take<span className="text-[#F5B418]">Order</span>
               </span>
-              <span className="text-[10px] uppercase tracking-widest font-semibold text-neutral-400 mt-0.5">
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-neutral-400 mt-0.5">
                 Social Commerce OS
               </span>
             </div>
@@ -317,62 +320,42 @@ export function LandingPage() {
       {/* ── 1. Hero Section (Owner.com Replica Architecture in Clean Black & White) ── */}
       <section className="relative pt-12 pb-20 md:pt-20 md:pb-32 overflow-hidden bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          {/* Top Rating Badge */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-neutral-100 border border-neutral-200 mb-8">
-            <span className="text-xs font-black text-neutral-900 tracking-tight">4.9</span>
-            <div className="flex items-center text-[#F5B418]">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} size={13} className="fill-[#F5B418]" />
-              ))}
-            </div>
-            <span className="text-xs font-medium text-neutral-500">
-              across 1,200+ active social sellers
-            </span>
-          </div>
-
           {/* Main Headline */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.12] text-neutral-800 max-w-5xl mx-auto">
-            <span className="text-neutral-400 font-medium block text-2xl sm:text-4xl lg:text-5xl mb-3">
-              The order platform social sellers use to
-            </span>
-            <span className="text-neutral-900 font-black">turn chats into paid orders.</span>
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.14] text-neutral-800 max-w-4xl mx-auto">
+            The order platform social sellers use to{' '}
+            <span className="text-neutral-900 font-extrabold">turn chats into paid orders.</span>
           </h1>
 
           {/* Subtitle */}
-          <p className="mt-6 text-lg sm:text-xl text-neutral-600 max-w-2xl mx-auto font-normal leading-relaxed">
-            Replace chaotic WhatsApp &amp; Instagram chat negotiations with branded order links, automated Mobile Money payment confirmation, and real-time inventory tracking.
+          <p className="mt-5 text-base sm:text-lg text-neutral-600 max-w-2xl mx-auto font-normal leading-relaxed">
+            Replace chaotic WhatsApp &amp; Instagram DM negotiations with branded order links, automated Mobile Money payment confirmation, and real-time inventory tracking.
           </p>
 
-          {/* Interactive Input Form (Owner.com Replica Bar) */}
-          <div className="mt-10 max-w-2xl mx-auto">
-            <form
-              onSubmit={handleStorePreview}
-              className="p-2 sm:p-2.5 rounded-2xl sm:rounded-full bg-white border-2 border-neutral-200 shadow-sm flex flex-col sm:flex-row items-center gap-2 focus-within:border-neutral-950 transition-all"
+          {/* Action CTAs */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+            <Link
+              href="/sign-up"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 shadow-xs hover:scale-[1.02] active:scale-[0.98]"
             >
-              <div className="flex items-center gap-2.5 px-4 w-full">
-                <span className="text-neutral-400 font-semibold text-sm">usetakeorder.app/store/</span>
-                <input
-                  type="text"
-                  value={storeNameInput}
-                  onChange={(e) => setStoreNameInput(e.target.value)}
-                  placeholder="your-brand-name"
-                  className="w-full bg-transparent text-sm sm:text-base font-bold text-neutral-900 placeholder:text-neutral-300 focus:outline-none"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full sm:w-auto shrink-0 px-6 py-3.5 rounded-xl sm:rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 group cursor-pointer shadow-xs hover:scale-[1.02]"
-              >
-                <span>Preview My Link</span>
-                <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform text-[#F5B418]" />
-              </button>
-            </form>
-            <p className="mt-3 text-xs text-neutral-500 flex items-center justify-center gap-4">
-              <span>✓ 7-day free trial</span>
-              <span>✓ No credit card needed</span>
-              <span>✓ Zero commissions</span>
-            </p>
+              <span>Start 7-Day Free Trial</span>
+              <ArrowRight size={15} className="text-[#F5B418]" />
+            </Link>
+            <button
+              type="button"
+              onClick={() => scrollToSection('pricing')}
+              className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-semibold transition-all cursor-pointer"
+            >
+              View Pricing
+            </button>
           </div>
+
+          <p className="mt-3.5 text-xs text-neutral-400 flex items-center justify-center gap-3">
+            <span>7-day free trial</span>
+            <span>•</span>
+            <span>No credit card needed</span>
+            <span>•</span>
+            <span>Cancel anytime</span>
+          </p>
 
           {/* Interactive UI Showcase Mockup */}
           <div className="mt-14 max-w-4xl mx-auto relative">
@@ -512,15 +495,12 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
             <div>
-              <p className="text-xs uppercase tracking-widest font-bold text-neutral-500">
-                Verified Social Sellers
-              </p>
-              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-800 mt-2">
-                Grow sales like these merchants
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-800">
+                Built for modern social commerce
               </h2>
             </div>
-            <p className="text-sm text-neutral-500 max-w-md mt-4 md:mt-0 font-medium">
-              Over 1,200 independent brands use Take Order to stop losing customers in messy DMs.
+            <p className="text-sm text-neutral-500 max-w-md mt-4 md:mt-0 font-normal leading-relaxed">
+              Designed to help online merchants eliminate DM friction, protect inventory, and turn casual chats into confirmed sales.
             </p>
           </div>
 
@@ -564,10 +544,7 @@ export function LandingPage() {
       <section id="features" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs uppercase tracking-widest font-bold text-neutral-500">
-              Complete Commerce System
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-neutral-800 mt-3">
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-800">
               With Take Order, you get more sales, faster payments, zero chaos
             </h2>
             <p className="mt-4 text-base sm:text-lg text-neutral-600">
@@ -745,10 +722,7 @@ export function LandingPage() {
       <section id="how-it-works" className="py-24 bg-neutral-50 border-y border-neutral-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs uppercase tracking-widest font-bold text-neutral-500">
-              Direct Comparison
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-neutral-800 mt-3">
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-800">
               Why modern sellers are leaving manual WhatsApp DM selling behind
             </h2>
           </div>
@@ -813,37 +787,74 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── 5. Pricing Section (Two Paywalls: Pro $9.99/mo and Pro+ $20/mo with 7-Day Free Trial) ── */}
+      {/* ── 5. Pricing Section (Two Paywalls: Pro $9.99/mo and Pro+ $20/mo with Annual 25% Toggle & 7-Day Free Trial) ── */}
       <section id="pricing" className="py-24 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs uppercase tracking-widest font-bold text-neutral-500">
-              Transparent Subscriptions
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-neutral-800 mt-3">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-800">
               Simple pricing with a 7-day free trial
             </h2>
             <p className="mt-4 text-base sm:text-lg text-neutral-600">
               Zero commissions on your sales. Keep 100% of customer payments. Cancel anytime with one click.
             </p>
+
+            {/* Billing Cycle Toggle (Annual Save 25% / Monthly) */}
+            <div className="mt-8 flex items-center justify-center">
+              <div className="inline-flex items-center p-1 rounded-full bg-neutral-100 border border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('monthly')}
+                  className={`px-5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                    billingCycle === 'monthly'
+                      ? 'bg-white text-neutral-900 shadow-xs'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('annual')}
+                  className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                    billingCycle === 'annual'
+                      ? 'bg-neutral-950 text-white shadow-xs'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  }`}
+                >
+                  <span>Annual</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    billingCycle === 'annual' ? 'bg-[#F5B418] text-neutral-950' : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    Save 25%
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Exactly Two Tiers: Pro and Pro+ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
-            {/* Pro Plan ($9.99/month) */}
+            {/* Pro Plan */}
             <div className="rounded-3xl bg-white border-2 border-neutral-200 p-8 sm:p-10 shadow-xs flex flex-col justify-between hover:border-neutral-800 transition-all">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-bold uppercase tracking-wider border border-neutral-200">
                     Pro
                   </span>
-                  <span className="text-xs text-neutral-500 font-semibold">Monthly Plan</span>
+                  <span className="text-xs text-neutral-500 font-semibold">
+                    {billingCycle === 'annual' ? 'Annual Billing' : 'Monthly Billing'}
+                  </span>
                 </div>
 
                 <div className="mt-6 flex items-baseline gap-1">
-                  <span className="text-5xl font-extrabold text-neutral-800 tracking-tight">$9.99</span>
-                  <span className="text-sm font-bold text-neutral-500">/ month</span>
+                  <span className="text-4xl sm:text-5xl font-bold text-neutral-800 tracking-tight">
+                    {billingCycle === 'annual' ? '$7.49' : '$9.99'}
+                  </span>
+                  <span className="text-sm font-medium text-neutral-500">/ month</span>
                 </div>
+                {billingCycle === 'annual' && (
+                  <p className="mt-1 text-xs text-neutral-500 font-medium">$89.90 billed annually (save 25%)</p>
+                )}
 
                 <p className="mt-3 text-sm text-neutral-600 leading-relaxed">
                   Ideal for rising social sellers ready to eliminate manual chat order negotiations and organize their catalog.
@@ -883,7 +894,7 @@ export function LandingPage() {
 
               <div className="mt-10">
                 <Link
-                  href="/sign-up?plan=pro"
+                  href={`/sign-up?plan=pro&cycle=${billingCycle}`}
                   className="w-full py-4 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 shadow-xs"
                 >
                   <span>Start 7-Day Free Trial</span>
@@ -895,24 +906,31 @@ export function LandingPage() {
               </div>
             </div>
 
-            {/* Pro+ Plan ($20.00/month - Featured) */}
+            {/* Pro+ Plan (Featured) */}
             <div className="rounded-3xl bg-neutral-950 text-white border-2 border-neutral-800 p-8 sm:p-10 shadow-xl flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-white text-neutral-950 text-[11px] font-black uppercase tracking-wider px-4 py-1 rounded-bl-xl shadow-xs">
+              <div className="absolute top-0 right-0 bg-[#F5B418] text-neutral-950 text-[11px] font-bold uppercase tracking-wider px-4 py-1 rounded-bl-xl shadow-xs">
                 Most Popular
               </div>
 
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full bg-neutral-800 text-white text-xs font-black uppercase tracking-wider border border-neutral-700">
+                  <span className="px-3 py-1 rounded-full bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider border border-neutral-700">
                     Pro+
                   </span>
-                  <span className="text-xs text-neutral-400 font-semibold">Ultimate Scale</span>
+                  <span className="text-xs text-neutral-400 font-semibold">
+                    {billingCycle === 'annual' ? 'Annual Billing' : 'Monthly Billing'}
+                  </span>
                 </div>
 
                 <div className="mt-6 flex items-baseline gap-1">
-                  <span className="text-5xl font-black text-white tracking-tight">$20.00</span>
-                  <span className="text-sm font-bold text-neutral-400">/ month</span>
+                  <span className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
+                    {billingCycle === 'annual' ? '$15.00' : '$20.00'}
+                  </span>
+                  <span className="text-sm font-medium text-neutral-400">/ month</span>
                 </div>
+                {billingCycle === 'annual' && (
+                  <p className="mt-1 text-xs text-neutral-400 font-medium">$180.00 billed annually (save 25%)</p>
+                )}
 
                 <p className="mt-3 text-sm text-neutral-300 leading-relaxed">
                   For established brands and high-volume sellers needing unlimited capacity, custom branding, and priority support.
@@ -952,8 +970,8 @@ export function LandingPage() {
 
               <div className="mt-10">
                 <Link
-                  href="/sign-up?plan=pro_plus"
-                  className="w-full py-4 rounded-full bg-white text-neutral-950 text-sm font-black hover:bg-neutral-100 transition-all flex items-center justify-center gap-2 shadow-xs"
+                  href={`/sign-up?plan=pro_plus&cycle=${billingCycle}`}
+                  className="w-full py-4 rounded-full bg-white text-neutral-950 text-sm font-bold hover:bg-neutral-100 transition-all flex items-center justify-center gap-2 shadow-xs"
                 >
                   <span>Start 7-Day Free Trial</span>
                   <ArrowRight size={14} className="text-neutral-950" />
@@ -979,10 +997,7 @@ export function LandingPage() {
       <section id="faqs" className="py-24 bg-neutral-50 border-t border-neutral-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <span className="text-xs uppercase tracking-widest font-bold text-neutral-500">
-              Clear Answers
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-neutral-800 mt-3">
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-800">
               Frequently Asked Questions
             </h2>
             <p className="mt-3 text-sm sm:text-base text-neutral-500">
@@ -1023,17 +1038,14 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── 7. Final High-Contrast CTA Banner (Monochrome with touch of yellow) ── */}
-      <section className="py-20 bg-neutral-950 text-white relative overflow-hidden">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-neutral-800 text-neutral-300 border border-neutral-700 mb-6">
-            Get Started Today
-          </span>
-          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
-            Ready to turn your followers into paying customers?
+      {/* ── 7. Pre-Footer Call to Action ── */}
+      <section className="py-24 bg-neutral-950 text-white relative overflow-hidden">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight text-white">
+            Over 70% of social media sellers lose orders to messy DMs and fake payment screenshots.
           </h2>
-          <p className="mt-5 text-neutral-400 text-base sm:text-lg max-w-2xl mx-auto font-normal">
-            Join over 1,200 ambitious merchants who manage orders in seconds, eliminate fake payment slips, and scale without chaos.
+          <p className="mt-5 text-neutral-300 text-base sm:text-lg max-w-2xl mx-auto font-normal leading-relaxed">
+            Take Order replaces manual chat confusion with 1-tap checkout links, verified payments, and automated stock reservation.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -1047,88 +1059,93 @@ export function LandingPage() {
             <button
               type="button"
               onClick={() => scrollToSection('pricing')}
-              className="w-full sm:w-auto px-8 py-4 rounded-full bg-neutral-900 border border-neutral-800 text-white text-base font-bold hover:bg-neutral-800 transition-all cursor-pointer"
+              className="w-full sm:w-auto px-8 py-4 rounded-full bg-neutral-900 border border-neutral-800 text-white text-base font-semibold hover:bg-neutral-800 transition-all cursor-pointer"
             >
-              View Pricing ($9.99 / $20)
+              View Pricing
             </button>
           </div>
         </div>
       </section>
 
-      {/* ── 8. Footer (Fully Compliant for Paddle & Legal Audits) ── */}
-      <footer className="bg-white border-t border-neutral-200 py-16 text-neutral-600 text-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-10">
+      {/* ── 8. Expanded Footer ── */}
+      <footer className="bg-white border-t border-neutral-200 py-24 sm:py-28 text-neutral-600 text-sm">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-16">
             {/* Brand column */}
-            <div className="md:col-span-2 space-y-4">
-              <Link href="/" className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-neutral-950 flex items-center justify-center text-white font-extrabold text-lg">
-                  <ShoppingBag size={18} className="text-[#F5B418]" />
-                </div>
-                <span className="font-extrabold tracking-tight text-xl text-neutral-800">
+            <div className="md:col-span-5 space-y-6">
+              <Link href="/" className="inline-flex items-center gap-3">
+                <img
+                  src="/branding/takeorder-icon.png"
+                  alt="Take Order"
+                  className="h-10 w-10 rounded-xl object-contain shadow-xs"
+                />
+                <span className="font-bold tracking-tight text-2xl text-neutral-800">
                   Take<span className="text-[#F5B418]">Order</span>
                 </span>
               </Link>
-              <p className="text-xs text-neutral-500 max-w-sm leading-relaxed">
+              <p className="text-sm text-neutral-500 max-w-sm leading-relaxed">
                 The all-in-one order management and social commerce platform for independent sellers. Generate instant checkout links, track inventory, and verify Mobile Money &amp; Card payments.
               </p>
               <div className="pt-2 text-xs text-neutral-400">
-                <p>Support: <a href="mailto:support@usetakeorder.app" className="text-neutral-950 font-semibold underline underline-offset-2">support@usetakeorder.app</a></p>
+                <p>Support: <a href="mailto:support@usetakeorder.app" className="text-neutral-900 font-semibold underline underline-offset-2">support@usetakeorder.app</a></p>
               </div>
             </div>
 
-            {/* Product Links */}
-            <div>
-              <p className="font-black text-xs uppercase tracking-widest text-neutral-900 mb-4">
-                Product
-              </p>
-              <ul className="space-y-2.5 text-xs font-semibold">
-                <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-black">Order Links</button></li>
-                <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-black">Payment Proof Verification</button></li>
-                <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-black">Customer CRM</button></li>
-                <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-black">Stock Management</button></li>
-                <li><button type="button" onClick={() => scrollToSection('pricing')} className="hover:text-black">Pricing</button></li>
-              </ul>
-            </div>
+            {/* Navigation Columns */}
+            <div className="md:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-8 sm:gap-12">
+              {/* Product Links */}
+              <div>
+                <p className="font-bold text-xs uppercase tracking-wider text-neutral-700 mb-5">
+                  Product
+                </p>
+                <ul className="space-y-3.5 text-sm text-neutral-500 font-medium">
+                  <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-neutral-900 transition-colors cursor-pointer">Order Links</button></li>
+                  <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-neutral-900 transition-colors cursor-pointer">Payment Proof</button></li>
+                  <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-neutral-900 transition-colors cursor-pointer">Customer CRM</button></li>
+                  <li><button type="button" onClick={() => scrollToSection('features')} className="hover:text-neutral-900 transition-colors cursor-pointer">Stock Management</button></li>
+                  <li><button type="button" onClick={() => scrollToSection('pricing')} className="hover:text-neutral-900 transition-colors cursor-pointer">Pricing</button></li>
+                </ul>
+              </div>
 
-            {/* Legal & Compliance (Crucial for Paddle) */}
-            <div>
-              <p className="font-black text-xs uppercase tracking-widest text-neutral-900 mb-4">
-                Legal &amp; Policies
-              </p>
-              <ul className="space-y-2.5 text-xs font-semibold">
-                <li>
-                  <Link href="/terms" className="hover:text-black">
-                    Terms of Service
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/privacy" className="hover:text-black">
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/refund-policy" className="hover:text-black">
-                    Refund Policy
-                  </Link>
-                </li>
-              </ul>
-            </div>
+              {/* Legal & Compliance (Crucial for Paddle) */}
+              <div>
+                <p className="font-bold text-xs uppercase tracking-wider text-neutral-700 mb-5">
+                  Legal &amp; Policies
+                </p>
+                <ul className="space-y-3.5 text-sm text-neutral-500 font-medium">
+                  <li>
+                    <Link href="/terms" className="hover:text-neutral-900 transition-colors">
+                      Terms of Service
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/privacy" className="hover:text-neutral-900 transition-colors">
+                      Privacy Policy
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/refund-policy" className="hover:text-neutral-900 transition-colors">
+                      Refund Policy
+                    </Link>
+                  </li>
+                </ul>
+              </div>
 
-            {/* Account */}
-            <div>
-              <p className="font-black text-xs uppercase tracking-widest text-neutral-900 mb-4">
-                Account
-              </p>
-              <ul className="space-y-2.5 text-xs font-semibold">
-                <li><Link href="/sign-in" className="hover:text-black">Seller Sign In</Link></li>
-                <li><Link href="/sign-up" className="hover:text-black">Create Free Account</Link></li>
-                <li><Link href="/account/billing" className="hover:text-black">Manage Subscription</Link></li>
-              </ul>
+              {/* Account */}
+              <div>
+                <p className="font-bold text-xs uppercase tracking-wider text-neutral-700 mb-5">
+                  Account
+                </p>
+                <ul className="space-y-3.5 text-sm text-neutral-500 font-medium">
+                  <li><Link href="/sign-in" className="hover:text-neutral-900 transition-colors">Seller Sign In</Link></li>
+                  <li><Link href="/sign-up" className="hover:text-neutral-900 transition-colors">Create Free Account</Link></li>
+                  <li><Link href="/account/billing" className="hover:text-neutral-900 transition-colors">Manage Subscription</Link></li>
+                </ul>
+              </div>
             </div>
           </div>
 
-          <div className="mt-14 pt-8 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-400 gap-4">
+          <div className="mt-20 pt-8 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-400 gap-4">
             <p>© {new Date().getFullYear()} Take Order. All rights reserved.</p>
             <p>Built for ambitious social commerce brands worldwide.</p>
           </div>

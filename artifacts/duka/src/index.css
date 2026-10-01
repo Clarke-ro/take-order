@@ -4611,15 +4611,15 @@ button[data-testid^="button-filter-"]:focus-visible {
 
 @media (min-width: 1024px) {
   .auth-split-left {
-    width: 48%;
-    padding: 3.5rem 4.5rem;
+    width: 56%;
+    padding: 3rem 4rem;
   }
 }
 
 @media (min-width: 1280px) {
   .auth-split-left {
-    width: 46%;
-    padding: 4rem 5.5rem;
+    width: 58%;
+    padding: 3.5rem 5rem;
   }
 }
 
@@ -4635,8 +4635,8 @@ button[data-testid^="button-filter-"]:focus-visible {
     justify-content: center;
     flex: 1;
     min-height: 100dvh;
-    padding: 3rem 2.5rem;
-    background-color: #EDE8DF;
+    padding: 0;
+    background-color: #0c0d10;
     position: relative;
     overflow: hidden;
   }

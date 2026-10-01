@@ -1167,100 +1167,41 @@ function InsightCard({ icon: Icon, title, description, className = '', dataTestI
   return <Card className={cn('flex items-center gap-4 p-6 sm:p-7 min-h-[176px]', className)} data-testid={dataTestId}><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-[hsl(var(--accent))]/15 text-[hsl(var(--foreground))]"><Icon size={22} /></div><div><div className="type-h3">{title}</div>{description && <p className="mt-1.5 type-body">{description}</p>}</div></Card>;
 }
 
-function AuthShowcaseCard() {
-  const [visibleCount, setVisibleCount] = React.useState(0);
-
-  const messages = [
-    { from: 'buyer',  text: 'Hey! Do you still have the black midi dress in size M? 👗' },
-    { from: 'seller', text: 'Yes! Last one. It\'s GHS 320. Want me to reserve it for you?' },
-    { from: 'buyer',  text: 'Yes please! Can I pay a deposit first?' },
-    { from: 'seller', text: 'Sure! I\'ll send you a secure link to lock it in 🔗' },
-    { from: 'seller', text: '✅ Order link sent → takeorder.io/o/xk92a', isLink: true },
-    { from: 'buyer',  text: 'Paid! Deposit of GHS 160. See you Thursday for pickup 🙏' },
-  ];
-
-  React.useEffect(() => {
-    if (visibleCount >= messages.length) return;
-    const delays = [600, 1600, 2800, 3900, 4800, 6000];
-    const timer = setTimeout(() => setVisibleCount((n) => n + 1), delays[visibleCount]);
-    return () => clearTimeout(timer);
-  }, [visibleCount]);
-
+function GoogleIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return (
-    <div className="flex flex-col items-center w-full max-w-[400px] gap-5">
-      {/* Label */}
-      <div className="text-center space-y-1">
-        <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#9ca3af' }}>How TakeOrder works</div>
-        <div className="text-sm font-semibold text-foreground">From DM to paid — in seconds</div>
-      </div>
+    <svg className={className} viewBox="0 0 24 24">
+      <path
+        fill="#4285F4"
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+      />
+    </svg>
+  );
+}
 
-      {/* Phone mockup */}
-      <div className="auth-showcase-card w-full">
-        {/* WA Header */}
-        <div className="flex items-center gap-2.5 pb-3 mb-3" style={{ borderBottom: '1px solid #f0ede8' }}>
-          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold shrink-0">
-            S
-          </div>
-          <div>
-            <div className="text-xs font-bold text-foreground">Your Store</div>
-            <div className="text-[10px]" style={{ color: '#25D366' }}>● Online</div>
-          </div>
-          <div className="ml-auto">
-            <SiWhatsapp size={18} style={{ color: '#25D366' }} />
-          </div>
-        </div>
-
-        {/* Messages */}
-        <div className="flex flex-col gap-2 min-h-[260px]">
-          {messages.slice(0, visibleCount).map((msg, i) => (
-            <div
-              key={i}
-              className={`flex ${msg.from === 'seller' ? 'justify-end' : 'justify-start'}`}
-              style={{
-                animation: 'msgIn 0.25s ease',
-              }}
-            >
-              <div
-                className="max-w-[78%] px-3 py-2 rounded-2xl text-xs leading-relaxed"
-                style={{
-                  background: msg.from === 'seller' ? '#dcf8c6' : '#fff',
-                  color: msg.isLink ? '#2563eb' : '#1f2937',
-                  border: msg.from === 'buyer' ? '1px solid #f0ede8' : 'none',
-                  fontWeight: msg.isLink ? 600 : 400,
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-                  borderRadius: msg.from === 'seller' ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-                }}
-              >
-                {msg.text}
-              </div>
-            </div>
-          ))}
-
-          {/* Typing indicator */}
-          {visibleCount < messages.length && (
-            <div className="flex justify-start">
-              <div className="px-3 py-2.5 rounded-2xl bg-white border border-neutral-100 flex items-center gap-1" style={{ borderRadius: '4px 16px 16px 16px', boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Input bar */}
-        <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: '#f0ede8' }}>
-          <span className="text-xs flex-1" style={{ color: '#9ca3af' }}>Message…</span>
-          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: '#25D366' }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="white" strokeWidth="2.5" strokeLinecap="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </div>
-        </div>
-      </div>
-
-      {/* Powered by */}
-      <div className="flex items-center gap-1.5 text-xs" style={{ color: '#9ca3af' }}>
-        <BrandWordmark className="h-4 w-auto opacity-60" />
-        <span>turns every DM into a tracked order</span>
+function AuthShowcaseCard() {
+  return (
+    <div className="relative w-full h-full min-h-screen overflow-hidden flex items-center justify-center bg-[#0d0e12]">
+      <img
+        src="/illustrations/auth-showcase-mosaic.jpg"
+        alt="Take Order App Showcase"
+        className="w-full h-full min-h-screen object-cover object-center select-none pointer-events-none transform scale-100"
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/20 pointer-events-none" />
+      <div className="absolute bottom-6 right-6 px-4 py-2 rounded-full bg-neutral-900/80 backdrop-blur-md border border-neutral-700/60 text-white text-xs font-semibold flex items-center gap-2 shadow-lg">
+        <span className="w-2 h-2 rounded-full bg-[#F5B418] animate-pulse" />
+        <span>Live Take Order Mobile Storefronts</span>
       </div>
     </div>
   );
@@ -1483,40 +1424,28 @@ function AuthSplitLayout({
   return (
     <div className="auth-split-wrapper">
       <div className="auth-split-left">
-        {/* Top bar with Take Order brand logo */}
-        <header className="flex items-center justify-between">
-          <Link href="/" aria-label="Take Order home" className="inline-flex items-center gap-2.5" data-testid="link-auth-logo">
-            <img src={brandAssets.icon} alt="Take Order" className="h-8 sm:h-9 w-auto rounded-xl object-contain shadow-xs" />
-            <span className="font-black tracking-tight text-xl text-neutral-900 leading-none">
-              Take<span className="text-[#F5B418]">Order</span>
-            </span>
-          </Link>
-        </header>
-
-        {/* Main Content Form */}
-        <main className="w-full max-w-[400px] mx-auto my-auto py-8">
-          {children}
-        </main>
-
-        {/* Bottom Legal Links */}
-        <footer className="pt-6 border-t border-neutral-100 flex flex-wrap items-center justify-center sm:justify-start gap-3.5 text-xs text-neutral-400">
-          <Link href="/terms" className="hover:text-neutral-700 transition-colors">
-            Terms of Service
-          </Link>
-          <span>·</span>
-          <Link href="/privacy" className="hover:text-neutral-700 transition-colors">
-            Privacy Policy
-          </Link>
-          <span>·</span>
-          <Link href="/refund-policy" className="hover:text-neutral-700 transition-colors">
-            Refund Policy
-          </Link>
-          <span>·</span>
-          <span className="inline-flex items-center gap-1.5 text-neutral-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
-            Take Order Status
-          </span>
-        </footer>
+        {rightVariant === 'onboarding' ? (
+          <>
+            <header className="flex items-center justify-between pb-4">
+              <Link href="/" aria-label="Take Order home" className="inline-flex items-center gap-2.5" data-testid="link-auth-logo">
+                <img src={brandAssets.icon} alt="Take Order" className="h-8 w-auto rounded-xl object-contain shadow-xs" />
+                <span className="font-extrabold tracking-tight text-lg text-neutral-800 leading-none">
+                  Take<span className="text-[#F5B418]">Order</span>
+                </span>
+              </Link>
+            </header>
+            <main className="w-full max-w-[460px] mx-auto my-auto py-6">
+              {children}
+            </main>
+            <footer className="pt-4 text-xs text-neutral-400 text-center sm:text-left">
+              <span>Step-by-step store setup • Take Order</span>
+            </footer>
+          </>
+        ) : (
+          <main className="w-full max-w-[420px] mx-auto my-auto py-8">
+            {children}
+          </main>
+        )}
       </div>
 
       {/* Right Column Showcase */}
@@ -2047,16 +1976,40 @@ export function Onboarding() {
   );
 }
 
-function NativeSignInForm({ onDemoLogin }: { onDemoLogin: () => void }) {
+function NativeSignInForm() {
   const [email, setEmail] = useState(() => readDraftAuth().signInEmail || '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [, setLocation] = useLocation();
 
+  const handleGoogleAuth = () => {
+    if (clerkPubKey && (window as any).Clerk) {
+      try {
+        (window as any).Clerk.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: '/onboarding',
+          redirectUrlComplete: '/',
+        });
+        return;
+      } catch (e) {
+        console.warn('Clerk OAuth redirect fallback', e);
+      }
+    }
+    const derivedUserId = `seller_google_${Date.now()}`;
+    localStorage.setItem('duka-test-auth', 'true');
+    localStorage.setItem('duka-test-user-id', derivedUserId);
+    if (typeof window !== 'undefined') {
+      (window as any).__DUKA_TEST_USER_ID__ = derivedUserId;
+    }
+    setActiveSellerUserId(derivedUserId);
+    queryClient.clear();
+    setLocation('/onboarding');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      setError('Please enter your email');
+      setError('Please enter your email address');
       return;
     }
     clearDraftAuth(['signInEmail']);
@@ -2080,25 +2033,50 @@ function NativeSignInForm({ onDemoLogin }: { onDemoLogin: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Log in</h1>
-        <p className="mt-1.5 text-sm text-neutral-600">
-          Welcome back! Please enter your email and password to continue.
+    <div className="w-full">
+      {/* Centered App Logo */}
+      <div className="flex justify-center mb-6">
+        <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
+          <img src={brandAssets.icon} alt="Take Order" className="h-12 w-12 rounded-2xl object-contain shadow-xs" />
+        </Link>
+      </div>
+
+      <div className="text-center mb-8">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
+          Welcome back
+        </h1>
+        <p className="mt-2 text-sm text-neutral-500">
+          Log in to access your orders, products, and seller dashboard.
         </p>
       </div>
 
       {error && (
-        <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
         </div>
       )}
 
-      <div className="space-y-4">
+      {/* Continue with Google button */}
+      <button
+        type="button"
+        onClick={handleGoogleAuth}
+        className="w-full h-12 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+      >
+        <GoogleIcon className="h-5 w-5" />
+        <span>Continue with Google</span>
+      </button>
+
+      {/* Subtle "or" divider */}
+      <div className="relative my-6 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-neutral-200" />
+        </div>
+        <span className="relative px-3 bg-white text-xs text-neutral-400 font-medium">or</span>
+      </div>
+
+      {/* Email + Password Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="signin-email">
-            Email
-          </label>
           <input
             id="signin-email"
             type="email"
@@ -2108,17 +2086,25 @@ function NativeSignInForm({ onDemoLogin }: { onDemoLogin: () => void }) {
               writeDraftAuth({ signInEmail: e.target.value });
               setError('');
             }}
-            placeholder="email@example.com"
+            placeholder="Enter email address"
             autoComplete="email"
-            className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+            className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
           />
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-semibold text-neutral-800" htmlFor="signin-password">
-              Password
-            </label>
+          <div className="relative">
+            <input
+              id="signin-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              autoComplete="current-password"
+              className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            />
+          </div>
+          <div className="flex justify-end mt-1.5">
             <button
               type="button"
               onClick={() => alert('Password reset instructions will be sent to your registered email.')}
@@ -2127,73 +2113,85 @@ function NativeSignInForm({ onDemoLogin }: { onDemoLogin: () => void }) {
               Forgot password?
             </button>
           </div>
-          <input
-            id="signin-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••••••"
-            autoComplete="current-password"
-            className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
-          />
         </div>
-      </div>
 
-      <div className="flex items-center justify-between pt-2">
-        <Link
-          href="/sign-up"
-          className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 transition-colors"
-          data-testid="link-auth-sign-up"
-        >
-          Sign up
-        </Link>
         <button
           type="submit"
-          className="px-6 py-2.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
+          className="w-full h-12 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
           data-testid="button-auth-login"
         >
-          Log in
+          Continue
         </button>
-      </div>
+      </form>
 
-      <div className="pt-2 text-center text-[11px] text-neutral-500 leading-normal">
-        By logging in, you agree to our{' '}
-        <Link href="/terms" className="text-neutral-800 underline font-medium hover:text-neutral-900">
-          Terms
-        </Link>{' '}
+      {/* Single clean legal disclaimer */}
+      <p className="mt-5 text-center text-xs text-neutral-400 leading-relaxed">
+        By continuing, you agree to Take Order's{' '}
+        <Link href="/terms" className="text-neutral-700 underline underline-offset-2 hover:text-black">Terms of Service</Link>{' '}
         and{' '}
-        <Link href="/privacy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
-          Privacy Policy
-        </Link>.
+        <Link href="/privacy" className="text-neutral-700 underline underline-offset-2 hover:text-black">Privacy Policy</Link>.
+      </p>
+
+      {/* Account switch */}
+      <div className="mt-7 text-center text-sm text-neutral-600">
+        Don't have an account?{' '}
+        <Link href="/sign-up" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-up">
+          Sign up
+        </Link>
       </div>
 
-      <div className="pt-4 border-t border-neutral-100">
-        <button
-          type="button"
-          onClick={onDemoLogin}
-          className="w-full py-2.5 px-3 rounded-[10px] border border-dashed border-neutral-300 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-          data-testid="button-demo-login"
-        >
-          <span>Explore demo seller workspace</span>
-          <ArrowRight size={13} />
-        </button>
+      {/* Social proof at bottom like reference */}
+      <div className="mt-12 pt-8 border-t border-neutral-100 text-center">
+        <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-4">
+          Trusted by modern sellers on
+        </p>
+        <div className="flex items-center justify-center gap-6 text-neutral-400 text-xs font-semibold">
+          <span className="flex items-center gap-1.5"><SiInstagram size={14} /> Instagram</span>
+          <span className="flex items-center gap-1.5"><SiWhatsapp size={14} /> WhatsApp</span>
+          <span className="flex items-center gap-1.5"><SiTiktok size={13} /> TikTok</span>
+        </div>
       </div>
-    </form>
+    </div>
   );
 }
 
-function NativeSignUpForm({ onDemoLogin }: { onDemoLogin: () => void }) {
+function NativeSignUpForm() {
   const draft = readDraftAuth();
-  const [fullName, setFullName] = useState(() => draft.signUpFullName || '');
+  const [businessName, setBusinessName] = useState(() => draft.signUpFullName || '');
   const [email, setEmail] = useState(() => draft.signUpEmail || '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [, setLocation] = useLocation();
 
+  const handleGoogleAuth = () => {
+    if (clerkPubKey && (window as any).Clerk) {
+      try {
+        (window as any).Clerk.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: '/onboarding',
+          redirectUrlComplete: '/',
+        });
+        return;
+      } catch (e) {
+        console.warn('Clerk OAuth redirect fallback', e);
+      }
+    }
+    const newUserId = `seller_google_${Date.now()}`;
+    localStorage.setItem('duka-test-auth', 'true');
+    localStorage.setItem('duka-test-user-id', newUserId);
+    if (typeof window !== 'undefined') {
+      (window as any).__DUKA_TEST_USER_ID__ = newUserId;
+    }
+    setActiveSellerUserId(newUserId);
+    queryClient.clear();
+    writeOnboardingStep(0, newUserId);
+    setLocation('/onboarding');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      setError('Please enter your email');
+      setError('Please enter your email address');
       return;
     }
     clearDraftAuth(['signUpFullName', 'signUpEmail']);
@@ -2208,15 +2206,11 @@ function NativeSignUpForm({ onDemoLogin }: { onDemoLogin: () => void }) {
     setActiveSellerUserId(newUserId);
     queryClient.clear();
 
-    const parts = fullName.trim().split(/\s+/);
-    const firstName = parts[0] || '';
-    const lastName = parts.slice(1).join(' ') || '';
+    const cleanBiz = businessName.trim() || 'My Online Store';
     const freshProfile: SellerProfile = {
       ...defaultSellerProfile,
-      businessName: fullName.trim(),
-      sellerName: fullName.trim(),
-      firstName,
-      lastName,
+      businessName: cleanBiz,
+      sellerName: cleanBiz,
     };
     writeSellerProfile(freshProfile, newUserId);
     writeOnboardingStep(0, newUserId);
@@ -2224,42 +2218,50 @@ function NativeSignUpForm({ onDemoLogin }: { onDemoLogin: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Create your account</h1>
-        <p className="mt-1.5 text-sm text-neutral-600">
-          Get started with Take Order. Set up your shop in minutes.
+    <div className="w-full">
+      {/* Centered App Logo */}
+      <div className="flex justify-center mb-6">
+        <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
+          <img src={brandAssets.icon} alt="Take Order" className="h-12 w-12 rounded-2xl object-contain shadow-xs" />
+        </Link>
+      </div>
+
+      <div className="text-center mb-8">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
+          Create your free account
+        </h1>
+        <p className="mt-2 text-sm text-neutral-500">
+          Create your free account to set up your online order link in seconds. No credit card required.
         </p>
       </div>
 
       {error && (
-        <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
         </div>
       )}
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="signup-name">
-            Business or full name
-          </label>
-          <input
-            id="signup-name"
-            type="text"
-            value={fullName}
-            onChange={(e) => {
-              setFullName(e.target.value);
-              writeDraftAuth({ signUpFullName: e.target.value });
-            }}
-            placeholder="e.g. The Sunday Edit"
-            className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
-          />
-        </div>
+      {/* Continue with Google button */}
+      <button
+        type="button"
+        onClick={handleGoogleAuth}
+        className="w-full h-12 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+      >
+        <GoogleIcon className="h-5 w-5" />
+        <span>Continue with Google</span>
+      </button>
 
+      {/* Subtle "or" divider */}
+      <div className="relative my-6 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-neutral-200" />
+        </div>
+        <span className="relative px-3 bg-white text-xs text-neutral-400 font-medium">or</span>
+      </div>
+
+      {/* Form Fields */}
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="signup-email">
-            Email
-          </label>
           <input
             id="signup-email"
             type="email"
@@ -2269,70 +2271,75 @@ function NativeSignUpForm({ onDemoLogin }: { onDemoLogin: () => void }) {
               writeDraftAuth({ signUpEmail: e.target.value });
               setError('');
             }}
-            placeholder="email@example.com"
+            placeholder="Enter email address"
             autoComplete="email"
-            className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+            className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="signup-password">
-            Password
-          </label>
+          <input
+            id="signup-name"
+            type="text"
+            value={businessName}
+            onChange={(e) => {
+              setBusinessName(e.target.value);
+              writeDraftAuth({ signUpFullName: e.target.value });
+            }}
+            placeholder="Store or business name (optional)"
+            className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+          />
+        </div>
+
+        <div>
           <input
             id="signup-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••••••"
+            placeholder="Create password"
             autoComplete="new-password"
-            className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+            className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
           />
         </div>
-      </div>
 
-      <div className="flex items-center justify-between pt-2">
-        <Link
-          href="/sign-in"
-          className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 transition-colors"
-          data-testid="link-auth-sign-in"
-        >
-          Log in
-        </Link>
         <button
           type="submit"
-          className="px-6 py-2.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
+          className="w-full h-12 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
           data-testid="button-auth-signup"
         >
-          Sign up
+          Continue
         </button>
+      </form>
+
+      {/* Single clean legal disclaimer */}
+      <p className="mt-5 text-center text-xs text-neutral-400 leading-relaxed">
+        By continuing, you agree to Take Order's{' '}
+        <Link href="/terms" className="text-neutral-700 underline underline-offset-2 hover:text-black">Terms of Service</Link>{' '}
+        and{' '}
+        <Link href="/privacy" className="text-neutral-700 underline underline-offset-2 hover:text-black">Privacy Policy</Link>.
+      </p>
+
+      {/* Account switch */}
+      <div className="mt-7 text-center text-sm text-neutral-600">
+        Already have an account?{' '}
+        <Link href="/sign-in" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-in">
+          Log in
+        </Link>
       </div>
 
-      <div className="pt-2 text-center text-[11px] text-neutral-500 leading-normal">
-        By creating an account, you agree to our{' '}
-        <Link href="/terms" className="text-neutral-800 underline font-medium hover:text-neutral-900">
-          Terms of Service
-        </Link>,{' '}
-        <Link href="/privacy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
-          Privacy Policy
-        </Link>, and{' '}
-        <Link href="/refund-policy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
-          Refund Policy
-        </Link>.
+      {/* Social proof at bottom like reference */}
+      <div className="mt-12 pt-8 border-t border-neutral-100 text-center">
+        <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-4">
+          Trusted by modern sellers on
+        </p>
+        <div className="flex items-center justify-center gap-6 text-neutral-400 text-xs font-semibold">
+          <span className="flex items-center gap-1.5"><SiInstagram size={14} /> Instagram</span>
+          <span className="flex items-center gap-1.5"><SiWhatsapp size={14} /> WhatsApp</span>
+          <span className="flex items-center gap-1.5"><SiTiktok size={13} /> TikTok</span>
+        </div>
       </div>
-
-      <div className="pt-4 border-t border-neutral-100">
-        <button
-          type="button"
-          onClick={onDemoLogin}
-          className="w-full py-2.5 px-3 rounded-[10px] border border-dashed border-neutral-300 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-          data-testid="button-demo-signup"
-        >
-          <span>Explore demo seller workspace</span>
-          <ArrowRight size={13} />
-        </button>
-      </div>
-    </form>
+    </div>
   );
 }
 
@@ -2342,7 +2349,7 @@ function SignInPage() {
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
   const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
-  const [useClerkView, setUseClerkView] = useState(Boolean(clerkPubKey));
+  const [useClerkView, setUseClerkView] = useState(false);
 
   useEffect(() => {
     if (isLoaded && effectiveSignedIn) {
@@ -2350,34 +2357,12 @@ function SignInPage() {
     }
   }, [isLoaded, effectiveSignedIn, setLocation]);
 
-  const handleDemoLogin = () => {
-    const demoId = `demo_seller_${Date.now()}`;
-    localStorage.setItem('duka-test-auth', 'true');
-    localStorage.setItem('duka-test-user-id', demoId);
-    if (typeof window !== 'undefined') {
-      (window as any).__DUKA_TEST_USER_ID__ = demoId;
-    }
-    setActiveSellerUserId(demoId);
-    queryClient.clear();
-    setLocation('/onboarding');
-  };
-
   return (
     <AuthSplitLayout>
       {clerkPubKey && useClerkView ? (
         <div className="w-full">
           <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-          <div className="mt-3 text-center text-[11px] text-neutral-500 leading-normal">
-            By signing in, you agree to our{' '}
-            <Link href="/terms" className="text-neutral-800 underline font-medium hover:text-neutral-900">
-              Terms of Service
-            </Link>{' '}
-            and{' '}
-            <Link href="/privacy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
-              Privacy Policy
-            </Link>.
-          </div>
-          <div className="mt-3 text-center">
+          <div className="mt-4 text-center">
             <button
               type="button"
               onClick={() => setUseClerkView(false)}
@@ -2389,13 +2374,13 @@ function SignInPage() {
         </div>
       ) : (
         <div className="w-full">
-          <NativeSignInForm onDemoLogin={handleDemoLogin} />
+          <NativeSignInForm />
           {clerkPubKey && (
-            <div className="mt-3 text-center">
+            <div className="mt-4 text-center">
               <button
                 type="button"
                 onClick={() => setUseClerkView(true)}
-                className="text-xs text-neutral-500 hover:text-neutral-900 underline cursor-pointer"
+                className="text-xs text-neutral-400 hover:text-neutral-700 underline cursor-pointer"
               >
                 Sign in with Clerk account
               </button>
@@ -2413,25 +2398,13 @@ function SignUpPage() {
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
   const basePath = (runtimeEnv.BASE_URL ?? '/').replace(/\/$/, '');
-  const [useClerkView, setUseClerkView] = useState(Boolean(clerkPubKey));
+  const [useClerkView, setUseClerkView] = useState(false);
 
   useEffect(() => {
     if (isLoaded && effectiveSignedIn) {
       setLocation('/');
     }
   }, [isLoaded, effectiveSignedIn, setLocation]);
-
-  const handleDemoLogin = () => {
-    const demoId = `demo_seller_${Date.now()}`;
-    localStorage.setItem('duka-test-auth', 'true');
-    localStorage.setItem('duka-test-user-id', demoId);
-    if (typeof window !== 'undefined') {
-      (window as any).__DUKA_TEST_USER_ID__ = demoId;
-    }
-    setActiveSellerUserId(demoId);
-    queryClient.clear();
-    setLocation('/onboarding');
-  };
 
   return (
     <AuthSplitLayout>
@@ -2444,19 +2417,7 @@ function SignUpPage() {
             fallbackRedirectUrl={`${basePath}/onboarding`}
             forceRedirectUrl={`${basePath}/onboarding`}
           />
-          <div className="mt-3 text-center text-[11px] text-neutral-500 leading-normal">
-            By creating an account, you agree to Take Order's{' '}
-            <Link href="/terms" className="text-neutral-800 underline font-medium hover:text-neutral-900">
-              Terms of Service
-            </Link>,{' '}
-            <Link href="/privacy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
-              Privacy Policy
-            </Link>, and{' '}
-            <Link href="/refund-policy" className="text-neutral-800 underline font-medium hover:text-neutral-900">
-              Refund Policy
-            </Link>.
-          </div>
-          <div className="mt-3 text-center">
+          <div className="mt-4 text-center">
             <button
               type="button"
               onClick={() => setUseClerkView(false)}
@@ -2468,13 +2429,13 @@ function SignUpPage() {
         </div>
       ) : (
         <div className="w-full">
-          <NativeSignUpForm onDemoLogin={handleDemoLogin} />
+          <NativeSignUpForm />
           {clerkPubKey && (
-            <div className="mt-3 text-center">
+            <div className="mt-4 text-center">
               <button
                 type="button"
                 onClick={() => setUseClerkView(true)}
-                className="text-xs text-neutral-500 hover:text-neutral-900 underline cursor-pointer"
+                className="text-xs text-neutral-400 hover:text-neutral-700 underline cursor-pointer"
               >
                 Sign up with Clerk account
               </button>
