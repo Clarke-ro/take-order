@@ -63,7 +63,27 @@ export function SubscribePage() {
     (async () => {
       try {
         const pkgs = await getCurrentOfferingTierPackages(effectiveUserId);
-        if (alive) { setPackages(pkgs); setTimeout(() => setCardsReady(true), 80); }
+        if (alive) {
+          setPackages(pkgs);
+          const hasAny = Boolean(
+            pkgs.proMonthly || pkgs.proAnnual || pkgs.proPlusMonthly || pkgs.proPlusAnnual
+          );
+          if (!hasAny) {
+            setPackageError(
+              'No active Web Billing packages are attached to the current offering in RevenueCat. In your RevenueCat dashboard, please attach your Web Billing products to the packages in your active offering ("boss plans").'
+            );
+          } else {
+            // Auto-select available tier if pro_plus is not configured
+            if (!pkgs.proPlusAnnual && !pkgs.proPlusMonthly && (pkgs.proAnnual || pkgs.proMonthly)) {
+              setSelectedTier('pro');
+            }
+            // Auto-select monthly if annual is not configured
+            if (!pkgs.proPlusAnnual && !pkgs.proAnnual && (pkgs.proPlusMonthly || pkgs.proMonthly)) {
+              setBillingPeriod('monthly');
+            }
+          }
+          setTimeout(() => setCardsReady(true), 80);
+        }
       } catch (e: unknown) {
         if (alive) setPackageError(e instanceof Error ? e.message : 'Failed to load plans');
       } finally {
@@ -237,10 +257,31 @@ export function SubscribePage() {
             <p className="text-base text-muted-foreground">Loading plans…</p>
           </div>
         ) : packageError ? (
-          <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm text-destructive" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-            <AlertCircle size={16} className="shrink-0" />
-            {packageError}
-            <button onClick={() => window.location.reload()} className="ml-auto text-sm font-semibold underline">Retry</button>
+          <div className="flex flex-col gap-3 rounded-2xl bg-white border border-amber-200 p-6 shadow-sm">
+            <div className="flex items-center gap-2.5 text-amber-800 font-bold text-sm">
+              <AlertCircle size={18} className="text-amber-600 shrink-0" />
+              <span>Web Billing Setup Required in RevenueCat</span>
+            </div>
+            <p className="text-xs text-neutral-600 leading-relaxed">
+              {packageError}
+            </p>
+            <div className="pt-2 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors"
+              >
+                Retry Loading Plans
+              </button>
+              <a
+                href="https://app.revenuecat.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-semibold text-neutral-700 underline underline-offset-2 hover:text-neutral-950"
+              >
+                Open RevenueCat Dashboard →
+              </a>
+            </div>
           </div>
         ) : (
           <div
@@ -393,16 +434,23 @@ export function SubscribePage() {
                 Manage Subscription
               </Link>
             ) : (
-              <button
-                type="button"
-                disabled={purchasing || loadingPackages || !activePackage}
-                onClick={handlePurchase}
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base transition-opacity hover:opacity-90 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: 'hsl(222 47% 11%)', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
-              >
-                {purchasing && <Loader2 size={16} className="animate-spin" />}
-                Start 7-Day Free Trial →
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={purchasing || loadingPackages || !activePackage}
+                  onClick={handlePurchase}
+                  className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base transition-opacity hover:opacity-90 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: 'hsl(222 47% 11%)', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+                >
+                  {purchasing && <Loader2 size={16} className="animate-spin" />}
+                  {activePackage ? 'Start 7-Day Free Trial →' : 'Plan Option Unavailable in Web Billing'}
+                </button>
+                {!activePackage && !packageError && (
+                  <p className="text-center text-xs text-amber-700 font-medium">
+                    The selected plan ({selectedTier === 'pro_plus' ? 'Pro+' : 'Pro'} {billingPeriod}) is not configured in RevenueCat. Please switch tier or billing cadence.
+                  </p>
+                )}
+              </>
             )}
             <p className="text-center text-sm text-muted-foreground">
               Then {selectedPrice}, auto-renewing. Cancel anytime.
