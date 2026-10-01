@@ -648,7 +648,7 @@ export function Sidebar({
   const { isPro, isProPlus, isTrial } = entitlements;
   const { openPaywall } = usePaywall();
   const links = [
-    { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/catalog', label: 'Catalog', icon: Boxes },
     { href: '/orders', label: 'Orders', icon: ShoppingBag },
     { href: '/reports', label: 'Reports', icon: BarChart3 },
@@ -690,7 +690,7 @@ export function Sidebar({
         </div>
       ) : (
         <div className="flex items-center justify-between px-4 pt-4 pb-2.5">
-          <Link href="/" aria-label="Take Order dashboard" className="flex items-center gap-2.5">
+          <Link href="/dashboard" aria-label="Take Order dashboard" className="flex items-center gap-2.5">
             <img src={brandAssets.icon} alt="" className="h-7 w-7 rounded-lg object-contain shadow-2xs" />
             <BrandWordmark className="text-[17px]" />
           </Link>
@@ -977,11 +977,11 @@ export function MobileMenuButton({ open, onClick }: { open: boolean; onClick: ()
 function MobileTopbar() {
   const [open, setOpen] = useState(false);
   const { signOut } = useAppAuth();
-  const nav = [{ href: '/', label: 'Dashboard' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/expenses', label: 'Expenses' }, { href: '/take-order', label: 'Take an order' }, { href: '/settings', label: 'Profile & settings' }, { href: '/connect', label: 'Connect tools' }];
+  const nav = [{ href: '/dashboard', label: 'Dashboard' }, { href: '/catalog', label: 'Catalog' }, { href: '/orders', label: 'Orders' }, { href: '/reports', label: 'Reports' }, { href: '/clients', label: 'Clients' }, { href: '/expenses', label: 'Expenses' }, { href: '/take-order', label: 'Take an order' }, { href: '/settings', label: 'Profile & settings' }, { href: '/connect', label: 'Connect tools' }];
   const [location] = useLocation();
   return (
     <div className="mobile-topbar sticky top-0 z-40 items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md">
-      <Link href="/" aria-label="Take Order dashboard"><BrandLockup className="gap-2" /></Link>
+      <Link href="/dashboard" aria-label="Take Order dashboard"><BrandLockup className="gap-2" /></Link>
       <MobileMenuButton open={open} onClick={() => setOpen(!open)} />
       {open && (
         <div className="mobile-nav-panel absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">
@@ -1955,7 +1955,7 @@ export function Onboarding() {
                 type="button"
                 onClick={() => {
                   finishOnboarding(userId);
-                  setLocation('/');
+                  setLocation('/dashboard');
                 }}
                 className="w-full py-3 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
                 data-testid="button-open-workspace"
@@ -2070,7 +2070,7 @@ function FallbackSignInForm() {
     const existing = readSellerProfile(derivedUserId);
     const completed = readOnboardingComplete(derivedUserId);
     if (completed && existing.businessName?.trim()) {
-      setLocation('/');
+      setLocation('/dashboard');
     } else {
       setLocation('/onboarding');
     }
@@ -2348,7 +2348,7 @@ function SignInPage() {
 
   useEffect(() => {
     if (isLoaded && effectiveSignedIn) {
-      setLocation('/');
+      setLocation('/dashboard');
     }
   }, [isLoaded, effectiveSignedIn, setLocation]);
 
@@ -2365,8 +2365,8 @@ function SignInPage() {
             routing="path"
             path={`${basePath}/sign-in`}
             signUpUrl={`${basePath}/sign-up`}
-            fallbackRedirectUrl="/"
-            forceRedirectUrl="/"
+            fallbackRedirectUrl={`${basePath}/dashboard`}
+            forceRedirectUrl={`${basePath}/dashboard`}
             appearance={clerkAppearance}
           />
         </div>
@@ -2385,7 +2385,7 @@ function SignUpPage() {
 
   useEffect(() => {
     if (isLoaded && effectiveSignedIn) {
-      setLocation('/');
+      setLocation('/dashboard');
     }
   }, [isLoaded, effectiveSignedIn, setLocation]);
 
@@ -2496,22 +2496,7 @@ function ProtectedRoute({ page: Page }: { page: React.ComponentType }) {
 }
 
 function HomeRoute() {
-  const { isLoaded, isSignedIn } = useAppAuth();
-  const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
-  const effectiveSignedIn = isSignedIn || isTestAuth;
-  if (!isLoaded && !isTestAuth) {
-    return (
-      <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6">
-        <div className="w-full max-w-[320px]">
-          <Skeleton className="mx-auto h-10 w-10 rounded-[14px]" />
-          <Skeleton className="mx-auto mt-6 h-8 w-48" />
-          <Skeleton className="mx-auto mt-3 h-3 w-60" />
-        </div>
-      </div>
-    );
-  }
-  if (!effectiveSignedIn) return <LandingPage />;
-  return <ProtectedRoute page={Overview} />;
+  return <LandingPage />;
 }
 
 function OnboardingRoute() {
@@ -2539,7 +2524,7 @@ function OnboardingRoute() {
       if (hasBusinessProfile && !completed) {
         finishOnboarding(userId);
       }
-      setLocation('/');
+      setLocation('/dashboard');
     }
   }, [isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.data?.businessName, setLocation]);
 
@@ -3440,7 +3425,7 @@ export function ChannelConversionInsight() {
       />
     ) : (
       <>
-        <PageHeading title="Channel conversion" action={<Link href="/"><Button variant="outline"><ArrowLeft size={15} />Back to dashboard</Button></Link>} />
+        <PageHeading title="Channel conversion" action={<Link href="/dashboard"><Button variant="outline"><ArrowLeft size={15} />Back to dashboard</Button></Link>} />
     {summaryQuery.isLoading ? <div className="space-y-8 sm:space-y-10" aria-label="Loading channel conversion"><div className="reports-metric-grid">{[1, 2, 3, 4].map((item) => <Card key={item} className="h-[176px] p-6 sm:p-7 flex flex-col justify-between"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-28" /><Skeleton className="h-4 w-36" /></Card>)}</div><Card className="space-y-4 p-6"><Skeleton className="h-5 w-44" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></Card></div> : summaryQuery.isError ? <ErrorState retry={() => summaryQuery.refetch()} /> : <div className="channel-insight-page space-y-8 sm:space-y-10">
        <ChannelConversionRefreshStatus refreshing={summaryRefreshing} />
       <section className="reports-metric-grid" aria-label="Channel conversion summary">
@@ -8390,7 +8375,7 @@ function SettingsPage() {
             <div className="flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => setLocation('/')}
+                onClick={() => setLocation('/dashboard')}
                 className="h-9 w-9 rounded-xl border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center text-neutral-800 dark:text-neutral-200 transition shadow-2xs"
                 aria-label="Close settings"
                 data-testid="button-close-settings"
@@ -9284,6 +9269,10 @@ function Router() {
     <Route path="/sign-in/*?" component={SignInPage} />
     <Route path="/sign-up/*?" component={SignUpPage} />
     <Route path="/onboarding" component={OnboardingRoute} />
+    <Route path="/dashboard" component={() => <ProtectedRoute page={Overview} />} />
+    <Route path="/overview" component={() => <Redirect to="/dashboard" />} />
+    <Route path="/app" component={() => <Redirect to="/dashboard" />} />
+    <Route path="/workspace" component={() => <Redirect to="/dashboard" />} />
     <Route path="/" component={HomeRoute} />
     <Route path="/catalog/new" component={() => <ProtectedRoute page={CatalogEditorRoute} />} />
     <Route path="/catalog/edit/:id" component={() => <ProtectedRoute page={CatalogEditorRoute} />} />

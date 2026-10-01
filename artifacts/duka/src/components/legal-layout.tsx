@@ -60,10 +60,10 @@ export function LegalLayout({
               <span>Back</span>
             </button>
             <Link
-              href="/"
+              href="/dashboard"
               className="inline-flex items-center px-3.5 py-1.5 rounded-lg bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 shadow-xs transition-colors"
             >
-              Open App
+              Open Dashboard
             </Link>
           </div>
         </div>

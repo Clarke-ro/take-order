@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'wouter';
+import { useAppAuth } from '@/lib/auth-context';
 import {
   Check,
   ArrowRight,
@@ -30,6 +31,10 @@ import {
 } from 'lucide-react';
 
 export function LandingPage() {
+  const { isSignedIn } = useAppAuth();
+  const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
+  const effectiveSignedIn = isSignedIn || isTestAuth;
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<number>(0);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -234,29 +239,50 @@ export function LandingPage() {
 
           {/* Right Action CTAs */}
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/sign-in"
-              className="px-4 py-2.5 rounded-full text-sm font-semibold text-neutral-700 hover:text-neutral-950 hover:bg-neutral-100 transition-all"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/sign-up"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 shadow-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span>Start 7-Day Trial</span>
-              <ArrowRight size={14} className="text-[#F5B418]" />
-            </Link>
+            {effectiveSignedIn ? (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 shadow-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <span>Open Dashboard</span>
+                <ArrowRight size={14} className="text-[#F5B418]" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  className="px-4 py-2.5 rounded-full text-sm font-semibold text-neutral-700 hover:text-neutral-950 hover:bg-neutral-100 transition-all"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 shadow-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <span>Start 7-Day Trial</span>
+                  <ArrowRight size={14} className="text-[#F5B418]" />
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center gap-2">
-            <Link
-              href="/sign-in"
-              className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-neutral-950 text-white"
-            >
-              Sign In
-            </Link>
+            {effectiveSignedIn ? (
+              <Link
+                href="/dashboard"
+                className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-neutral-950 text-white"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/sign-in"
+                className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-neutral-950 text-white"
+              >
+                Sign In
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -306,12 +332,21 @@ export function LandingPage() {
               FAQs
             </button>
             <div className="pt-2 border-t border-neutral-200 flex flex-col gap-2">
-              <Link
-                href="/sign-up"
-                className="w-full text-center py-2.5 rounded-xl bg-neutral-950 text-white font-bold text-sm"
-              >
-                Start 7-Day Free Trial
-              </Link>
+              {effectiveSignedIn ? (
+                <Link
+                  href="/dashboard"
+                  className="w-full text-center py-2.5 rounded-xl bg-neutral-950 text-white font-bold text-sm"
+                >
+                  Open Dashboard
+                </Link>
+              ) : (
+                <Link
+                  href="/sign-up"
+                  className="w-full text-center py-2.5 rounded-xl bg-neutral-950 text-white font-bold text-sm"
+                >
+                  Start 7-Day Free Trial
+                </Link>
+              )}
             </div>
           </div>
         )}
@@ -333,13 +368,23 @@ export function LandingPage() {
 
           {/* Action CTAs */}
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
-            <Link
-              href="/sign-up"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 shadow-xs hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span>Start 7-Day Free Trial</span>
-              <ArrowRight size={15} className="text-[#F5B418]" />
-            </Link>
+            {effectiveSignedIn ? (
+              <Link
+                href="/dashboard"
+                className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <span>Open Seller Dashboard</span>
+                <ArrowRight size={15} className="text-[#F5B418]" />
+              </Link>
+            ) : (
+              <Link
+                href="/sign-up"
+                className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <span>Start 7-Day Free Trial</span>
+                <ArrowRight size={15} className="text-[#F5B418]" />
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => scrollToSection('pricing')}
@@ -1170,8 +1215,14 @@ export function LandingPage() {
                   Account
                 </p>
                 <ul className="space-y-3.5 text-sm text-neutral-500 font-medium">
-                  <li><Link href="/sign-in" className="hover:text-neutral-900 transition-colors">Seller Sign In</Link></li>
-                  <li><Link href="/sign-up" className="hover:text-neutral-900 transition-colors">Create Free Account</Link></li>
+                  {effectiveSignedIn ? (
+                    <li><Link href="/dashboard" className="hover:text-neutral-900 transition-colors">Seller Dashboard</Link></li>
+                  ) : (
+                    <>
+                      <li><Link href="/sign-in" className="hover:text-neutral-900 transition-colors">Seller Sign In</Link></li>
+                      <li><Link href="/sign-up" className="hover:text-neutral-900 transition-colors">Create Free Account</Link></li>
+                    </>
+                  )}
                   <li><Link href="/account/billing" className="hover:text-neutral-900 transition-colors">Manage Subscription</Link></li>
                 </ul>
               </div>
