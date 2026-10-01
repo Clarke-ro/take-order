@@ -696,20 +696,8 @@ export function LandingPage() {
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-neutral-900 leading-tight">
             No more taking orders in your DMs and hoping you don't lose track.
           </h2>
-          <div className="text-base sm:text-lg text-neutral-600 space-y-4 leading-relaxed">
-            <p>
-              Millions of people run real businesses from their personal social media accounts. They sell clothes, shoes, hair, bags, and food through Instagram, WhatsApp, TikTok, and Snapchat. The sale happens in a DM: a customer sees a post, messages the seller, they negotiate, and money changes hands.
-            </p>
-            <p>
-              Then it all disappears into the chat. The seller has no business infrastructure, because a personal account has no order system, no records, and no analytics. Bolting a business layer onto a personal account is hard, and often impossible. So most sellers fall back on what they've always done: scribbling orders in a notebook, scrolling up through old chats, and hoping nothing gets lost.
-            </p>
-            <p>
-              Then the chaos sets in. Buyers flood the DMs asking about the status of their orders. Some want to cancel, and others demand refunds. Others call non-stop asking when their order will be delivered or fulfilled. Every message pulls the seller back into scrolling through old conversations, trying to piece together who ordered what, what price was agreed, and who has paid. Frustration builds, and the business starts to feel like a burden instead of an income.
-            </p>
-            <p>
-              We watched this happen again and again, and that's where Take Order comes from. Sellers don't need a complicated business suite. They need a simple way to manage every order that starts in their DMs, without leaving their personal accounts.
-            </p>
-          </div>
+
+
 
           <div className="p-6 sm:p-8 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-4 mt-6">
             <h3 className="text-xl font-bold text-neutral-900">What Take Order does</h3>

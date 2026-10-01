@@ -9653,10 +9653,9 @@ function ClerkShell() {
 }
 
 function ClientDetailRoute() {
-  const params = useParams<{ key?: string }>();
   return (
     <Shell>
-      <ClientDetailPage params={params} />
+      <ClientDetailPage />
     </Shell>
   );
 }
