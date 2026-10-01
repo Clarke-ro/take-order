@@ -83,15 +83,19 @@ function normalizeDatabaseUrl(rawUrl: string): string {
 const dbConnectionString = normalizeDatabaseUrl(process.env.DATABASE_URL);
 const poolMax = Number(process.env.DB_POOL_MAX || (process.env.NODE_ENV === "production" ? 5 : 10));
 
+const isLocalDb = dbConnectionString.includes("localhost") || dbConnectionString.includes("127.0.0.1");
+
+if (!isLocalDb) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
+
 export const pool = new Pool({
   connectionString: dbConnectionString,
   connectionTimeoutMillis: 15000,
   idleTimeoutMillis: 20000,
   max: Number.isFinite(poolMax) && poolMax > 0 ? poolMax : 10,
   keepAlive: true,
-  ssl: dbConnectionString.includes("sslmode=require") || process.env.NODE_ENV === "production"
-    ? { rejectUnauthorized: false }
-    : undefined,
+  ssl: isLocalDb ? undefined : { rejectUnauthorized: false },
 });
 pool.on("error", (err) => {
   console.error("Unexpected error on idle pg client", err);

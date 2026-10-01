@@ -11,8 +11,8 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-// Ensure database tables exist asynchronously
-void ensureDatabaseSchema(db);
+// Ensure database tables exist before listening
+await ensureDatabaseSchema(db);
 
 const app = createApp(db);
 

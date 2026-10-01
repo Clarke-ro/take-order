@@ -4281,7 +4281,7 @@ function ReferenceProductEditor({
                   <ImagePlus size={20} />
                 </div>
                 <div className="text-xs font-semibold text-[hsl(var(--foreground))]">Upload product visuals</div>
-                <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Select multiple photos (PNG, JPG, WebP up to 2 MB each)</p>
+                <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Select multiple photos (PNG, JPG, WebP up to 15 MB each)</p>
               </label>
             )}
 

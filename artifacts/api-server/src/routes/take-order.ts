@@ -48,6 +48,7 @@ import type { RequestHandler } from "express";
 import { readSellerSettings } from "./settings";
 import { resolveSellerEntitlement } from "../lib/entitlements.js";
 import { logger } from "../lib/logger";
+import { uploadFileToStorage } from "../lib/storage";
 
 export function preferencesForProduct(
   preferences: ProductPreferenceGroup[] | null | undefined,
@@ -427,32 +428,76 @@ sellerRouter.get("/products", requireSellerAuth, async (_req, res): Promise<void
   res.json(ListProductsResponse.parse(products.filter(isReusableCatalogProduct).map(productResponse)));
 });
 
+async function normalizeProductImageUrl(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  if (!url.startsWith("data:image/")) return url;
+  try {
+    const match = url.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) return url;
+    const contentType = match[1].toLowerCase().trim();
+    const buffer = Buffer.from(match[2], "base64");
+    const result = await uploadFileToStorage({
+      buffer,
+      filename: `product-${Date.now()}-${randomBytes(4).toString("hex")}.${contentType.split("/")[1] || "png"}`,
+      contentType,
+    });
+    return result.url;
+  } catch {
+    // If Supabase storage is not configured or upload fails, keep the base64 URL as fallback
+    return url;
+  }
+}
+
 sellerRouter.post("/products", requireSellerAuth, async (req, res): Promise<void> => {
   const parsed = CreateProductBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const ownerUserId = sellerId(res);
-  const [product] = await database
-    .insert(productsTable)
-    .values({
-      ownerUserId,
-      ...parsed.data,
-      sku: parsed.data.sku?.trim() || null,
-      description: parsed.data.description?.trim() || null,
-      price: parsed.data.price.toFixed(2),
-      compareAtPrice: parsed.data.compareAtPrice == null ? null : parsed.data.compareAtPrice.toFixed(2),
-      cost: parsed.data.cost == null ? null : parsed.data.cost.toFixed(2),
-      variants: parsed.data.variants ?? [],
-      preferences: parsed.data.preferences ?? [],
-      customFields: parsed.data.customFields ?? [],
-      imageUrl: parsed.data.imageUrl ?? null,
-      imageUrls: parsed.data.imageUrls ?? [],
-      accent: parsed.data.accent ?? "#0F6E6B",
-    })
-    .returning();
-  res.status(201).json(CreateProductResponse.parse(productResponse(product)));
+  try {
+    const ownerUserId = sellerId(res);
+
+    // Normalize image URLs (offload base64 data URLs to storage if configured)
+    let imageUrl = parsed.data.imageUrl ?? null;
+    let imageUrls = parsed.data.imageUrls ?? [];
+    if (imageUrl && imageUrl.startsWith("data:image/")) {
+      imageUrl = await normalizeProductImageUrl(imageUrl);
+    }
+    if (imageUrls.length > 0) {
+      imageUrls = await Promise.all(
+        imageUrls.map((u) => (u && u.startsWith("data:image/") ? normalizeProductImageUrl(u).then((res) => res || u) : Promise.resolve(u)))
+      );
+    }
+    if (!imageUrl && imageUrls.length > 0) {
+      imageUrl = imageUrls[0];
+    }
+    if (imageUrl && imageUrls.length === 0) {
+      imageUrls = [imageUrl];
+    }
+
+    const [product] = await database
+      .insert(productsTable)
+      .values({
+        ownerUserId,
+        ...parsed.data,
+        sku: parsed.data.sku?.trim() || null,
+        description: parsed.data.description?.trim() || null,
+        price: parsed.data.price.toFixed(2),
+        compareAtPrice: parsed.data.compareAtPrice == null ? null : parsed.data.compareAtPrice.toFixed(2),
+        cost: parsed.data.cost == null ? null : parsed.data.cost.toFixed(2),
+        variants: parsed.data.variants ?? [],
+        preferences: parsed.data.preferences ?? [],
+        customFields: parsed.data.customFields ?? [],
+        imageUrl,
+        imageUrls,
+        accent: parsed.data.accent ?? "#0F6E6B",
+      })
+      .returning();
+    res.status(201).json(CreateProductResponse.parse(productResponse(product)));
+  } catch (err: unknown) {
+    logger.error({ err }, "Error creating product in catalog");
+    res.status(500).json({ error: err instanceof Error ? err.message : "Failed to create product" });
+  }
 });
 
 sellerRouter.patch("/products/:id", requireSellerAuth, async (req, res): Promise<void> => {
@@ -466,52 +511,63 @@ sellerRouter.patch("/products/:id", requireSellerAuth, async (req, res): Promise
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const update: {
-    name?: string;
-    category?: string;
-    sku?: string | null;
-    description?: string | null;
-    price?: string;
-    compareAtPrice?: string | null;
-    cost?: string | null;
-    stock?: number;
-    variants?: string[];
-    preferences?: ProductPreferenceGroup[];
-    customFields?: ProductCustomField[];
-    imageUrl?: string | null;
-    imageUrls?: string[];
-    accent?: string;
-  } = {};
-  if (parsed.data.name !== undefined) update.name = parsed.data.name;
-  if (parsed.data.category !== undefined) update.category = parsed.data.category;
-  if (parsed.data.sku !== undefined) update.sku = parsed.data.sku?.trim() || null;
-  if (parsed.data.description !== undefined) update.description = parsed.data.description?.trim() || null;
-  if (parsed.data.price !== undefined) update.price = parsed.data.price.toFixed(2);
-  if (parsed.data.compareAtPrice !== undefined) update.compareAtPrice = parsed.data.compareAtPrice == null ? null : parsed.data.compareAtPrice.toFixed(2);
-  if (parsed.data.cost !== undefined) update.cost = parsed.data.cost == null ? null : parsed.data.cost.toFixed(2);
-  if (parsed.data.stock !== undefined) update.stock = parsed.data.stock;
-  if (parsed.data.variants !== undefined) {
-    update.variants = parsed.data.variants;
-    if (parsed.data.preferences === undefined) update.preferences = [];
+  try {
+    const update: {
+      name?: string;
+      category?: string;
+      sku?: string | null;
+      description?: string | null;
+      price?: string;
+      compareAtPrice?: string | null;
+      cost?: string | null;
+      stock?: number;
+      variants?: string[];
+      preferences?: ProductPreferenceGroup[];
+      customFields?: ProductCustomField[];
+      imageUrl?: string | null;
+      imageUrls?: string[];
+      accent?: string;
+    } = {};
+    if (parsed.data.name !== undefined) update.name = parsed.data.name;
+    if (parsed.data.category !== undefined) update.category = parsed.data.category;
+    if (parsed.data.sku !== undefined) update.sku = parsed.data.sku?.trim() || null;
+    if (parsed.data.description !== undefined) update.description = parsed.data.description?.trim() || null;
+    if (parsed.data.price !== undefined) update.price = parsed.data.price.toFixed(2);
+    if (parsed.data.compareAtPrice !== undefined) update.compareAtPrice = parsed.data.compareAtPrice == null ? null : parsed.data.compareAtPrice.toFixed(2);
+    if (parsed.data.cost !== undefined) update.cost = parsed.data.cost == null ? null : parsed.data.cost.toFixed(2);
+    if (parsed.data.stock !== undefined) update.stock = parsed.data.stock;
+    if (parsed.data.variants !== undefined) {
+      update.variants = parsed.data.variants;
+      if (parsed.data.preferences === undefined) update.preferences = [];
+    }
+    if (parsed.data.preferences !== undefined) {
+      update.preferences = parsed.data.preferences;
+      update.variants = parsed.data.preferences.flatMap((group) => group.options);
+    }
+    if (parsed.data.customFields !== undefined) update.customFields = parsed.data.customFields;
+    if (parsed.data.imageUrl !== undefined) {
+      update.imageUrl = parsed.data.imageUrl ? await normalizeProductImageUrl(parsed.data.imageUrl) : null;
+    }
+    if (parsed.data.imageUrls !== undefined) {
+      update.imageUrls = await Promise.all(
+        parsed.data.imageUrls.map((u) => (u && u.startsWith("data:image/") ? normalizeProductImageUrl(u).then((res) => res || u) : Promise.resolve(u)))
+      );
+    }
+    if (parsed.data.accent !== undefined) update.accent = parsed.data.accent;
+    const [product] = await database
+      .update(productsTable)
+      .set(update)
+      .where(and(eq(productsTable.id, params.data.id), eq(productsTable.ownerUserId, sellerId(res))))
+      .returning();
+    if (!product) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+    res.json(UpdateProductResponse.parse(productResponse(product)));
+  } catch (err: unknown) {
+    logger.error({ err }, "Error updating product in catalog");
+    res.status(500).json({ error: err instanceof Error ? err.message : "Failed to update product" });
   }
-  if (parsed.data.preferences !== undefined) {
-    update.preferences = parsed.data.preferences;
-    update.variants = parsed.data.preferences.flatMap((group) => group.options);
-  }
-  if (parsed.data.customFields !== undefined) update.customFields = parsed.data.customFields;
-  if (parsed.data.imageUrl !== undefined) update.imageUrl = parsed.data.imageUrl;
-  if (parsed.data.imageUrls !== undefined) update.imageUrls = parsed.data.imageUrls;
-  if (parsed.data.accent !== undefined) update.accent = parsed.data.accent;
-  const [product] = await database
-    .update(productsTable)
-    .set(update)
-    .where(and(eq(productsTable.id, params.data.id), eq(productsTable.ownerUserId, sellerId(res))))
-    .returning();
-  if (!product) {
-    res.status(404).json({ error: "Product not found" });
-    return;
-  }
-  res.json(UpdateProductResponse.parse(productResponse(product)));
 });
 
 sellerRouter.delete("/products/:id", requireSellerAuth, async (req, res): Promise<void> => {

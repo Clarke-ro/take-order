@@ -24,11 +24,11 @@ export const HealthCheckResponse = zod.object({
 
 
 
-export const listProductsResponseImageUrlMax = 4000000;
+export const listProductsResponseImageUrlMax = 20000000;
 
 
 export const listProductsResponseImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
-export const listProductsResponseImageUrlsItemMax = 4000000;
+export const listProductsResponseImageUrlsItemMax = 20000000;
 
 
 export const listProductsResponseImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -76,11 +76,11 @@ export const createProductBodyStockMin = 0;
 
 
 
-export const createProductBodyImageUrlMax = 4000000;
+export const createProductBodyImageUrlMax = 20000000;
 
 
 export const createProductBodyImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
-export const createProductBodyImageUrlsItemMax = 4000000;
+export const createProductBodyImageUrlsItemMax = 20000000;
 
 
 export const createProductBodyImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -113,11 +113,11 @@ export const CreateProductBody = zod.object({
 
 
 
-export const createProductResponseImageUrlMax = 4000000;
+export const createProductResponseImageUrlMax = 20000000;
 
 
 export const createProductResponseImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
-export const createProductResponseImageUrlsItemMax = 4000000;
+export const createProductResponseImageUrlsItemMax = 20000000;
 
 
 export const createProductResponseImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -168,11 +168,11 @@ export const updateProductBodyStockMin = 0;
 
 
 
-export const updateProductBodyImageUrlMax = 4000000;
+export const updateProductBodyImageUrlMax = 20000000;
 
 
 export const updateProductBodyImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
-export const updateProductBodyImageUrlsItemMax = 4000000;
+export const updateProductBodyImageUrlsItemMax = 20000000;
 
 
 export const updateProductBodyImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -205,11 +205,11 @@ export const UpdateProductBody = zod.object({
 
 
 
-export const updateProductResponseImageUrlMax = 4000000;
+export const updateProductResponseImageUrlMax = 20000000;
 
 
 export const updateProductResponseImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
-export const updateProductResponseImageUrlsItemMax = 4000000;
+export const updateProductResponseImageUrlsItemMax = 20000000;
 
 
 export const updateProductResponseImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -457,7 +457,7 @@ export const GetPublicOrderParams = zod.object({
 
 
 
-export const getPublicOrderResponseItemsItemImageUrlsItemMax = 4000000;
+export const getPublicOrderResponseItemsItemImageUrlsItemMax = 20000000;
 
 
 export const getPublicOrderResponseItemsItemImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
