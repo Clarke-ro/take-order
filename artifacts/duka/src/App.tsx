@@ -1976,182 +1976,58 @@ export function Onboarding() {
   );
 }
 
-function ClerkUnifiedSignInForm() {
-  const clerk = useClerk() as any;
-  const [email, setEmail] = useState(() => readDraftAuth().signInEmail || '');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [, setLocation] = useLocation();
+const stripBase = (path: string) => basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
 
-  const handleGoogleAuth = async () => {
-    if (!clerk) return;
-    try {
-      if (clerk.authenticateWithRedirect) {
-        await clerk.authenticateWithRedirect({
-          strategy: 'oauth_google',
-          redirectUrl: '/sso-callback',
-          redirectUrlComplete: '/',
-        });
-      }
-    } catch (err: any) {
-      console.warn('Google sign in error', err);
-      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Google sign in failed';
-      setError(message);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      setError('Please enter your email address');
-      return;
-    }
-    if (!password) {
-      setError('Please enter your password');
-      return;
-    }
-
-    if (!clerk) return;
-
-    setIsSubmitting(true);
-    setError('');
-
-    try {
-      const signInClient = clerk.client?.signIn || clerk.signIn;
-      const result = await signInClient.create({
-        identifier: email.trim(),
-        password,
-      });
-
-      if (result.status === 'complete') {
-        clearDraftAuth(['signInEmail']);
-        if (clerk.setActive) {
-          await clerk.setActive({ session: result.createdSessionId });
-        }
-        setLocation('/');
-      } else {
-        setError('Additional verification required. Please check your email.');
-      }
-    } catch (err: any) {
-      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Invalid email or password.';
-      setError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="w-full">
-      {/* Centered App Logo */}
-      <div className="flex justify-center mb-5">
-        <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
-          <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
-        </Link>
-      </div>
-
-      <div className="text-center mb-6">
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
-          Welcome back
-        </h1>
-        <p className="mt-1.5 text-xs sm:text-sm text-neutral-500">
-          Log in to access your orders, products, and seller dashboard.
-        </p>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
-          {error}
-        </div>
-      )}
-
-      {/* Continue with Google button */}
-      <button
-        type="button"
-        onClick={handleGoogleAuth}
-        className="w-full h-11 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
-      >
-        <GoogleIcon className="h-5 w-5" />
-        <span>Continue with Google</span>
-      </button>
-
-      {/* Subtle "or" divider */}
-      <div className="relative my-5 flex items-center justify-center">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-neutral-200" />
-        </div>
-        <span className="relative px-3 bg-white text-xs text-neutral-400 font-medium">or</span>
-      </div>
-
-      {/* Email + Password Form */}
-      <form onSubmit={handleSubmit} className="space-y-3.5">
-        <div>
-          <input
-            id="signin-email"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              writeDraftAuth({ signInEmail: e.target.value });
-              setError('');
-            }}
-            placeholder="Enter email address"
-            autoComplete="email"
-            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
-          />
-        </div>
-
-        <div>
-          <div className="relative">
-            <input
-              id="signin-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              autoComplete="current-password"
-              className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
-            />
-          </div>
-          <div className="flex justify-end mt-1.5">
-            <button
-              type="button"
-              onClick={() => alert('Password reset instructions will be sent to your registered email.')}
-              className="text-xs text-neutral-500 hover:text-neutral-900 underline"
-            >
-              Forgot password?
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60 transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
-          data-testid="button-auth-login"
-        >
-          {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Log in'}
-        </button>
-      </form>
-
-      {/* Single clean legal disclaimer */}
-      <p className="mt-4 text-center text-xs text-neutral-400 leading-relaxed">
-        By continuing, you agree to Take Order's{' '}
-        <Link href="/terms" className="text-neutral-700 underline underline-offset-2 hover:text-black">Terms of Service</Link>{' '}
-        and{' '}
-        <Link href="/privacy" className="text-neutral-700 underline underline-offset-2 hover:text-black">Privacy Policy</Link>.
-      </p>
-
-      {/* Account switch */}
-      <div className="mt-5 text-center text-sm text-neutral-600">
-        Don't have an account?{' '}
-        <Link href="/sign-up" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-up">
-          Sign up
-        </Link>
-      </div>
-    </div>
-  );
-}
+const clerkAppearance = {
+  theme: shadcn,
+  cssLayerName: 'clerk',
+  options: {
+    logoPlacement: 'inside' as const,
+    logoLinkUrl: basePath || '/',
+    logoImageUrl: `${browserOrigin}${basePath}/branding/takeorder-icon.png`,
+  },
+  variables: {
+    colorPrimary: '#111111',
+    colorForeground: '#171717',
+    colorMutedForeground: '#737373',
+    colorDanger: '#b42318',
+    colorBackground: '#ffffff',
+    colorInput: '#ffffff',
+    colorInputForeground: '#171717',
+    colorNeutral: '#d4d4d4',
+    fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+    borderRadius: '0.75rem',
+  },
+  elements: {
+    rootBox: 'w-full flex justify-center',
+    cardBox: 'w-full !shadow-none !border-0 !bg-transparent !p-0',
+    card: '!shadow-none !border-0 !bg-transparent !rounded-none !p-0 w-full max-w-[390px]',
+    headerTitle: '!text-2xl sm:!text-3xl !font-extrabold !tracking-tight !text-neutral-800 text-center',
+    headerSubtitle: '!mt-1.5 !text-xs sm:!text-sm !text-neutral-500 text-center',
+    socialButtonsBlockButton: '!w-full !h-11 !rounded-xl !border !border-neutral-200 !bg-white hover:!bg-neutral-50 !text-neutral-800 !text-sm !font-semibold transition-all !shadow-xs !cursor-pointer flex items-center justify-center gap-3',
+    socialButtonsBlockButtonText: '!text-neutral-800 !font-semibold !text-sm',
+    socialButtonsProviderIcon: '!h-5 !w-5',
+    dividerRow: '!my-5 !flex !items-center !justify-center',
+    dividerLine: '!border-neutral-200',
+    dividerText: '!text-neutral-400 !text-xs !font-medium !bg-white !px-3',
+    formFieldLabel: '!text-xs !font-semibold !text-neutral-700 !mb-1.5',
+    formFieldInput: '!w-full !h-11 !rounded-xl !border !border-neutral-200 !bg-neutral-50/50 !text-sm !text-neutral-900 placeholder:!text-neutral-400 focus:!border-neutral-900 focus:!bg-white transition-all !shadow-xs',
+    formButtonPrimary: '!w-full !h-11 !rounded-xl !bg-neutral-950 hover:!bg-neutral-800 !text-white !text-sm !font-bold active:scale-[0.99] transition-all !shadow-xs !cursor-pointer flex items-center justify-center !mt-2',
+    footer: '!shadow-none !border-0 !bg-transparent !rounded-none !mt-5 !pt-0 text-center',
+    footerAction: '!text-sm !text-neutral-600',
+    footerActionText: '!text-sm !text-neutral-600',
+    footerActionLink: '!font-bold !text-neutral-900 underline underline-offset-2 hover:!text-black !text-sm',
+    footerPages: 'hidden',
+    identityPreview: '!rounded-xl !border !border-neutral-200 !p-3 !bg-neutral-50',
+    identityPreviewText: '!text-sm !font-medium !text-neutral-800',
+    identityPreviewEditButton: '!text-xs !text-neutral-500 hover:!text-neutral-900 underline',
+    otpCodeFieldInput: '!h-12 !rounded-xl !border !border-neutral-200 !bg-neutral-50/50 !text-lg !font-mono text-center !shadow-xs focus:!border-neutral-900 focus:!bg-white',
+    formFieldAction: '!text-xs !text-neutral-500 hover:!text-neutral-900 underline',
+    logoBox: 'hidden',
+    logoImage: 'hidden',
+    internal: 'hidden',
+  },
+};
 
 function FallbackSignInForm() {
   const [email, setEmail] = useState(() => readDraftAuth().signInEmail || '');
@@ -2302,308 +2178,6 @@ function FallbackSignInForm() {
   );
 }
 
-function ClerkUnifiedSignUpForm() {
-  const clerk = useClerk() as any;
-  const draft = readDraftAuth();
-  const [businessName, setBusinessName] = useState(() => draft.signUpFullName || '');
-  const [email, setEmail] = useState(() => draft.signUpEmail || '');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pendingVerification, setPendingVerification] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
-  const [, setLocation] = useLocation();
-
-  const handleGoogleAuth = async () => {
-    if (!clerk) return;
-    try {
-      if (clerk.authenticateWithRedirect) {
-        await clerk.authenticateWithRedirect({
-          strategy: 'oauth_google',
-          redirectUrl: '/sso-callback',
-          redirectUrlComplete: '/onboarding',
-        });
-      }
-    } catch (err: any) {
-      console.warn('Google sign up error', err);
-      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Google sign up failed';
-      setError(message);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      setError('Please enter your email address');
-      return;
-    }
-    if (!password) {
-      setError('Please create a password (at least 8 characters)');
-      return;
-    }
-
-    if (!clerk) return;
-
-    setIsSubmitting(true);
-    setError('');
-
-    try {
-      const signUpClient = clerk.client?.signUp || clerk.signUp;
-      const result = await signUpClient.create({
-        emailAddress: email.trim(),
-        password,
-        firstName: businessName.trim() || undefined,
-      });
-
-      if (result.status === 'complete') {
-        clearDraftAuth(['signUpFullName', 'signUpEmail']);
-        if (clerk.setActive) {
-          await clerk.setActive({ session: result.createdSessionId });
-        }
-        const newUserId = result.createdUserId || `seller_${Date.now()}`;
-        if (businessName.trim()) {
-          writeSellerProfile({
-            ...defaultSellerProfile,
-            businessName: businessName.trim(),
-            sellerName: businessName.trim(),
-          }, newUserId);
-        }
-        writeOnboardingStep(0, newUserId);
-        setLocation('/onboarding');
-      } else if (result.status === 'missing_requirements' || result.unverifiedFields?.includes('email_address')) {
-        if (signUpClient.prepareEmailAddressVerification) {
-          await signUpClient.prepareEmailAddressVerification({ strategy: 'email_code' });
-        }
-        setPendingVerification(true);
-      }
-    } catch (err: any) {
-      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Failed to create account.';
-      setError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!verificationCode.trim()) {
-      setError('Please enter the verification code');
-      return;
-    }
-
-    if (!clerk) return;
-
-    setIsSubmitting(true);
-    setError('');
-
-    try {
-      const signUpClient = clerk.client?.signUp || clerk.signUp;
-      const result = await signUpClient.attemptEmailAddressVerification({
-        code: verificationCode.trim(),
-      });
-
-      if (result.status === 'complete') {
-        clearDraftAuth(['signUpFullName', 'signUpEmail']);
-        if (clerk.setActive) {
-          await clerk.setActive({ session: result.createdSessionId });
-        }
-        const newUserId = result.createdUserId || `seller_${Date.now()}`;
-        if (businessName.trim()) {
-          writeSellerProfile({
-            ...defaultSellerProfile,
-            businessName: businessName.trim(),
-            sellerName: businessName.trim(),
-          }, newUserId);
-        }
-        writeOnboardingStep(0, newUserId);
-        setLocation('/onboarding');
-      } else {
-        setError('Verification incomplete. Please try again.');
-      }
-    } catch (err: any) {
-      const message = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || 'Invalid verification code.';
-      setError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (pendingVerification) {
-    return (
-      <div className="w-full">
-        <div className="flex justify-center mb-5">
-          <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
-            <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
-          </Link>
-        </div>
-
-        <div className="text-center mb-6">
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
-            Check your email
-          </h1>
-          <p className="mt-1.5 text-xs sm:text-sm text-neutral-500">
-            We sent a verification code to <span className="font-semibold text-neutral-800">{email}</span>.
-          </p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleVerifyCode} className="space-y-4">
-          <div>
-            <input
-              id="signup-verification-code"
-              type="text"
-              value={verificationCode}
-              onChange={(e) => {
-                setVerificationCode(e.target.value);
-                setError('');
-              }}
-              placeholder="Enter 6-digit code"
-              autoComplete="one-time-code"
-              className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-center tracking-widest text-lg font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60 transition-all shadow-xs cursor-pointer flex items-center justify-center"
-          >
-            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Verify & Continue'}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center">
-          <button
-            type="button"
-            onClick={() => setPendingVerification(false)}
-            className="text-xs text-neutral-500 hover:text-neutral-900 underline"
-          >
-            Back to edit email
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full">
-      {/* Centered App Logo */}
-      <div className="flex justify-center mb-5">
-        <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
-          <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
-        </Link>
-      </div>
-
-      <div className="text-center mb-6">
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
-          Create your free account
-        </h1>
-        <p className="mt-1.5 text-xs sm:text-sm text-neutral-500">
-          Set up your online order link in seconds. No credit card required.
-        </p>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
-          {error}
-        </div>
-      )}
-
-      {/* Continue with Google button */}
-      <button
-        type="button"
-        onClick={handleGoogleAuth}
-        className="w-full h-11 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
-      >
-        <GoogleIcon className="h-5 w-5" />
-        <span>Continue with Google</span>
-      </button>
-
-      {/* Subtle "or" divider */}
-      <div className="relative my-5 flex items-center justify-center">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-neutral-200" />
-        </div>
-        <span className="relative px-3 bg-white text-xs text-neutral-400 font-medium">or</span>
-      </div>
-
-      {/* Form Fields */}
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div>
-          <input
-            id="signup-email"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              writeDraftAuth({ signUpEmail: e.target.value });
-              setError('');
-            }}
-            placeholder="Enter email address"
-            autoComplete="email"
-            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
-          />
-        </div>
-
-        <div>
-          <input
-            id="signup-name"
-            type="text"
-            value={businessName}
-            onChange={(e) => {
-              setBusinessName(e.target.value);
-              writeDraftAuth({ signUpFullName: e.target.value });
-            }}
-            placeholder="Store or business name (optional)"
-            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
-          />
-        </div>
-
-        <div>
-          <input
-            id="signup-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Create password"
-            autoComplete="new-password"
-            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60 transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
-          data-testid="button-auth-signup"
-        >
-          {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Continue'}
-        </button>
-      </form>
-
-      {/* Single clean legal disclaimer */}
-      <p className="mt-4 text-center text-xs text-neutral-400 leading-relaxed">
-        By continuing, you agree to Take Order's{' '}
-        <Link href="/terms" className="text-neutral-700 underline underline-offset-2 hover:text-black">Terms of Service</Link>{' '}
-        and{' '}
-        <Link href="/privacy" className="text-neutral-700 underline underline-offset-2 hover:text-black">Privacy Policy</Link>.
-      </p>
-
-      {/* Account switch */}
-      <div className="mt-5 text-center text-sm text-neutral-600">
-        Already have an account?{' '}
-        <Link href="/sign-in" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-in">
-          Log in
-        </Link>
-      </div>
-    </div>
-  );
-}
 
 function FallbackSignUpForm() {
   const draft = readDraftAuth();
@@ -2777,7 +2351,25 @@ function SignInPage() {
 
   return (
     <AuthSplitLayout>
-      {clerkPubKey ? <ClerkUnifiedSignInForm /> : <FallbackSignInForm />}
+      {clerkPubKey ? (
+        <div className="w-full flex flex-col items-center">
+          <div className="flex justify-center mb-5">
+            <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
+              <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
+            </Link>
+          </div>
+          <SignIn
+            routing="path"
+            path={`${basePath}/sign-in`}
+            signUpUrl={`${basePath}/sign-up`}
+            fallbackRedirectUrl="/"
+            forceRedirectUrl="/"
+            appearance={clerkAppearance}
+          />
+        </div>
+      ) : (
+        <FallbackSignInForm />
+      )}
     </AuthSplitLayout>
   );
 }
@@ -2796,7 +2388,25 @@ function SignUpPage() {
 
   return (
     <AuthSplitLayout>
-      {clerkPubKey ? <ClerkUnifiedSignUpForm /> : <FallbackSignUpForm />}
+      {clerkPubKey ? (
+        <div className="w-full flex flex-col items-center">
+          <div className="flex justify-center mb-5">
+            <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
+              <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
+            </Link>
+          </div>
+          <SignUp
+            routing="path"
+            path={`${basePath}/sign-up`}
+            signInUrl={`${basePath}/sign-in`}
+            fallbackRedirectUrl={`${basePath}/onboarding`}
+            forceRedirectUrl={`${basePath}/onboarding`}
+            appearance={clerkAppearance}
+          />
+        </div>
+      ) : (
+        <FallbackSignUpForm />
+      )}
     </AuthSplitLayout>
   );
 }
@@ -9609,45 +9219,6 @@ function OrderDetail() {
   </Shell>;
 }
 
-const stripBase = (path: string) => basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
-const clerkAppearance = {
-  theme: shadcn,
-  cssLayerName: 'clerk',
-  options: {
-    logoPlacement: 'inside' as const,
-    logoLinkUrl: basePath || '/',
-    logoImageUrl: `${browserOrigin}${basePath}/logo.svg`,
-  },
-  variables: {
-    colorPrimary: '#111111',
-    colorForeground: '#171717',
-    colorMutedForeground: '#737373',
-    colorDanger: '#b42318',
-    colorBackground: '#ffffff',
-    colorInput: '#ffffff',
-    colorInputForeground: '#171717',
-    colorNeutral: '#d4d4d4',
-    fontFamily: 'Inter, sans-serif',
-    borderRadius: '0.75rem',
-  },
-  elements: {
-    rootBox: 'w-full flex justify-center',
-    cardBox: 'w-full !shadow-none !border-0 !bg-transparent !p-0',
-    card: '!shadow-none !border-0 !bg-transparent !rounded-none !p-0',
-    footer: '!shadow-none !border-0 !bg-transparent !rounded-none',
-    headerTitle: 'text-2xl font-bold tracking-tight text-neutral-900',
-    headerSubtitle: 'text-sm text-neutral-600 mt-1',
-    socialButtonsBlockButtonText: 'text-neutral-900 font-medium',
-    formFieldLabel: 'text-xs font-semibold text-neutral-800 mb-1',
-    footerActionLink: 'text-sm font-semibold text-neutral-900 underline',
-    footerActionText: 'text-sm text-neutral-600',
-    dividerText: 'text-neutral-400 text-xs',
-    formButtonPrimary: 'bg-neutral-900 hover:bg-neutral-800 text-white rounded-[10px] py-2.5 font-semibold text-sm shadow-xs',
-    formFieldInput: 'border-neutral-200 focus:border-neutral-900 rounded-[10px] text-neutral-900 py-2.5 shadow-xs',
-    logoBox: 'hidden',
-    logoImage: 'hidden',
-  },
-};
 
 function ClerkShell() {
   const [, setLocation] = useLocation();

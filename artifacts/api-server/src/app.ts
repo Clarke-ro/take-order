@@ -6,6 +6,7 @@ import { pinoHttp } from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import type { db } from "@workspace/db";
 import { createRouter } from "./routes";
+import { createWebhooksRouter } from "./routes/webhooks";
 import { logger } from "./lib/logger";
 import { CLERK_PROXY_PATH, clerkProxyMiddleware, getClerkProxyHost } from "./middlewares/clerkProxyMiddleware";
 import { requireAuth } from "./middlewares/requireAuth";
@@ -104,6 +105,9 @@ export function createApp(database: typeof db, options: { authMiddleware?: expre
   app.use(cors({ credentials: true, origin: corsOrigin }));
   app.use(express.json({ limit: "25mb" }));
   app.use(express.urlencoded({ limit: "25mb", extended: true }));
+
+  // Mount webhooks router before rate limiters and auth middleware
+  app.use(createWebhooksRouter());
 
   const publicLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,

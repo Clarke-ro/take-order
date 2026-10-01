@@ -12,15 +12,58 @@ function timingSafeSecretCompare(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
+const WEBHOOK_PATHS = [
+  "/webhooks/revenuecat",
+  "/webhooks/revenuecat/",
+  "/api/webhooks/revenuecat",
+  "/api/webhooks/revenuecat/",
+  "/webhook/revenuecat",
+  "/webhook/revenuecat/",
+  "/api/webhook/revenuecat",
+  "/api/webhook/revenuecat/",
+  "/revenuecat/webhook",
+  "/revenuecat/webhook/",
+  "/api/revenuecat/webhook",
+  "/api/revenuecat/webhook/",
+  "/webhooks",
+  "/webhooks/",
+  "/api/webhooks",
+  "/api/webhooks/",
+  "/webhook",
+  "/webhook/",
+  "/api/webhook",
+  "/api/webhook/",
+  "/revenuecat",
+  "/revenuecat/",
+  "/api/revenuecat",
+  "/api/revenuecat/",
+];
+
 export function createWebhooksRouter(): IRouter {
   const router: IRouter = Router();
 
   /**
-   * POST /api/webhooks/revenuecat
+   * GET & HEAD webhook endpoints for dashboard connectivity tests & uptime pings.
+   */
+  router.get(WEBHOOK_PATHS, (_req, res): void => {
+    res.status(200).json({
+      status: "ok",
+      service: "takeorder-revenuecat-webhook",
+      timestamp: new Date().toISOString(),
+      supportedMethods: ["GET", "POST", "HEAD"],
+    });
+  });
+
+  router.head(WEBHOOK_PATHS, (_req, res): void => {
+    res.status(200).end();
+  });
+
+  /**
+   * POST /api/webhooks/revenuecat (and all path aliases)
    * Receives RevenueCat server-to-server lifecycle webhooks.
    * Invalidates in-memory entitlement cache for the affected subscriber.
    */
-  router.post("/webhooks/revenuecat", (req, res): void => {
+  router.post(WEBHOOK_PATHS, (req, res): void => {
     const configuredSecret = process.env.REVENUECAT_WEBHOOK_SECRET;
 
     if (configuredSecret) {
@@ -28,7 +71,10 @@ export function createWebhooksRouter(): IRouter {
       const token = incomingAuth.startsWith("Bearer ") ? incomingAuth.slice(7).trim() : incomingAuth.trim();
 
       if (!token || !timingSafeSecretCompare(token, configuredSecret)) {
-        logger.warn({ ip: req.ip }, "Rejected RevenueCat webhook: authorization secret mismatch");
+        logger.warn(
+          { ip: req.ip, hasToken: Boolean(token), path: req.originalUrl || req.path },
+          "Rejected RevenueCat webhook: authorization secret mismatch",
+        );
         res.status(401).json({ error: "Unauthorized" });
         return;
       }
