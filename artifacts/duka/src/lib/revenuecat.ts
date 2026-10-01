@@ -401,7 +401,11 @@ export function isUserCancelledError(error: unknown): boolean {
  * Executes purchase for any package and checks for active entitlements.
  * Handles UserCancelledError gracefully.
  */
-export async function purchaseProPackage(pkg: Package, appUserId?: string | null): Promise<PurchaseResultState> {
+export async function purchaseProPackage(
+  pkg: Package,
+  appUserId?: string | null,
+  customerEmail?: string | null
+): Promise<PurchaseResultState> {
   try {
     let instance = getPurchasesInstance();
     if (!instance) {
@@ -415,7 +419,10 @@ export async function purchaseProPackage(pkg: Package, appUserId?: string | null
       throw new Error('RevenueCat is not configured. Please sign in first.');
     }
 
-    const purchaseResult = await instance.purchase({ rcPackage: pkg });
+    const purchaseResult = await instance.purchase({
+      rcPackage: pkg,
+      ...(customerEmail ? { customerEmail } : {}),
+    });
     const { customerInfo } = purchaseResult;
     const pro = isProActive(customerInfo);
     const proPlus = isProPlusActive(customerInfo);
@@ -440,10 +447,22 @@ export async function purchaseProPackage(pkg: Package, appUserId?: string | null
     }
 
     console.error('[RevenueCat] Purchase failed:', err);
+    let errorMessage = err instanceof Error ? err.message : 'Purchase could not be completed. Please try again.';
+    const anyErr = err as any;
+    if (
+      anyErr?.extra?.backendErrorCode === 8101 ||
+      anyErr?.errorCode === 8101 ||
+      errorMessage.includes('8101') ||
+      errorMessage.includes('Paddle checkout is not fully configured')
+    ) {
+      errorMessage =
+        'Paddle checkout is not fully configured. In your Paddle dashboard, set a Default Payment Link in Checkout Settings and ensure your domain is active under Website Approval.';
+    }
+
     return {
       success: false,
       isPro: false,
-      error: err instanceof Error ? err.message : 'Purchase could not be completed. Please try again.',
+      error: errorMessage,
     };
   }
 }

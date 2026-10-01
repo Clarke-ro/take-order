@@ -39,7 +39,7 @@ const PRO_PLUS_FEATURES = [
 
 export function SubscribePage() {
   const [, setLocation] = useLocation();
-  const { userId } = useAppAuth();
+  const { userId, email } = useAppAuth();
   const effectiveUserId =
     userId ||
     (typeof window !== 'undefined' ? localStorage.getItem('duka-test-user-id') : null);
@@ -102,7 +102,7 @@ export function SubscribePage() {
     setPurchasing(true);
     setPurchaseError(null);
     try {
-      const result = await purchaseProPackage(activePackage, effectiveUserId);
+      const result = await purchaseProPackage(activePackage, effectiveUserId, email);
       if (result.cancelled) return;
       if (result.success) { await refreshEntitlements(); setLocation('/account/billing'); }
       else if (result.error) setPurchaseError(result.error);

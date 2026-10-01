@@ -1,7 +1,7 @@
 import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Redirect, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
-import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, AuthenticateWithRedirectCallback } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser, AuthenticateWithRedirectCallback } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
 import {
   AlertCircle, AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
@@ -138,9 +138,11 @@ function PaywallProvider({ children }: { children: ReactNode }) {
 function ClerkAuthBridge({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const clerk = useClerk();
+  const { user } = useUser();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const testUserId = typeof window !== 'undefined' ? ((window as any).__DUKA_TEST_USER_ID__ || localStorage.getItem('duka-test-user-id') || null) : null;
   const effectiveUserId = auth.userId || (isTestAuth ? testUserId : null);
+  const effectiveEmail = user?.primaryEmailAddress?.emailAddress || null;
 
   const prevUserIdRef = useRef<string | null>(effectiveUserId);
 
@@ -194,9 +196,10 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
       isLoaded: auth.isLoaded || isTestAuth,
       isSignedIn: Boolean(auth.isSignedIn || (isTestAuth && Boolean(testUserId))),
       userId: effectiveUserId,
+      email: effectiveEmail,
       signOut,
     }),
-    [auth.isLoaded, auth.isSignedIn, isTestAuth, testUserId, effectiveUserId]
+    [auth.isLoaded, auth.isSignedIn, isTestAuth, testUserId, effectiveUserId, effectiveEmail]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
