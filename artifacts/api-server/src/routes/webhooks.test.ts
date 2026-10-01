@@ -103,6 +103,26 @@ test("POST /api/webhooks/revenuecat accepts valid webhook payload", async () => 
     assert.strictEqual(body.received, true);
     assert.strictEqual(body.appUserId, "user_test_webhook");
     assert.strictEqual(body.event, "INITIAL_PURCHASE");
+
+    // 4. Accepts root path POST / (configured as base URL in RevenueCat dashboard)
+    const rootPathRes = await fetch(`http://127.0.0.1:${port}/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        api_version: "1.0",
+        event: {
+          type: "TEST",
+          app_user_id: "09f01bd6-ed94-437f-a848-21e3a08bff26",
+          environment: "SANDBOX",
+        },
+      }),
+    });
+    assert.strictEqual(rootPathRes.status, 200);
+    const rootBody = (await rootPathRes.json()) as { received: boolean; event: string };
+    assert.strictEqual(rootBody.received, true);
+    assert.strictEqual(rootBody.event, "TEST");
   } finally {
     process.env.REVENUECAT_WEBHOOK_SECRET = previousSecret;
     await new Promise<void>((resolve) => server.close(() => resolve()));

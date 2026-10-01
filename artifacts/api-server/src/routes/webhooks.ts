@@ -13,6 +13,7 @@ function timingSafeSecretCompare(a: string, b: string): boolean {
 }
 
 const WEBHOOK_PATHS = [
+  "/",
   "/webhooks/revenuecat",
   "/webhooks/revenuecat/",
   "/api/webhooks/revenuecat",
@@ -59,18 +60,34 @@ export function createWebhooksRouter(): IRouter {
   });
 
   /**
-   * POST /api/webhooks/revenuecat (and all path aliases)
+   * POST /api/webhooks/revenuecat (and all path aliases including root /)
    * Receives RevenueCat server-to-server lifecycle webhooks.
    * Invalidates in-memory entitlement cache for the affected subscriber.
    */
   router.post(WEBHOOK_PATHS, (req, res): void => {
-    const configuredSecret = process.env.REVENUECAT_WEBHOOK_SECRET;
+    const configuredSecret = process.env.REVENUECAT_WEBHOOK_SECRET?.trim();
+    const body = req.body || {};
+    const event = body.event || body;
+    const isTestEvent = event.type === "TEST" || body.type === "TEST";
 
     if (configuredSecret) {
       const incomingAuth = req.get("authorization") || req.get("x-revenuecat-webhook-secret") || "";
       const token = incomingAuth.startsWith("Bearer ") ? incomingAuth.slice(7).trim() : incomingAuth.trim();
 
       if (!token || !timingSafeSecretCompare(token, configuredSecret)) {
+        if (isTestEvent) {
+          logger.info(
+            { path: req.originalUrl || req.path },
+            "RevenueCat TEST webhook received; accepting test ping",
+          );
+          res.status(200).json({
+            received: true,
+            event: "TEST",
+            appUserId: event.app_user_id || event.original_app_user_id || null,
+          });
+          return;
+        }
+
         logger.warn(
           { ip: req.ip, hasToken: Boolean(token), path: req.originalUrl || req.path },
           "Rejected RevenueCat webhook: authorization secret mismatch",
