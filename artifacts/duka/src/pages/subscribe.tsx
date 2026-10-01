@@ -15,9 +15,9 @@ import { useAppAuth } from '@/lib/auth-context';
 
 type BillingPeriod = 'annual' | 'monthly';
 
-// Warm cream matching the reference design
-const CREAM = '#EDE8DF';
-const CREAM_HEADER = 'rgba(237,232,223,0.93)';
+// Clean white background matching the landing page
+const BG_COLOR = '#FAFAFA';
+const HEADER_BG = 'rgba(255,255,255,0.92)';
 
 const PRO_FEATURES = [
   'Unlimited catalog products (vs. 10 on Free)',
@@ -154,12 +154,11 @@ export function SubscribePage() {
   const hasActiveSub = isPro || isProPlus || activeTier !== 'none';
 
   return (
-    <div className="min-h-screen font-sans antialiased flex flex-col" style={{ background: CREAM }}>
+    <div className="min-h-screen font-sans antialiased flex flex-col bg-[#fafafa] text-neutral-900">
 
       {/* ── Header ── */}
       <header
-        className="sticky top-0 z-30 border-b backdrop-blur-sm"
-        style={{ background: CREAM_HEADER, borderColor: 'rgba(0,0,0,0.08)' }}
+        className="sticky top-0 z-30 border-b border-neutral-200/80 bg-white/90 backdrop-blur-md"
       >
         <div className="w-full max-w-5xl mx-auto px-8 h-16 flex items-center justify-between">
           <Link
@@ -215,8 +214,7 @@ export function SubscribePage() {
         {/* Billing toggle */}
         <div className="flex justify-center">
           <div
-            className="inline-flex rounded-xl p-1.5 gap-1"
-            style={{ background: 'rgba(0,0,0,0.07)' }}
+            className="inline-flex rounded-2xl p-1.5 gap-1 bg-neutral-200/60 border border-neutral-200/80 shadow-2xs"
             role="radiogroup"
             aria-label="Billing period"
           >

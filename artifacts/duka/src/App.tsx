@@ -8,7 +8,7 @@ import {
   CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, Crown, Download, ExternalLink, Eye, FileText, Globe2, Info, LayoutDashboard, LayoutGrid, Link2, List, Loader2, Menu, Minus, MoreHorizontal,
   ImagePlus, MessageSquare, Package, PackageSearch, PackageX, Pencil, Percent, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
   Trash2, TrendingUp, Truck, UserRound, Users, UsersRound, WalletCards, Workflow, Wrench, X,
-  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound
+  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound, Bell, Zap, Settings
 } from 'lucide-react';
 import { SiFacebook, SiInstagram, SiSnapchat, SiTiktok, SiWhatsapp, SiX } from 'react-icons/si';
 import {
@@ -31,6 +31,8 @@ import { PrivacyPage } from '@/pages/privacy';
 import { RefundPolicyPage } from '@/pages/refund-policy';
 import { LandingPage } from '@/pages/landing';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { StatCard } from '@/components/stat-card';
+import { SidebarProCard } from '@/components/sidebar-pro-card';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -642,19 +644,22 @@ export function Sidebar({
   onToggleCollapse?: () => void;
 } = {}) {
   const [location] = useLocation();
-  const seller = readSellerProfile();
   const { userId, signOut } = useAppAuth();
+  const seller = readSellerProfile(userId);
   const entitlements = useEntitlements(userId);
   const { isPro, isProPlus, isTrial } = entitlements;
   const { openPaywall } = usePaywall();
+  const ordersQuery = useListOrders();
+  const pendingOrdersCount = (ordersQuery.data ?? []).filter((o) => o.fulfillment === 'pending').length;
+
   const links = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/catalog', label: 'Catalog', icon: Boxes },
-    { href: '/orders', label: 'Orders', icon: ShoppingBag },
-    { href: '/reports', label: 'Reports', icon: BarChart3 },
+    { href: '/orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrdersCount > 0 ? String(pendingOrdersCount) : null },
+    { href: '/reports', label: 'Analytics', icon: BarChart3 },
     { href: '/clients', label: 'Clients', icon: Users },
     { href: '/expenses', label: 'Expenses', icon: Receipt },
-    { href: '/take-order', label: 'Take an order', icon: Link2 },
+    { href: '/take-order', label: 'Take an order', icon: Link2, dot: true },
   ];
 
   return (
@@ -665,7 +670,7 @@ export function Sidebar({
       )}
       aria-label="App navigation"
     >
-      {/* Top Brand Header / Monogram Collapse Toggle */}
+      {/* Top Brand Header (App icon only, no text name as requested) */}
       {collapsed ? (
         <div className="flex h-16 items-center justify-center border-b border-[hsl(var(--sidebar-border))]/60">
           <button
@@ -675,13 +680,11 @@ export function Sidebar({
             title="Expand sidebar"
             className="group relative flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[hsl(var(--sidebar-accent))] transition-colors cursor-pointer"
           >
-            {/* App Monogram Icon */}
             <img
               src={brandAssets.icon}
               alt="Take Order"
               className="h-8 w-8 rounded-lg object-contain shadow-2xs transition-all duration-200 group-hover:scale-0 group-hover:opacity-0"
             />
-            {/* Expandable Icon shown on hover */}
             <PanelLeftOpen
               size={20}
               className="absolute text-[hsl(var(--sidebar-foreground))] transition-all duration-200 scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100"
@@ -689,10 +692,9 @@ export function Sidebar({
           </button>
         </div>
       ) : (
-        <div className="flex items-center justify-between px-4 pt-4 pb-2.5">
-          <Link href="/dashboard" aria-label="Take Order dashboard" className="flex items-center gap-2.5">
-            <img src={brandAssets.icon} alt="" className="h-7 w-7 rounded-lg object-contain shadow-2xs" />
-            <BrandWordmark className="text-[17px]" />
+        <div className="flex items-center justify-between px-4 pt-4 pb-3">
+          <Link href="/dashboard" aria-label="Dashboard" className="flex items-center">
+            <img src={brandAssets.icon} alt="Take Order" className="h-8 w-8 rounded-xl object-contain shadow-2xs hover:scale-105 transition-transform" />
           </Link>
           <button
             type="button"
@@ -706,39 +708,9 @@ export function Sidebar({
         </div>
       )}
 
-      {/* Slim Business Card */}
-      {!collapsed && (
-        <div className="px-3 pt-1 pb-2">
-          <div
-            className="sidebar-business-card px-3 py-2 rounded-xl border border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-accent))/0.35] shadow-xs flex items-center justify-between"
-            title={seller?.businessName || 'The Sunday Edit'}
-          >
-            <div className="truncate text-xs font-bold tracking-tight text-[hsl(var(--sidebar-foreground))]">
-              {seller?.businessName || 'The Sunday Edit'}
-            </div>
-            {isProPlus ? (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-950 text-white dark:bg-slate-900 border border-slate-800 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-2xs shrink-0" data-testid="sidebar-pro-plus-badge">
-                <Crown size={9} strokeWidth={2.5} className="text-amber-400" />
-                PRO+
-              </span>
-            ) : isTrial ? (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-900 text-white border border-slate-700/80 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-2xs shrink-0" data-testid="sidebar-pro-badge" title={`7-Day Free Pro Trial: ${entitlements.trial.daysRemaining} days remaining`}>
-                <Crown size={9} strokeWidth={2.5} className="text-amber-400" />
-                TRIAL · {entitlements.trial.daysRemaining}D
-              </span>
-            ) : isPro ? (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-900 text-white border border-slate-700/80 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-2xs shrink-0" data-testid="sidebar-pro-badge">
-                <Crown size={9} strokeWidth={2.5} className="text-amber-400" />
-                PRO
-              </span>
-            ) : null}
-          </div>
-        </div>
-      )}
-
       {/* Navigation Links */}
       <nav aria-label="Navigation" className={cn('sidebar-scroll flex-1 overflow-y-auto py-2', collapsed ? 'px-2' : 'px-3')}>
-        {links.map(({ href, label, icon: Icon }) => {
+        {links.map(({ href, label, icon: Icon, badge, dot }) => {
           const isActive = location === href;
           return (
             <Link
@@ -764,10 +736,18 @@ export function Sidebar({
                 className="shrink-0"
               />
               {!collapsed && (
-                <div className="flex items-center justify-between flex-1">
-                  <span>{label}</span>
+                <div className="flex items-center justify-between flex-1 min-w-0">
+                  <span className="truncate">{label}</span>
+                  {badge && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
+                      {badge}
+                    </span>
+                  )}
+                  {dot && !badge && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#7c3aed] shrink-0" />
+                  )}
                   {!entitlements.isLoading && entitlements.tier === 'free' && href === '/reports' && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs">
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs shrink-0">
                       PRO
                     </span>
                   )}
@@ -818,70 +798,14 @@ export function Sidebar({
         </Link>
       </nav>
 
-      {/* Upgrade to Pro / Billing Action */}
-      {!isPro ? (
-        <div className={cn('px-3 pb-2', collapsed && 'px-2')}>
-          {collapsed ? (
-            <Link
-              href="/subscribe"
-              title="Upgrade to Take Order Pro"
-              data-testid="sidebar-button-upgrade-pro-collapsed"
-              className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl bg-slate-900 text-white border border-slate-800 shadow-xs hover:bg-slate-800 transition-all cursor-pointer"
-            >
-              <Crown size={18} className="text-amber-400" />
-            </Link>
-          ) : (
-            <Link
-              href="/subscribe"
-              data-testid="sidebar-button-upgrade-pro"
-              className="w-full flex items-center justify-between rounded-xl bg-slate-900 border border-slate-800 p-2.5 text-left text-xs font-semibold text-white hover:bg-slate-850 hover:border-slate-700 transition-all shadow-xs group cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="rounded-lg bg-slate-800 p-1.5 text-amber-400 border border-slate-700/80 shadow-xs">
-                  <Crown size={13} />
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-white uppercase tracking-wider">Take Order Pro</div>
-                  <div className="text-[10px] text-slate-300 font-normal">Unlock all features</div>
-                </div>
-              </div>
-              <Sparkles size={12} className="text-amber-400 group-hover:scale-110 transition-transform" />
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div className={cn('px-3 pb-2', collapsed && 'px-2')}>
-          {collapsed ? (
-            <Link
-              href="/account/billing"
-              title="Subscription & Billing"
-              data-testid="sidebar-button-billing-collapsed"
-              className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl bg-slate-900 text-amber-400 shadow-xs hover:bg-slate-800 transition-all cursor-pointer"
-            >
-              <Crown size={18} />
-            </Link>
-          ) : (
-            <Link
-              href="/account/billing"
-              data-testid="sidebar-button-billing"
-              className="w-full flex items-center justify-between rounded-xl bg-slate-900/5 border border-slate-200 p-2.5 text-left text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-all shadow-xs group cursor-pointer"
-            >
-              <div className="flex items-center gap-2">
-                <div className="rounded-lg bg-slate-900 p-1 text-amber-400 shadow-xs">
-                  <Crown size={13} />
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">
-                    {isProPlus ? 'PRO+' : isTrial ? `PRO TRIAL (${entitlements.trial.daysRemaining}D)` : 'PRO ACTIVE'}
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-normal">Manage billing & plan</div>
-                </div>
-              </div>
-              <ArrowRight size={12} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          )}
-        </div>
-      )}
+      {/* Upgrade to Pro / Billing Action (Exactly matching media_1790863037734.png) */}
+      <SidebarProCard
+        isPro={isPro}
+        isProPlus={isProPlus}
+        isTrial={isTrial}
+        daysRemaining={entitlements.trial.daysRemaining}
+        collapsed={collapsed}
+      />
 
       {/* Bottom Profile Bar with Account Popover */}
       <Popover>
@@ -1006,6 +930,118 @@ function MobileTopbar() {
   );
 }
 
+function ShellTopHeader() {
+  const [, setLocation] = useLocation();
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const ordersQuery = useListOrders();
+  const pendingOrders = (ordersQuery.data ?? []).filter((o) => o.fulfillment === 'pending');
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (globalSearch.trim()) {
+      setLocation(`/orders?q=${encodeURIComponent(globalSearch.trim())}`);
+    }
+  };
+
+  return (
+    <header className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-1 pb-4 border-b border-slate-200/60 dark:border-slate-800/60" aria-label="Global header">
+      <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
+        <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="search"
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          placeholder="Search orders, catalog, clients..."
+          className="w-full rounded-full border border-slate-200/80 bg-white/70 py-2 pl-9 pr-12 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 backdrop-blur-xs transition focus:border-slate-400 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 shadow-2xs"
+        />
+        <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 dark:bg-slate-800 dark:text-slate-400">
+          ⌘K
+        </kbd>
+      </form>
+
+      <div className="flex items-center justify-end gap-2 shrink-0">
+        <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="relative p-2.5 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              aria-label="Notifications"
+            >
+              <Bell size={18} />
+              {pendingOrders.length > 0 && (
+                <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 p-0 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-950">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Notifications</div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                {pendingOrders.length} pending
+              </span>
+            </div>
+            <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+              {pendingOrders.length === 0 ? (
+                <div className="p-4 text-center text-slate-400">All caught up! No pending fulfillment orders.</div>
+              ) : (
+                pendingOrders.slice(0, 4).map((order) => (
+                  <Link
+                    key={order.id}
+                    href={`/orders/${order.id}`}
+                    onClick={() => setNotificationsOpen(false)}
+                    className="block p-3.5 hover:bg-slate-50 dark:hover:bg-slate-900 transition"
+                  >
+                    <div className="font-semibold text-slate-900 dark:text-slate-100">{order.customerName || 'New Buyer Order'}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{order.productName} · {moneyExact(order.amount)}</div>
+                  </Link>
+                ))
+              )}
+            </div>
+            <div className="p-2 border-t border-slate-100 dark:border-slate-800 text-center">
+              <Link
+                href="/orders"
+                onClick={() => setNotificationsOpen(false)}
+                className="text-xs font-semibold text-slate-700 dark:text-slate-300 hover:underline inline-flex items-center gap-1"
+              >
+                View all orders <ArrowRight size={12} />
+              </Link>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Link
+          href="/take-order"
+          className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 transition dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+        >
+          <Plus size={14} strokeWidth={2.5} />
+          <span className="hidden sm:inline">Take Order</span>
+        </Link>
+
+        <Link
+          href="/settings"
+          className="p-2.5 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition"
+          aria-label="Settings"
+          title="Store Settings"
+        >
+          <Settings size={18} />
+        </Link>
+
+        <Link
+          href="/settings"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200/80 text-xs font-bold text-slate-800 hover:ring-2 hover:ring-slate-400 transition dark:bg-slate-800 dark:text-slate-200"
+          title="Account profile"
+        >
+          <UserRound size={15} />
+        </Link>
+      </div>
+    </header>
+  );
+}
+
 function Shell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
@@ -1035,6 +1071,7 @@ function Shell({ children }: { children: ReactNode }) {
           collapsed ? 'md:ml-[72px]' : 'md:ml-[250px]'
         )}
       >
+        <ShellTopHeader />
         {children}
       </main>
     </div>
@@ -2860,6 +2897,45 @@ export function Overview() {
     <Shell>
       <div data-testid="dashboard-analytics" data-analytics-state={analyticsState}>
         <AnalyticsStateMarker state={analyticsState} />
+        {/* Business Switcher at the top of Dashboard page */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200/90 bg-white px-3 py-1.5 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+            <button
+              type="button"
+              aria-label="Previous business workspace"
+              title="Switch business"
+              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <div className="flex items-center gap-2 px-1">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-900 text-[11px] font-bold text-white shadow-2xs dark:bg-white dark:text-slate-900">
+                {(settingsQuery.data?.businessName || readSellerProfile(userId).businessName || 'T').charAt(0).toUpperCase()}
+              </div>
+              <span className="text-xs sm:text-sm font-bold tracking-tight text-slate-900 dark:text-white">
+                {settingsQuery.data?.businessName || readSellerProfile(userId).businessName || 'The Sunday Edit'}
+              </span>
+              {isProPlus ? (
+                <span className="ml-1 inline-flex items-center gap-0.5 rounded-full bg-slate-900 text-white px-1.5 py-0.5 text-[9px] font-bold">
+                  <Crown size={8} className="text-amber-400" /> PRO+
+                </span>
+              ) : isPro ? (
+                <span className="ml-1 inline-flex items-center gap-0.5 rounded-full bg-slate-900 text-white px-1.5 py-0.5 text-[9px] font-bold">
+                  <Crown size={8} className="text-amber-400" /> PRO
+                </span>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              aria-label="Add or switch business workspace"
+              title="Add or switch business"
+              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+
         <PageHeading
           title="Dashboard"
           action={
@@ -3030,73 +3106,61 @@ export function Overview() {
               <ErrorState retry={() => summaryQuery.refetch()} />
             ) : (
               <>
-                <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-                  {primaryStatCards.map((stat, index) => (
-                    <MetricCard
-                      key={`${stat.label}-${index}`}
-                      className="rise-in"
-                      style={{ animationDelay: `${index * 55}ms` }}
-                      dataTestId={`card-kpi-${stat.label.toLowerCase().replaceAll(' ', '-')}`}
-                      label={stat.label}
-                      value={stat.value}
-                      valueAccessory={stat.valueAccessory}
-                      trend={stat.trend}
-                      indicator={stat.indicator}
-                      note={stat.note}
-                      loading={summaryRefreshing}
-                    />
-                  ))}
-                </div>
-                <div className="mt-8 sm:mt-10 grid gap-6 sm:gap-8 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,.8fr)]">
-                  <Card className="p-6 sm:p-7">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="type-eyebrow">Cash flow</div>
-                        <h3 className="type-h3 mt-2">Revenue, costs, and net profit</h3>
-                        <p className="mt-1 type-body text-[hsl(var(--muted-foreground))]">Product costs and shop expenses stay separate</p>
-                      </div>
-                      <div className="rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-xs font-medium text-[hsl(var(--muted-foreground))]">
-                        {periodLabel}
-                      </div>
-                    </div>
-                    <div className="mt-6 h-[280px]" data-testid="chart-cash-flow" aria-busy={summaryRefreshing}>
-                      {summaryRefreshing ? (
-                        <div className="flex h-full flex-col justify-center gap-4">
-                          <Skeleton className="h-3 w-28" />
-                          <Skeleton className="h-48 w-full" />
-                        </div>
-                      ) : daily.length ? (
-                        <ResponsiveContainer width="100%" height="100%" debounce={0}>
-                          <LineChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 4" stroke="hsl(220 16% 86% / .7)" vertical={false} />
-                            <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} />
-                            <YAxis tick={{ fontSize: 12, fill: '#68717d' }} stroke="#aeb5bd" tickLine={false} axisLine={false} tickFormatter={(value) => money(value)} width={58} />
-                            <RechartsTooltip content={<AnalyticsTooltip />} cursor={{ stroke: '#9ca6b2', strokeDasharray: '3 3' }} isAnimationActive={false} />
-                            <RechartsLegend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} />
-                            <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#c9943d" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
-                            <Line type="monotone" dataKey="productCosts" name="Product costs" stroke="#b66b77" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
-                            <Line type="monotone" dataKey="operatingExpenses" name="Shop expenses" stroke="#7b83b7" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
-                            <Line type="monotone" dataKey="expenses" name="Total costs" stroke="#c47763" strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
-                            <Line type="monotone" dataKey="profit" name="Net profit" stroke="#438879" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <ChartEmpty message="Cash-flow data will appear after your first activity." />
-                      )}
-                    </div>
-                  </Card>
-                  <AlertsRail
-                    outstanding={summary?.outstanding ?? 0}
-                    lowStock={lowStock}
-                    missingCosts={missingCosts}
-                    productLoading={productsQuery.isLoading}
-                    productCount={products.length}
-                    orderCount={periodOrders.length}
-                    unfulfilledCount={orders.filter((o) => o.fulfillment === 'pending').length}
-                    loading={summaryRefreshing}
+                {/* 4 StatCards matching media_1790863632389.png reference design */}
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                  <StatCard
+                    label="Total Sales"
+                    value={money(summary?.revenue ?? 0)}
+                    icon={<TrendingUp size={17} className="text-emerald-700" />}
+                    iconBg="bg-emerald-100 text-emerald-700"
+                    sparklineTone="emerald"
+                    trend={revenueTrend ? { direction: revenueTrend.direction, percentage: revenueTrend.percentage, periodLabel: periodLabel } : undefined}
+                  />
+                  <StatCard
+                    label="Total Orders"
+                    value={ordersQuery.isLoading ? '—' : periodOrders.length}
+                    icon={<ShoppingBag size={17} className="text-blue-700" />}
+                    iconBg="bg-blue-100 text-blue-700"
+                    sparklineTone="blue"
+                    trend={salesTrend ? { direction: salesTrend.direction, percentage: salesTrend.percentage, periodLabel: periodLabel } : undefined}
+                  />
+                  <StatCard
+                    label="Average Order Value"
+                    value={money(summary?.orders ? (summary.revenue / summary.orders) : 0)}
+                    icon={<Percent size={17} className="text-purple-700" />}
+                    iconBg="bg-purple-100 text-purple-700"
+                    sparklineTone="purple"
+                    trend={undefined}
+                  />
+                  <StatCard
+                    label="Outstanding Balance"
+                    value={money(summary?.outstanding ?? 0)}
+                    icon={<Clock3 size={17} className="text-amber-700" />}
+                    iconBg="bg-amber-100 text-amber-700"
+                    sparklineTone="amber"
+                    trend={undefined}
                   />
                 </div>
-                <RecentTransactions />
+
+                {/* Balanced 2-column layout: Recent Transactions (left) & Recent Updates (right) */}
+                <div className="mt-8 sm:mt-10 grid gap-8 lg:grid-cols-12 items-start">
+                  <div className="lg:col-span-7">
+                    <RecentTransactions />
+                  </div>
+                  <div className="lg:col-span-5">
+                    <AlertsRail
+                      outstanding={summary?.outstanding ?? 0}
+                      lowStock={lowStock}
+                      missingCosts={missingCosts}
+                      productLoading={productsQuery.isLoading}
+                      productCount={products.length}
+                      orderCount={periodOrders.length}
+                      unfulfilledCount={orders.filter((o) => o.fulfillment === 'pending').length}
+                      loading={summaryRefreshing}
+                      orders={orders}
+                    />
+                  </div>
+                </div>
               </>
             )}
           </>
@@ -3120,13 +3184,46 @@ function Reports() {
   const { userId } = useAppAuth();
   const entitlements = useEntitlements(userId);
   const isFree = !entitlements.isLoading && entitlements.tier === 'free';
-  const summaryQuery = useGetDashboardSummary(undefined, {
+  const [period, setPeriod] = useState<DashboardPeriod>('month');
+  const [customRange, setCustomRange] = useState<DashboardDateRange>({ from: '', to: '' });
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
+  const [exported, setExported] = useState(false);
+  const periodRange = useMemo(() => dashboardPeriodRange(period, customRange.from, customRange.to), [period, customRange]);
+  const periodLabel = dashboardPeriodLabel(period, customRange.from, customRange.to);
+
+  const summaryQuery = useGetDashboardSummary(periodRange, {
     query: {
-      queryKey: getGetDashboardSummaryQueryKey(),
+      queryKey: getGetDashboardSummaryQueryKey(periodRange ?? undefined),
       enabled: !isFree,
     },
   });
+  const productsQuery = useListProducts();
+  const ordersQuery = useListOrders();
+
   const summary = summaryQuery.data;
+  const products = productsQuery.data ?? [];
+  const allOrders = ordersQuery.data ?? [];
+
+  const periodOrders = useMemo(() => periodRange ? allOrders.filter((order) => {
+    const date = new Date(order.createdAt).toISOString().slice(0, 10);
+    return date >= periodRange.from && date <= periodRange.to;
+  }) : allOrders, [allOrders, periodRange]);
+
+  // Catalog Stats (centralized from Catalog page)
+  const totalStockUnits = products.reduce((total, p) => total + (p.stock || 0), 0);
+  const inventoryValue = products.reduce((total, p) => total + (p.stock || 0) * (p.cost ?? p.price ?? 0), 0);
+  const lowStockCount = products.filter((p) => p.stock <= 3).length;
+  const categoriesCount = new Set(products.map((p) => p.category?.trim()).filter(Boolean)).size;
+
+  // Order Stats (centralized from Orders page)
+  const totalOrderValue = periodOrders.reduce((sum, o) => sum + o.amount, 0);
+  const paidOrders = periodOrders.filter((o) => o.status === 'paid');
+  const paidRevenue = paidOrders.reduce((sum, o) => sum + o.amount, 0);
+  const orderCount = periodOrders.length;
+  const avgOrderValue = orderCount > 0 ? (totalOrderValue / orderCount) : 0;
+  const collectionRate = totalOrderValue > 0 ? (paidRevenue / totalOrderValue) * 100 : 0;
+  const paidConversionRate = orderCount > 0 ? Math.round((paidOrders.length / orderCount) * 100) : 0;
+
   const productPerformance = summary?.productPerformance ?? [];
   const categoryData = useMemo(() => {
     const grouped = productPerformance.reduce<Record<string, number>>((result, item) => {
@@ -3140,136 +3237,350 @@ function Reports() {
   }, [productPerformance]);
   const totalCategoryRevenue = categoryData.reduce((total, item) => total + item.value, 0);
   const rankedProducts = useMemo(() => [...productPerformance].sort((left, right) => right.revenue - left.revenue), [productPerformance]);
-  const palette = ['#c9943d', '#438879', '#b66b77', '#6c82b4', '#d99566', '#7f8f68'];
+  const palette = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#6366f1'];
 
-  return <Shell>
-    {!isFree && (
-      <PageHeading
-        title="Reports"
-        action={<div className="reports-period-note" data-testid="text-reports-period"><span className="h-2 w-2 rounded-full bg-[hsl(var(--accent-foreground))]" />Current snapshot</div>}
-      />
-    )}
-    {isFree ? (
-      <ProUpgradeFeatureCard
-        pageTitle="Reports"
-        title="Track your store growth"
-        description="See best-selling items with real data. Make smarter decisions and maximize profits."
-        learnMoreHref="/account/billing"
-        previewLabel="Total views"
-        previewValue="130"
-      />
-    ) : summaryQuery.isLoading ? (
-      <ReportsSkeleton />
-    ) : summaryQuery.isError ? (
-      <ErrorState retry={() => summaryQuery.refetch()} />
-    ) : (!summary?.orders && !summary?.operatingExpenses) ? (
-      <EmptyState
-        card
-        icon={BarChart3}
-        title="No financial activity to report yet"
-        description="Once you record sales or track operating expenses, your profit margins, cost breakdowns, and product rankings will appear here."
-        action={
-          <Link href="/take-order" data-testid="link-reports-empty-order">
-            <Button><Plus size={15} />Take an order</Button>
-          </Link>
-        }
-      />
-    ) : (
-      <div className="space-y-8 sm:space-y-10">
-      <section className="reports-metric-grid" aria-label="Profitability summary">
-         <MetricCard className="rise-in" dataTestId="card-report-tracked-profit" label="Reported profit" value={<span data-testid="text-report-profit">{money(summary?.profit)}</span>} note={summary?.legacyOrders ? `${summary.legacyOrders} older ${summary.legacyOrders === 1 ? 'sale uses' : 'sales use'} an estimated cost instead of the exact cost at the time.` : 'Revenue less product costs and shop expenses.'} />
-         <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-report-cash-balance" label="Cash balance" value={<span data-testid="text-report-cash-balance">{money(summary?.cashBalance)}</span>} note="Money left after recorded payments and shop expenses." />
-        <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-report-context" label="Reporting window" value={money(summary?.revenue)} note={`${summary?.orders ?? 0} recorded orders${summary?.bestSeller ? ` · ${summary.bestSeller} leads` : ''}`} />
-      </section>
+  const handleExportAnnualReport = () => {
+    const headers = ['Report Period', 'Gross Sales', 'COGS', 'Operating Expenses', 'Net Profit', 'Total Orders', 'Paid Orders', 'Catalog Inventory Value', 'Active Products'];
+    const row = [
+      `"${periodLabel}"`,
+      (summary?.revenue ?? 0).toFixed(2),
+      (summary?.productCosts ?? 0).toFixed(2),
+      (summary?.operatingExpenses ?? 0).toFixed(2),
+      (summary?.profit ?? 0).toFixed(2),
+      orderCount,
+      paidOrders.length,
+      inventoryValue.toFixed(2),
+      products.length
+    ];
+    const csvContent = [headers.join(','), row.join(',')].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `takeorder-business-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setExported(true);
+    setTimeout(() => setExported(false), 3000);
+  };
 
-      <Card className="profit-breakdown-card" data-testid="card-profit-breakdown">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+  return (
+    <Shell>
+      {!isFree && (
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-6">
           <div>
-            <div className="type-eyebrow text-emerald-600 dark:text-emerald-400">Take-home earnings</div>
-            <h3 className="type-h3 mt-1 text-lg font-bold">Net Profit & Cost Breakdown</h3>
-            <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-              What you actually keep after subtracting inventory product costs (COGS) and operating expenses.
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Financial Intelligence</div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">Analytics & Business Report</h1>
+            <p className="mt-1 text-sm text-slate-500 max-w-xl">
+              Complete performance overview across orders, product inventory, margins, and revenue.
             </p>
           </div>
-          <div className="text-right">
-            <div className="font-mono-ui text-2xl font-bold text-emerald-600 dark:text-emerald-400" data-testid="text-net-profit">
-              {moneyExact(summary?.profit ?? 0)}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Timeframe Selector Pill */}
+            <div className="relative">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white px-4 py-2 text-xs font-semibold text-slate-800 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+                onClick={() => setPeriodMenuOpen((v) => !v)}
+              >
+                <CalendarDays size={14} className="text-slate-500" />
+                <span>{periodLabel}</span>
+                <ChevronDown size={14} className={cn('transition-transform text-slate-400', periodMenuOpen && 'rotate-180')} />
+              </button>
+              {periodMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-xl z-20">
+                  {dashboardPeriodOptions.map((opt) => (
+                    <button
+                      type="button"
+                      key={opt.value}
+                      onClick={() => {
+                        setPeriod(opt.value);
+                        setPeriodMenuOpen(false);
+                      }}
+                      className={cn(
+                        'w-full rounded-xl px-3 py-2 text-left text-xs font-semibold transition',
+                        period === opt.value ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPeriod('custom');
+                      setPeriodMenuOpen(false);
+                    }}
+                    className={cn(
+                      'w-full rounded-xl px-3 py-2 text-left text-xs font-semibold transition',
+                      period === 'custom' ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+                    )}
+                  >
+                    Custom timeframe
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              <span>{summary?.revenue ? Math.round(((summary.profit) / summary.revenue) * 100) : 0}% Net margin</span>
+
+            {/* Export Full Annual/Period Report Button */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportAnnualReport}
+              className="rounded-full h-9 px-4 text-xs font-semibold gap-1.5 shadow-2xs"
+            >
+              {exported ? <Check size={13} className="text-emerald-500" /> : <Download size={13} />}
+              <span>{exported ? 'Report Downloaded' : 'Export Full Report'}</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isFree ? (
+        <ProUpgradeFeatureCard
+          pageTitle="Analytics"
+          title="Track your complete business growth"
+          description="Access annual reports, product margins, catalog valuation, and channel analytics with Take Order Pro."
+          learnMoreHref="/subscribe"
+          previewLabel="Total views"
+          previewValue="130"
+        />
+      ) : summaryQuery.isLoading ? (
+        <ReportsSkeleton />
+      ) : summaryQuery.isError ? (
+        <ErrorState retry={() => summaryQuery.refetch()} />
+      ) : (
+        <div className="space-y-10">
+          {/* Section 1: Orders Snapshot (Relocated from Orders Page) */}
+          <section aria-labelledby="analytics-orders-title" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-blue-600">Order Performance</div>
+                <h2 id="analytics-orders-title" className="text-lg font-bold text-slate-950">Orders & Fulfillment Summary</h2>
+              </div>
+              <Link href="/orders" className="text-xs font-semibold text-slate-600 hover:text-slate-950 inline-flex items-center gap-1">
+                View orders <ArrowUpRight size={13} />
+              </Link>
             </div>
-          </div>
-        </div>
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label="Total Orders"
+                value={orderCount}
+                icon={<ShoppingBag size={17} className="text-blue-700" />}
+                iconBg="bg-blue-100 text-blue-700"
+                sparklineTone="blue"
+              />
+              <StatCard
+                label="Paid in Full"
+                value={`${paidConversionRate}%`}
+                icon={<CheckCircle2 size={17} className="text-emerald-700" />}
+                iconBg="bg-emerald-100 text-emerald-700"
+                sparklineTone="emerald"
+              />
+              <StatCard
+                label="Average Order Value"
+                value={money(avgOrderValue)}
+                icon={<Percent size={17} className="text-purple-700" />}
+                iconBg="bg-purple-100 text-purple-700"
+                sparklineTone="purple"
+              />
+              <StatCard
+                label="Collection Rate"
+                value={`${collectionRate.toFixed(1)}%`}
+                icon={<CircleDollarSign size={17} className="text-amber-700" />}
+                iconBg="bg-amber-100 text-amber-700"
+                sparklineTone="amber"
+              />
+            </div>
+          </section>
 
-        <div className="profit-progress-track" aria-hidden="true">
-          <div
-            className="profit-segment-cogs"
-            style={{ width: `${summary?.revenue ? Math.min(100, Math.round(((summary.productCosts ?? 0) / summary.revenue) * 100)) : 0}%` }}
-            title={`Product costs: ${moneyExact(summary?.productCosts ?? 0)}`}
-          />
-          <div
-            className="profit-segment-expenses"
-            style={{ width: `${summary?.revenue ? Math.min(100, Math.round(((summary.operatingExpenses ?? 0) / summary.revenue) * 100)) : 0}%` }}
-            title={`Operating expenses: ${moneyExact(summary?.operatingExpenses ?? 0)}`}
-          />
-          <div
-            className="profit-segment-profit"
-            style={{ width: `${summary?.revenue && summary.profit > 0 ? Math.min(100, Math.round((summary.profit / summary.revenue) * 100)) : 0}%` }}
-            title={`Net take-home profit: ${moneyExact(summary?.profit ?? 0)}`}
-          />
-        </div>
+          {/* Section 2: Catalog Snapshot (Relocated from Catalog Page) */}
+          <section aria-labelledby="analytics-catalog-title" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-purple-600">Catalog Performance</div>
+                <h2 id="analytics-catalog-title" className="text-lg font-bold text-slate-950">Inventory & Catalog Valuation</h2>
+              </div>
+              <Link href="/catalog" className="text-xs font-semibold text-slate-600 hover:text-slate-950 inline-flex items-center gap-1">
+                Manage catalog <ArrowUpRight size={13} />
+              </Link>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label="Catalog Value"
+                value={money(inventoryValue)}
+                icon={<Boxes size={17} className="text-purple-700" />}
+                iconBg="bg-purple-100 text-purple-700"
+                sparklineTone="purple"
+              />
+              <StatCard
+                label="Active Products"
+                value={products.length}
+                icon={<Package size={17} className="text-blue-700" />}
+                iconBg="bg-blue-100 text-blue-700"
+                sparklineTone="blue"
+              />
+              <StatCard
+                label="Total Units in Stock"
+                value={totalStockUnits}
+                icon={<PackageSearch size={17} className="text-emerald-700" />}
+                iconBg="bg-emerald-100 text-emerald-700"
+                sparklineTone="emerald"
+              />
+              <StatCard
+                label="Low-Stock Alerts"
+                value={lowStockCount}
+                icon={<AlertTriangle size={17} className="text-amber-700" />}
+                iconBg="bg-amber-100 text-amber-700"
+                sparklineTone="amber"
+              />
+            </div>
+          </section>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
-          <div className="rounded-[10px] bg-[hsl(var(--muted))]/50 p-2.5">
-            <span className="text-[hsl(var(--muted-foreground))] block">Gross sales</span>
-            <strong className="font-mono-ui text-sm">{moneyExact(summary?.revenue ?? 0)}</strong>
-          </div>
-          <div className="rounded-[10px] bg-[hsl(var(--muted))]/50 p-2.5">
-            <span className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
-              <span className="h-2 w-2 rounded-full bg-[#b66b77]" /> Product costs (COGS)
-            </span>
-            <strong className="font-mono-ui text-sm">{moneyExact(summary?.productCosts ?? 0)}</strong>
-          </div>
-          <div className="rounded-[10px] bg-[hsl(var(--muted))]/50 p-2.5">
-            <span className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
-              <span className="h-2 w-2 rounded-full bg-[#7b83b7]" /> Shop expenses
-            </span>
-            <strong className="font-mono-ui text-sm">{moneyExact(summary?.operatingExpenses ?? 0)}</strong>
-          </div>
-          <div className="rounded-[10px] bg-emerald-50/80 dark:bg-emerald-950/30 p-2.5 border border-emerald-200/50">
-            <span className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-semibold">
-              <span className="h-2 w-2 rounded-full bg-[#10b981]" /> Net take-home
-            </span>
-            <strong className="font-mono-ui text-sm text-emerald-700 dark:text-emerald-400">{moneyExact(summary?.profit ?? 0)}</strong>
-          </div>
-        </div>
-      </Card>
+          {/* Section 3: Financial & Profit Breakdown (Full Business / Annual Report View) */}
+          <section aria-labelledby="analytics-report-title" className="space-y-4">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Executive Report</div>
+              <h2 id="analytics-report-title" className="text-lg font-bold text-slate-950">Net Profit & Operating Statement</h2>
+            </div>
 
-      <section className="grid gap-8 sm:gap-10 xl:grid-cols-[minmax(0,.88fr)_minmax(0,1.12fr)]">
-        <Card className="overflow-hidden" data-testid="card-report-category-breakdown">
-           <div className="reports-panel-heading"><div><div className="type-eyebrow">Where revenue sits</div><h3 className="type-h3 mt-2">Category breakdown</h3></div><BarChart3 size={18} className="text-[hsl(var(--muted-foreground))]" /></div>
-          <div className="reports-donut-area">
-            {categoryData.length && totalCategoryRevenue > 0 ? <ResponsiveContainer width="100%" height="100%"><PieChart>
-              <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="47%" innerRadius="54%" outerRadius="73%" paddingAngle={2} stroke="hsl(var(--card))" strokeWidth={3} isAnimationActive={false}>
-                {categoryData.map((item, index) => <Cell key={item.name} fill={palette[index % palette.length]} />)}
-              </Pie>
-              <RechartsTooltip formatter={(value: number) => moneyExact(value)} contentStyle={{ borderRadius: 10, border: '1px solid hsl(42 20% 86%)', background: 'hsl(48 40% 99%)', fontSize: 12 }} itemStyle={{ color: 'hsl(224 27% 17%)' }} isAnimationActive={false} />
-              <RechartsLegend verticalAlign="bottom" height={30} iconType="circle" wrapperStyle={{ fontSize: 11, color: '#68717d' }} />
-            </PieChart></ResponsiveContainer> : <ChartEmpty message="Category revenue will appear after your first recorded sale." />}
-          </div>
-           <div className="border-t border-[hsl(var(--border))] px-5 py-4 text-xs leading-5 text-[hsl(var(--muted-foreground))] sm:px-6"><strong className="text-[hsl(var(--foreground))]">{categoryData.length ? `${categoryData.length} ${categoryData.length === 1 ? 'category' : 'categories'}` : 'No categories yet'}</strong></div>
-        </Card>
-         <Card className="overflow-hidden" data-testid="card-report-selling-items">
-          <div className="reports-panel-heading"><div><div className="type-eyebrow">Product performance</div><h3 className="type-h3 mt-2">Top-selling items</h3><p className="mt-1 type-body text-[hsl(var(--muted-foreground))]">Ranked by recorded revenue, not quantity sold</p></div><Package size={18} className="text-[hsl(var(--muted-foreground))]" /></div>
-          {rankedProducts.length ? <div className="reports-table-wrap"><table className="reports-table"><thead><tr><th>Item</th><th className="text-right">Orders</th><th className="text-right">Revenue</th><th className="text-right">Margin</th></tr></thead><tbody>{rankedProducts.map((item, index) => {
-            const share = totalCategoryRevenue ? (item.revenue / totalCategoryRevenue) * 100 : 0;
-             return <tr key={`${item.name}-${index}`} data-testid={`row-report-item-${index}`}><td><div className="text-[15px] font-semibold">{item.name}</div><div className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{item.category || 'Uncategorised'} · {item.stock} in stock {item.legacyOrders ? `· ${item.legacyOrders} older sale${item.legacyOrders === 1 ? '' : 's'}` : ''}</div></td><td className="data-value text-right text-sm font-medium">{item.orders}</td><td className="data-value text-right text-sm font-semibold">{money(item.revenue)}</td><td className="text-right">{item.marginStatus === 'tracked' ? <span className="reports-cost-status reports-cost-tracked">{item.margin.toFixed(1)}% margin</span> : item.marginStatus === 'estimated' ? <span className="reports-cost-status reports-cost-estimated" title={`${item.legacyOrders} older ${item.legacyOrders === 1 ? 'sale uses' : 'sales use'} an estimated cost`}>{item.margin.toFixed(1)}% est.</span> : <span className="reports-cost-status reports-cost-missing">Not tracked</span>}</td></tr>;
-          })}</tbody></table></div> : <div className="p-6"><EmptyState icon={PackageSearch} title="No selling pattern yet" description="Once product performance is recorded, your highest-revenue items will appear here." /></div>}
-        </Card>
-      </section>
-       <div className="flex items-start gap-3 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/55 px-4 py-3 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]" data-testid="text-report-data-note"><CircleDollarSign size={16} className="mt-0.5 shrink-0 text-[hsl(var(--accent-foreground))]" /><span><strong className="text-[hsl(var(--foreground))]">A note on this report:</strong> Take Order currently records orders, revenue, stock, and optional product costs. {summary?.legacyOrders ? `${summary.legacyOrders} older ${summary.legacyOrders === 1 ? 'sale has' : 'sales have'} no captured sale-time cost, so affected margins and product costs are estimates based on today’s catalog.` : 'All paid sales have captured sale-time costs.'} It does not store item quantity or historical comparison data, so this page intentionally uses “orders” and “detail” rather than invented sales trends.</span></div>
-    </div>)}
-  </Shell>;
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-950">Statement of Revenue & Net Profit</h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Net take-home profit after subtracting inventory product costs (COGS) and shop operating expenses.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                    {moneyExact(summary?.profit ?? 0)}
+                  </div>
+                  <div className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                    <span>{summary?.revenue ? Math.round(((summary.profit) / summary.revenue) * 100) : 0}% Net margin</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress bar visualizing COGS, Expenses, Profit */}
+              <div className="mt-6 h-3.5 w-full rounded-full bg-slate-100 flex overflow-hidden p-0.5 gap-0.5">
+                <div
+                  className="bg-rose-400 rounded-l-full transition-all"
+                  style={{ width: `${summary?.revenue ? Math.min(100, Math.round(((summary.productCosts ?? 0) / summary.revenue) * 100)) : 0}%` }}
+                  title={`Product costs: ${moneyExact(summary?.productCosts ?? 0)}`}
+                />
+                <div
+                  className="bg-indigo-400 transition-all"
+                  style={{ width: `${summary?.revenue ? Math.min(100, Math.round(((summary.operatingExpenses ?? 0) / summary.revenue) * 100)) : 0}%` }}
+                  title={`Operating expenses: ${moneyExact(summary?.operatingExpenses ?? 0)}`}
+                />
+                <div
+                  className="bg-emerald-500 rounded-r-full transition-all"
+                  style={{ width: `${summary?.revenue && summary.profit > 0 ? Math.min(100, Math.round((summary.profit / summary.revenue) * 100)) : 0}%` }}
+                  title={`Net take-home profit: ${moneyExact(summary?.profit ?? 0)}`}
+                />
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
+                  <span className="text-slate-500 block">Gross Sales</span>
+                  <strong className="text-base font-bold text-slate-950 mt-1 block">{moneyExact(summary?.revenue ?? 0)}</strong>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
+                  <span className="flex items-center gap-1.5 text-slate-500">
+                    <span className="h-2 w-2 rounded-full bg-rose-400" /> COGS (Product Costs)
+                  </span>
+                  <strong className="text-base font-bold text-slate-950 mt-1 block">{moneyExact(summary?.productCosts ?? 0)}</strong>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
+                  <span className="flex items-center gap-1.5 text-slate-500">
+                    <span className="h-2 w-2 rounded-full bg-indigo-400" /> Shop Expenses
+                  </span>
+                  <strong className="text-base font-bold text-slate-950 mt-1 block">{moneyExact(summary?.operatingExpenses ?? 0)}</strong>
+                </div>
+                <div className="rounded-xl bg-emerald-50/80 p-3.5 border border-emerald-200/60">
+                  <span className="flex items-center gap-1.5 text-emerald-800 font-semibold">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" /> Net Take-Home
+                  </span>
+                  <strong className="text-base font-bold text-emerald-700 mt-1 block">{moneyExact(summary?.profit ?? 0)}</strong>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 4: Visual Breakdown (Donut Chart & Top Items) */}
+          <section className="grid gap-8 lg:grid-cols-12 items-start">
+            <div className="lg:col-span-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs overflow-hidden">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Revenue Distribution</div>
+                  <h3 className="text-base font-bold text-slate-950 mt-0.5">Category Breakdown</h3>
+                </div>
+                <BarChart3 size={18} className="text-slate-400" />
+              </div>
+              <div className="h-[260px] mt-4">
+                {categoryData.length && totalCategoryRevenue > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="47%" innerRadius="54%" outerRadius="73%" paddingAngle={2} stroke="#ffffff" strokeWidth={3} isAnimationActive={false}>
+                        {categoryData.map((item, index) => <Cell key={item.name} fill={palette[index % palette.length]} />)}
+                      </Pie>
+                      <RechartsTooltip formatter={(value: number) => moneyExact(value)} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', background: '#ffffff', fontSize: 12 }} isAnimationActive={false} />
+                      <RechartsLegend verticalAlign="bottom" height={30} iconType="circle" wrapperStyle={{ fontSize: 11, color: '#64748b' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <ChartEmpty message="Category revenue will appear after your first recorded sale." />
+                )}
+              </div>
+            </div>
+
+            <div className="lg:col-span-7 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs overflow-hidden">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Leaderboard</div>
+                  <h3 className="text-base font-bold text-slate-950 mt-0.5">Top-Selling Products</h3>
+                </div>
+                <Package size={18} className="text-slate-400" />
+              </div>
+              {rankedProducts.length ? (
+                <div className="overflow-x-auto mt-2">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 font-semibold">
+                        <th className="py-2.5">Item</th>
+                        <th className="py-2.5 text-right">Orders</th>
+                        <th className="py-2.5 text-right">Revenue</th>
+                        <th className="py-2.5 text-right">Margin</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {rankedProducts.slice(0, 6).map((item, index) => (
+                        <tr key={`${item.name}-${index}`} className="hover:bg-slate-50/50">
+                          <td className="py-3 font-semibold text-slate-900">{item.name}</td>
+                          <td className="py-3 text-right text-slate-600">{item.orders}</td>
+                          <td className="py-3 text-right font-bold text-slate-950">{money(item.revenue)}</td>
+                          <td className="py-3 text-right">
+                            <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                              {item.margin.toFixed(0)}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-8 text-center text-slate-400 text-xs">No product sales recorded in this period.</div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+    </Shell>
+  );
 }
 
 function ReportsSkeleton() {
@@ -3289,7 +3600,7 @@ function DashboardRowsSkeleton({ count = 3 }: { count?: number }) {
   return <div className="space-y-3" aria-label="Loading card content">{Array.from({ length: count }, (_, index) => <div key={index} className="flex items-center gap-3"><Skeleton className="h-8 w-8 rounded-[10px]" /><Skeleton className="h-3 flex-1" /><Skeleton className="h-3 w-16" /></div>)}</div>;
 }
 
-function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, productCount, orderCount, unfulfilledCount = 0, loading = false }: { outstanding: number; lowStock: Product[]; missingCosts: Product[]; productLoading: boolean; productCount: number; orderCount: number; unfulfilledCount?: number; loading?: boolean }) {
+function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, productCount, orderCount, unfulfilledCount = 0, loading = false, orders = [] }: { outstanding: number; lowStock: Product[]; missingCosts: Product[]; productLoading: boolean; productCount: number; orderCount: number; unfulfilledCount?: number; loading?: boolean; orders?: Order[] }) {
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (!expanded) return;
@@ -3304,7 +3615,19 @@ function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, produ
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [expanded]);
+
+  const recentOrderAlerts = orders.slice(0, 2).map((order) => ({
+    id: `order-${order.id}`,
+    icon: ShoppingBag,
+    tone: 'mint' as const,
+    title: `Order from ${order.customerName || 'Buyer'}`,
+    detail: `${order.productName} · ${moneyExact(order.amount)} via ${channelName(order.channel)}`,
+    href: `/orders/${order.id}`,
+    action: 'View order details',
+  }));
+
   const alerts = [
+    ...recentOrderAlerts,
     ...(unfulfilledCount > 0 ? [{ id: 'fulfillment', icon: Truck, tone: 'mint' as const, title: `${unfulfilledCount} ${unfulfilledCount === 1 ? 'order' : 'orders'} to dispatch`, detail: 'Pack and ship pending orders to keep your buyers updated.', href: '/orders', action: 'Review orders' }] : []),
     { id: 'rose', icon: Receipt, tone: 'rose' as const, title: outstanding > 0 ? `${money(outstanding)} outstanding` : 'No outstanding balances', detail: outstanding > 0 ? 'Follow up on unpaid buyer balances before they go cold.' : 'Your orders are all accounted for.', href: '/orders', action: outstanding > 0 ? 'Review orders' : 'Open orders' },
     { id: 'gold', icon: PackageSearch, tone: 'gold' as const, title: productLoading ? 'Checking stock levels' : `${lowStock.length} low-stock ${lowStock.length === 1 ? 'item' : 'items'}`, detail: lowStock.length ? lowStock.slice(0, 2).map((item) => item.name).join(' · ') : 'Nothing needs a restock right now.', href: '/catalog', action: 'Review catalog' },
@@ -3313,11 +3636,72 @@ function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, produ
   const additionalAlerts = [
     { id: 'share', icon: Link2, tone: 'mint' as const, title: orderCount ? 'Share your order link' : 'Share your first order link', detail: orderCount ? 'Keep your link visible wherever buyers find you.' : 'Send it to buyers to start collecting orders.', href: '/take-order', action: 'Open order link' },
     { id: 'catalog', icon: Package, tone: 'gold' as const, title: productCount ? 'Review your catalog' : 'Add your first product', detail: productCount ? 'Keep product details, prices, and stock ready for buyers.' : 'Add an item so you can start building order links.', href: '/catalog', action: productCount ? 'Open catalog' : 'Add product' },
-    { id: 'reports', icon: BarChart3, tone: 'blue' as const, title: 'Review performance', detail: 'See what is selling and where buyers are coming from.', href: '/reports', action: 'Open reports' },
+    { id: 'reports', icon: BarChart3, tone: 'blue' as const, title: 'Review performance', detail: 'See what is selling and where buyers are coming from.', href: '/reports', action: 'Open analytics' },
     { id: 'connect', icon: Settings2, tone: 'gold' as const, title: 'Tune your tools', detail: 'Update the channels and payment tools you use.', href: '/connect', action: 'Review tools' },
   ];
   const visibleAlerts = expanded ? [...alerts, ...additionalAlerts] : alerts;
-  return <>{expanded && <button type="button" className="alerts-backdrop" aria-label="Close action center" onClick={() => setExpanded(false)} />}<Card className={cn('alerts-rail-card overflow-hidden', expanded && 'is-expanded')}><div className="border-b border-[hsl(var(--border))] px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><AlertTriangle size={16} className="text-[hsl(var(--chart-3))]" /><div className="type-eyebrow">Seller updates</div></div><button type="button" className="alerts-expand-button" aria-expanded={expanded} aria-controls="dashboard-action-list" onClick={() => setExpanded((value) => !value)} data-testid="button-toggle-dashboard-actions">{expanded ? 'Close' : 'Show all'}{expanded ? <X size={14} /> : <ChevronDown size={14} />}</button></div><h3 className="type-h3 mt-2">Action center</h3></div><div id="dashboard-action-list" className={cn('alerts-list divide-y divide-[hsl(var(--border))]', expanded && 'is-expanded')}>{loading ? <div className="space-y-5 p-5 sm:p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : visibleAlerts.map((alert) => <Link href={alert.href} key={alert.id} className="alert-row group flex gap-3.5 px-5 py-4 sm:px-6" data-testid={`link-alert-${alert.id}`}><div className={cn('mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]', alert.tone === 'rose' && 'bg-[hsl(345_39%_58%/.14)] text-[hsl(345_39%_40%)]', alert.tone === 'gold' && 'bg-[hsl(42_81%_67%/.25)] text-[hsl(31_64%_34%)]', alert.tone === 'blue' && 'bg-[hsl(220_45%_47%/.13)] text-[hsl(220_45%_37%)]', alert.tone === 'mint' && 'bg-[hsl(157_42%_45%/.14)] text-[hsl(165_34%_28%)]')}><alert.icon size={16} /></div><div className="min-w-0 flex-1"><div className="text-[15px] font-semibold">{alert.title}</div><p className="mt-1 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">{alert.detail}</p><div className="mt-2 text-sm font-semibold text-[hsl(var(--primary))] group-hover:underline">{alert.action}<ArrowUpRight size={14} className="ml-1 inline" /></div></div></Link>)}</div></Card></>;
+  return <>
+    {expanded && <button type="button" className="alerts-backdrop" aria-label="Close action center" onClick={() => setExpanded(false)} />}
+    <div className={cn('rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden transition-all', expanded && 'is-expanded')}>
+      <div className="border-b border-slate-100 dark:border-slate-800 px-5 py-5 sm:px-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+              <Bell size={13} />
+            </span>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Activity Center</div>
+          </div>
+          <button
+            type="button"
+            className="alerts-expand-button text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+            aria-expanded={expanded}
+            aria-controls="dashboard-action-list"
+            onClick={() => setExpanded((value) => !value)}
+            data-testid="button-toggle-dashboard-actions"
+          >
+            {expanded ? 'Close' : 'Show all'}{expanded ? <X size={14} /> : <ChevronDown size={14} />}
+          </button>
+        </div>
+        <h3 className="type-h3 mt-2 text-lg font-bold text-slate-950">Recent updates</h3>
+      </div>
+      <div id="dashboard-action-list" className={cn('alerts-list divide-y divide-slate-100 dark:divide-slate-800', expanded && 'is-expanded')}>
+        {loading ? (
+          <div className="space-y-4 p-5 sm:p-6">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : (
+          visibleAlerts.map((alert) => (
+            <Link
+              href={alert.href}
+              key={alert.id}
+              className="alert-row group flex gap-3.5 px-5 py-4 sm:px-6 hover:bg-slate-50/80 transition-colors"
+              data-testid={`link-alert-${alert.id}`}
+            >
+              <div className={cn(
+                'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-2xs',
+                alert.tone === 'rose' && 'bg-rose-50 text-rose-600 border border-rose-100',
+                alert.tone === 'gold' && 'bg-amber-50 text-amber-600 border border-amber-100',
+                alert.tone === 'blue' && 'bg-blue-50 text-blue-600 border border-blue-100',
+                alert.tone === 'mint' && 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+              )}>
+                <alert.icon size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[14px] font-semibold text-slate-900">{alert.title}</div>
+                <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{alert.detail}</p>
+                <div className="mt-1.5 text-xs font-semibold text-slate-900 group-hover:underline inline-flex items-center gap-1">
+                  {alert.action}
+                  <ArrowUpRight size={13} />
+                </div>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+    </div>
+  </>;
 }
 
 function ProductPerformance({ products, loading = false }: { products: Array<{ name: string; category: string; revenue: number; orders: number; stock: number; margin: number; costTracked: boolean; marginStatus: 'tracked' | 'estimated' | 'unavailable'; snapshotOrders: number; legacyOrders: number }>; loading?: boolean }) {
@@ -5132,13 +5516,7 @@ function Catalog() {
         />
       ) : (
         <>
-          <section className="catalog-summary" aria-label="Catalog summary">
-            <MetricCard className="rise-in" dataTestId="card-catalog-inventory-value" label="Catalog value" value={money(inventoryValue)} note={`${totalStockUnits} ${totalStockUnits === 1 ? 'unit' : 'units'} in stock across ${query.data?.length ?? 0} ${query.data?.length === 1 ? 'item' : 'items'}`} />
-            <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-catalog-items" label="Items" value={query.data?.length ?? 0} note={`${categories} ${categories === 1 ? 'category' : 'categories'} in the catalog`} />
-            <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-catalog-low-stock" label="Low stock" value={<span className={cn(lowStock > 0 && 'text-[hsl(var(--destructive))]')}>{lowStock}</span>} indicator={(query.data?.length ?? 0) > 0 ? { direction: lowStock > 0 ? 'down' : 'neutral', percentage: (lowStock / query.data!.length) * 100, tone: lowStock > 0 ? 'negative' : 'positive' } : undefined} note={lowStock ? `${lowStock} ${lowStock === 1 ? 'item needs' : 'items need'} a restock` : 'All levels look good'} />
-            <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-catalog-categories" label="Categories" value={categories} note={`${query.data?.length ?? 0} items grouped for buyers`} />
-          </section>
-          <div className="mt-8 sm:mt-10 space-y-5">
+          <div className="space-y-5">
             {actionError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-catalog-action-error">{actionError}</div>}
             <div className="table-toolbar catalog-page-toolbar">
               <div className="category-filter-card catalog-filter-bar" role="group" aria-label="Filter catalog by category">
@@ -5451,13 +5829,7 @@ function Orders() {
       />
     ) : (
       <>
-        <section className="orders-snapshot" aria-label="Order performance summary">
-          <MetricCard className="rise-in" dataTestId="card-orders-live-value" label="Live order value" value={<span data-testid="text-live-order-value">{money(metrics.orderValue)}</span>} indicator={metrics.orderValue ? { direction: metrics.outstanding > 0 ? 'down' : 'up', percentage: (metrics.collected / metrics.orderValue) * 100 } : undefined} note={`${money(metrics.collected)} collected · ${money(metrics.outstanding)} outstanding`} />
-          <MetricCard className="rise-in" style={{ animationDelay: '55ms' }} dataTestId="card-orders-total" label="Total orders" value={<span data-testid="text-total-orders">{allOrders.length}</span>} indicator={allOrders.length ? { direction: metrics.paidOrders > 0 ? 'up' : 'down', percentage: (metrics.paidOrders / allOrders.length) * 100 } : undefined} note={`${metrics.paidOrders} paid in full`} />
-          <MetricCard className="rise-in" style={{ animationDelay: '110ms' }} dataTestId="card-orders-average" label="Average order value" value={<span data-testid="text-average-order-value">{money(metrics.average)}</span>} note="Based on live order value" />
-          <MetricCard className="rise-in" style={{ animationDelay: '165ms' }} dataTestId="card-orders-collection-rate" label="Collection rate" value={<span data-testid="text-collection-rate">{metrics.collectionRate.toFixed(1)}%</span>} note="Paid amount against order value" />
-        </section>
-        <section className="mt-8 sm:mt-10 space-y-5">
+        <section className="space-y-5">
           {mutationError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">

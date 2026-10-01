@@ -68,48 +68,7 @@ export function LandingPage() {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const stories = [
-    {
-      metric: '+$18,400',
-      label: 'Direct sales in 60 days',
-      name: 'Sarah Mensah',
-      role: 'Founder, Bella Luxe Studio',
-      tag: 'Fashion & Apparel',
-      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      metric: '+165%',
-      label: 'Growth in repeat orders',
-      name: 'Kwame Asante',
-      role: 'Owner, Accra Artisan Bakes',
-      tag: 'Bakery & Food',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      metric: '3x Faster',
-      label: 'Customer checkout speed',
-      name: 'Cynthia K.',
-      role: 'Director, Glow Botanics',
-      tag: 'Beauty & Skincare',
-      image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      metric: '$0 Fees',
-      label: 'Zero commissions on sales',
-      name: 'David Tetteh',
-      role: 'Creator, Urban Kicks GH',
-      tag: 'Sneakers & Streetwear',
-      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      metric: '99.4%',
-      label: 'Instant order confirmation',
-      name: 'Nana Yaa Boateng',
-      role: 'Owner, Spice & Savor Kitchen',
-      tag: 'Catering & Meals',
-      image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&q=80',
-    },
-  ];
+
 
   const featureTabs = [
     {
@@ -216,13 +175,6 @@ export function LandingPage() {
             </button>
             <button
               type="button"
-              onClick={() => scrollToSection('stories')}
-              className="hover:text-neutral-950 transition-colors cursor-pointer"
-            >
-              Stories
-            </button>
-            <button
-              type="button"
               onClick={() => scrollToSection('pricing')}
               className="hover:text-neutral-950 transition-colors cursor-pointer"
             >
@@ -309,13 +261,6 @@ export function LandingPage() {
               className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-neutral-950"
             >
               How it works
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToSection('stories')}
-              className="block w-full text-left py-2 text-sm font-semibold text-neutral-700 hover:text-neutral-950"
-            >
-              Stories
             </button>
             <button
               type="button"
@@ -504,7 +449,7 @@ export function LandingPage() {
                       <span>New Order #1042 Received</span>
                     </p>
                     <p className="text-xs text-neutral-400 mt-1">
-                      Kofi Adams placed an order for ₵485.00. Order slip attached. Stock auto-reserved.
+                      Customer placed an order for ₵485.00. Order slip attached. Stock auto-reserved.
                     </p>
                   </div>
 
@@ -562,55 +507,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── 2. Metric Stories ("Grow sales like these merchants" - Black & White) ── */}
-      <section id="stories" className="py-20 bg-neutral-50 border-y border-neutral-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-800">
-                Built for modern social commerce
-              </h2>
-            </div>
-            <p className="text-sm text-neutral-500 max-w-md mt-4 md:mt-0 font-normal leading-relaxed">
-              Designed to help online merchants eliminate DM friction, protect inventory, and turn casual chats into confirmed sales.
-            </p>
-          </div>
 
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {stories.map((story, idx) => (
-              <div
-                key={idx}
-                className="group p-5 rounded-2xl bg-white border border-neutral-200 hover:border-neutral-900 hover:shadow-md transition-all flex flex-col justify-between"
-              >
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-neutral-100 text-neutral-700">
-                    {story.tag}
-                  </span>
-                  <div className="text-3xl font-extrabold text-neutral-800 mt-4 tracking-tight">
-                    {story.metric}
-                  </div>
-                  <p className="text-xs font-semibold text-neutral-500 mt-1">
-                    {story.label}
-                  </p>
-                </div>
-
-                <div className="mt-8 pt-4 border-t border-neutral-100 flex items-center gap-3">
-                  <img
-                    src={story.image}
-                    alt={story.name}
-                    className="w-10 h-10 rounded-full object-cover border border-neutral-200"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-neutral-900 truncate">{story.name}</p>
-                    <p className="text-[11px] text-neutral-500 truncate">{story.role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ── 3. Feature Tabs ("With Take Order, you get...") ── */}
       <section id="features" className="py-24 bg-white">

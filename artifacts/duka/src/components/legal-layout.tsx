@@ -26,9 +26,9 @@ export function LegalLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-neutral-900 font-sans selection:bg-amber-100 selection:text-amber-900">
+    <div className="min-h-screen bg-white text-neutral-900 font-sans selection:bg-amber-100 selection:text-amber-900">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-[#FDFBF7]/90 backdrop-blur-md border-b border-neutral-200/80">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-neutral-200/80">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
