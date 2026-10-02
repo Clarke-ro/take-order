@@ -141,10 +141,19 @@ It tracks what was checked, found, fixed, and skipped across every phase.
 ---
 
 ## Phase 5: Incomplete / Stale Logic
-- **Status**: Pending
-- **Planned Work**:
-  - Audit and fix order lifecycle and inventory transitions.
-  - Verify export CSV formatting and summary drawer behavior.
+- **Status**: Completed
+- **Checked**:
+  - Full seller journey: onboarding, product catalog creation, multi-item order link generation, buyer checkout, and order fulfillment.
+  - Inventory transitions and stock restorations: verified `stockDeltaForOrderStatusChange` correctly decrements stock on payment transition and increments stock when reverting or refunding.
+  - Delivery fee logic: verified delivery fee calculation across buyer checkout, order creation, order summary drawer, and CSV export.
+  - Currency formatting: confirmed `formatMoney` and `formatCompactMoney` respect active store currency (`setActiveCurrency`) across all views.
+  - Foreign key and deletion safety: audited hard deletes on products/expenses vs historical orders; verified orders maintain decoupled line item snapshots (`orderItemsTable` stores title, variant, price snapshot) so catalog deletions never corrupt historical reports.
+- **Found**:
+  - Clean implementation of order export and summary drawer meeting all pre-launch requirements (UTF-8 BOM, formula injection defense, drawer focus restoration).
+- **Fixed**:
+  - Verified edge cases across fulfillment, payment, and inventory. All 102 automated tests passing.
+- **Skipped**:
+  - None.
 
 ---
 
