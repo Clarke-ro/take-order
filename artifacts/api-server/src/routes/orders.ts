@@ -21,7 +21,7 @@ import { stockDeltaForOrderStatusChange } from "../lib/dashboard-analytics";
 import { resolveSellerEntitlement } from "../lib/entitlements.js";
 
 function sellerId(res: Response): string {
-  const user = res.locals.ownerUserId || res.locals.auth?.userId;
+  const user = (res.locals.ownerUserId as string) || (res.locals.userId as string) || res.locals.auth?.userId;
   if (!user) throw new Error("Missing seller identity");
   return user;
 }
@@ -83,7 +83,7 @@ export async function sellerItemsForOrder(
     amount: Number(item.amount),
     quantity: item.quantity,
     buyerVariant: item.buyerVariant ?? null,
-    source: item.source ?? "catalog",
+    source: (item.source === "custom" ? "custom" : "catalog") as "custom" | "catalog",
     sku: item.sku ?? null,
     buyerDetails: item.buyerDetails ?? null,
     imageUrls: item.imageUrls ?? [],
@@ -109,7 +109,7 @@ export async function sellerItemsForOrders(
       amount: Number(item.amount),
       quantity: item.quantity ?? 1,
       buyerVariant: item.buyerVariant ?? null,
-      source: item.source ?? "catalog",
+      source: (item.source === "custom" ? "custom" : "catalog") as "custom" | "catalog",
       sku: item.sku ?? null,
       buyerDetails: item.buyerDetails ?? null,
       imageUrls: item.imageUrls ?? [],

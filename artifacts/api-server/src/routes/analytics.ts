@@ -12,9 +12,10 @@ import {
   type DashboardRange,
 } from "../lib/dashboard-analytics";
 import { resolveSellerEntitlement } from "../lib/entitlements.js";
+import { isReusableCatalogProduct } from "./products";
 
 function sellerId(res: Response): string {
-  const user = res.locals.ownerUserId || res.locals.auth?.userId;
+  const user = (res.locals.ownerUserId as string) || (res.locals.userId as string) || res.locals.auth?.userId;
   if (!user) throw new Error("Missing seller identity");
   return user;
 }
@@ -48,8 +49,8 @@ export function createAnalyticsRouter(database: typeof db, requireSellerAuth: Re
         .where(eq(productsTable.ownerUserId, currentOwnerUserId))
         .orderBy(productsTable.id),
     ]);
-    const range: DashboardRange = from || to ? { from, to } : "30d";
-    const summary = calculateDashboardSummary(orders, expenses, products, range);
+    const range: DashboardRange | undefined = from || to ? { from, to } : undefined;
+    const summary = calculateDashboardSummary(products, orders, expenses, new Date(), range);
     res.json(GetDashboardSummaryResponse.parse(summary));
   });
 
@@ -97,6 +98,30 @@ export function createAnalyticsRouter(database: typeof db, requireSellerAuth: Re
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", 'attachment; filename="take-order-export.csv"');
     res.send(csvContent);
+  });
+
+  router.get("/reports/summary", requireSellerAuth, async (_req, res): Promise<void> => {
+    const ownerUserId = sellerId(res);
+    const entitlement = await resolveSellerEntitlement(database, ownerUserId);
+    if (!entitlement.capabilities.canAccessReports) {
+      res.status(403).json({
+        error: "Reports require Pro",
+        code: "PRO_FEATURE_REQUIRED",
+        tier: entitlement.tier,
+        message: "Business reports and profitability analytics require Pro or Pro+.",
+      });
+      return;
+    }
+    const [products, orders, operatingExpenseRows] = await Promise.all([
+      database.select().from(productsTable).where(eq(productsTable.ownerUserId, ownerUserId)),
+      database.select().from(ordersTable).where(eq(ordersTable.ownerUserId, ownerUserId)),
+      database.select().from(expensesTable).where(eq(expensesTable.ownerUserId, ownerUserId)),
+    ]);
+    res.json(
+      GetDashboardSummaryResponse.parse(
+        calculateDashboardSummary(products.filter(isReusableCatalogProduct), orders, operatingExpenseRows, new Date()),
+      ),
+    );
   });
 
   return router;

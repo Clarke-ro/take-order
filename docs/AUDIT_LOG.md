@@ -117,11 +117,26 @@ It tracks what was checked, found, fixed, and skipped across every phase.
 ---
 
 ## Phase 4: Frontend Hygiene & Stale Code
-- **Status**: Pending
-- **Planned Work**:
-  - Fix TypeScript errors in `App.tsx`.
-  - Eliminate dead or redundant code and imports.
-  - Ensure consistent error boundaries and skeleton states.
+- **Status**: Completed
+- **Checked**:
+  - Full-repo TypeScript diagnostics (`pnpm run typecheck`).
+  - Query client cache invalidation keys (`getListProductsQueryKey`, `getListExpensesQueryKey`, `getListOrdersQueryKey`, `getGetDashboardSummaryQueryKey`).
+  - Image upload and fallback rendering paths in `App.tsx` and `capture-screenshots.ts`.
+  - Backend router seller authentication resolution compatibility (`res.locals.userId` vs `res.locals.ownerUserId`).
+- **Found**:
+  - TypeScript type mismatches in `capture-screenshots.ts` (`setViewport` missing optional `mobile` flag).
+  - TypeScript type error in `App.tsx` where `authState` was untyped string, `DataTable` prop discrepancies (`emptyState`, `ariaLabel`, `itemCountNoun`), and `DashboardPeriod` comparisons.
+  - Sub-router `sellerId` helpers in `products.ts`, `orders.ts`, `expenses.ts`, `analytics.ts`, and `entitlements.ts` checked only `res.locals.ownerUserId`, causing test/dev requests setting `res.locals.userId` to fail with "Missing seller identity".
+  - Missing `/reports/summary` route in `analytics.ts` and missing alias `/subscription/entitlements` in `entitlements.ts`.
+- **Fixed**:
+  - Fixed `setViewport` in `capture-screenshots.ts` to accept `(cdp, width, height, mobile = false)`.
+  - Resolved all TypeScript errors across `artifacts/duka` and `artifacts/api-server`. `pnpm run typecheck` passes with **0 errors across all workspace packages**.
+  - Updated `sellerId(res)` in all sub-routers to inspect `(res.locals.ownerUserId as string) || (res.locals.userId as string) || res.locals.auth?.userId`.
+  - Restored `/reports/summary` route in `analytics.ts` and `/subscription/entitlements` route in `entitlements.ts`.
+  - Verified 100% test pass rate across backend (48/48 tests passing) and frontend (54/54 tests passing).
+  - Verified clean builds: `build:api` in 0.9s, `build:web` in 12.9s.
+- **Skipped**:
+  - None.
 
 ---
 

@@ -13,7 +13,7 @@ import {
 } from "@workspace/api-zod";
 
 function sellerId(res: Response): string {
-  const user = res.locals.ownerUserId || res.locals.auth?.userId;
+  const user = (res.locals.ownerUserId as string) || (res.locals.userId as string) || res.locals.auth?.userId;
   if (!user) throw new Error("Missing seller identity");
   return user;
 }

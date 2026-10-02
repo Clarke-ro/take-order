@@ -249,12 +249,12 @@ async function waitFor(cdp: CdpClient, expression: string, timeoutMs = 15_000) {
   throw new Error(`Timed out waiting for condition: ${expression}`);
 }
 
-async function setViewport(cdp: CdpClient, width: number, height: number) {
+async function setViewport(cdp: CdpClient, width: number, height: number, mobile = false) {
   await cdp.command("Emulation.setDeviceMetricsOverride", {
     width,
     height,
-    deviceScaleFactor: 1,
-    mobile: false,
+    deviceScaleFactor: mobile ? 2 : 1,
+    mobile,
   });
 }
 

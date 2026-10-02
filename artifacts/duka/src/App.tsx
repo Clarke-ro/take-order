@@ -101,7 +101,7 @@ import { buildPublicOrderLink } from '@/lib/order-links';
 import { configureRevenueCat, isProActive, useEntitlement } from '@/lib/revenuecat';
 import { useEntitlements, FREE_CATALOG_LIMIT, FREE_ACTIVE_LINK_LIMIT, PRO_ACTIVE_LINK_LIMIT } from '@/lib/entitlements';
 import { ContextualUpgradeDialog, type UpgradeReason } from '@/components/contextual-upgrade-dialog';
-import { AuthContext, useAppAuth, type AuthContextValue } from '@/lib/auth-context';
+import { AuthContext, useAppAuth, type AuthContextValue, type AuthState } from '@/lib/auth-context';
 import { SubscribePage } from '@/pages/subscribe';
 import { BillingPage } from '@/pages/billing';
 
@@ -204,10 +204,10 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
     window.location.href = '/sign-in';
   };
 
-  const value = useMemo(() => {
+  const value = useMemo((): AuthContextValue => {
     const isLoaded = Boolean(auth.isLoaded || isTestAuth);
     const isSignedIn = Boolean(auth.isSignedIn || (isTestAuth && Boolean(testUserId)));
-    const authState = !isLoaded ? 'loading' : isSignedIn ? 'signed_in' : 'signed_out';
+    const authState: AuthState = !isLoaded ? 'loading' : isSignedIn ? 'signed_in' : 'signed_out';
     return {
       isLoaded,
       isSignedIn,
@@ -2979,7 +2979,7 @@ export function Overview() {
               >
                 <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
                 <span className="hidden sm:inline max-w-[140px] truncate">{periodLabel}</span>
-                <span className="sm:hidden">{period === '7d' ? '7d' : period === '30d' ? '30d' : period === 'all' ? 'All' : periodLabel}</span>
+                <span className="sm:hidden">{period === 'day' ? 'Today' : period === 'week' ? '7d' : period === 'month' ? '30d' : period === 'year' ? '1y' : periodLabel}</span>
                 <ChevronDown
                   size={13}
                   className={cn('transition-transform text-[hsl(var(--muted-foreground))] shrink-0', periodMenuOpen && 'rotate-180')}
@@ -6257,16 +6257,13 @@ function Orders() {
             onRowClick={(order) => setLocation(`/orders/${order.id}`)}
             rowAriaLabel={(order) => `Open order ${order.id} details`}
             rowTestId={(order) => `row-orders-order-${order.id}`}
-            tableAriaLabel="Orders"
+            ariaLabel="Orders"
+            itemCountNoun="links"
             emptyState={{
-              title: 'No matching orders',
-              description: 'Try adjusting your search terms or filter.',
+              isFiltered: true,
+              noResultsTitle: 'No matching orders',
+              noResultsMessage: 'Try adjusting your search terms or filter.',
             }}
-            footerCount={
-              orders.length > 0 ? (
-                <span>{orders.length} {orders.length === 1 ? 'link' : 'links'}</span>
-              ) : undefined
-            }
           />
         </section>
         <OrderSummaryDrawer
@@ -10055,7 +10052,13 @@ function ClerkShell() {
       window.location.href = '/sign-in';
     };
     return (
-      <AuthContext.Provider value={{ isLoaded: true, isSignedIn: Boolean(isTestAuth), userId: effectiveUserId, signOut: testSignOut }}>
+      <AuthContext.Provider value={{
+        isLoaded: true,
+        isSignedIn: Boolean(isTestAuth),
+        authState: isTestAuth ? 'signed_in' : 'signed_out',
+        userId: effectiveUserId,
+        signOut: testSignOut,
+      }}>
         {innerApp}
       </AuthContext.Provider>
     );
