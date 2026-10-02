@@ -5219,14 +5219,8 @@ function CatalogGridCard({ product, animationDelay, onEdit, onDelete, deleteDisa
   onEdit: () => void;
   onDelete: () => void;
   deleteDisabled: boolean;
-  index?: number;
 }) {
-  return <div className="catalog-grid-card rise-in relative" style={{ animationDelay }} data-testid={`card-product-${product.id}`} role="listitem">
-    {typeof index === 'number' && (
-      <span className="absolute top-2 left-2 z-10 rounded-md bg-black/60 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white backdrop-blur-xs">
-        #{index + 1}
-      </span>
-    )}
+  return <div className="catalog-grid-card rise-in" style={{ animationDelay }} data-testid={`card-product-${product.id}`} role="listitem">
     <div className="catalog-grid-image">
       <img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt={product.name} />
       <div className="catalog-grid-actions"><CatalogActions productId={product.id} productName={product.name} onEdit={onEdit} onDelete={onDelete} deleteDisabled={deleteDisabled} /></div>
@@ -5514,11 +5508,10 @@ function Catalog() {
             <Card className="catalog-workspace list-card overflow-hidden">
               {products.length ? (
                 <div className={cn(view === 'grid' ? 'catalog-grid' : 'catalog-list')} role="list">
-                  {view === 'list' && <div className="catalog-list-head" aria-hidden="true"><span className="w-10">#</span><span>Product</span><span>Options</span><span>Price / cost</span><span>Stock</span><span /></div>}
+                  {view === 'list' && <div className="catalog-list-head" aria-hidden="true"><span>Product</span><span>Options</span><span>Price / cost</span><span>Stock</span><span /></div>}
                   {products.map((product, index) => view === 'grid'
-                    ? <CatalogGridCard key={product.id} product={product} index={index + 1} animationDelay={`${index * 50}ms`} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
+                    ? <CatalogGridCard key={product.id} product={product} animationDelay={`${index * 50}ms`} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
                     : <div key={product.id} className="catalog-product-row rise-in" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
-                      <div className="w-10 shrink-0 font-mono-ui text-xs font-bold text-slate-400 flex items-center">#{index + 1}</div>
                       <div className="catalog-product-main"><div className="catalog-product-thumb"><img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt="" /></div><div className="min-w-0"><h3 className="truncate font-display text-base font-bold tracking-[-.025em]">{product.name}</h3><div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
                       <div className="catalog-variants">{product.preferences.length ? product.preferences.map((preference) => `${preference.label.toLowerCase() === 'choose an option' ? 'Option' : preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
                       <div className="catalog-number"><span className="catalog-mobile-label">Price</span><strong>{moneyExact(product.price)}</strong><small>{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
