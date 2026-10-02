@@ -1,85 +1,122 @@
 import React from 'react';
 import { Link } from 'wouter';
-import { Zap, Crown } from 'lucide-react';
+import { Zap, Crown, ArrowRight } from 'lucide-react';
+import { useSubscription, type NormalizedSubscription } from '@/lib/subscription';
+
+export interface SidebarProCardProps {
+  subscription?: NormalizedSubscription;
+  collapsed?: boolean;
+}
 
 export function SidebarProCard({
-  isPro = false,
-  isProPlus = false,
-  isTrial = false,
-  daysRemaining = 7,
+  subscription: propSubscription,
   collapsed = false,
-}: {
-  isPro?: boolean;
-  isProPlus?: boolean;
-  isTrial?: boolean;
-  daysRemaining?: number;
-  collapsed?: boolean;
-}) {
+}: SidebarProCardProps) {
+  const hookSubscription = useSubscription();
+  const sub = propSubscription || hookSubscription;
+
+  // Hidden for Pro+ users
+  if (sub.isProPlus) {
+    return null;
+  }
+
+  // Hidden for active paid Pro users (never claim a trial or prompt to upgrade to Pro)
+  if (sub.isPro && !sub.isTrial) {
+    return null;
+  }
+
   if (collapsed) {
     return (
       <div className="px-2 pb-2">
         <Link
-          href={isPro ? '/account/billing' : '/subscribe'}
-          title={isPro ? 'Manage billing' : 'Upgrade to Pro'}
-          className="flex h-10 w-10 mx-auto items-center justify-center rounded-2xl bg-[#ede9fe] text-[#7c3aed] hover:bg-[#ddd6fe] shadow-2xs transition-all cursor-pointer"
+          href={sub.isTrial ? '/account/billing' : '/subscribe'}
+          title={sub.isTrial ? 'Manage billing' : 'Upgrade to Pro'}
+          className="flex h-9 w-9 mx-auto items-center justify-center rounded-[8px] bg-neutral-100 text-neutral-800 hover:bg-neutral-200 transition-colors cursor-pointer dark:bg-neutral-800 dark:text-neutral-200"
         >
-          {isPro ? (
-            <Crown size={18} className="text-amber-500 fill-amber-500" />
+          {sub.isTrial ? (
+            <Crown size={16} className="text-amber-500 fill-amber-500" />
           ) : (
-            <Zap size={18} className="fill-[#7c3aed] text-[#7c3aed]" />
+            <Zap size={16} className="fill-neutral-900 text-neutral-900 dark:fill-white dark:text-white" />
           )}
         </Link>
       </div>
     );
   }
 
-  // For already subscribed users, remove the subscription card from the sidebar
-  if (isPro && !isTrial) {
-    return null;
-  }
-
-  if (isTrial) {
+  // In trial state: show countdown
+  if (sub.isTrial || sub.status === 'in_trial') {
+    const days = sub.trialDaysRemaining;
     return (
       <div className="px-3 pb-2">
         <Link
           href="/account/billing"
-          className="w-full flex items-center justify-between rounded-2xl bg-white border border-slate-200/90 px-3.5 py-3 text-left shadow-xs hover:shadow-sm hover:border-slate-300 transition-all group cursor-pointer"
+          className="w-full block rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-3 text-left shadow-2xs hover:border-neutral-400 transition-all group cursor-pointer dark:bg-neutral-900"
         >
-          <div>
-            <div className="text-xs font-bold text-slate-900 leading-tight flex items-center gap-1.5">
-              <span>{isProPlus ? 'Take Order Pro+' : 'Take Order Pro'}</span>
-              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
-                {daysRemaining}D TRIAL
-              </span>
-            </div>
-            <div className="text-[11px] text-slate-500 font-normal mt-0.5">Manage billing & plan</div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded">
+              {days} {days === 1 ? 'day' : 'days'} left in trial
+            </span>
+            <Crown size={14} className="text-amber-500 fill-amber-400 shrink-0" />
           </div>
-          <div className="h-8 w-8 rounded-full bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-500 shrink-0 shadow-2xs">
-            <Crown size={15} className="fill-amber-400 text-amber-500" />
+          <div className="text-[13px] font-bold text-neutral-900 dark:text-white mt-1 leading-tight">
+            Take Order Pro
+          </div>
+          <div className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5 flex items-center gap-1">
+            <span>Choose a plan</span>
+            <ArrowRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
           </div>
         </Link>
       </div>
     );
   }
 
-  // Exactly matching media_1790863037734.png
+  // Never started trial and eligible: "Start 7-day free trial"
+  if (sub.trialEligible || sub.status === 'trial_eligible') {
+    return (
+      <div className="px-3 pb-2">
+        <Link
+          href="/subscribe"
+          data-testid="sidebar-upgrade-to-pro"
+          className="w-full block rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-3.5 text-left shadow-2xs hover:border-neutral-400 transition-all group cursor-pointer dark:bg-neutral-900"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="text-[13px] font-bold text-neutral-900 dark:text-white leading-tight">
+                Start 7-day free trial
+              </div>
+              <div className="text-[11.5px] text-neutral-500 dark:text-neutral-400 mt-0.5">
+                Unlock Pro reports & 500 links
+              </div>
+            </div>
+            <div className="h-7 w-7 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-900 dark:text-white shrink-0 group-hover:scale-105 transition-transform">
+              <Zap size={14} className="fill-current text-current" />
+            </div>
+          </div>
+        </Link>
+      </div>
+    );
+  }
+
+  // Expired trial / Free after trial: "Upgrade to Pro"
   return (
     <div className="px-3 pb-2">
       <Link
         href="/subscribe"
         data-testid="sidebar-upgrade-to-pro"
-        className="w-full flex items-center justify-between rounded-2xl bg-white border border-slate-200/90 px-3.5 py-3 text-left shadow-xs hover:shadow-sm hover:border-slate-300 transition-all group cursor-pointer"
+        className="w-full block rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-3.5 text-left shadow-2xs hover:border-neutral-400 transition-all group cursor-pointer dark:bg-neutral-900"
       >
-        <div>
-          <div className="text-sm font-bold text-slate-900 leading-tight">
-            Upgrade to Pro
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-[13px] font-bold text-neutral-900 dark:text-white leading-tight">
+              Upgrade to Pro
+            </div>
+            <div className="text-[11.5px] text-neutral-500 dark:text-neutral-400 mt-0.5">
+              Unlock unlimited features
+            </div>
           </div>
-          <div className="text-xs text-slate-500 font-normal mt-0.5">
-            Unlock more features
+          <div className="h-7 w-7 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-900 dark:text-white shrink-0 group-hover:scale-105 transition-transform">
+            <Zap size={14} className="fill-current text-current" />
           </div>
-        </div>
-        <div className="h-9 w-9 rounded-full bg-[#ede9fe] flex items-center justify-center text-[#7c3aed] shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-          <Zap size={17} className="fill-[#7c3aed] text-[#7c3aed]" />
         </div>
       </Link>
     </div>

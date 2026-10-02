@@ -853,16 +853,8 @@ export function Sidebar({
         </Link>
       </nav>
 
-      {/* Upgrade to Pro / Billing Action (Only for non-subscribed users) */}
-      {!isPro && !isProPlus && (
-        <SidebarProCard
-          isPro={isPro}
-          isProPlus={isProPlus}
-          isTrial={isTrial}
-          daysRemaining={entitlements.trial.daysRemaining}
-          collapsed={collapsed}
-        />
-      )}
+      {/* Upgrade / Subscription Action Card */}
+      <SidebarProCard collapsed={collapsed} />
 
       {/* Bottom Profile Bar with Account Popover */}
       <Popover>

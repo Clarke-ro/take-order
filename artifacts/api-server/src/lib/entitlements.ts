@@ -35,19 +35,44 @@ export const REVENUECAT_API_KEY = REVENUECAT_SECRET_KEY;
 export const PRO_ENTITLEMENT_ID = "take_order_app_pro";
 export const PRO_PLUS_ENTITLEMENT_ID = "take_order_app_pro_plus";
 
+export type NormalizedSubscriptionStatus =
+  | 'active'
+  | 'in_trial'
+  | 'trial_eligible'
+  | 'cancelled'
+  | 'billing_issue'
+  | 'expired';
+
 export type SellerEntitlementState = {
   tier: PlanTier;
+  plan: PlanTier;
+  status: NormalizedSubscriptionStatus;
+  trialEligible: boolean;
+  trialEndsAt: string | null;
+  trialDaysRemaining: number;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  billingIssue: boolean;
+  isPro: boolean;
+  isProPlus: boolean;
+  isTrial: boolean;
+  canAccessReports: boolean;
+  canExportAnalytics: boolean;
   capabilities: PlanCapabilities;
   trial: {
     isTrial: boolean;
+    active: boolean;
     daysRemaining: number;
-    startedAt: string;
-    expiresAt: string;
+    startedAt: string | null;
+    expiresAt: string | null;
   };
   revenueCat: {
     active: boolean;
     tier: "none" | "pro" | "pro_plus";
     entitlementId: string | null;
+    expiresDate?: string | null;
+    cancelAtPeriodEnd?: boolean;
+    billingIssue?: boolean;
   };
   usage: {
     catalogProductCount: number;
@@ -71,6 +96,9 @@ export type SellerEntitlementState = {
 type CacheEntry = {
   tier: "none" | "pro" | "pro_plus";
   entitlementId: string | null;
+  expiresDate: string | null;
+  cancelAtPeriodEnd: boolean;
+  billingIssue: boolean;
   timestamp: number;
 };
 const revenueCatCache = new Map<string, CacheEntry>();
@@ -88,10 +116,16 @@ export function setCachedRevenueCatSubscriber(
   appUserId: string,
   tier: "none" | "pro" | "pro_plus",
   entitlementId: string | null = null,
+  expiresDate: string | null = null,
+  cancelAtPeriodEnd: boolean = false,
+  billingIssue: boolean = false
 ): void {
   revenueCatCache.set(appUserId, {
     tier,
     entitlementId,
+    expiresDate,
+    cancelAtPeriodEnd,
+    billingIssue,
     timestamp: Date.now(),
   });
 }
@@ -99,14 +133,26 @@ export function setCachedRevenueCatSubscriber(
 export async function checkRevenueCatSubscription(
   appUserId: string,
   timeoutMs: number = 2500
-): Promise<{ tier: "none" | "pro" | "pro_plus"; entitlementId: string | null }> {
+): Promise<{
+  tier: "none" | "pro" | "pro_plus";
+  entitlementId: string | null;
+  expiresDate: string | null;
+  cancelAtPeriodEnd: boolean;
+  billingIssue: boolean;
+}> {
   if (!appUserId || appUserId === "guest_seller" || appUserId === "test-user") {
-    return { tier: "none", entitlementId: null };
+    return { tier: "none", entitlementId: null, expiresDate: null, cancelAtPeriodEnd: false, billingIssue: false };
   }
 
   const cached = revenueCatCache.get(appUserId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return { tier: cached.tier, entitlementId: cached.entitlementId };
+    return {
+      tier: cached.tier,
+      entitlementId: cached.entitlementId,
+      expiresDate: cached.expiresDate,
+      cancelAtPeriodEnd: cached.cancelAtPeriodEnd,
+      billingIssue: cached.billingIssue,
+    };
   }
 
   try {
@@ -124,7 +170,7 @@ export async function checkRevenueCatSubscription(
     clearTimeout(timeout);
 
     if (!res.ok) {
-      return { tier: "none", entitlementId: null };
+      return { tier: "none", entitlementId: null, expiresDate: null, cancelAtPeriodEnd: false, billingIssue: false };
     }
 
     const data: any = await res.json();
@@ -132,6 +178,9 @@ export async function checkRevenueCatSubscription(
 
     let tier: "none" | "pro" | "pro_plus" = "none";
     let entitlementId: string | null = null;
+    let expiresDate: string | null = null;
+    let cancelAtPeriodEnd = false;
+    let billingIssue = false;
 
     const proPlus = activeEntitlements[PRO_PLUS_ENTITLEMENT_ID];
     const pro = activeEntitlements[PRO_ENTITLEMENT_ID];
@@ -147,21 +196,30 @@ export async function checkRevenueCatSubscription(
     if (isEntitlementActive(proPlus)) {
       tier = "pro_plus";
       entitlementId = PRO_PLUS_ENTITLEMENT_ID;
+      expiresDate = proPlus?.expires_date || null;
+      cancelAtPeriodEnd = Boolean(proPlus?.unsubscribe_detected_at);
+      billingIssue = Boolean(proPlus?.billing_issues_detected_at);
     } else if (isEntitlementActive(pro)) {
       tier = "pro";
       entitlementId = PRO_ENTITLEMENT_ID;
+      expiresDate = pro?.expires_date || null;
+      cancelAtPeriodEnd = Boolean(pro?.unsubscribe_detected_at);
+      billingIssue = Boolean(pro?.billing_issues_detected_at);
     }
 
     revenueCatCache.set(appUserId, {
       tier,
       entitlementId,
+      expiresDate,
+      cancelAtPeriodEnd,
+      billingIssue,
       timestamp: Date.now(),
     });
 
-    return { tier, entitlementId };
+    return { tier, entitlementId, expiresDate, cancelAtPeriodEnd, billingIssue };
   } catch (err) {
     logger.warn({ err, appUserId }, "Failed to fetch subscriber status from RevenueCat");
-    return { tier: "none", entitlementId: null };
+    return { tier: "none", entitlementId: null, expiresDate: null, cancelAtPeriodEnd: false, billingIssue: false };
   }
 }
 
@@ -175,51 +233,44 @@ export async function resolveSellerEntitlement(
 ): Promise<SellerEntitlementState> {
   const now = new Date();
 
-  // 1. Fetch or initialize seller settings to track account / trial creation time
-  let [record] = await database
+  // 1. Fetch seller settings to check trial status
+  const [record] = await database
     .select()
     .from(sellerSettingsTable)
     .where(eq(sellerSettingsTable.ownerUserId, ownerUserId));
 
-  let settings = (record?.settings ?? {}) as Record<string, any>;
-  let trialStartedAtStr: string = settings.trialStartedAt;
+  const settings = (record?.settings ?? {}) as Record<string, any>;
+  const trialStartedAtStr: string | undefined = settings.trialStartedAt;
 
-  if (!trialStartedAtStr) {
-    trialStartedAtStr = now.toISOString();
-    try {
-      const updatedSettings = { ...settings, trialStartedAt: trialStartedAtStr };
-      await database
-        .insert(sellerSettingsTable)
-        .values({
-          ownerUserId,
-          settings: updatedSettings,
-        })
-        .onConflictDoUpdate({
-          target: sellerSettingsTable.ownerUserId,
-          set: { settings: updatedSettings },
-        });
-      settings = updatedSettings;
-    } catch {
-      // ignore persistence error in readonly/mock mode
-    }
+  let trialActive = false;
+  let trialDaysRemaining = 0;
+  let trialStartedAt: Date | null = null;
+  let trialExpiresAt: Date | null = null;
+
+  if (trialStartedAtStr) {
+    trialStartedAt = new Date(trialStartedAtStr);
+    trialExpiresAt = new Date(trialStartedAt.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
+    trialActive = now.getTime() < trialExpiresAt.getTime();
+    trialDaysRemaining = getTrialDaysRemaining(trialStartedAt, now);
   }
-
-  const trialStartedAt = new Date(trialStartedAtStr);
-  const trialExpiresAt = new Date(trialStartedAt.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
-  const trialActive = now.getTime() < trialExpiresAt.getTime();
-  const trialDaysRemaining = getTrialDaysRemaining(trialStartedAt, now);
 
   // 2. Check RevenueCat active subscriptions
   let rcTier: "none" | "pro" | "pro_plus" = "none";
   let rcEntitlementId: string | null = null;
+  let rcExpiresDate: string | null = null;
+  let rcCancelAtPeriodEnd = false;
+  let rcBillingIssue = false;
 
   if (!options.skipRevenueCat && !options.mockTier) {
     const rcResult = await checkRevenueCatSubscription(ownerUserId);
     rcTier = rcResult.tier;
     rcEntitlementId = rcResult.entitlementId;
+    rcExpiresDate = rcResult.expiresDate;
+    rcCancelAtPeriodEnd = rcResult.cancelAtPeriodEnd;
+    rcBillingIssue = rcResult.billingIssue;
   }
 
-  // 3. Determine authoritative tier
+  // 3. Determine authoritative tier & lifecycle status
   let resolvedTier: PlanTier;
   if (options.mockTier) {
     resolvedTier = options.mockTier;
@@ -231,6 +282,25 @@ export async function resolveSellerEntitlement(
     resolvedTier = "trial";
   } else {
     resolvedTier = "free";
+  }
+
+  const trialEligible = !trialStartedAtStr && rcTier === "none";
+
+  let status: NormalizedSubscriptionStatus;
+  if (rcTier !== "none") {
+    if (rcBillingIssue) {
+      status = "billing_issue";
+    } else if (rcCancelAtPeriodEnd) {
+      status = "cancelled";
+    } else {
+      status = "active";
+    }
+  } else if (trialActive) {
+    status = "in_trial";
+  } else if (trialEligible) {
+    status = "trial_eligible";
+  } else {
+    status = "expired";
   }
 
   const capabilities = PLAN_DEFINITIONS[resolvedTier] || PLAN_DEFINITIONS.free;
@@ -257,17 +327,34 @@ export async function resolveSellerEntitlement(
 
   return {
     tier: resolvedTier,
+    plan: resolvedTier,
+    status,
+    trialEligible,
+    trialEndsAt: trialExpiresAt ? trialExpiresAt.toISOString() : null,
+    trialDaysRemaining,
+    currentPeriodEnd: rcExpiresDate || (trialExpiresAt ? trialExpiresAt.toISOString() : null),
+    cancelAtPeriodEnd: rcCancelAtPeriodEnd,
+    billingIssue: rcBillingIssue,
+    isPro: resolvedTier === "pro" || resolvedTier === "pro_plus",
+    isProPlus: resolvedTier === "pro_plus",
+    isTrial: resolvedTier === "trial",
+    canAccessReports: Boolean(capabilities.canAccessReports),
+    canExportAnalytics: Boolean(resolvedTier === "pro" || resolvedTier === "pro_plus" || trialActive),
     capabilities,
     trial: {
       isTrial: resolvedTier === "trial",
+      active: trialActive,
       daysRemaining: trialDaysRemaining,
-      startedAt: trialStartedAt.toISOString(),
-      expiresAt: trialExpiresAt.toISOString(),
+      startedAt: trialStartedAt ? trialStartedAt.toISOString() : null,
+      expiresAt: trialExpiresAt ? trialExpiresAt.toISOString() : null,
     },
     revenueCat: {
       active: rcTier !== "none",
       tier: rcTier,
       entitlementId: rcEntitlementId,
+      expiresDate: rcExpiresDate,
+      cancelAtPeriodEnd: rcCancelAtPeriodEnd,
+      billingIssue: rcBillingIssue,
     },
     usage: {
       catalogProductCount,
@@ -280,4 +367,35 @@ export async function resolveSellerEntitlement(
       activeLinkLimitReached,
     },
   };
+}
+
+/**
+ * Idempotently starts a 7-day free trial for a seller.
+ * If trial has already been started previously, returns existing trial without resetting or extending.
+ */
+export async function startSellerTrial(
+  database: typeof db,
+  ownerUserId: string
+): Promise<SellerEntitlementState> {
+  const [record] = await database
+    .select()
+    .from(sellerSettingsTable)
+    .where(eq(sellerSettingsTable.ownerUserId, ownerUserId));
+
+  const settings = (record?.settings ?? {}) as Record<string, any>;
+  if (!settings.trialStartedAt) {
+    const updatedSettings = { ...settings, trialStartedAt: new Date().toISOString() };
+    await database
+      .insert(sellerSettingsTable)
+      .values({
+        ownerUserId,
+        settings: updatedSettings,
+      })
+      .onConflictDoUpdate({
+        target: sellerSettingsTable.ownerUserId,
+        set: { settings: updatedSettings },
+      });
+  }
+
+  return resolveSellerEntitlement(database, ownerUserId);
 }

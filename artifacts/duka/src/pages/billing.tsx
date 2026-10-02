@@ -14,7 +14,6 @@ import {
   Sparkles,
   Calendar,
   ChevronRight,
-  ArrowUpRight,
   Crown,
   Boxes,
   Link2,
@@ -28,11 +27,8 @@ import {
   PACKAGE_ID_PRO_PLUS_MONTHLY,
   PACKAGE_ID_PRO_PLUS_ANNUAL,
 } from '@/lib/revenuecat';
-import {
-  useEntitlements,
-  FREE_CATALOG_LIMIT,
-  FREE_ACTIVE_LINK_LIMIT,
-} from '@/lib/entitlements';
+import { useSubscription } from '@/lib/subscription';
+import { FREE_ACTIVE_LINK_LIMIT, PRO_ACTIVE_LINK_LIMIT } from '@workspace/api-zod';
 
 export function BillingPage() {
   const { userId, isSignedIn, isLoaded } = useAppAuth();
@@ -45,9 +41,9 @@ export function BillingPage() {
     (typeof window !== 'undefined' ? localStorage.getItem('duka-test-user-id') : null) ||
     (isTestAuth ? 'test-seller-id' : 'seller_default');
 
-  const { tier, details, customerInfo, isLoading, error, refresh } =
+  const { tier, details, customerInfo, isLoading: rcLoading, refresh: rcRefresh } =
     useEntitlement(effectiveUserId);
-  const entitlements = useEntitlements(effectiveUserId);
+  const sub = useSubscription(effectiveUserId);
 
   if (isLoaded && !isSignedIn && !isTestAuth && !localStorage.getItem('duka-test-user-id') && !userId) {
     return <Redirect to="/sign-in" />;
@@ -61,10 +57,13 @@ export function BillingPage() {
     setFeedback(null);
     try {
       const updated = await restorePurchases();
-      await refresh();
+      await rcRefresh();
+      await sub.refresh();
       setFeedback(
-        updated && (updated.entitlements.active['take_order_app_pro_plus'] || updated.entitlements.active['take_order_app_pro'])
-          ? 'Purchases restored!'
+        updated &&
+          (updated.entitlements.active['take_order_app_pro_plus'] ||
+            updated.entitlements.active['take_order_app_pro'])
+          ? 'Purchases restored successfully!'
           : 'No active subscription found.'
       );
     } catch (e: unknown) {
@@ -78,11 +77,14 @@ export function BillingPage() {
     if (!date) return 'N/A';
     try {
       const d = typeof date === 'string' ? new Date(date) : date;
-      return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-    } catch { return 'N/A'; }
+      return isNaN(d.getTime())
+        ? 'N/A'
+        : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch {
+      return 'N/A';
+    }
   };
 
-  const hasSubscription = tier !== 'none' && details.hasActivePlan;
   const managementUrl = details.managementURL || customerInfo?.managementURL || null;
 
   const priceLabel = (() => {
@@ -94,384 +96,335 @@ export function BillingPage() {
     return details.cadence === 'annual' ? 'Annual plan' : 'Monthly plan';
   })();
 
-  return (
-    <div className="min-h-screen bg-background text-foreground font-sans antialiased">
+  const isLoading = sub.isLoading || rcLoading;
 
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border">
-        <div className="w-full max-w-3xl mx-auto px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-150">
-              <ArrowLeft size={16} />
-              Dashboard
+  return (
+    <div className="min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))] font-sans antialiased">
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm border-b border-[hsl(var(--border))]">
+        <div className="w-full max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link
+              to="/"
+              className="flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+            >
+              <ArrowLeft size={15} />
+              <span>Dashboard</span>
             </Link>
-            <span className="text-border">/</span>
-            <div className="flex items-center gap-2">
-              <img src="/branding/takeorder-icon.png" alt="Take Order" className="h-6 w-6 rounded-md object-contain shadow-2xs" />
-              <span className="text-foreground font-semibold text-sm">Billing</span>
-            </div>
+            <span className="text-neutral-300 dark:text-neutral-700">/</span>
+            <span className="font-semibold text-xs text-neutral-900 dark:text-white">Billing & Subscription</span>
           </div>
+
           <button
             type="button"
             disabled={restoring || isLoading}
             onClick={handleRestore}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-lg px-3.5 py-2 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white border border-[hsl(var(--border))] rounded-[8px] px-3 py-1.5 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw size={13} className={restoring ? 'animate-spin' : ''} />
-            {restoring ? 'Restoring…' : 'Restore'}
+            <RefreshCw size={12} className={restoring ? 'animate-spin' : ''} />
+            <span>{restoring ? 'Restoring…' : 'Restore'}</span>
           </button>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-10 space-y-8">
-
-        {/* Page title */}
-        <div className="flex items-start justify-between gap-4 pb-6 border-b border-border">
+      <main className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+        {/* Title row */}
+        <div className="flex items-center justify-between pb-4 border-b border-[hsl(var(--border))]">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Subscription & Billing</h1>
-            <p className="text-sm text-muted-foreground mt-1">Manage your plan, invoices and payment method.</p>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
+              Subscription & Plan
+            </h1>
+            <p className="text-xs text-neutral-500 mt-0.5">Manage your workspace tier, quotas, and invoices.</p>
           </div>
-          <Link
-            to="/subscribe"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-foreground text-background text-xs font-bold hover:opacity-90 transition-opacity shrink-0"
-          >
-            <Sparkles size={13} />
-            {hasSubscription ? 'Change Plan' : 'View Plans'}
-          </Link>
+
+          {/* Action button depending on state */}
+          {!sub.isProPlus && (
+            <Link
+              to="/subscribe"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition dark:bg-white dark:text-neutral-900 cursor-pointer"
+            >
+              <Sparkles size={13} />
+              <span>
+                {sub.isTrial
+                  ? 'Choose a Plan'
+                  : sub.isPro
+                    ? 'Upgrade to Pro+'
+                    : sub.trialEligible
+                      ? 'Start 7-Day Free Trial'
+                      : 'Upgrade to Pro'}
+              </span>
+            </Link>
+          )}
         </div>
 
-        {/* Loading */}
-        {isLoading && (
-          <div className="rounded-xl border border-border p-10 flex flex-col items-center gap-3">
-            <Loader2 size={22} className="animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Loading subscription…</p>
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            <div className="flex items-center gap-2"><AlertCircle size={14} className="shrink-0" />{error}</div>
-            <button onClick={() => refresh()} className="text-xs font-bold underline">Retry</button>
-          </div>
-        )}
-
-        {/* Feedback */}
+        {/* Feedback Alert */}
         {feedback && (
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm">
-            <span className="text-muted-foreground">{feedback}</span>
-            <button onClick={() => setFeedback(null)} className="text-xs text-muted-foreground hover:text-foreground">Dismiss</button>
+          <div className="flex items-center justify-between rounded-[8px] border border-[hsl(var(--border))] bg-white dark:bg-neutral-900 px-4 py-3 text-xs">
+            <span className="text-neutral-800 dark:text-neutral-200">{feedback}</span>
+            <button
+              onClick={() => setFeedback(null)}
+              className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white text-xs font-medium cursor-pointer"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
-        {/* ── Business Profile Card ── */}
-        <section className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="h-12 w-12 rounded-xl bg-slate-900 text-amber-400 font-black text-base flex items-center justify-center shrink-0 shadow-xs">
-              TO
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="font-bold text-base sm:text-lg truncate text-foreground">
-                  {effectiveUserId ? 'Seller Workspace' : 'Take Order Shop'}
-                </h2>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  <CheckCircle2 size={11} />Verified
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                {hasSubscription ? details.planName : 'Free tier seller'} · Ready for orders
-              </p>
-            </div>
+        {/* Loading Skeleton */}
+        {isLoading && (
+          <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 p-8 flex flex-col items-center gap-2">
+            <Loader2 size={20} className="animate-spin text-neutral-500" />
+            <p className="text-xs text-neutral-500">Checking subscription status…</p>
           </div>
-          <Link
-            to="/settings"
-            className="text-xs font-semibold text-muted-foreground hover:text-foreground border border-border rounded-xl px-3.5 py-2 transition-colors shrink-0"
-          >
-            Settings
-          </Link>
-        </section>
+        )}
 
-        {/* ── Current Plan ── */}
-        <section className="space-y-3">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Current Plan</h2>
-
-          {!isLoading && hasSubscription ? (
-            <div className="rounded-2xl border border-border bg-card p-6 space-y-5 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-foreground text-background flex items-center justify-center text-xs font-black shrink-0 shadow-xs">
-                    {details.tier === 'pro_plus' ? 'PRO+' : 'PRO'}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-lg leading-none">{details.planName}</h3>
-                      {details.willRenew ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle2 size={11} className="stroke-[2.5]" />Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                          <Clock size={11} />Cancelling
-                        </span>
-                      )}
+        {/* Plan Cards */}
+        {!isLoading && (
+          <div className="space-y-6">
+            {/* 1. In Trial State */}
+            {sub.isTrial && (
+              <div
+                className="rounded-[12px] border-2 border-neutral-900 dark:border-white bg-white dark:bg-neutral-900 p-6 shadow-xs space-y-4"
+                data-testid="card-billing-trial"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-[10px] bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center shrink-0">
+                      <Crown size={20} className="fill-amber-400" />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1 capitalize">{details.cadence} · {priceLabel}</p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-base font-bold text-neutral-900 dark:text-white">Take Order Pro</h2>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                          {sub.trialDaysRemaining} DAYS LEFT
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Free trial active with 500 links, full reports, and CSV export.
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="sm:text-right text-sm">
-                  <div className="text-xs text-muted-foreground">{details.willRenew ? 'Renews' : 'Access until'}</div>
-                  <div className="font-semibold flex items-center gap-1 sm:justify-end mt-0.5">
-                    <Calendar size={13} className="text-muted-foreground" />
-                    {fmt(details.expirationDate)}
-                  </div>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border text-xs">
-                <div>
-                  <div className="text-muted-foreground mb-0.5">Edition</div>
-                  <div className="font-semibold text-foreground truncate">
-                    {details.tier === 'pro_plus' ? 'Take Order Pro+' : 'Take Order Pro'}
-                  </div>
+                  <Link
+                    to="/subscribe"
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-[8px] bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition dark:bg-white dark:text-neutral-900 cursor-pointer self-start sm:self-auto"
+                  >
+                    Choose a plan →
+                  </Link>
                 </div>
-                <div>
-                  <div className="text-muted-foreground mb-0.5">Billing cycle</div>
-                  <div className="font-medium capitalize">{details.cadence}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground mb-0.5">Auto-renewal</div>
-                  <div className={`font-semibold ${details.willRenew ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {details.willRenew ? 'On' : 'Off'}
-                  </div>
+
+                <div className="pt-3 border-t border-[hsl(var(--border))] flex items-center justify-between text-xs text-neutral-500">
+                  <span>When your trial ends, your account transitions to Free. No automatic charges occur.</span>
                 </div>
               </div>
-            </div>
-          ) : !isLoading && entitlements.isTrial ? (
-            <div className="rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-gradient-to-br from-amber-50/60 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10 p-6 space-y-5 shadow-xs" data-testid="card-billing-trial">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-xs">
-                    <Crown size={22} />
+            )}
+
+            {/* 2. Active Paid Pro or Pro+ */}
+            {sub.isPro && !sub.isTrial && (
+              <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 p-6 shadow-xs space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="h-10 w-10 rounded-[10px] bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 flex items-center justify-center text-xs font-bold shrink-0">
+                      {sub.isProPlus ? 'PRO+' : 'PRO'}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-base font-bold text-neutral-900 dark:text-white">
+                          {sub.isProPlus ? 'Take Order Pro+' : 'Take Order Pro'}
+                        </h2>
+                        {sub.status === 'cancelled' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                            Cancelling
+                          </span>
+                        ) : sub.status === 'billing_issue' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200">
+                            Payment Issue
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-neutral-500 mt-0.5">{priceLabel}</p>
+                    </div>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-lg leading-none">Take Order Pro</h3>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
-                        7-DAY FREE TRIAL
+
+                  <div className="text-left sm:text-right">
+                    <span className="text-[11px] text-neutral-500 block">
+                      {sub.status === 'cancelled' ? 'Access ends' : 'Next renewal'}
+                    </span>
+                    <span className="text-xs font-semibold text-neutral-900 dark:text-white flex items-center gap-1 sm:justify-end mt-0.5">
+                      <Calendar size={12} className="text-neutral-500" />
+                      {fmt(details.expirationDate || sub.currentPeriodEnd)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quotas & Capacity */}
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-[hsl(var(--border))] text-xs">
+                  <div className="p-3 rounded-[8px] bg-neutral-50 dark:bg-neutral-800/50 border border-[hsl(var(--border))]">
+                    <span className="text-neutral-500 block text-[11px]">Active Links</span>
+                    <strong className="text-neutral-900 dark:text-white text-sm mt-0.5 block">
+                      {sub.isProPlus ? 'Unlimited' : `${sub.usage.activeLinkCount} / ${PRO_ACTIVE_LINK_LIMIT}`}
+                    </strong>
+                  </div>
+                  <div className="p-3 rounded-[8px] bg-neutral-50 dark:bg-neutral-800/50 border border-[hsl(var(--border))]">
+                    <span className="text-neutral-500 block text-[11px]">Reports Access</span>
+                    <strong className="text-emerald-600 text-sm mt-0.5 block">Full Access</strong>
+                  </div>
+                </div>
+
+                {/* Manage or Upgrade Actions */}
+                <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+                  {managementUrl && (
+                    <a
+                      href={managementUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:underline"
+                    >
+                      <ExternalLink size={13} />
+                      <span>Manage billing on RevenueCat</span>
+                    </a>
+                  )}
+
+                  {!sub.isProPlus && (
+                    <Link
+                      to="/subscribe"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-[8px] bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-800 transition dark:bg-white dark:text-neutral-900"
+                    >
+                      <span>Upgrade to Pro+</span>
+                      <ChevronRight size={13} />
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Free Plan (Never Started Trial or Expired) */}
+            {!sub.isPro && !sub.isTrial && (
+              <div
+                className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 p-6 shadow-xs space-y-5"
+                data-testid="card-billing-free"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="h-10 w-10 rounded-[10px] bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 flex items-center justify-center text-xs font-bold shrink-0">
+                      FREE
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-base font-bold text-neutral-900 dark:text-white">Take Order Free</h2>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                          Current Tier
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Core commerce: catalog products, buyer checkout, and order receipts.
+                      </p>
+                    </div>
+                  </div>
+
+                  <Link
+                    to="/subscribe"
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-[8px] bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition dark:bg-white dark:text-neutral-900 cursor-pointer self-start sm:self-auto"
+                    data-testid="button-billing-upgrade-pro"
+                  >
+                    <Sparkles size={13} />
+                    <span>{sub.trialEligible ? 'Start 7-Day Free Trial' : 'Upgrade to Pro'}</span>
+                  </Link>
+                </div>
+
+                {/* Quotas */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-[hsl(var(--border))]">
+                  <div className="p-3.5 rounded-[8px] bg-neutral-50 dark:bg-neutral-800/40 border border-[hsl(var(--border))]">
+                    <div className="flex items-center justify-between text-xs text-neutral-500 mb-1">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Boxes size={13} />
+                        <span>Catalog Items</span>
                       </span>
+                      <strong className="text-emerald-600 font-semibold">Unlimited</strong>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Full Pro access: unlimited catalog, 500 links, full business reports, and CSV export. No credit card required.
+                    <p className="text-[11px] text-neutral-500">
+                      {sub.usage.catalogProductCount} items created · No limit
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-[8px] bg-neutral-50 dark:bg-neutral-800/40 border border-[hsl(var(--border))]">
+                    <div className="flex items-center justify-between text-xs text-neutral-500 mb-1">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Link2 size={13} />
+                        <span>Active Links Allowance</span>
+                      </span>
+                      <strong
+                        className={cn(
+                          sub.limits.activeLinkLimitReached ? 'text-rose-600' : 'text-neutral-900 dark:text-white'
+                        )}
+                      >
+                        {sub.usage.activeLinkCount} / {FREE_ACTIVE_LINK_LIMIT}
+                      </strong>
+                    </div>
+                    <div className="h-1.5 w-full bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all',
+                          sub.limits.activeLinkLimitReached ? 'bg-rose-500' : 'bg-neutral-900 dark:bg-white'
+                        )}
+                        style={{
+                          width: `${Math.min(100, (sub.usage.activeLinkCount / FREE_ACTIVE_LINK_LIMIT) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] text-neutral-500">
+                      {Math.max(0, FREE_ACTIVE_LINK_LIMIT - sub.usage.activeLinkCount)} links remaining on Free
                     </p>
                   </div>
                 </div>
-                <div className="sm:text-right text-sm">
-                  <div className="text-xs text-muted-foreground">Trial status</div>
-                  <div className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1 sm:justify-end mt-0.5">
-                    <Clock size={13} />
-                    {entitlements.trial.daysRemaining} {entitlements.trial.daysRemaining === 1 ? 'day' : 'days'} remaining
-                  </div>
+
+                <div className="text-[11px] text-neutral-500 flex items-center gap-1.5 pt-1">
+                  <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
+                  <span>Your products, buyer links, and customer records are never deleted on downgrade.</span>
                 </div>
               </div>
+            )}
 
-              <div className="pt-4 border-t border-amber-200/60 dark:border-amber-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                <span className="text-muted-foreground">
-                  When your 7-day trial finishes, your account moves to Free. No automatic charges occur.
-                </span>
-                <Link
-                  to="/subscribe"
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-foreground text-background font-bold hover:opacity-90 transition-opacity shrink-0"
-                  data-testid="button-billing-lock-pro"
-                >
-                  <Sparkles size={13} />
-                  Lock in Pro plan
-                </Link>
-              </div>
-            </div>
-          ) : !isLoading ? (
-            <div className="rounded-2xl border border-border bg-card p-6 space-y-5 shadow-xs" data-testid="card-billing-free">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center text-xs font-black shrink-0 shadow-xs">
-                    FREE
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-lg leading-none">Take Order Free Plan</h3>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                        Active Free Tier
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Full core commerce workflow: unlimited catalog, order links, customer management, inventory, and buyer checkout.
-                    </p>
-                  </div>
+            {/* Quick Actions List */}
+            <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 divide-y divide-[hsl(var(--border))] overflow-hidden">
+              <div className="flex items-center justify-between p-4">
+                <div>
+                  <span className="text-xs font-semibold text-neutral-900 dark:text-white">Change Plan</span>
+                  <p className="text-[11.5px] text-neutral-500 mt-0.5">Switch between Pro, Pro+, or annual billing.</p>
                 </div>
                 <Link
                   to="/subscribe"
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-foreground text-background font-bold text-xs hover:opacity-90 transition-opacity shrink-0"
-                  data-testid="button-billing-upgrade-pro"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-800 dark:text-neutral-200 border border-[hsl(var(--border))] rounded-[8px] px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition"
                 >
-                  <Sparkles size={13} />
-                  Upgrade to Pro
+                  <span>Select</span>
+                  <ChevronRight size={12} />
                 </Link>
               </div>
 
-              {/* Free Plan Quotas & Usage Remaining */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-border">
-                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/60">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <Boxes size={13} className="text-slate-500" />
-                      Catalog Capacity
-                    </span>
-                    <strong className="text-emerald-600 font-semibold">
-                      Unlimited
-                    </strong>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    {entitlements.usage.catalogProductCount} items created · No limit on catalog size
+              <div className="flex items-center justify-between p-4">
+                <div>
+                  <span className="text-xs font-semibold text-neutral-900 dark:text-white">Restore Purchases</span>
+                  <p className="text-[11.5px] text-neutral-500 mt-0.5">
+                    Sync purchases if you upgraded on another device.
                   </p>
                 </div>
-
-                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/60">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <Link2 size={13} className="text-slate-500" />
-                      Active Links Capacity
-                    </span>
-                    <strong className={cn(entitlements.usage.activeLinkCount >= FREE_ACTIVE_LINK_LIMIT ? 'text-amber-600' : 'text-foreground')}>
-                      {entitlements.usage.activeLinkCount} / {FREE_ACTIVE_LINK_LIMIT}
-                    </strong>
-                  </div>
-                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={cn('h-full rounded-full transition-all', entitlements.usage.activeLinkCount >= FREE_ACTIVE_LINK_LIMIT ? 'bg-amber-500' : 'bg-foreground')}
-                      style={{ width: `${Math.min(100, (entitlements.usage.activeLinkCount / FREE_ACTIVE_LINK_LIMIT) * 100)}%` }}
-                    />
-                  </div>
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    {Math.max(0, FREE_ACTIVE_LINK_LIMIT - entitlements.usage.activeLinkCount)} active links remaining
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-1">
-                <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
-                <span>Your products, links, and customer data are permanently retained and will never be deleted or blocked.</span>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        {/* ── Manage ── */}
-        <section className="space-y-3">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Manage</h2>
-          <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
-
-            {/* Change plan */}
-            <div className="flex items-center justify-between gap-4 px-5 py-4">
-              <div>
-                <div className="text-sm font-semibold">Change Plan</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Switch between Pro and Pro+, or change billing cycle.</div>
-              </div>
-              <Link to="/subscribe" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 transition-colors shrink-0">
-                Change <ChevronRight size={13} />
-              </Link>
-            </div>
-
-            {/* Billing portal */}
-            <div className="flex items-center justify-between gap-4 px-5 py-4">
-              <div>
-                <div className="text-sm font-semibold">Billing Portal</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Update payment method, download invoices.</div>
-              </div>
-              {managementUrl ? (
-                <a href={managementUrl} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-semibold border border-border rounded-lg px-3 py-1.5 hover:bg-muted transition-colors shrink-0">
-                  Open <ExternalLink size={12} />
-                </a>
-              ) : (
                 <button
                   type="button"
-                  onClick={() => alert('Portal link will be available after your first billing cycle.')}
-                  className="inline-flex items-center gap-1 text-xs font-semibold border border-border rounded-lg px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  disabled={restoring}
+                  onClick={handleRestore}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-800 dark:text-neutral-200 border border-[hsl(var(--border))] rounded-[8px] px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition cursor-pointer disabled:opacity-50"
                 >
-                  Portal <ExternalLink size={12} />
+                  <RefreshCw size={12} className={restoring ? 'animate-spin' : ''} />
+                  <span>Restore</span>
                 </button>
-              )}
+              </div>
             </div>
-
-            {/* Cancel */}
-            {hasSubscription && (
-              <div className="flex items-center justify-between gap-4 px-5 py-4">
-                <div>
-                  <div className="text-sm font-semibold text-destructive">Cancel Subscription</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Access continues through your current period end.</div>
-                </div>
-                {managementUrl ? (
-                  <a href={managementUrl} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-semibold border border-destructive/30 text-destructive rounded-lg px-3 py-1.5 hover:bg-destructive/5 transition-colors shrink-0">
-                    Cancel <ExternalLink size={12} />
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => alert('To cancel, use the management link from your RevenueCat receipt email.')}
-                    className="inline-flex items-center gap-1 text-xs font-semibold border border-destructive/30 text-destructive rounded-lg px-3 py-1.5 hover:bg-destructive/5 transition-colors shrink-0"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            )}
           </div>
-        </section>
-
-        {/* ── Billing History ── */}
-        <section className="space-y-3">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Billing History</h2>
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
-            {hasSubscription ? (
-              <div className="p-5 space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <div>
-                    <div className="font-semibold">{details.planName}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Started {fmt(details.latestPurchaseDate || customerInfo?.requestDate)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold">{priceLabel}</div>
-                    <div className="text-xs text-emerald-600 font-medium">Active</div>
-                  </div>
-                </div>
-                {managementUrl && (
-                  <a href={managementUrl} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/60 hover:text-foreground transition-colors">
-                    Download invoices <ArrowUpRight size={12} />
-                  </a>
-                )}
-              </div>
-            ) : (
-              <div className="p-8 text-center text-sm text-muted-foreground">No invoices found.</div>
-            )}
-          </div>
-        </section>
-
-        {/* Footer */}
-        <div className="pb-6 flex flex-col items-center justify-center gap-2 text-xs text-muted-foreground/60">
-          <div className="flex items-center gap-3">
-            <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
-            <span>·</span>
-            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
-            <span>·</span>
-            <Link to="/refund-policy" className="hover:text-foreground transition-colors">Refund Policy</Link>
-          </div>
-          <div className="flex items-center justify-center gap-1.5">
-            <ShieldCheck size={12} className="text-emerald-500" />
-            <span>Secured by RevenueCat</span>
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );
