@@ -19,7 +19,7 @@ export function StatusPill({
     <span
       data-tone={tone}
       className={cn(
-        'inline-flex items-center gap-1 rounded-[6px] px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.06em] border transition-colors',
+        'inline-flex items-center gap-1 rounded-full px-2.5 h-[24px] text-[11.5px] font-semibold tracking-normal border transition-colors select-none',
         paid &&
           'border-emerald-200/50 bg-[#eaf8ee] text-[#15803d] dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-300',
         deposit &&
