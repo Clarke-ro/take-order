@@ -3501,33 +3501,33 @@ function Reports() {
               </div>
             </div>
 
-            <div className="lg:col-span-7 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs overflow-hidden">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="lg:col-span-7 rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-[#E3E3EC] dark:border-neutral-800">
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Leaderboard</div>
-                  <h3 className="text-base font-bold text-slate-950 mt-0.5">Top-Selling Products</h3>
+                  <h3 className="text-base font-bold text-slate-950 dark:text-neutral-100 mt-0.5">Top-Selling Products</h3>
                 </div>
                 <Package size={18} className="text-slate-400" />
               </div>
               {rankedProducts.length ? (
-                <div className="overflow-x-auto mt-2">
-                  <table className="w-full text-left text-xs">
+                <div className="overflow-x-auto w-full scrollbar-thin">
+                  <table className="list-table w-full min-w-[500px] text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 font-semibold">
-                        <th className="py-2.5">Item</th>
-                        <th className="py-2.5 text-right">Orders</th>
-                        <th className="py-2.5 text-right">Revenue</th>
-                        <th className="py-2.5 text-right">Margin</th>
+                      <tr className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80 h-[48px]">
+                        <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Item</th>
+                        <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Orders</th>
+                        <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Revenue</th>
+                        <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Margin</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
                       {rankedProducts.map((item, index) => (
-                        <tr key={`${item.name}-${index}`} className="hover:bg-slate-50/50">
-                          <td className="py-3 font-semibold text-slate-900">{item.name}</td>
-                          <td className="py-3 text-right text-slate-600">{item.orders}</td>
-                          <td className="py-3 text-right font-bold text-slate-950">{money(item.revenue)}</td>
-                          <td className="py-3 text-right">
-                            <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <tr key={`${item.name}-${index}`} className="hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[64px]">
+                          <td className="px-4 py-3.5 text-[14px] font-medium text-[#111827] dark:text-neutral-100">{item.name}</td>
+                          <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] text-[#6B7280] dark:text-neutral-400">{item.orders}</td>
+                          <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] font-semibold text-[#111827] dark:text-neutral-100">{money(item.revenue)}</td>
+                          <td className="px-4 py-3.5 text-right">
+                            <span className="inline-flex items-center justify-center font-medium font-mono-ui text-[12px] h-6 px-2.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
                               {item.margin.toFixed(0)}%
                             </span>
                           </td>
@@ -3537,7 +3537,10 @@ function Reports() {
                   </table>
                 </div>
               ) : (
-                <div className="p-8 text-center text-slate-400 text-xs">No product sales recorded in this period.</div>
+                <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+                  <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No product sales recorded</p>
+                  <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">No sales recorded for this period.</p>
+                </div>
               )}
             </div>
           </section>
