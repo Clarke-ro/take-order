@@ -5508,30 +5508,37 @@ function Catalog() {
           placeholder: "Search products...",
         } : undefined}
         filters={allProducts.length > 0 ? (
-          <div className="flex items-center gap-2">
-            <select
-              aria-label="Filter catalog by category"
-              data-testid="select-filter-products-category"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-9 px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 cursor-pointer"
-            >
-              <option value="all">All categories</option>
-              {catalogCategories.filter((c) => c !== 'all').map((category) => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
+          <div className="flex items-center gap-3">
+            <div className="relative inline-flex items-center">
+              <select
+                aria-label="Filter catalog by category"
+                data-testid="select-filter-products-category"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="h-[40px] min-h-[40px] appearance-none pl-3.5 pr-8 rounded-[10px] border border-[#E3E3EC] bg-white text-[13px] font-medium text-[#374151] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition cursor-pointer select-none shadow-2xs"
+              >
+                <option value="all">All categories</option>
+                {catalogCategories.filter((c) => c !== 'all').map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </div>
+            </div>
             <StockFilterPicker value={stockFilter} onChange={setStockFilter} />
-            <div className="catalog-view-toggle shrink-0" role="group" aria-label="Catalog view">
-              <button type="button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={cn(view === 'grid' && 'is-active')}><LayoutGrid size={15} /></button>
-              <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')} className={cn(view === 'list' && 'is-active')}><List size={15} /></button>
+            <div className="catalog-view-toggle shrink-0 flex items-center h-[40px] rounded-[10px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 p-1" role="group" aria-label="Catalog view">
+              <button type="button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={cn("h-7 w-7 rounded-[7px] flex items-center justify-center transition-colors cursor-pointer", view === 'grid' ? "bg-[hsl(var(--primary))] text-white" : "text-[#6B7280] hover:text-[#111827] dark:hover:text-white")}><LayoutGrid size={15} /></button>
+              <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')} className={cn("h-7 w-7 rounded-[7px] flex items-center justify-center transition-colors cursor-pointer", view === 'list' ? "bg-[hsl(var(--primary))] text-white" : "text-[#6B7280] hover:text-[#111827] dark:hover:text-white")}><List size={15} /></button>
             </div>
           </div>
         ) : undefined}
         filterCards={allProducts.length > 0 ? catalogFilterCards : undefined}
       />
       {query.isLoading ? (
-        <div className="catalog-loading p-6">{[1, 2, 3].map((i) => <div key={i} className="catalog-loading-row"><Skeleton className="h-11 w-11 rounded-[13px]" /><div className="flex-1"><Skeleton className="h-4 w-40" /><Skeleton className="mt-2 h-3 w-24" /></div><Skeleton className="h-8 w-20" /></div>)}</div>
+        <CatalogLoadingSkeleton view={view} />
       ) : query.isError ? (
         <div className="p-6"><ErrorState retry={() => query.refetch()} /></div>
       ) : !allProducts.length ? (
@@ -5548,25 +5555,36 @@ function Catalog() {
         />
       ) : (
         <>
-          <div className="space-y-5">
+          <div className="space-y-4">
             {actionError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-catalog-action-error">{actionError}</div>}
-            <Card className="catalog-workspace list-card overflow-hidden">
+            <Card className="catalog-workspace list-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
               {products.length ? (
                 <div className={cn(view === 'grid' ? 'catalog-grid' : 'catalog-list')} role="list">
-                  {view === 'list' && <div className="catalog-list-head" aria-hidden="true"><span>Product</span><span>Options</span><span>Price / cost</span><span>Stock</span><span /></div>}
+                  {view === 'list' && (
+                    <div className="catalog-list-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+                      <span role="columnheader">Product</span>
+                      <span role="columnheader">Options</span>
+                      <span role="columnheader">Price / cost</span>
+                      <span role="columnheader">Stock</span>
+                      <span role="columnheader" className="text-right">Actions</span>
+                    </div>
+                  )}
                   {products.map((product, index) => view === 'grid'
                     ? <CatalogGridCard key={product.id} product={product} animationDelay={`${index * 50}ms`} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
-                    : <div key={product.id} className="catalog-product-row rise-in" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
-                      <div className="catalog-product-main"><div className="catalog-product-thumb"><img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt="" /></div><div className="min-w-0"><h3 className="truncate font-display text-base font-bold tracking-[-.025em]">{product.name}</h3><div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
-                      <div className="catalog-variants">{product.preferences.length ? product.preferences.map((preference) => `${preference.label.toLowerCase() === 'choose an option' ? 'Option' : preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
-                      <div className="catalog-number"><span className="catalog-mobile-label">Price</span><strong>{moneyExact(product.price)}</strong><small>{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
-                      <div className="catalog-stock"><span className="catalog-mobile-label">Stock</span><strong className={cn(product.stock < 5 && 'is-alert')}>{product.stock}</strong><span className={cn('catalog-stock-status', product.stock < 5 ? 'is-alert' : 'is-good')}>{product.stock === 0 ? 'Out of stock' : product.stock < 5 ? 'Running low' : 'In stock'}</span></div>
-                      <CatalogActions productId={product.id} productName={product.name} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
+                    : <div key={product.id} className="catalog-product-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors rise-in" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
+                      <div className="catalog-product-main"><div className="catalog-product-thumb rounded-[10px] overflow-hidden"><img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt="" /></div><div className="min-w-0"><h3 className="truncate font-medium text-[14px] text-[#111827] dark:text-neutral-100">{product.name}</h3><div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12.5px] text-[#6B7280] dark:text-neutral-400"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
+                      <div className="catalog-variants text-[13.5px] text-[#6B7280] dark:text-neutral-400">{product.preferences.length ? product.preferences.map((preference) => `${preference.label.toLowerCase() === 'choose an option' ? 'Option' : preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
+                      <div className="catalog-number"><span className="catalog-mobile-label">Price</span><span className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100 block">{moneyExact(product.price)}</span><small className="text-[12px] text-[#6B7280] dark:text-neutral-400">{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
+                      <div className="catalog-stock"><span className="catalog-mobile-label">Stock</span><div className="inline-flex items-center gap-1.5"><strong className={cn("font-mono-ui text-[13.5px]", product.stock < 5 && 'is-alert')}>{product.stock}</strong><span className={cn('catalog-stock-status text-[11.5px] px-2 py-0.5 rounded-full font-semibold', product.stock === 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' : product.stock < 5 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300')}>{product.stock === 0 ? 'Out of stock' : product.stock < 5 ? 'Low stock' : 'In stock'}</span></div></div>
+                      <div className="flex justify-end">
+                        <CatalogActions productId={product.id} productName={product.name} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
+                      </div>
                     </div>)}
                 </div>
               ) : (
-                <div className="p-6">
-                  <EmptyState icon={Package} title={search || categoryFilter !== 'all' || stockFilter !== 'all' || missingCostsOnly ? 'No matching items' : 'Your catalog is waiting'} description="Try another search or filter, or add your first catalog item." action={<Button onClick={() => setLocation('/catalog/new')}><Plus size={15} />Add item</Button>} />
+                <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+                  <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No matching products</p>
+                  <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">Try adjusting your search terms or filter, or add a new product.</p>
                 </div>
               )}
             </Card>
@@ -5574,6 +5592,54 @@ function Catalog() {
         </>
       )}
     </Shell>;
+}
+
+function CatalogLoadingSkeleton({ view }: { view: CatalogView }) {
+  if (view === 'grid') {
+    return (
+      <div className="catalog-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 p-3 space-y-3">
+            <div className="aspect-square w-full rounded-[10px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+            <div className="h-4 w-3/4 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+            <div className="h-4 w-1/2 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <Card className="catalog-workspace list-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none" aria-label="Loading catalog">
+      <div className="catalog-list" role="list">
+        <div className="catalog-list-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+          <span role="columnheader">Product</span>
+          <span role="columnheader">Options</span>
+          <span role="columnheader">Price / cost</span>
+          <span role="columnheader">Stock</span>
+          <span role="columnheader" className="text-right">Actions</span>
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="catalog-product-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 h-[64px]">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-[10px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="h-4 w-32 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+                <div className="h-3 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+              </div>
+            </div>
+            <div><div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="space-y-1.5">
+              <div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+              <div className="h-3 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+            </div>
+            <div><div className="h-6 w-20 rounded-full bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="flex justify-end"><div className="h-7 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
 }
 
 function LegacyOrders() {
