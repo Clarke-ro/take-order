@@ -8449,31 +8449,37 @@ function SwitchControl({ checked, onChange, testId }: { checked: boolean; onChan
   );
 }
 
+type SettingsTab = 'profile' | 'store' | 'billing' | 'account';
+
 function SettingsPage() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  const { userId, signOut } = useAppAuth();
+  const { userId, email, signOut } = useAppAuth();
   const clerk = useClerk();
   const entitlements = useEntitlements(userId);
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>('shop');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [searchQuery, setSearchQuery] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showPlanBenefits, setShowPlanBenefits] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [pendingCurrency, setPendingCurrency] = useState<SellerSettings['currency'] | null>(null);
   const [settingsBillingCadence, setSettingsBillingCadence] = useState<'monthly' | 'annual'>('annual');
+
   const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile() || { sellerName: '', businessName: '', description: '', channels: [] });
   const [preferences, setPreferences] = useState<SellerSettingsPreferences>(() => readSellerSettings());
   const settingsQuery = useGetSellerSettings();
   const saveSettingsMutation = useUpdateSellerSettings();
   const ordersQuery = useListOrders();
   const [settings, setSettings] = useState<SellerSettings>(emptySellerSettings);
-  const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState('');
+
+  const [savingSection, setSavingSection] = useState<string | null>(null);
+  const [savedSection, setSavedSection] = useState<string | null>(null);
+  const [sectionErrors, setSectionErrors] = useState<Record<string, string>>({});
   const [logoError, setLogoError] = useState('');
   const [exported, setExported] = useState(false);
   const [copiedPayment, setCopiedPayment] = useState(false);
-
-  const activeId: SettingsSectionId = activeSection === ('general' as any) ? 'shop' : activeSection;
-  const active = settingsItem(activeId);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     if (!settingsQuery.data) return;
@@ -8514,43 +8520,17 @@ function SettingsPage() {
     setPreferences({ orderUpdates: next.orderUpdates, stockAlerts: next.stockAlerts, compactTables: next.compactTables });
   }, [settingsQuery.data]);
 
-  const updateProfile = (key: keyof SellerProfile, value: string) => {
+  const updateProfileField = (key: keyof SellerProfile, value: string) => {
     setProfile((current) => ({ ...current, [key]: value }));
     if (key !== 'logoDataUrl') setSettings((current) => ({ ...current, [key]: value }));
-    setSaved(false);
-    setSaveError('');
+    setHasUnsavedChanges(true);
+    setSavedSection(null);
   };
 
-  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setLogoError('Choose an image file.');
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setLogoError('Choose an image smaller than 10 MB.');
-      return;
-    }
-    compressImageFile(file, 600, 0.9).then((logoDataUrl) => {
-      setLogoError('');
-      setProfile((current) => ({ ...current, logoDataUrl }));
-      setSettings((current) => ({ ...current, logoDataUrl }));
-      setSaved(false);
-    }).catch(() => {
-      setLogoError('That image could not be read. Try another file.');
-    });
-  };
-
-  const removeLogo = () => {
-    setProfile((current) => {
-      const next = { ...current };
-      delete next.logoDataUrl;
-      return next;
-    });
-    setSettings((current) => ({ ...current, logoDataUrl: null }));
-    setSaved(false);
+  const setSetting = <K extends keyof SellerSettings>(key: K, value: SellerSettings[K]) => {
+    setSettings((current) => ({ ...current, [key]: value }));
+    setHasUnsavedChanges(true);
+    setSavedSection(null);
   };
 
   const setPreference = (key: keyof SellerSettingsPreferences, value: boolean) => {
@@ -8561,17 +8541,32 @@ function SettingsPage() {
     if (key === 'compactTables') {
       document.body.classList.toggle('compact-tables-active', value);
     }
-    setSaved(false);
+    setHasUnsavedChanges(true);
+    setSavedSection(null);
   };
 
-  const setSetting = <K extends keyof SellerSettings>(key: K, value: SellerSettings[K]) => {
-    setSettings((current) => ({ ...current, [key]: value }));
-    setSaved(false);
-    setSaveError('');
+  const validateE164Phone = (phone: string): boolean => {
+    if (!phone.trim()) return true;
+    const stripped = phone.replace(/[\s\-\(\)]/g, '');
+    return /^\+[1-9]\d{6,14}$/.test(stripped);
   };
 
-  const saveSettings = () => {
-    setSaveError('');
+  const saveCardSection = (sectionName: string) => {
+    // Validation
+    const errors: Record<string, string> = {};
+    const phoneToValidate = profile.whatsappPhone || settings.organizationPhone;
+    if (phoneToValidate && !validateE164Phone(phoneToValidate)) {
+      errors.phone = 'Phone must be in international E.164 format (e.g. +233 24 123 4567)';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setSectionErrors(errors);
+      return;
+    }
+
+    setSectionErrors({});
+    setSavingSection(sectionName);
+
     saveSettingsMutation.mutate({ data: settings }, {
       onSuccess: (data) => {
         setSettings(data);
@@ -8596,11 +8591,49 @@ function SettingsPage() {
         writeSellerProfile(mergedProfile);
         writeSellerSettings({ orderUpdates: data.orderUpdates, stockAlerts: data.stockAlerts, compactTables: data.compactTables });
         setActiveCurrency(data.currency);
-        setSaved(true);
         queryClient.setQueryData(getGetSellerSettingsQueryKey(), data);
+        setSavingSection(null);
+        setSavedSection(sectionName);
+        setHasUnsavedChanges(false);
+        setTimeout(() => setSavedSection((curr) => (curr === sectionName ? null : curr)), 3000);
       },
-      onError: (error) => setSaveError(formatUserFacingError(error, 'Your settings could not be saved. Try again.')),
+      onError: (error) => {
+        setSavingSection(null);
+        setSectionErrors({ [sectionName]: formatUserFacingError(error, 'Could not save settings. Please retry.') });
+      },
     });
+  };
+
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setLogoError('Choose an image file (PNG, JPG, WebP, SVG).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setLogoError('Image size must be smaller than 10 MB.');
+      return;
+    }
+    compressImageFile(file, 600, 0.9).then((logoDataUrl) => {
+      setLogoError('');
+      setProfile((current) => ({ ...current, logoDataUrl }));
+      setSettings((current) => ({ ...current, logoDataUrl }));
+      setHasUnsavedChanges(true);
+    }).catch(() => {
+      setLogoError('That image could not be read. Try another file.');
+    });
+  };
+
+  const removeLogo = () => {
+    setProfile((current) => {
+      const next = { ...current };
+      delete next.logoDataUrl;
+      return next;
+    });
+    setSettings((current) => ({ ...current, logoDataUrl: null }));
+    setHasUnsavedChanges(true);
   };
 
   const copyPaymentDetails = async () => {
@@ -8616,9 +8649,7 @@ function SettingsPage() {
       if (navigator.clipboard) await navigator.clipboard.writeText(text);
       setCopiedPayment(true);
       setTimeout(() => setCopiedPayment(false), 2000);
-    } catch {
-      // fallback
-    }
+    } catch {}
   };
 
   const testWhatsAppLink = () => {
@@ -8628,6 +8659,28 @@ function SettingsPage() {
       return;
     }
     openWhatsApp(phone, `Hello! Testing WhatsApp contact connection from ${profile.businessName || 'my Take Order store'}.`);
+  };
+
+  const handleCurrencySelect = (newCurr: SellerSettings['currency']) => {
+    const ordersCount = ordersQuery.data?.length ?? 0;
+    if (ordersCount > 0 && newCurr !== settings.currency) {
+      setPendingCurrency(newCurr);
+      setShowCurrencyModal(true);
+    } else {
+      setSetting('currency', newCurr);
+      updateProfileField('currency', newCurr);
+      setActiveCurrency(newCurr);
+    }
+  };
+
+  const confirmCurrencyChange = () => {
+    if (pendingCurrency) {
+      setSetting('currency', pendingCurrency);
+      updateProfileField('currency', pendingCurrency);
+      setActiveCurrency(pendingCurrency);
+      setShowCurrencyModal(false);
+      setPendingCurrency(null);
+    }
   };
 
   const exportOrdersToCsv = (orders: Order[]) => {
@@ -8645,7 +8698,7 @@ function SettingsPage() {
       sanitizeCsvCell(o.status),
       sanitizeCsvCell(o.fulfillment),
     ]);
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -8657,714 +8710,54 @@ function SettingsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const normalizedQuery = searchQuery.toLowerCase().trim();
-  const visibleNavItems = settingsNavItems.filter((item) => {
-    if (!normalizedQuery) return true;
-    return item.label.toLowerCase().includes(normalizedQuery) || item.keywords.some((k) => k.includes(normalizedQuery));
-  });
+  const resetWorkspace = () => {
+    if (resetConfirmText.trim().toUpperCase() !== 'RESET') return;
+    setSettings(emptySellerSettings);
+    setProfile({ sellerName: '', businessName: '', description: '', channels: [] });
+    setPreferences(defaultSellerPreferences);
+    saveSettingsMutation.mutate({ data: emptySellerSettings });
+    setShowResetModal(false);
+    setResetConfirmText('');
+  };
 
-  const renderActiveRows = () => {
-    if (settingsQuery.isLoading) {
-      return (
-        <div className="flex items-center gap-3 py-12 text-sm text-neutral-500">
-          <Loader2 size={16} className="animate-spin text-neutral-800" />
-          <span>Loading settings...</span>
-        </div>
-      );
-    }
-    if (settingsQuery.isError) {
-      return (
-        <div className="py-8 text-sm">
-          <p className="font-semibold text-neutral-900">Settings could not be loaded</p>
-          <p className="mt-1 text-xs text-neutral-500">Your saved settings are safe. Try reloading to continue.</p>
-          <Button type="button" variant="outline" className="mt-4" onClick={() => settingsQuery.refetch()}>
-            Try again
-          </Button>
-        </div>
-      );
-    }
+  const filteredMatchesSearch = (keywords: string[]) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return keywords.some((k) => k.toLowerCase().includes(q));
+  };
 
-    // 1. General (Shop Profile)
-    if (activeId === 'shop') {
-      return (
-        <div className="space-y-1">
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-business-name" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Business or shop name
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">The storefront name displayed to buyers at checkout</p>
-            </div>
-            <input
-              id="settings-business-name"
-              data-testid="input-settings-business-name"
-              type="text"
-              value={settings.businessName}
-              onChange={(e) => updateProfile('businessName', e.target.value)}
-              placeholder="e.g. The Sunday Edit"
-              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
-            />
-          </div>
+  // Card footer with Save button
+  const renderCardFooter = (sectionKey: string) => {
+    const isSaving = savingSection === sectionKey;
+    const isSaved = savedSection === sectionKey;
+    const errorMsg = sectionErrors[sectionKey];
 
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-seller-name" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Seller handle or name
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Your personal or brand handle (e.g. @amina.style)</p>
-            </div>
-            <input
-              id="settings-seller-name"
-              data-testid="input-settings-seller-name"
-              type="text"
-              value={settings.sellerName}
-              onChange={(e) => updateProfile('sellerName', e.target.value)}
-              placeholder="e.g. @amina.style"
-              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
-            />
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <label htmlFor="settings-whatsapp-phone" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                  WhatsApp contact number
-                </label>
-                {(profile.whatsappPhone || settings.organizationPhone) && (
-                  <button type="button" onClick={testWhatsAppLink} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline">
-                    <SiWhatsapp size={11} className="text-[#25D366]" />
-                    <span>Test link</span>
-                  </button>
-                )}
-              </div>
-              <p className="text-xs text-neutral-500 mt-0.5">Direct chat number for customer inquiries</p>
-            </div>
-            <input
-              id="settings-whatsapp-phone"
-              data-testid="input-settings-whatsapp-phone"
-              type="tel"
-              value={profile.whatsappPhone ?? settings.organizationPhone}
-              onChange={(e) => { updateProfile('whatsappPhone', e.target.value); setSetting('organizationPhone', e.target.value); }}
-              placeholder="e.g. +233 24 123 4567"
-              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
-            />
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-currency" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Store base currency
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Used across product pricing, orders, and reports</p>
-            </div>
-            <div className="relative">
-              <select
-                id="settings-currency"
-                data-testid="select-settings-currency"
-                value={settings.currency}
-                onChange={(e) => {
-                  const curr = e.target.value as SellerSettings['currency'];
-                  setSetting('currency', curr);
-                  updateProfile('currency', curr);
-                  setActiveCurrency(curr);
-                }}
-                className="appearance-none bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100/80 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 py-1.5 pl-3 pr-8 text-xs sm:text-sm font-medium text-neutral-800 dark:text-neutral-200 rounded-xl cursor-pointer focus:outline-none focus:ring-1 focus:ring-black"
-              >
-                {storeCurrencyOptions.map((opt) => (
-                  <option key={opt.currency} value={opt.currency}>
-                    {opt.label} ({opt.currency})
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-            </div>
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="sm:max-w-xs">
-              <label htmlFor="settings-description" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Shop bio / about
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Brief description shown on your storefront</p>
-            </div>
-            <textarea
-              id="settings-description"
-              data-testid="input-settings-description"
-              maxLength={300}
-              rows={2}
-              value={settings.description}
-              onChange={(e) => updateProfile('description', e.target.value)}
-              placeholder="Tell buyers what you sell..."
-              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black resize-none leading-relaxed"
-            />
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Storefront logo
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Custom badge displayed on orders and checkout</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <SellerLogo businessName={settings.businessName || 'Your shop'} logoDataUrl={settings.logoDataUrl ?? undefined} className="h-10 w-10 rounded-xl object-cover border border-neutral-200 shrink-0" />
-              <div className="flex items-center gap-2">
-                <label className="inline-flex cursor-pointer items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 shadow-2xs transition">
-                  <ImagePlus size={13} />
-                  <span>{settings.logoDataUrl ? 'Change' : 'Upload'}</span>
-                  <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={handleLogoChange} />
-                </label>
-                {settings.logoDataUrl && (
-                  <button type="button" onClick={removeLogo} className="px-2.5 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 text-xs text-neutral-600 hover:text-red-600 hover:border-red-200 transition">
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-          {logoError && <p className="text-xs text-red-600 pt-1">{logoError}</p>}
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Active sales channels
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Where you chat with buyers and share links</p>
-            </div>
-            <div className="flex flex-wrap gap-1.5 max-w-sm justify-start sm:justify-end">
-              {[
-                { key: 'WhatsApp', mark: 'whatsapp' },
-                { key: 'Instagram', mark: 'instagram' },
-                { key: 'TikTok', mark: 'tiktok' },
-                { key: 'Snapchat', mark: 'snapchat' },
-                { key: 'Facebook', mark: 'facebook' },
-                { key: 'X', mark: 'x' },
-              ].map((ch) => {
-                const isActive = profile.channels.includes(ch.key);
-                return (
-                  <button
-                    type="button"
-                    key={ch.key}
-                    onClick={() => {
-                      const updated = isActive ? profile.channels.filter(c => c !== ch.key) : [...profile.channels, ch.key];
-                      setProfile(prev => ({ ...prev, channels: updated }));
-                      setSettings(prev => ({ ...prev, channels: updated }));
-                      setSaved(false);
-                    }}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
-                      isActive
-                        ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-white dark:text-neutral-900 dark:border-white'
-                        : 'bg-neutral-50 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300'
-                    )}
-                  >
-                    <ChannelMark value={ch.mark as any} size={12} colorful={!isActive} />
-                    <span>{ch.key}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-        </div>
-      );
-    }
-
-    // 2. Payments & Payouts
-    if (activeId === 'payments') {
-      return (
-        <div className="space-y-1">
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Mobile Money network
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Network name shown to buyers sending Mobile Money</p>
-            </div>
-            <div className="relative">
-              <select
-                value={profile.momoNetwork || settings.seoTitle || 'MTN MoMo'}
-                onChange={(e) => {
-                  updateProfile('momoNetwork', e.target.value);
-                  setSetting('seoTitle', e.target.value);
-                }}
-                className="appearance-none bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100/80 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 py-1.5 pl-3 pr-8 text-xs sm:text-sm font-medium text-neutral-800 dark:text-neutral-200 rounded-xl cursor-pointer focus:outline-none focus:ring-1 focus:ring-black"
-              >
-                {['MTN MoMo', 'Telecel Cash', 'AT Money', 'M-Pesa', 'Other'].map((net) => (
-                  <option key={net} value={net}>
-                    {net}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-            </div>
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-momo-number" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                MoMo phone number
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">The recipient number buyers transfer funds to</p>
-            </div>
-            <input
-              id="settings-momo-number"
-              data-testid="input-settings-momo-number"
-              type="text"
-              value={profile.momoNumber ?? settings.customDomain}
-              onChange={(e) => { updateProfile('momoNumber', e.target.value); setSetting('customDomain', e.target.value); }}
-              placeholder="e.g. 024 123 4567"
-              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
-            />
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-momo-name" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Account registered name
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">The exact name shown to verify recipient on MoMo</p>
-            </div>
-            <input
-              id="settings-momo-name"
-              data-testid="input-settings-momo-name"
-              type="text"
-              value={profile.momoName ?? settings.organizationName}
-              onChange={(e) => { updateProfile('momoName', e.target.value); setSetting('organizationName', e.target.value); }}
-              placeholder="e.g. Amina Mensah / Sunday Edit"
-              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
-            />
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-bank-name" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Bank name (optional)
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">For buyers who prefer bank transfers</p>
-            </div>
-            <input
-              id="settings-bank-name"
-              data-testid="input-settings-bank-name"
-              type="text"
-              value={profile.bankName ?? settings.organizationEmail}
-              onChange={(e) => { updateProfile('bankName', e.target.value); setSetting('organizationEmail', e.target.value); }}
-              placeholder="e.g. Access Bank / Ecobank"
-              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
-            />
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-bank-account" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Bank account number / IBAN
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Account number matching the bank above</p>
-            </div>
-            <input
-              id="settings-bank-account"
-              data-testid="input-settings-bank-account"
-              type="text"
-              value={profile.bankAccount ?? settings.seoDescription}
-              onChange={(e) => { updateProfile('bankAccount', e.target.value); setSetting('seoDescription', e.target.value); }}
-              placeholder="e.g. 0123456789012"
-              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
-            />
-          </div>
-
-          {/* Payment prompt preview card */}
-          <div className="mt-6 pt-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Buyer payment card preview</span>
-              <button
-                type="button"
-                onClick={copyPaymentDetails}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 shadow-2xs transition"
-              >
-                {copiedPayment ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                <span>{copiedPayment ? 'Copied prompt' : 'Copy payment prompt'}</span>
-              </button>
-            </div>
-            <div className="bg-neutral-50/70 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl p-4 space-y-2">
-              <div className="flex items-center justify-between text-xs pb-2 border-b border-neutral-200/60 dark:border-neutral-800">
-                <span className="font-semibold text-neutral-900 dark:text-neutral-100">{profile.momoNetwork || settings.seoTitle || 'MTN MoMo'}</span>
-                <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">Active payout rail</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                <div>
-                  <span className="text-neutral-500 block">Number:</span>
-                  <strong className="font-mono text-sm text-neutral-900 dark:text-neutral-100">{profile.momoNumber || settings.customDomain || '024 000 0000'}</strong>
-                </div>
-                <div>
-                  <span className="text-neutral-500 block">Name:</span>
-                  <strong className="text-sm text-neutral-900 dark:text-neutral-100">{profile.momoName || settings.organizationName || settings.businessName || 'Seller Name'}</strong>
-                </div>
-              </div>
-              {(profile.bankName || settings.organizationEmail) && (
-                <div className="pt-2 border-t border-neutral-200/60 dark:border-neutral-800 text-xs text-neutral-500">
-                  Bank: <strong className="text-neutral-800 dark:text-neutral-200">{profile.bankName || settings.organizationEmail}</strong> — A/C: <span className="font-mono font-semibold text-neutral-800 dark:text-neutral-200">{profile.bankAccount || settings.seoDescription}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // 3. Fulfillment & Pickup
-    if (activeId === 'delivery') {
-      return (
-        <div className="space-y-1">
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-delivery-default" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Fulfillment method
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Options offered to buyers during checkout</p>
-            </div>
-            <div className="relative">
-              <select
-                id="settings-delivery-default"
-                value={settings.deliveryDefault}
-                onChange={(e) => setSetting('deliveryDefault', e.target.value as SellerSettings['deliveryDefault'])}
-                className="appearance-none bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100/80 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 py-1.5 pl-3 pr-8 text-xs sm:text-sm font-medium text-neutral-800 dark:text-neutral-200 rounded-xl cursor-pointer focus:outline-none focus:ring-1 focus:ring-black"
-              >
-                <option value="both">Let buyers choose (Delivery or Pickup)</option>
-                <option value="delivery">Delivery only</option>
-                <option value="pickup">Store pickup only</option>
-              </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-            </div>
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-delivery-fee" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Flat delivery fee
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Fixed shipping fee automatically applied when delivery is selected</p>
-            </div>
-            <div className="relative w-full sm:w-40">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-neutral-500">{currencySymbol()}</span>
-              <input
-                id="settings-delivery-fee"
-                data-testid="input-settings-delivery-fee"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="e.g. 25.00"
-                value={settings.deliveryFee != null && settings.deliveryFee > 0 ? settings.deliveryFee : ''}
-                onChange={(e) => {
-                  const val = Math.max(0, Number(e.target.value) || 0);
-                  setSetting('deliveryFee', val);
-                  setSaved(false);
-                }}
-                className="w-full pl-8 pr-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
-              />
-            </div>
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-pickup-address" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Store pickup location
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Address where buyers collect orders in person</p>
-            </div>
-            <input
-              id="settings-pickup-address"
-              data-testid="input-settings-pickup-address"
-              type="text"
-              value={profile.pickupAddress ?? settings.organizationAddress}
-              onChange={(e) => { updateProfile('pickupAddress', e.target.value); setSetting('organizationAddress', e.target.value); }}
-              placeholder="e.g. Shop 14, Osu Oxford Street, Accra"
-              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
-            />
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <label htmlFor="settings-pickup-hours" className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Collection hours
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Operating times when orders are ready for collection</p>
-            </div>
-            <input
-              id="settings-pickup-hours"
-              data-testid="input-settings-pickup-hours"
-              type="text"
-              value={profile.pickupHours ?? settings.trackingId}
-              onChange={(e) => { updateProfile('pickupHours', e.target.value); setSetting('trackingId', e.target.value); }}
-              placeholder="e.g. Mon–Sat 9:00 AM – 6:30 PM"
-              className="w-full sm:w-72 px-3 py-1.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
-            />
-          </div>
-        </div>
-      );
-    }
-
-    // 4. Store Preferences
-    if (activeId === 'preferences') {
-      return (
-        <div className="space-y-1">
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-4">
-            <div>
-              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Order status updates
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Notify you whenever a buyer completes checkout or makes a deposit</p>
-            </div>
-            <SwitchControl checked={settings.orderUpdates} onChange={(val) => setPreference('orderUpdates', val)} />
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-4">
-            <div>
-              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Stock running low alerts
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Highlight products whose remaining stock drops below 5 units</p>
-            </div>
-            <SwitchControl checked={settings.stockAlerts} onChange={(val) => setPreference('stockAlerts', val)} />
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-4">
-            <div>
-              <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                Compact tables
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">Use tighter row padding for high-volume order management</p>
-            </div>
-            <SwitchControl checked={settings.compactTables} onChange={(val) => setPreference('compactTables', val)} />
-          </div>
-        </div>
-      );
-    }
-
-    // 5. Security & Login
-    if (activeId === 'security') {
-      return (
-        <div className="space-y-1">
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Account credentials</span>
-              <p className="text-xs text-neutral-500 mt-0.5">Reset your password or update your account sign-in details</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (clerk && clerk.openUserProfile) {
-                  clerk.openUserProfile();
-                } else {
-                  alert('To reset your password, please check your sign-in email address.');
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 shadow-2xs transition cursor-pointer"
-            >
-              <KeyRound size={13} />
-              <span>Reset password</span>
-            </button>
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Current device session</span>
-              <p className="text-xs text-neutral-500 mt-0.5">Active web browser session</p>
-            </div>
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span>Active</span>
-            </span>
-          </div>
-
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Log out of Take Order</span>
-              <p className="text-xs text-neutral-500 mt-0.5">End your session on this browser and return to sign in</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowLogoutConfirm(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-100 transition shadow-2xs cursor-pointer"
-            >
-              <LogOut size={13} />
-              <span>Log out</span>
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    // 6. Billing & Subscription
-    if (activeId === 'billing') {
-      const activeLinkTotal = entitlements.tier === 'free' ? FREE_ACTIVE_LINK_LIMIT : entitlements.tier === 'pro' || entitlements.tier === 'trial' ? PRO_ACTIVE_LINK_LIMIT : null;
-      const linksRemaining = activeLinkTotal !== null ? Math.max(0, activeLinkTotal - entitlements.usage.activeLinkCount) : null;
-
-      return (
-        <div className="space-y-4">
-          <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Current plan</span>
-              <p className="text-xs text-neutral-500 mt-0.5">Click your plan badge to view tier limits, allowances, and benefits</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowPlanBenefits((prev) => !prev)}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 transition shadow-2xs font-semibold text-xs cursor-pointer"
-            >
-              {entitlements.isProPlus ? (
-                <>
-                  <Crown size={13} className="text-amber-400 fill-amber-400" />
-                  <span>Take Order Pro+</span>
-                  <span className="text-[10px] text-amber-700 bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.5 rounded font-bold">Gold verified</span>
-                </>
-              ) : entitlements.isPro ? (
-                <>
-                  <Crown size={13} className="text-blue-500 fill-blue-500" />
-                  <span>Take Order Pro {entitlements.isTrial ? `(${entitlements.trial.daysRemaining}d trial)` : ''}</span>
-                  <span className="text-[10px] text-blue-700 bg-blue-100 dark:bg-blue-950/50 px-1.5 py-0.5 rounded font-bold">Blue verified</span>
-                </>
-              ) : (
-                <>
-                  <span>Take Order Free</span>
-                  <span className="text-[10px] text-slate-600 bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-bold">Standard</span>
-                </>
-              )}
-              <ChevronDown size={13} className={cn('transition-transform text-slate-400', showPlanBenefits && 'rotate-180')} />
-            </button>
-          </div>
-
-          {showPlanBenefits && (
-            <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 space-y-3 text-xs">
-              <div className="font-bold text-sm text-neutral-900 dark:text-neutral-100">Plan benefits & capabilities</div>
-              <div className="grid sm:grid-cols-2 gap-2 text-neutral-700 dark:text-neutral-300">
-                <div className="flex items-center gap-2"><Check size={13} className="text-emerald-500" /><span>{entitlements.isProPlus ? 'Unlimited active Take Order links' : entitlements.isPro ? '500 active links allowance' : '15 active links limit'}</span></div>
-                <div className="flex items-center gap-2"><Check size={13} className="text-emerald-500" /><span>Unlimited catalog items</span></div>
-                <div className="flex items-center gap-2"><Check size={13} className="text-emerald-500" /><span>{entitlements.tier !== 'free' ? 'Executive business intelligence & analytics' : 'Basic sales tracking'}</span></div>
-                <div className="flex items-center gap-2"><Check size={13} className="text-emerald-500" /><span>{entitlements.isProPlus ? 'Gold verification badge' : entitlements.isPro ? 'Blue verification badge' : 'Standard merchant badge'}</span></div>
-                <div className="flex items-center gap-2"><Check size={13} className="text-emerald-500" /><span>WhatsApp & SMS dispatch slips</span></div>
-                <div className="flex items-center gap-2"><Check size={13} className="text-emerald-500" /><span>Automated digital receipts</span></div>
-              </div>
-            </div>
-          )}
-
-          {/* Embedded Full Subscription Management */}
-          <div className="pt-2">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
-              <div>
-                <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Manage plan & upgrade</span>
-                <p className="text-xs text-neutral-500 mt-0.5">Switch billing cycle or upgrade directly in workspace</p>
-              </div>
-              <div className="inline-flex items-center gap-1 rounded-xl bg-neutral-100 dark:bg-neutral-800 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setSettingsBillingCadence('monthly')}
-                  className={cn('px-2.5 py-1 rounded-lg font-medium transition cursor-pointer', settingsBillingCadence === 'monthly' ? 'bg-white dark:bg-neutral-900 font-semibold shadow-2xs' : 'text-neutral-500')}
-                >
-                  Monthly
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSettingsBillingCadence('annual')}
-                  className={cn('px-2.5 py-1 rounded-lg font-medium transition cursor-pointer', settingsBillingCadence === 'annual' ? 'bg-white dark:bg-neutral-900 font-semibold shadow-2xs' : 'text-neutral-500')}
-                >
-                  Annual (25% off)
-                </button>
-              </div>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-4 pt-4">
-              {/* Pro card */}
-              <div className="p-4 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-sm text-neutral-900 dark:text-neutral-100">Take Order Pro</div>
-                  <span className="text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full">Blue tick</span>
-                </div>
-                <div className="text-xl font-extrabold text-neutral-900 dark:text-neutral-100">
-                  {settingsBillingCadence === 'annual' ? '$89.91/yr' : '$9.99/mo'}
-                </div>
-                <p className="text-xs text-neutral-500">500 active links, full reports, profit breakdown & custom branding.</p>
-                <Link
-                  href="/subscribe"
-                  className="block w-full text-center py-2 rounded-xl bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold text-xs hover:opacity-90 transition"
-                >
-                  {entitlements.isPro && !entitlements.isProPlus ? 'Current Plan' : 'Select Pro'}
-                </Link>
-              </div>
-
-              {/* Pro+ card */}
-              <div className="p-4 rounded-2xl border border-amber-300 dark:border-amber-800/60 bg-amber-50/30 dark:bg-amber-950/20 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-sm text-neutral-900 dark:text-neutral-100">Take Order Pro+</div>
-                  <span className="text-xs font-bold text-amber-700 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-full">Gold tick</span>
-                </div>
-                <div className="text-xl font-extrabold text-neutral-900 dark:text-neutral-100">
-                  {settingsBillingCadence === 'annual' ? '$180/yr' : '$20/mo'}
-                </div>
-                <p className="text-xs text-neutral-500">Unlimited order links, VIP support, conversion intelligence.</p>
-                <Link
-                  href="/subscribe"
-                  className="block w-full text-center py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black font-semibold text-xs hover:opacity-90 transition"
-                >
-                  {entitlements.isProPlus ? 'Current Plan' : 'Select Pro+'}
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // 7. Data & Export
     return (
-      <div className="space-y-1">
-        <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Export order data</span>
-            <p className="text-xs text-neutral-500 mt-0.5">Download your complete order history as a spreadsheet-ready CSV file</p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-xl h-9 px-3.5 text-xs font-semibold gap-1.5 shadow-2xs"
-            onClick={() => {
-              if (!ordersQuery.data || ordersQuery.data.length === 0) {
-                alert('No orders found to export yet.');
-                return;
-              }
-              exportOrdersToCsv(ordersQuery.data);
-              setExported(true);
-              setTimeout(() => setExported(false), 3000);
-            }}
-            disabled={ordersQuery.isLoading}
-            data-testid="button-export-orders-csv"
-          >
-            {exported ? <Check size={13} className="text-emerald-500" /> : <ArrowDown size={13} />}
-            <span>{exported ? 'Downloaded CSV' : 'Export Orders to CSV'}</span>
-          </Button>
+      <div className="pt-4 mt-5 border-t border-[hsl(var(--border))] flex items-center justify-between gap-3">
+        <div>
+          {errorMsg ? (
+            <span className="text-xs text-rose-600 font-medium">{errorMsg}</span>
+          ) : isSaved ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+              <CheckCircle2 size={13} />
+              <span>Saved successfully</span>
+            </span>
+          ) : (
+            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">
+              {hasUnsavedChanges ? 'Unsaved changes' : 'All changes saved'}
+            </span>
+          )}
         </div>
-
-        <div className="py-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <span className="text-sm font-medium text-red-600 dark:text-red-400">Reset workspace settings</span>
-            <p className="text-xs text-neutral-500 mt-0.5">Clear shop bio, saved payment rails, and restore defaults</p>
-          </div>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 dark:border-red-900 bg-red-50/60 dark:bg-red-950/30 px-3.5 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 transition shadow-2xs"
-            onClick={() => {
-              if (!window.confirm('Are you sure you want to reset your seller workspace settings? This will clear your custom profile and payment details.')) return;
-              setSettings(emptySellerSettings);
-              setProfile({ sellerName: '', businessName: '', description: '', channels: [] });
-              setPreferences(defaultSellerPreferences);
-              setSaved(false);
-              setSaveError('');
-              saveSettingsMutation.mutate({ data: emptySellerSettings });
-            }}
-          >
-            <Trash2 size={13} />
-            <span>Reset workspace</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => saveCardSection(sectionKey)}
+          disabled={isSaving}
+          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-[8px] bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-800 disabled:opacity-50 transition cursor-pointer dark:bg-white dark:text-neutral-900"
+          data-testid={`button-save-${sectionKey}`}
+        >
+          {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+          <span>{isSaving ? 'Saving...' : 'Save changes'}</span>
+        </button>
       </div>
     );
   };
@@ -9373,130 +8766,888 @@ function SettingsPage() {
     <Shell>
       <PageHeader
         title="Settings"
+        tabs={
+          <div className="overflow-x-auto pb-1">
+            <SegmentedControl
+              ariaLabel="Settings navigation tabs"
+              value={activeTab}
+              onChange={(val) => setActiveTab(val as SettingsTab)}
+              options={[
+                { value: 'profile', label: 'Profile', icon: <UserRound size={14} />, testId: 'tab-settings-profile' },
+                { value: 'store', label: 'Store & Payments', icon: <Store size={14} />, testId: 'tab-settings-store' },
+                { value: 'billing', label: 'Billing & Plan', icon: <Crown size={14} />, testId: 'tab-settings-billing' },
+                { value: 'account', label: 'Account & Security', icon: <ShieldCheck size={14} />, testId: 'tab-settings-account' },
+              ]}
+            />
+          </div>
+        }
         search={{
           value: searchQuery,
           onChange: setSearchQuery,
-          placeholder: "Search settings...",
+          placeholder: 'Search settings...',
         }}
       />
-      <div className="w-full">
 
-        {/* Full-width Settings card */}
-        <div className="bg-white dark:bg-neutral-950 border border-neutral-200/90 dark:border-neutral-800 rounded-3xl shadow-xs overflow-hidden flex flex-col md:flex-row min-h-[680px]">
-          {/* Left Column Rail */}
-          <div className="w-full md:w-64 shrink-0 p-5 flex flex-col border-b md:border-b-0 md:border-r border-neutral-200/70 dark:border-neutral-800 bg-white dark:bg-neutral-950">
-            {/* Category Navigation Items */}
-            <div className="space-y-1 overflow-y-auto flex-1">
-              {visibleNavItems.map((item) => {
-                const Icon = item.icon;
-                const isCurrent = activeId === item.id;
-                return (
-                  <button
-                    type="button"
-                    key={item.id}
-                    onClick={() => setActiveSection(item.id)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs sm:text-sm transition-all text-left',
-                      isCurrent
-                        ? 'bg-neutral-100 dark:bg-neutral-800 font-semibold text-neutral-900 dark:text-neutral-100'
-                        : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 hover:text-neutral-900 dark:hover:text-neutral-100 font-normal'
-                    )}
-                    data-testid={`button-settings-${item.id}`}
-                  >
-                    <Icon size={17} className={isCurrent ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-500'} />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-              {visibleNavItems.length === 0 && (
-                <p className="px-3 py-4 text-xs text-neutral-400 italic">No matching settings</p>
-              )}
-            </div>
+      <div className="max-w-[840px] mx-auto pb-12">
+
+        {/* Loading Skeletons */}
+        {settingsQuery.isLoading && (
+          <div className="space-y-5 animate-pulse">
+            <div className="h-48 rounded-[12px] bg-neutral-100 dark:bg-neutral-800" />
+            <div className="h-48 rounded-[12px] bg-neutral-100 dark:bg-neutral-800" />
           </div>
+        )}
 
-          {/* Right Content Panel */}
-          <div className="flex-1 min-w-0 p-6 sm:p-8 flex flex-col overflow-y-auto bg-white dark:bg-neutral-950">
-            {/* Header: Section Title + Sync Status + Executive Save Button */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-6 mb-6 border-b border-neutral-100 dark:border-neutral-800">
-              <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-                {active.label}
-              </h2>
+        {/* Error State */}
+        {settingsQuery.isError && (
+          <div className="rounded-[12px] border border-rose-200 bg-rose-50 p-6 text-center dark:bg-rose-950/20 dark:border-rose-900">
+            <AlertTriangle className="mx-auto text-rose-600 mb-2" size={24} />
+            <h3 className="text-sm font-semibold text-rose-900 dark:text-rose-200">Unable to load settings</h3>
+            <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">Please check your network connection and retry.</p>
+            <Button type="button" variant="outline" className="mt-4" onClick={() => settingsQuery.refetch()}>
+              Retry
+            </Button>
+          </div>
+        )}
 
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full',
-                    saved
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800'
-                      : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800'
-                  )}
-                >
-                  {saved ? (
-                    <>
-                      <CheckCircle2 size={13} className="text-emerald-500" />
-                      <span>All changes synced</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      <span>Unsaved changes</span>
-                    </>
-                  )}
-                </span>
+        {!settingsQuery.isLoading && !settingsQuery.isError && (
+          <div className="space-y-6">
+            {/* 1. PROFILE TAB */}
+            {activeTab === 'profile' && (
+              <>
+                {filteredMatchesSearch(['storefront', 'identity', 'business', 'name', 'handle', 'bio', 'logo']) && (
+                  <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-xs dark:bg-neutral-900">
+                    <div className="mb-4">
+                      <h3 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Storefront Identity</h3>
+                      <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                        Your public business profile displayed on order checkout links.
+                      </p>
+                    </div>
 
-                <Button
-                  type="button"
-                  onClick={saveSettings}
-                  disabled={saveSettingsMutation.isPending}
-                  className="bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-xs font-semibold h-9 px-4 rounded-xl gap-2 shadow-2xs transition"
-                  data-testid="button-save-settings-header"
-                >
-                  {saveSettingsMutation.isPending ? (
-                    <Loader2 size={13} className="animate-spin" />
-                  ) : saved ? (
-                    <>
-                      <Check size={13} />
-                      <span>Saved</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save size={13} />
-                      <span>Save changes</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-settings-bizname">
+                          Business / Shop Name <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          id="input-settings-bizname"
+                          data-testid="input-settings-business-name"
+                          type="text"
+                          value={settings.businessName}
+                          onChange={(e) => updateProfileField('businessName', e.target.value)}
+                          placeholder="e.g. The Sunday Edit"
+                          className="w-full h-10 px-3.5 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                        />
+                      </div>
 
-            {saveError && (
-              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                {saveError}
-              </div>
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-settings-sellerhandle">
+                          Seller Handle
+                        </label>
+                        <input
+                          id="input-settings-sellerhandle"
+                          data-testid="input-settings-seller-name"
+                          type="text"
+                          value={settings.sellerName}
+                          onChange={(e) => updateProfileField('sellerName', e.target.value)}
+                          placeholder="e.g. @amina.style"
+                          className="w-full h-10 px-3.5 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-settings-shopbio">
+                          Shop Bio / Description
+                        </label>
+                        <textarea
+                          id="input-settings-shopbio"
+                          data-testid="input-settings-description"
+                          rows={2}
+                          maxLength={300}
+                          value={settings.description}
+                          onChange={(e) => updateProfileField('description', e.target.value)}
+                          placeholder="Brief description shown to buyers on your order links..."
+                          className="w-full px-3.5 py-2 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition resize-none"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1">
+                          Storefront Logo
+                        </label>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <SellerLogo
+                            businessName={settings.businessName || 'Your store'}
+                            logoDataUrl={settings.logoDataUrl ?? undefined}
+                            className="h-12 w-12 rounded-[10px] object-cover border border-[hsl(var(--border))] shrink-0"
+                          />
+                          <div className="flex items-center gap-2">
+                            <label className="inline-flex cursor-pointer items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[hsl(var(--border))] bg-white dark:bg-neutral-800 text-xs font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition">
+                              <ImagePlus size={13} />
+                              <span>{settings.logoDataUrl ? 'Change' : 'Upload logo'}</span>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                className="sr-only"
+                                onChange={handleLogoChange}
+                              />
+                            </label>
+                            {settings.logoDataUrl && (
+                              <button
+                                type="button"
+                                onClick={removeLogo}
+                                className="px-2.5 py-1.5 rounded-[8px] border border-[hsl(var(--border))] text-xs text-rose-600 hover:border-rose-300 transition cursor-pointer"
+                              >
+                                <X size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {logoError && <p className="text-xs text-rose-600 mt-1">{logoError}</p>}
+                      </div>
+                    </div>
+
+                    {renderCardFooter('identity')}
+                  </div>
+                )}
+
+                {filteredMatchesSearch(['whatsapp', 'phone', 'contact', 'channels', 'social', 'instagram', 'tiktok']) && (
+                  <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-xs dark:bg-neutral-900">
+                    <div className="mb-4">
+                      <h3 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Contact & Active Channels</h3>
+                      <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                        Buyer inquiry channels and WhatsApp links.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[12px] font-medium text-[hsl(var(--foreground))]" htmlFor="input-settings-whatsapp">
+                            WhatsApp Contact Number
+                          </label>
+                          {(profile.whatsappPhone || settings.organizationPhone) && (
+                            <button
+                              type="button"
+                              onClick={testWhatsAppLink}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline cursor-pointer"
+                            >
+                              <Send size={11} className="text-[#25D366]" />
+                              <span>Test link</span>
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          id="input-settings-whatsapp"
+                          data-testid="input-settings-whatsapp-phone"
+                          type="tel"
+                          value={profile.whatsappPhone ?? settings.organizationPhone}
+                          onChange={(e) => {
+                            updateProfileField('whatsappPhone', e.target.value);
+                            setSetting('organizationPhone', e.target.value);
+                          }}
+                          placeholder="+233 24 123 4567"
+                          className={cn(
+                            'w-full h-10 px-3.5 rounded-[8px] border bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition',
+                            sectionErrors.phone ? 'border-rose-400' : 'border-[hsl(var(--input))]'
+                          )}
+                        />
+                        <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1">
+                          Must be in international E.164 format including country code (e.g. +233241234567).
+                        </p>
+                        {sectionErrors.phone && <p className="text-xs text-rose-600 mt-1">{sectionErrors.phone}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-2">
+                          Active Sales Channels
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { key: 'WhatsApp', mark: 'whatsapp' },
+                            { key: 'Instagram', mark: 'instagram' },
+                            { key: 'TikTok', mark: 'tiktok' },
+                            { key: 'Snapchat', mark: 'snapchat' },
+                            { key: 'Facebook', mark: 'facebook' },
+                            { key: 'X', mark: 'x' },
+                          ].map((ch) => {
+                            const isActive = profile.channels.includes(ch.key);
+                            return (
+                              <button
+                                type="button"
+                                key={ch.key}
+                                onClick={() => {
+                                  const updated = isActive
+                                    ? profile.channels.filter((c) => c !== ch.key)
+                                    : [...profile.channels, ch.key];
+                                  setProfile((prev) => ({ ...prev, channels: updated }));
+                                  setSettings((prev) => ({ ...prev, channels: updated }));
+                                  setHasUnsavedChanges(true);
+                                }}
+                                className={cn(
+                                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition cursor-pointer',
+                                  isActive
+                                    ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-white dark:text-neutral-900'
+                                    : 'bg-neutral-50 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:border-neutral-400'
+                                )}
+                              >
+                                <ChannelMark value={ch.mark as any} size={12} colorful={!isActive} />
+                                <span>{ch.key}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {renderCardFooter('channels')}
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Divided Horizontal Row Controls */}
-            {renderActiveRows()}
+            {/* 2. STORE & PAYMENTS TAB */}
+            {activeTab === 'store' && (
+              <>
+                {filteredMatchesSearch(['currency', 'base', 'cedi', 'pricing', 'money']) && (
+                  <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-xs dark:bg-neutral-900">
+                    <div className="mb-4">
+                      <h3 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Store Base Currency</h3>
+                      <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                        The primary currency used for order totals, pricing, and analytics.
+                      </p>
+                    </div>
+
+                    <div className="max-w-xs">
+                      <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="select-settings-currency">
+                        Base Currency
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="select-settings-currency"
+                          data-testid="select-settings-currency"
+                          value={settings.currency}
+                          onChange={(e) => handleCurrencySelect(e.target.value as SellerSettings['currency'])}
+                          className="w-full appearance-none h-10 pl-3.5 pr-8 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] font-medium text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition cursor-pointer"
+                        >
+                          {storeCurrencyOptions.map((opt) => (
+                            <option key={opt.currency} value={opt.currency}>
+                              {opt.label} ({opt.currency})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+                      </div>
+                      <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1.5">
+                        Orders count: {ordersQuery.data?.length ?? 0} existing order{(ordersQuery.data?.length ?? 0) === 1 ? '' : 's'}.
+                      </p>
+                    </div>
+
+                    {renderCardFooter('currency')}
+                  </div>
+                )}
+
+                {filteredMatchesSearch(['delivery', 'fulfillment', 'pickup', 'shipping', 'fee', 'address', 'hours']) && (
+                  <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-xs dark:bg-neutral-900">
+                    <div className="mb-4">
+                      <h3 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Fulfillment & Pickup</h3>
+                      <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                        Options presented to buyers when choosing how they receive their items.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="select-settings-fulfillment">
+                          Fulfillment Mode
+                        </label>
+                        <select
+                          id="select-settings-fulfillment"
+                          value={settings.deliveryDefault}
+                          onChange={(e) => setSetting('deliveryDefault', e.target.value as SellerSettings['deliveryDefault'])}
+                          className="w-full h-10 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                        >
+                          <option value="both">Let buyers choose (Delivery or Pickup)</option>
+                          <option value="delivery">Delivery only</option>
+                          <option value="pickup">Store pickup only</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-settings-deliveryfee">
+                          Flat Delivery Fee
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-neutral-500">
+                            {currencySymbol()}
+                          </span>
+                          <input
+                            id="input-settings-deliveryfee"
+                            data-testid="input-settings-delivery-fee"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={settings.deliveryFee != null && settings.deliveryFee > 0 ? settings.deliveryFee : ''}
+                            onChange={(e) => setSetting('deliveryFee', Math.max(0, Number(e.target.value) || 0))}
+                            placeholder="0.00"
+                            className="w-full h-10 pl-8 pr-3.5 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-settings-pickupaddr">
+                          Store Pickup Address
+                        </label>
+                        <input
+                          id="input-settings-pickupaddr"
+                          data-testid="input-settings-pickup-address"
+                          type="text"
+                          value={profile.pickupAddress ?? settings.organizationAddress}
+                          onChange={(e) => {
+                            updateProfileField('pickupAddress', e.target.value);
+                            setSetting('organizationAddress', e.target.value);
+                          }}
+                          placeholder="e.g. Shop 14, Osu Oxford Street, Accra"
+                          className="w-full h-10 px-3.5 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-settings-pickuphours">
+                          Collection Hours
+                        </label>
+                        <input
+                          id="input-settings-pickuphours"
+                          data-testid="input-settings-pickup-hours"
+                          type="text"
+                          value={profile.pickupHours ?? settings.trackingId}
+                          onChange={(e) => {
+                            updateProfileField('pickupHours', e.target.value);
+                            setSetting('trackingId', e.target.value);
+                          }}
+                          placeholder="e.g. Mon–Sat 9:00 AM – 6:30 PM"
+                          className="w-full h-10 px-3.5 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                        />
+                      </div>
+                    </div>
+
+                    {renderCardFooter('fulfillment')}
+                  </div>
+                )}
+
+                {filteredMatchesSearch(['payment', 'payout', 'momo', 'mobile money', 'bank', 'transfer']) && (
+                  <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-xs dark:bg-neutral-900">
+                    <div className="mb-4">
+                      <h3 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Payment & Payout Rails</h3>
+                      <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                        The recipient accounts shown to buyers sending Mobile Money or bank transfers.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="select-settings-momonet">
+                          Mobile Money Network
+                        </label>
+                        <select
+                          id="select-settings-momonet"
+                          value={profile.momoNetwork || settings.seoTitle || 'MTN MoMo'}
+                          onChange={(e) => {
+                            updateProfileField('momoNetwork', e.target.value);
+                            setSetting('seoTitle', e.target.value);
+                          }}
+                          className="w-full h-10 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                        >
+                          {['MTN MoMo', 'Telecel Cash', 'AT Money', 'M-Pesa', 'Other'].map((net) => (
+                            <option key={net} value={net}>
+                              {net}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-settings-momonum">
+                          MoMo Phone / Till Number
+                        </label>
+                        <input
+                          id="input-settings-momonum"
+                          data-testid="input-settings-momo-number"
+                          type="text"
+                          value={profile.momoNumber ?? settings.customDomain}
+                          onChange={(e) => {
+                            updateProfileField('momoNumber', e.target.value);
+                            setSetting('customDomain', e.target.value);
+                          }}
+                          placeholder="e.g. 024 123 4567"
+                          className="w-full h-10 px-3.5 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-settings-momoname">
+                          MoMo Account Name
+                        </label>
+                        <input
+                          id="input-settings-momoname"
+                          data-testid="input-settings-momo-name"
+                          type="text"
+                          value={profile.momoName ?? settings.organizationName}
+                          onChange={(e) => {
+                            updateProfileField('momoName', e.target.value);
+                            setSetting('organizationName', e.target.value);
+                          }}
+                          placeholder="e.g. Amina Mensah / Sunday Edit"
+                          className="w-full h-10 px-3.5 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-settings-bankname">
+                          Bank Name <span className="font-normal text-neutral-400">(optional)</span>
+                        </label>
+                        <input
+                          id="input-settings-bankname"
+                          data-testid="input-settings-bank-name"
+                          type="text"
+                          value={profile.bankName ?? settings.organizationEmail}
+                          onChange={(e) => {
+                            updateProfileField('bankName', e.target.value);
+                            setSetting('organizationEmail', e.target.value);
+                          }}
+                          placeholder="e.g. Ecobank / Access Bank"
+                          className="w-full h-10 px-3.5 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-settings-bankacc">
+                          Bank Account Number / IBAN <span className="font-normal text-neutral-400">(optional)</span>
+                        </label>
+                        <input
+                          id="input-settings-bankacc"
+                          data-testid="input-settings-bank-account"
+                          type="text"
+                          value={profile.bankAccount ?? settings.seoDescription}
+                          onChange={(e) => {
+                            updateProfileField('bankAccount', e.target.value);
+                            setSetting('seoDescription', e.target.value);
+                          }}
+                          placeholder="e.g. 0123456789012"
+                          className="w-full h-10 px-3.5 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Payment Prompt Preview */}
+                    <div className="mt-5 p-4 rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50 dark:bg-neutral-800/40">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+                          Buyer Payment Prompt Preview
+                        </span>
+                        <button
+                          type="button"
+                          onClick={copyPaymentDetails}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-white dark:bg-neutral-700 border border-[hsl(var(--border))] text-xs font-medium text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 transition cursor-pointer"
+                        >
+                          {copiedPayment ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                          <span>{copiedPayment ? 'Copied' : 'Copy prompt'}</span>
+                        </button>
+                      </div>
+                      <div className="text-xs space-y-1 text-neutral-700 dark:text-neutral-300">
+                        <div>
+                          <strong>{profile.momoNetwork || settings.seoTitle || 'MTN MoMo'}:</strong>{' '}
+                          <span className="font-mono">{profile.momoNumber || settings.customDomain || 'No number set'}</span>{' '}
+                          ({profile.momoName || settings.organizationName || 'Name'})
+                        </div>
+                        {(profile.bankName || settings.organizationEmail) && (
+                          <div>
+                            <strong>Bank:</strong> {profile.bankName || settings.organizationEmail} —{' '}
+                            <span className="font-mono">{profile.bankAccount || settings.seoDescription}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {renderCardFooter('payouts')}
+                  </div>
+                )}
+
+                {filteredMatchesSearch(['preference', 'alert', 'notification', 'compact', 'table']) && (
+                  <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-xs dark:bg-neutral-900">
+                    <div className="mb-4">
+                      <h3 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Store Preferences</h3>
+                      <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                        Alert toggles and dashboard display density.
+                      </p>
+                    </div>
+
+                    <div className="divide-y divide-[hsl(var(--border))]">
+                      <div className="py-3 flex items-center justify-between">
+                        <div>
+                          <span className="text-[13px] font-medium text-[hsl(var(--foreground))]">Order Status Updates</span>
+                          <p className="text-[11.5px] text-[hsl(var(--muted-foreground))]">
+                            Notify you when buyers complete checkout or confirm payment.
+                          </p>
+                        </div>
+                        <SwitchControl checked={settings.orderUpdates} onChange={(val) => setPreference('orderUpdates', val)} />
+                      </div>
+
+                      <div className="py-3 flex items-center justify-between">
+                        <div>
+                          <span className="text-[13px] font-medium text-[hsl(var(--foreground))]">Low Stock Alerts</span>
+                          <p className="text-[11.5px] text-[hsl(var(--muted-foreground))]">
+                            Highlight catalog products with fewer than 5 units left.
+                          </p>
+                        </div>
+                        <SwitchControl checked={settings.stockAlerts} onChange={(val) => setPreference('stockAlerts', val)} />
+                      </div>
+
+                      <div className="py-3 flex items-center justify-between">
+                        <div>
+                          <span className="text-[13px] font-medium text-[hsl(var(--foreground))]">Compact Tables</span>
+                          <p className="text-[11.5px] text-[hsl(var(--muted-foreground))]">
+                            Use denser row padding across orders and catalog tables.
+                          </p>
+                        </div>
+                        <SwitchControl checked={settings.compactTables} onChange={(val) => setPreference('compactTables', val)} />
+                      </div>
+                    </div>
+
+                    {renderCardFooter('preferences')}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* 3. BILLING TAB */}
+            {activeTab === 'billing' && (
+              <>
+                <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-xs dark:bg-neutral-900">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[hsl(var(--border))]">
+                    <div>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Current Plan</span>
+                      <h3 className="text-xl font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">
+                        {entitlements.isProPlus ? 'Take Order Pro+' : entitlements.isPro ? 'Take Order Pro' : 'Take Order Free'}
+                      </h3>
+                      <p className="text-xs text-neutral-500 mt-1">
+                        {entitlements.isTrial ? `${entitlements.trial.daysRemaining} days remaining in trial` : 'Standard merchant features active'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href="/account/billing"
+                        className="inline-flex items-center gap-1.5 h-9 px-4 rounded-[8px] border border-[hsl(var(--border))] bg-white dark:bg-neutral-800 text-xs font-medium text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 transition"
+                      >
+                        <CreditCard size={13} />
+                        <span>Manage Subscription</span>
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid sm:grid-cols-2 gap-3 text-xs text-neutral-700 dark:text-neutral-300">
+                    <div className="flex items-center gap-2"><Check size={14} className="text-emerald-500" /><span>{entitlements.isProPlus ? 'Unlimited active Take Order links' : entitlements.isPro ? '500 active links' : '15 active links'}</span></div>
+                    <div className="flex items-center gap-2"><Check size={14} className="text-emerald-500" /><span>Unlimited catalog items</span></div>
+                    <div className="flex items-center gap-2"><Check size={14} className="text-emerald-500" /><span>Business intelligence & financial analytics</span></div>
+                    <div className="flex items-center gap-2"><Check size={14} className="text-emerald-500" /><span>WhatsApp & SMS dispatch slips</span></div>
+                  </div>
+                </div>
+
+                <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-xs dark:bg-neutral-900">
+                  <div className="flex items-center justify-between pb-4 border-b border-[hsl(var(--border))]">
+                    <div>
+                      <h3 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Upgrade Options</h3>
+                      <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">Switch billing cycle or upgrade for higher volume.</p>
+                    </div>
+                    <div className="inline-flex items-center gap-1 rounded-[8px] bg-neutral-100 dark:bg-neutral-800 p-1 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setSettingsBillingCadence('monthly')}
+                        className={cn('px-2.5 py-1 rounded-[6px] font-medium transition cursor-pointer', settingsBillingCadence === 'monthly' ? 'bg-white dark:bg-neutral-900 font-semibold shadow-xs' : 'text-neutral-500')}
+                      >
+                        Monthly
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSettingsBillingCadence('annual')}
+                        className={cn('px-2.5 py-1 rounded-[6px] font-medium transition cursor-pointer', settingsBillingCadence === 'annual' ? 'bg-white dark:bg-neutral-900 font-semibold shadow-xs' : 'text-neutral-500')}
+                      >
+                        Annual (25% off)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4 pt-4">
+                    {/* Pro Card */}
+                    <div className="rounded-[10px] border border-[hsl(var(--border))] p-4 bg-white dark:bg-neutral-800/50 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm">Take Order Pro</span>
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full">Popular</span>
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {settingsBillingCadence === 'annual' ? '$89.91/yr' : '$9.99/mo'}
+                      </div>
+                      <p className="text-xs text-neutral-500">500 active links, full reports, profit breakdown & custom branding.</p>
+                      <Link
+                        href="/subscribe"
+                        className="block w-full text-center py-2 rounded-[8px] bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition dark:bg-white dark:text-neutral-900"
+                      >
+                        {entitlements.isPro && !entitlements.isProPlus ? 'Current Plan' : 'Select Pro'}
+                      </Link>
+                    </div>
+
+                    {/* Pro+ Card */}
+                    <div className="rounded-[10px] border-2 border-neutral-900 dark:border-white p-4 bg-white dark:bg-neutral-800/50 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm">Take Order Pro+</span>
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-full">Unlimited</span>
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {settingsBillingCadence === 'annual' ? '$180/yr' : '$20/mo'}
+                      </div>
+                      <p className="text-xs text-neutral-500">Unlimited order links, VIP support, conversion intelligence.</p>
+                      <Link
+                        href="/subscribe"
+                        className="block w-full text-center py-2 rounded-[8px] bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition dark:bg-white dark:text-neutral-900"
+                      >
+                        {entitlements.isProPlus ? 'Current Plan' : 'Select Pro+'}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* 4. ACCOUNT & SECURITY TAB */}
+            {activeTab === 'account' && (
+              <>
+                <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-xs dark:bg-neutral-900">
+                  <div className="mb-4">
+                    <h3 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Account Credentials</h3>
+                    <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                      Your authenticated email and login settings.
+                    </p>
+                  </div>
+
+                  <div className="divide-y divide-[hsl(var(--border))]">
+                    <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[12px] font-medium text-neutral-500 block">Signed-in Email</span>
+                        <span className="text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">{email || 'Authenticated Merchant'}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (clerk && clerk.openUserProfile) {
+                            clerk.openUserProfile();
+                          } else {
+                            alert('Password reset instructions have been sent to your email.');
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[hsl(var(--border))] text-xs font-medium text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 transition cursor-pointer self-start sm:self-auto"
+                      >
+                        <KeyRound size={13} />
+                        <span>Manage Account & Password</span>
+                      </button>
+                    </div>
+
+                    <div className="py-3 flex items-center justify-between">
+                      <div>
+                        <span className="text-[13px] font-medium text-[hsl(var(--foreground))]">Active Session</span>
+                        <p className="text-[11.5px] text-[hsl(var(--muted-foreground))]">This browser device is currently active.</p>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        <span>Connected</span>
+                      </span>
+                    </div>
+
+                    <div className="pt-3 flex items-center justify-between">
+                      <div>
+                        <span className="text-[13px] font-medium text-[hsl(var(--foreground))]">Log Out</span>
+                        <p className="text-[11.5px] text-[hsl(var(--muted-foreground))]">End your active session on this device.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowLogoutConfirm(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold hover:bg-rose-100 transition cursor-pointer dark:bg-rose-950/30 dark:border-rose-900 dark:text-rose-300"
+                      >
+                        <LogOut size={13} />
+                        <span>Log out</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-xs dark:bg-neutral-900">
+                  <div className="mb-4">
+                    <h3 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Data Export</h3>
+                    <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                      Download spreadsheet records of all historical orders and customer information.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <div>
+                      <span className="text-[13px] font-medium text-[hsl(var(--foreground))]">Export Orders to CSV</span>
+                      <p className="text-[11.5px] text-[hsl(var(--muted-foreground))]">
+                        {(ordersQuery.data ?? []).length} orders available for export.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-[8px] h-9 px-3.5 text-xs font-semibold gap-1.5"
+                      onClick={() => {
+                        if (!ordersQuery.data || ordersQuery.data.length === 0) {
+                          alert('No orders found to export yet.');
+                          return;
+                        }
+                        exportOrdersToCsv(ordersQuery.data);
+                        setExported(true);
+                        setTimeout(() => setExported(false), 3000);
+                      }}
+                      disabled={ordersQuery.isLoading}
+                      data-testid="button-export-orders-csv"
+                    >
+                      {exported ? <Check size={13} className="text-emerald-500" /> : <Download size={13} />}
+                      <span>{exported ? 'Downloaded CSV' : 'Export Orders to CSV'}</span>
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-[12px] border border-rose-200 bg-rose-50/40 p-6 shadow-xs dark:bg-rose-950/20 dark:border-rose-900">
+                  <div className="mb-3">
+                    <h3 className="text-[15px] font-semibold text-rose-900 dark:text-rose-200">Danger Zone</h3>
+                    <p className="text-[12px] text-rose-700/80 dark:text-rose-400 mt-0.5">
+                      Clear shop bio, saved payment rails, and reset workspace preferences back to defaults.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between">
+                    <div>
+                      <span className="text-[13px] font-medium text-rose-900 dark:text-rose-200">Reset Workspace</span>
+                      <p className="text-[11.5px] text-rose-700/70 dark:text-rose-400">Requires typed confirmation.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResetConfirmText('');
+                        setShowResetModal(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-rose-300 bg-white text-rose-700 text-xs font-semibold hover:bg-rose-50 transition cursor-pointer dark:bg-neutral-900 dark:text-rose-300 dark:border-rose-800"
+                    >
+                      <Trash2 size={13} />
+                      <span>Reset workspace</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* Currency Change Warning Modal */}
+        {showCurrencyModal && pendingCurrency && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-[16px] p-6 shadow-xl border border-[hsl(var(--border))] space-y-4">
+              <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+                <AlertTriangle size={20} />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+                  Change store base currency to {pendingCurrency}?
+                </h3>
+                <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                  You have <strong>{ordersQuery.data?.length ?? 0} existing order{(ordersQuery.data?.length ?? 0) === 1 ? '' : 's'}</strong> recorded in {settings.currency}.
+                  Changing your store currency will <strong>not convert previous order amounts or historical revenues</strong>.
+                  All new checkout links and prices will use {pendingCurrency}.
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCurrencyModal(false);
+                    setPendingCurrency(null);
+                  }}
+                  className="px-3.5 py-2 rounded-[8px] border border-[hsl(var(--border))] text-xs font-medium hover:bg-neutral-50 transition cursor-pointer"
+                >
+                  Keep {settings.currency}
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmCurrencyChange}
+                  className="px-3.5 py-2 rounded-[8px] bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-800 transition cursor-pointer"
+                >
+                  Change to {pendingCurrency}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Workspace Reset Typed Confirmation Modal */}
+        {showResetModal && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-[16px] p-6 shadow-xl border border-[hsl(var(--border))] space-y-4">
+              <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+                <Trash2 size={20} />
+              </div>
+              <div className="text-center space-y-1.5">
+                <h3 className="text-base font-bold text-neutral-900 dark:text-white">Reset Workspace Settings?</h3>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  This will clear custom store details and restore defaults. Type <strong>RESET</strong> below to confirm.
+                </p>
+              </div>
+              <input
+                type="text"
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                placeholder="Type RESET"
+                className="w-full h-10 px-3 rounded-[8px] border border-[hsl(var(--input))] text-center font-mono text-sm tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowResetModal(false)}
+                  className="flex-1 py-2 rounded-[8px] border border-[hsl(var(--border))] text-xs font-semibold hover:bg-neutral-50 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={resetConfirmText.trim().toUpperCase() !== 'RESET'}
+                  onClick={resetWorkspace}
+                  className="flex-1 py-2 rounded-[8px] bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white text-xs font-semibold transition cursor-pointer"
+                >
+                  Confirm Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Logout Confirmation Modal */}
         {showLogoutConfirm && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl p-6 shadow-xl border border-neutral-200 dark:border-neutral-800 space-y-4">
-              <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 flex items-center justify-center mx-auto">
+            <div className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-[16px] p-6 shadow-xl border border-[hsl(var(--border))] space-y-4">
+              <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-red-950/40 text-rose-600 flex items-center justify-center mx-auto">
                 <LogOut size={20} />
               </div>
               <div className="text-center space-y-1.5">
                 <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100">Confirm Log Out</h3>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  Are you sure you want to log out of your Take Order workspace?
+                  Are you sure you want to end your session on this device?
                 </p>
               </div>
               <div className="flex items-center gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowLogoutConfirm(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                  className="flex-1 py-2 rounded-[8px] border border-[hsl(var(--border))] text-xs font-semibold hover:bg-neutral-50 transition cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -9510,7 +9661,7 @@ function SettingsPage() {
                     } catch {}
                     setLocation('/sign-in');
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition cursor-pointer"
+                  className="flex-1 py-2 rounded-[8px] bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition cursor-pointer"
                 >
                   Log out
                 </button>
