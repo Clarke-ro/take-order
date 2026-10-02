@@ -5,7 +5,7 @@ import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser, Authenticate
 import { shadcn } from '@clerk/themes';
 import {
   AlertCircle, AlertTriangle, ArrowDown, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, Boxes, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3,
-  CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, Crown, Download, ExternalLink, Eye, FileText, Globe2, Info, LayoutDashboard, LayoutGrid, Link2, List, Loader2, Menu, Minus, MoreHorizontal,
+  CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, Crown, Download, ExternalLink, Eye, EyeOff, FileText, Globe2, Info, LayoutDashboard, LayoutGrid, Link2, List, Loader2, Mail, Menu, Minus, MoreHorizontal,
   ImagePlus, MessageSquare, Package, PackageSearch, PackageX, Pencil, Percent, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
   Trash2, TrendingUp, Truck, UserRound, Users, UsersRound, WalletCards, Workflow, Wrench, X,
   Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound, Bell, Zap, Settings
@@ -1210,14 +1210,14 @@ function GoogleIcon({ className = 'h-5 w-5' }: { className?: string }) {
 
 function AuthShowcaseCard() {
   return (
-    <div className="relative w-full h-full min-h-screen overflow-hidden flex items-center justify-center bg-[#0052cc]">
+    <div className="relative w-full h-full rounded-[16px] overflow-hidden flex items-center justify-center bg-[#0052cc] shadow-xs">
       <img
         src="/illustrations/auth-showcase-mosaic.jpg"
         alt="Take Order Shopping & Orders Showcase"
-        className="w-full h-full min-h-screen object-cover object-center select-none pointer-events-none"
+        className="w-full h-full object-cover object-center select-none pointer-events-none rounded-[16px]"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent pointer-events-none" />
-      <div className="absolute bottom-8 right-8 px-4 py-2.5 rounded-full bg-white/95 backdrop-blur-md border border-white/60 text-[#111827] text-xs font-semibold flex items-center gap-2 shadow-lg">
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none rounded-[16px]" />
+      <div className="absolute bottom-6 right-6 px-4 py-2.5 rounded-full bg-white/95 backdrop-blur-md border border-white/60 text-[#111827] text-xs font-semibold flex items-center gap-2 shadow-lg">
         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
         <span>Sell through DMs with instant checkout links</span>
       </div>
@@ -1444,7 +1444,7 @@ function AuthSplitLayout({
   showcase?: ReactNode;
 }) {
   return (
-    <div className="auth-split-wrapper">
+    <div className={cn("auth-split-wrapper", rightVariant === 'onboarding' && 'bg-[hsl(var(--background))]')}>
       <div className={cn("auth-split-left", rightVariant === 'onboarding' && 'is-onboarding')}>
         {rightVariant === 'onboarding' ? (
           <>
@@ -1464,7 +1464,7 @@ function AuthSplitLayout({
             </footer>
           </>
         ) : (
-          <main className="w-full max-w-[440px] mx-auto my-auto py-6 flex flex-col justify-center">
+          <main className="w-full max-w-[380px] sm:max-w-[400px] mx-auto my-auto flex flex-col justify-center">
             {children}
           </main>
         )}
@@ -2058,42 +2058,42 @@ const clerkAppearance = {
     logoPlacement: 'none' as const,
   },
   variables: {
-    colorPrimary: '#111111',
+    colorPrimary: '#0052cc',
     colorForeground: '#111827',
     colorMutedForeground: '#6B7280',
-    colorDanger: '#DC2626',
+    colorDanger: '#EF4444',
     colorBackground: '#ffffff',
     colorInput: '#ffffff',
     colorInputForeground: '#111827',
-    colorNeutral: '#E3E3EC',
+    colorNeutral: '#E5E7EB',
     fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-    borderRadius: '0.625rem',
+    borderRadius: '0.5rem',
   },
   elements: {
     rootBox: 'w-full flex justify-center',
     cardBox: 'w-full flex justify-center !shadow-none !border-0 !bg-transparent !p-0',
-    card: '!w-full max-w-[420px] !rounded-[16px] !border !border-[#E3E3EC] !bg-white !p-7 sm:!p-9 !shadow-sm',
-    headerTitle: '!text-[24px] sm:!text-[26px] !font-bold !tracking-tight !text-[#111827] !text-left',
-    headerSubtitle: '!mt-1.5 !text-[13.5px] !text-[#6B7280] !text-left',
-    socialButtonsBlockButton: '!w-full !h-[42px] !rounded-[10px] !border !border-[#E3E3EC] !bg-white hover:!bg-[#F9F9FC] !text-[#111827] !text-[13.5px] !font-medium transition-all !shadow-2xs !cursor-pointer flex items-center justify-center gap-2.5',
-    socialButtonsBlockButtonText: '!text-[#111827] !font-medium !text-[13.5px]',
+    card: '!w-full max-w-[380px] sm:max-w-[400px] !rounded-none !border-0 !bg-transparent !p-0 !shadow-none',
+    headerTitle: '!text-[28px] sm:!text-[32px] !font-bold !tracking-tight !text-[#111827] !text-left',
+    headerSubtitle: '!mt-1 !text-[14px] !text-[#6B7280] !text-left',
+    socialButtonsBlockButton: '!w-full !h-[44px] !rounded-[8px] !border !border-[#E5E7EB] !bg-white hover:!bg-[#F9FAFB] !text-[#374151] !text-[13.5px] !font-medium transition-all !shadow-none !cursor-pointer flex items-center justify-center gap-2.5',
+    socialButtonsBlockButtonText: '!text-[#374151] !font-medium !text-[13.5px]',
     socialButtonsProviderIcon: '!h-4.5 !w-4.5',
-    dividerRow: '!my-5 !flex !items-center !justify-center',
-    dividerLine: '!border-[#E3E3EC]',
+    dividerRow: '!my-3.5 !flex !items-center !justify-center',
+    dividerLine: '!border-[#E5E7EB]',
     dividerText: '!text-[#9CA3AF] !text-xs !font-medium !bg-white !px-3',
     formFieldLabel: '!text-[13px] !font-medium !text-[#374151] !mb-1.5',
-    formFieldInput: '!w-full !h-[42px] !rounded-[10px] !border !border-[#E3E3EC] !bg-white !text-[13.5px] !text-[#111827] placeholder:!text-[#9CA3AF] focus:!border-[#111111] focus:!ring-2 focus:!ring-[#111111]/10 transition-all !shadow-2xs',
-    formButtonPrimary: '!w-full !h-[42px] !rounded-[10px] !bg-[#111111] hover:!bg-[#262626] !text-white !text-[13.5px] !font-medium active:scale-[0.99] transition-all !shadow-xs !cursor-pointer flex items-center justify-center !mt-3',
-    footer: '!shadow-none !border-0 !bg-transparent !rounded-none !mt-5 !pt-4 !border-t !border-[#E3E3EC] text-center',
+    formFieldInput: '!w-full !h-[44px] !rounded-[8px] !border !border-[#E5E7EB] !bg-white !text-[14px] !text-[#111827] placeholder:!text-[#9CA3AF] focus:!border-[#0052cc] focus:!ring-2 focus:!ring-[#0052cc]/20 transition-all',
+    formButtonPrimary: '!w-full !h-[44px] !rounded-[8px] !bg-[#0052cc] hover:!bg-[#0047b3] !text-white !text-[14px] !font-semibold !uppercase !tracking-wider active:scale-[0.99] transition-all !shadow-xs !cursor-pointer flex items-center justify-center !mt-2',
+    footer: '!shadow-none !border-0 !bg-transparent !rounded-none !mt-4 !pt-3 !border-t !border-[#E5E7EB] text-center',
     footerAction: '!text-[13px] !text-[#6B7280]',
     footerActionText: '!text-[13px] !text-[#6B7280]',
-    footerActionLink: '!font-semibold !text-[#111827] hover:!underline !text-[13px]',
+    footerActionLink: '!font-semibold !text-[#0052cc] hover:!underline !text-[13.5px]',
     footerPages: 'hidden',
-    identityPreview: '!rounded-[10px] !border !border-[#E3E3EC] !p-3 !bg-[#F9F9FC]',
+    identityPreview: '!rounded-[8px] !border !border-[#E5E7EB] !p-3 !bg-[#F9FAFB]',
     identityPreviewText: '!text-[13.5px] !font-medium !text-[#111827]',
-    identityPreviewEditButton: '!text-xs !text-[#6B7280] hover:!text-[#111827] underline',
-    otpCodeFieldInput: '!h-12 !rounded-[10px] !border !border-[#E3E3EC] !bg-[#F9F9FC] !text-lg !font-mono text-center !shadow-2xs focus:!border-[#111111] focus:!bg-white',
-    formFieldAction: '!text-xs !text-[#6B7280] hover:!text-[#111827] underline',
+    identityPreviewEditButton: '!text-xs !text-[#0052cc] hover:underline',
+    otpCodeFieldInput: '!h-11 !rounded-[8px] !border !border-[#E5E7EB] !bg-[#F9FAFB] !text-lg !font-mono text-center focus:!border-[#0052cc] focus:!bg-white',
+    formFieldAction: '!text-xs !text-[#EF4444] hover:!text-[#DC2626] !font-medium',
     logoBox: 'hidden',
     logoImage: 'hidden',
     internal: 'hidden',
@@ -2101,8 +2101,10 @@ const clerkAppearance = {
 };
 
 function FallbackSignInForm() {
-  const [email, setEmail] = useState(() => readDraftAuth().signInEmail || '');
+  const draft = readDraftAuth();
+  const [email, setEmail] = useState(() => draft.signInEmail || '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [, setLocation] = useLocation();
 
@@ -2145,101 +2147,100 @@ function FallbackSignInForm() {
   };
 
   return (
-    <div className="w-full max-w-[420px] mx-auto rounded-[16px] border border-[#E3E3EC] bg-white p-7 sm:p-9 shadow-sm">
+    <div className="w-full max-w-[380px] sm:max-w-[400px] mx-auto">
       <div className="text-left mb-6">
-        <h1 className="text-[24px] sm:text-[26px] font-bold tracking-tight text-[#111827]">
-          Welcome back
+        <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-[#111827]">
+          Log in
         </h1>
-        <p className="mt-1.5 text-[13.5px] text-[#6B7280]">
-          Log in to access your orders, products, and seller dashboard.
+        <p className="mt-1 text-[14px] text-[#6B7280]">
+          Welcome back! Please enter your email.
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mb-4 p-2.5 rounded-[8px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={handleGoogleAuth}
-        className="w-full h-[42px] rounded-[10px] border border-[#E3E3EC] bg-white hover:bg-[#F9F9FC] text-[#111827] text-[13.5px] font-medium flex items-center justify-center gap-2.5 transition shadow-2xs cursor-pointer active:scale-[0.99]"
-      >
-        <GoogleIcon className="h-4.5 w-4.5" />
-        <span>Continue with Google</span>
-      </button>
-
-      <div className="relative my-5 flex items-center justify-center">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-[#E3E3EC]" />
-        </div>
-        <span className="relative px-3 bg-white text-xs text-[#9CA3AF] font-medium">or</span>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-3.5">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signin-email-fallback">
-            Email address
+            Email
           </label>
-          <input
-            id="signin-email-fallback"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              writeDraftAuth({ signInEmail: e.target.value });
-              setError('');
-            }}
-            placeholder="Enter your email"
-            autoComplete="email"
-            className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
-          />
+          <div className="relative flex items-center">
+            <input
+              id="signin-email-fallback"
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                writeDraftAuth({ signInEmail: e.target.value });
+                setError('');
+              }}
+              placeholder="Your Email"
+              autoComplete="email"
+              className="w-full h-[44px] pl-3.5 pr-10 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0052cc]/20 focus:border-[#0052cc] transition"
+            />
+            <Mail size={16} className="absolute right-3.5 text-[#9CA3AF] pointer-events-none" />
+          </div>
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-[13px] font-medium text-[#374151]" htmlFor="signin-password-fallback">
-              Password
-            </label>
+          <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signin-password-fallback">
+            Password
+          </label>
+          <div className="relative flex items-center">
+            <input
+              id="signin-password-fallback"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              autoComplete="current-password"
+              className="w-full h-[44px] pl-3.5 pr-10 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0052cc]/20 focus:border-[#0052cc] transition"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 text-[#9CA3AF] hover:text-[#4B5563] p-1 cursor-pointer transition"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          <div className="flex justify-end mt-1.5">
             <button
               type="button"
               onClick={() => alert('Password reset instructions will be sent to your registered email.')}
-              className="text-xs text-[#6B7280] hover:text-[#111827] underline transition"
+              className="text-xs text-[#EF4444] hover:text-[#DC2626] font-medium transition cursor-pointer"
             >
               Forgot password?
             </button>
           </div>
-          <input
-            id="signin-password-fallback"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your password"
-            autoComplete="current-password"
-            className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
-          />
         </div>
 
         <button
           type="submit"
-          className="w-full h-[42px] rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] transition shadow-xs cursor-pointer flex items-center justify-center mt-3"
+          className="w-full h-[44px] rounded-[8px] bg-[#0052cc] hover:bg-[#0047b3] text-white text-[14px] font-semibold uppercase tracking-wider active:scale-[0.99] transition shadow-xs cursor-pointer flex items-center justify-center mt-2"
           data-testid="button-auth-login"
         >
-          Log in
+          LOGIN
+        </button>
+
+        <button
+          type="button"
+          onClick={handleGoogleAuth}
+          className="w-full h-[44px] rounded-[8px] border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] text-[#374151] text-[13.5px] font-medium flex items-center justify-center gap-2.5 transition cursor-pointer active:scale-[0.99]"
+        >
+          <GoogleIcon className="h-4.5 w-4.5" />
+          <span>Sign in with Google</span>
         </button>
       </form>
 
-      <p className="mt-4 text-center text-xs text-[#9CA3AF] leading-relaxed">
-        By continuing, you agree to Take Order's{' '}
-        <Link href="/terms" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Terms</Link>{' '}
-        and{' '}
-        <Link href="/privacy" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Privacy Policy</Link>.
-      </p>
-
-      <div className="mt-5 pt-4 border-t border-[#E3E3EC] text-center text-[13px] text-[#6B7280]">
+      <div className="mt-6 text-center text-[13.5px] text-[#6B7280]">
         Don't have an account?{' '}
-        <Link href="/sign-up" className="font-semibold text-[#111827] hover:underline" data-testid="link-auth-sign-up">
+        <Link href="/sign-up" className="font-semibold text-[#0052cc] hover:underline" data-testid="link-auth-sign-up">
           Sign up
         </Link>
       </div>
@@ -2252,6 +2253,7 @@ function FallbackSignUpForm() {
   const [businessName, setBusinessName] = useState(() => draft.signUpFullName || '');
   const [email, setEmail] = useState(() => draft.signUpEmail || '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [, setLocation] = useLocation();
 
@@ -2298,109 +2300,118 @@ function FallbackSignUpForm() {
   };
 
   return (
-    <div className="w-full max-w-[420px] mx-auto rounded-[16px] border border-[#E3E3EC] bg-white p-7 sm:p-9 shadow-sm">
+    <div className="w-full max-w-[380px] sm:max-w-[400px] mx-auto">
       <div className="text-left mb-6">
-        <h1 className="text-[24px] sm:text-[26px] font-bold tracking-tight text-[#111827]">
-          Create your account
+        <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-[#111827]">
+          Sign up
         </h1>
-        <p className="mt-1.5 text-[13.5px] text-[#6B7280]">
-          Set up your online order link in seconds. No credit card required.
+        <p className="mt-1 text-[14px] text-[#6B7280]">
+          Create your account to start selling in seconds.
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mb-4 p-2.5 rounded-[8px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={handleGoogleAuth}
-        className="w-full h-[42px] rounded-[10px] border border-[#E3E3EC] bg-white hover:bg-[#F9F9FC] text-[#111827] text-[13.5px] font-medium flex items-center justify-center gap-2.5 transition shadow-2xs cursor-pointer active:scale-[0.99]"
-      >
-        <GoogleIcon className="h-4.5 w-4.5" />
-        <span>Continue with Google</span>
-      </button>
-
-      <div className="relative my-5 flex items-center justify-center">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-[#E3E3EC]" />
-        </div>
-        <span className="relative px-3 bg-white text-xs text-[#9CA3AF] font-medium">or</span>
-      </div>
-
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
           <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signup-email-fallback">
-            Email address
+            Email
           </label>
-          <input
-            id="signup-email-fallback"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              writeDraftAuth({ signUpEmail: e.target.value });
-              setError('');
-            }}
-            placeholder="Enter your email"
-            autoComplete="email"
-            className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
-          />
+          <div className="relative flex items-center">
+            <input
+              id="signup-email-fallback"
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                writeDraftAuth({ signUpEmail: e.target.value });
+                setError('');
+              }}
+              placeholder="Your Email"
+              autoComplete="email"
+              className="w-full h-[44px] pl-3.5 pr-10 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0052cc]/20 focus:border-[#0052cc] transition"
+            />
+            <Mail size={16} className="absolute right-3.5 text-[#9CA3AF] pointer-events-none" />
+          </div>
         </div>
 
         <div>
           <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signup-name-fallback">
-            Store or business name <span className="text-[#9CA3AF] font-normal">(optional)</span>
+            Store name <span className="text-[#9CA3AF] font-normal">(optional)</span>
           </label>
-          <input
-            id="signup-name-fallback"
-            type="text"
-            value={businessName}
-            onChange={(e) => {
-              setBusinessName(e.target.value);
-              writeDraftAuth({ signUpFullName: e.target.value });
-            }}
-            placeholder="e.g. Sunday Edit or Kicks Vault"
-            className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
-          />
+          <div className="relative flex items-center">
+            <input
+              id="signup-name-fallback"
+              type="text"
+              value={businessName}
+              onChange={(e) => {
+                setBusinessName(e.target.value);
+                writeDraftAuth({ signUpFullName: e.target.value });
+              }}
+              placeholder="e.g. Sunday Edit or Kicks Vault"
+              className="w-full h-[44px] pl-3.5 pr-10 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0052cc]/20 focus:border-[#0052cc] transition"
+            />
+            <Store size={16} className="absolute right-3.5 text-[#9CA3AF] pointer-events-none" />
+          </div>
         </div>
 
         <div>
           <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signup-password-fallback">
-            Create password
+            Password
           </label>
-          <input
-            id="signup-password-fallback"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters"
-            autoComplete="new-password"
-            className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
-          />
+          <div className="relative flex items-center">
+            <input
+              id="signup-password-fallback"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+              className="w-full h-[44px] pl-3.5 pr-10 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0052cc]/20 focus:border-[#0052cc] transition"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 text-[#9CA3AF] hover:text-[#4B5563] p-1 cursor-pointer transition"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </div>
 
         <button
           type="submit"
-          className="w-full h-[42px] rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] transition shadow-xs cursor-pointer flex items-center justify-center mt-3"
+          className="w-full h-[44px] rounded-[8px] bg-[#0052cc] hover:bg-[#0047b3] text-white text-[14px] font-semibold uppercase tracking-wider active:scale-[0.99] transition shadow-xs cursor-pointer flex items-center justify-center mt-2"
           data-testid="button-auth-signup"
         >
-          Continue
+          SIGN UP
+        </button>
+
+        <button
+          type="button"
+          onClick={handleGoogleAuth}
+          className="w-full h-[44px] rounded-[8px] border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] text-[#374151] text-[13.5px] font-medium flex items-center justify-center gap-2.5 transition cursor-pointer active:scale-[0.99]"
+        >
+          <GoogleIcon className="h-4.5 w-4.5" />
+          <span>Sign up with Google</span>
         </button>
       </form>
 
-      <p className="mt-4 text-center text-xs text-[#9CA3AF] leading-relaxed">
+      <p className="mt-3.5 text-center text-xs text-[#9CA3AF] leading-relaxed">
         By continuing, you agree to Take Order's{' '}
-        <Link href="/terms" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Terms of Service</Link>{' '}
+        <Link href="/terms" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Terms</Link>{' '}
         and{' '}
         <Link href="/privacy" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Privacy Policy</Link>.
       </p>
 
-      <div className="mt-5 pt-4 border-t border-[#E3E3EC] text-center text-[13px] text-[#6B7280]">
+      <div className="mt-4 text-center text-[13.5px] text-[#6B7280]">
         Already have an account?{' '}
-        <Link href="/sign-in" className="font-semibold text-[#111827] hover:underline" data-testid="link-auth-sign-in">
+        <Link href="/sign-in" className="font-semibold text-[#0052cc] hover:underline" data-testid="link-auth-sign-in">
           Log in
         </Link>
       </div>
