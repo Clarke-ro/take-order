@@ -22,16 +22,19 @@ export const dateShort = (value: string | null | undefined) => {
     : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
 };
 
-export const channelName = (value: string) =>
-  value.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+export const channelName = (value?: string | null) =>
+  value ? String(value).replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'Direct';
 
-export const initials = (name: string) =>
-  name
-    .split(' ')
+export const initials = (name?: string | null) => {
+  if (!name || typeof name !== 'string') return '?';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return parts
     .map((part) => part[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
+};
 
 export const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 'reserved' =>
   status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';

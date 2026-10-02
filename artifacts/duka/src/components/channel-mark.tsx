@@ -27,8 +27,9 @@ export const markCatalog = {
   other: { label: 'Other', Icon: MoreHorizontal, color: '#111111', kind: 'category' },
 } as const;
 
-export const markKeyFor = (value: string): MarkKey => {
-  const key = value.toLowerCase().replace(/[\s-]+/g, '_') as MarkKey;
+export const markKeyFor = (value?: string | null): MarkKey => {
+  if (!value) return 'other';
+  const key = String(value).toLowerCase().replace(/[\s-]+/g, '_') as MarkKey;
   return key in markCatalog ? key : 'other';
 };
 
@@ -38,7 +39,7 @@ export function ChannelMark({
   className = '',
   colorful = true,
 }: {
-  value: string;
+  value?: string | null;
   size?: number;
   className?: string;
   colorful?: boolean;
