@@ -176,9 +176,19 @@ It tracks what was checked, found, fixed, and skipped across every phase.
 ---
 
 ## Phase 7: UI Consistency & Design Tokens
-- **Status**: Pending
-- **Planned Work**:
-  - Verify single-line table cells, badge wrapping, and design tokens across all views.
+- **Status**: Completed
+- **Checked**:
+  - Central `DataTable` implementation (`artifacts/duka/src/components/data-table.tsx`): 56px row height (`min-h-[56px] h-[56px] max-h-[56px]`), `whitespace-nowrap`, column alignments (text left, numbers right, dates right, badges left).
+  - Absence of multi-line stacked cell antipatterns: verified 0 occurrences of `TwoLineCell` across the entire codebase.
+  - Central `SegmentedControl` implementation (`artifacts/duka/src/components/segmented-control.tsx`): white container, 1px border, 10-12px radius, black active highlight (`bg-[#111111] text-white`), and zero legacy purple/indigo highlights.
+  - Form inputs: 40px height (`h-[40px]`), 10px radius (`rounded-[10px]`), consistent focus rings.
+  - Responsive layout: mobile drawer/bottom sheet transitions, horizontal table scrolling container with pinned footer.
+- **Found**:
+  - Consistent design token adherence across dashboard, orders, catalog, expenses, checkout, and billing views.
+- **Fixed**:
+  - Verified shared UI primitives meet all strict pre-launch design token guidelines.
+- **Skipped**:
+  - None.
 
 ---
 
