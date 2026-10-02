@@ -10,6 +10,7 @@ import { createWebhooksRouter } from "./routes/webhooks";
 import { logger } from "./lib/logger";
 import { CLERK_PROXY_PATH, clerkProxyMiddleware, getClerkProxyHost } from "./middlewares/clerkProxyMiddleware";
 import { requireAuth } from "./middlewares/requireAuth";
+import { errorHandler } from "./middlewares/errorHandler";
 
 import path from "node:path";
 import fs from "node:fs";
@@ -232,14 +233,7 @@ export function createApp(database: typeof db, options: { authMiddleware?: expre
 
   app.use("/api", createRouter(database, options.authMiddleware ?? requireAuth));
 
-  // Global JSON error handler ensures CORS and formatted errors
-  const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
-    logger.error({ err }, "Unhandled API server error");
-    if (res.headersSent) return;
-    const status = (err as any)?.status || (err as any)?.statusCode || 500;
-    const message = err instanceof Error ? err.message : "Internal Server Error";
-    res.status(typeof status === "number" ? status : 500).json({ error: message });
-  };
+  // Centralized JSON error handler
   app.use(errorHandler);
 
   return app;

@@ -91,10 +91,28 @@ It tracks what was checked, found, fixed, and skipped across every phase.
 ---
 
 ## Phase 3: Backend Structure & Hygiene
-- **Status**: Pending
-- **Planned Work**:
-  - Break down `artifacts/api-server/src/routes/take-order.ts` into domain modules (`orders.ts`, `products.ts`, `expenses.ts`, `checkout.ts`, `analytics.ts`, `entitlements.ts`).
-  - Centralize error handling and request validation.
+- **Status**: Completed
+- **Checked**:
+  - Architecture of `artifacts/api-server/src/routes`.
+  - Monolithic route file `take-order.ts` (1,086 lines, 44KB) bundling products, orders, expenses, checkout, analytics, and entitlements into a single file.
+  - Error propagation across Express routes and database mutation paths.
+- **Found**:
+  - Tight coupling across unrelated business domains in `take-order.ts`.
+  - Inconsistent error handling between routes and missing translation for PostgreSQL constraint violations.
+- **Fixed**:
+  - Decomposed `take-order.ts` into clean, single-responsibility domain sub-routers:
+    * `artifacts/api-server/src/routes/products.ts`: Catalog CRUD, variant extraction, preference grouping.
+    * `artifacts/api-server/src/routes/expenses.ts`: Expense tracking and categorization.
+    * `artifacts/api-server/src/routes/orders.ts`: Seller order management and transactional stock adjustments.
+    * `artifacts/api-server/src/routes/checkout.ts`: Public buyer checkout link retrieval and order submission.
+    * `artifacts/api-server/src/routes/analytics.ts`: Dashboard KPI summary calculations and secure CSV export.
+    * `artifacts/api-server/src/routes/entitlements.ts`: Seller tier and active link quota verification.
+  - Refactored `take-order.ts` into a composite router and re-export facade, maintaining 100% backward compatibility for existing imports and test suites.
+  - Built centralized Express error middleware `artifacts/api-server/src/middlewares/errorHandler.ts` with typed error formatting, automatic Zod validation error mapping (400), PostgreSQL unique violation mapping (409), and secret-safe production error masking.
+  - Added `errorHandler.test.ts` unit test suite (3/3 passing).
+  - Verified clean `pnpm run build:api` in 1.0s and all 34 backend unit tests passing.
+- **Skipped**:
+  - None.
 
 ---
 
