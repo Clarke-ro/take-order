@@ -4208,42 +4208,79 @@ function ReferenceProductEditor({
 
   const content = (
     <div className="catalog-editor-container">
-      <div className="catalog-editor-header flex flex-col gap-4 border-b border-[hsl(var(--border))] pb-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3.5">
-          <button
-            type="button"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[hsl(var(--muted))] active:scale-95"
-            onClick={onClose}
-            aria-label="Back to catalog"
-            data-testid="button-back-product"
-          >
-            <ArrowLeft size={18} aria-hidden="true" />
-          </button>
-          <div className="min-w-0">
-            <div className="type-eyebrow">Catalog inventory</div>
-            <h1 className="type-h1 mt-1">{product ? `Edit ${product.name || 'item'}` : 'Add new product'}</h1>
+      {fullPage ? (
+        <PageHeader
+          breadcrumbs={
+            <button
+              type="button"
+              onClick={onClose}
+              data-testid="button-back-product"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>Back to catalog</span>
+            </button>
+          }
+          title={product ? `Edit ${product.name || 'item'}` : 'Add new product'}
+          secondaryActions={
+            <Button type="button" variant="outline" onClick={onClose}>
+              Discard
+            </Button>
+          }
+          primaryAction={
+            <Button
+              type="button"
+              disabled={pending}
+              data-testid="button-save-product"
+              onClick={(e) => {
+                const formEl = document.getElementById('catalog-product-form') as HTMLFormElement | null;
+                if (formEl) formEl.requestSubmit();
+                else onSubmit(e as unknown as React.FormEvent);
+              }}
+            >
+              {pending && <Loader2 size={15} className="animate-spin mr-1.5" />}
+              {product ? 'Save changes' : 'Save product'}
+            </Button>
+          }
+        />
+      ) : (
+        <div className="catalog-editor-header flex flex-col gap-4 border-b border-[hsl(var(--border))] pb-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3.5">
+            <button
+              type="button"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[hsl(var(--muted))] active:scale-95 cursor-pointer"
+              onClick={onClose}
+              aria-label="Back to catalog"
+              data-testid="button-back-product"
+            >
+              <ArrowLeft size={18} aria-hidden="true" />
+            </button>
+            <div className="min-w-0">
+              <div className="type-eyebrow">Catalog inventory</div>
+              <h1 className="type-h1 mt-1">{product ? `Edit ${product.name || 'item'}` : 'Add new product'}</h1>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2.5 self-end sm:self-center">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Discard
+            </Button>
+            <Button
+              type="button"
+              disabled={pending}
+              data-testid="button-save-product"
+              onClick={(e) => {
+                const formEl = document.getElementById('catalog-product-form') as HTMLFormElement | null;
+                if (formEl) formEl.requestSubmit();
+                else onSubmit(e as unknown as React.FormEvent);
+              }}
+            >
+              {pending && <Loader2 size={15} className="animate-spin mr-1.5" />}
+              {product ? 'Save changes' : 'Save product'}
+            </Button>
           </div>
         </div>
-
-        <div className="flex shrink-0 items-center gap-2.5 self-end sm:self-center">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Discard
-          </Button>
-          <Button
-            type="button"
-            disabled={pending}
-            data-testid="button-save-product"
-            onClick={(e) => {
-              const formEl = document.getElementById('catalog-product-form') as HTMLFormElement | null;
-              if (formEl) formEl.requestSubmit();
-              else onSubmit(e as unknown as React.FormEvent);
-            }}
-          >
-            {pending && <Loader2 size={15} className="animate-spin mr-1.5" />}
-            {product ? 'Save changes' : 'Save product'}
-          </Button>
-        </div>
-      </div>
+      )}
 
       <form id="catalog-product-form" className="catalog-editor-layout mt-6" onSubmit={onSubmit}>
         {/* Left Column: General Info, Pricing, Buyer Options, Custom Specifications */}
@@ -4476,7 +4513,7 @@ function ReferenceProductEditor({
                     placeholder="0.00"
                   />
                 </div>
-                <span className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1">What you bought the item at</span>
+                <span className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1">What you bought the item at. Used in Net Profit analytics.</span>
               </div>
             </div>
 
@@ -4520,7 +4557,7 @@ function ReferenceProductEditor({
             ) : hasPricingInfo && !hasCostInfo ? (
               <div className="mt-4 flex items-center gap-2 rounded-lg bg-[hsl(var(--muted))]/20 p-2.5 text-xs text-[hsl(var(--muted-foreground))]">
                 <Info size={14} className="shrink-0 text-[hsl(var(--muted-foreground))]" />
-                <span>Add what you bought the item at (cost price) to track estimated gross profit and margin automatically.</span>
+                <span>Add what you bought the item at (cost price) to track estimated gross profit and margin automatically. If blank, Analytics warns about missing costs.</span>
               </div>
             ) : null}
           </section>
@@ -4887,7 +4924,7 @@ function ReferenceProductEditor({
           </section>
 
           {/* Live Buyer Preview Card */}
-          <section className="catalog-editor-card">
+          <section className="catalog-editor-card lg:sticky lg:top-24">
             <div className="catalog-editor-card-header">
               <div>
                 <div className="type-eyebrow">Customer view</div>
@@ -5388,8 +5425,53 @@ function CatalogEditorRoute() {
   const query = useListProducts();
   const [, setLocation] = useLocation();
   const product = params.id ? (query.data ?? []).find((item) => item.id === Number(params.id)) : undefined;
-  if (params.id && query.isLoading) return <Shell><PageHeading title="Edit item" /><Card className="catalog-editor-card p-8"><Skeleton className="h-10 w-full" /><Skeleton className="mt-4 h-10 w-full" /><Skeleton className="mt-4 h-32 w-full" /></Card></Shell>;
-  if (params.id && !product) return <Shell><PageHeading title="Edit item" /><ErrorState retry={() => query.refetch()} /></Shell>;
+
+  if (params.id && query.isLoading) {
+    return (
+      <Shell>
+        <PageHeader
+          breadcrumbs={
+            <button
+              type="button"
+              onClick={() => setLocation('/catalog')}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>Back to catalog</span>
+            </button>
+          }
+          title="Edit item"
+        />
+        <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="mt-4 h-10 w-full" />
+          <Skeleton className="mt-4 h-32 w-full" />
+        </div>
+      </Shell>
+    );
+  }
+
+  if (params.id && !product) {
+    return (
+      <Shell>
+        <PageHeader
+          breadcrumbs={
+            <button
+              type="button"
+              onClick={() => setLocation('/catalog')}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>Back to catalog</span>
+            </button>
+          }
+          title="Edit item"
+        />
+        <ErrorState retry={() => query.refetch()} />
+      </Shell>
+    );
+  }
+
   return <Shell><ProductModal product={product} fullPage onClose={() => setLocation('/catalog')} /></Shell>;
 }
 

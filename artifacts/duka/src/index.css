@@ -1160,8 +1160,8 @@ button.field-input:focus {
   gap: 1.5rem;
 }
 .catalog-editor-card {
-  border: 1px solid hsl(var(--border));
-  border-radius: 16px;
+  border: 1px solid hsl(var(--card-border, var(--border)));
+  border-radius: 12px;
   background: hsl(var(--card));
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
@@ -3467,7 +3467,7 @@ button[data-testid="button-buyer-reserve"].text-white {
   .catalog-filter-select { width: auto; min-width: 0; }
   .expenses-workspace-controls { align-items: stretch; flex-direction: column; }
   .expenses-table { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
-  .catalog-editor-card { border: 0; padding: 0; box-shadow: none; }
+  .catalog-editor-card { padding: 1.25rem; }
 }
 
 @media (max-width: 1023px) {
@@ -3478,7 +3478,7 @@ button[data-testid="button-buyer-reserve"].text-white {
 
 @media (max-width: 640px) {
   .catalog-editor-container { width: 100%; }
-  .catalog-editor-card { padding: 1.15rem; border-radius: 14px; }
+  .catalog-editor-card { padding: 1rem; border-radius: 12px; }
   .catalog-option-row { grid-template-columns: 1fr; gap: .4rem; }
 }
 
