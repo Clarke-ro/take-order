@@ -1,12 +1,4 @@
 import React, { type ReactNode, type KeyboardEvent } from 'react';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Search, X, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
@@ -163,6 +155,7 @@ export interface DataTableProps<T> {
     totalCount: number;
     onPageChange: (page: number) => void;
   };
+  itemCountNoun?: string;
   toolbar?: ReactNode;
   className?: string;
   cardClassName?: string;
@@ -184,6 +177,7 @@ export function DataTable<T>({
   onRetry,
   emptyState,
   pagination,
+  itemCountNoun = 'records',
   toolbar,
   className,
   cardClassName,
@@ -204,22 +198,25 @@ export function DataTable<T>({
       {/* 16px Toolbar above table */}
       {toolbar}
 
-      {/* Table Card: white, 1px border (#E3E3EC), 12px radius, overflow clipped, full width */}
+      {/* Table Card: white, 1px border (#E3E3EC), 12px radius, overflow clipped, full width, height fits content */}
       <div
         className={cn(
-          'data-table-card rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 overflow-hidden shadow-none w-full',
+          'data-table-card rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 overflow-hidden shadow-none w-full h-fit flex flex-col',
           cardClassName
         )}
       >
         <div className="overflow-x-auto w-full scrollbar-thin">
-          <Table
-            className="w-full text-left border-collapse"
-            style={{ minWidth: minTableWidth }}
+          <table
+            className="text-left border-collapse"
+            style={{
+              minWidth: '100%',
+              width: 'max-content',
+            }}
             aria-label={ariaLabel}
           >
             {/* Header row: ~48px, pale lavender-grey (#F0F0F8), 14px weight 600 near-black, sentence case, 16px padding */}
-            <TableHeader className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80">
-              <TableRow className="border-b-0 hover:bg-transparent h-[48px] min-h-[48px]">
+            <thead className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80">
+              <tr className="border-b-0 h-[48px] min-h-[48px]">
                 {columns.map((col, colIdx) => {
                   const isLast = colIdx === totalCols - 1;
                   const align = col.align || (isLast ? 'right' : 'left');
@@ -231,10 +228,10 @@ export function DataTable<T>({
                       : 'text-left';
 
                   return (
-                    <TableHead
+                    <th
                       key={col.id}
                       className={cn(
-                        'h-[48px] px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case select-none whitespace-nowrap',
+                        'h-[48px] px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case select-none whitespace-nowrap bg-[#F0F0F8] dark:bg-neutral-800/80',
                         alignClass,
                         col.headerClassName
                       )}
@@ -243,19 +240,19 @@ export function DataTable<T>({
                       }}
                     >
                       {col.header}
-                    </TableHead>
+                    </th>
                   );
                 })}
-              </TableRow>
-            </TableHeader>
+              </tr>
+            </thead>
 
-            <TableBody>
+            <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
               {/* Loading State: 5 skeleton rows inside card with real header visible, mirroring columns, light bars (#F4F4FA, 8px radius), no spinner */}
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, rIdx) => (
-                  <TableRow
+                  <tr
                     key={`loading-row-${rIdx}`}
-                    className="h-[64px] min-h-[64px] border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 hover:bg-transparent"
+                    className="h-[56px] min-h-[56px] max-h-[56px] border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0"
                   >
                     {columns.map((col, cIdx) => {
                       const isLast = cIdx === totalCols - 1;
@@ -268,7 +265,7 @@ export function DataTable<T>({
                           : 'justify-start';
 
                       return (
-                        <TableCell key={`loading-cell-${cIdx}`} className="px-4 py-3.5">
+                        <td key={`loading-cell-${cIdx}`} className="px-4 py-3.5 whitespace-nowrap">
                           <div className={cn('flex items-center', alignClass)}>
                             <div
                               className="h-[18px] rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800/80 animate-pulse"
@@ -285,15 +282,15 @@ export function DataTable<T>({
                               }}
                             />
                           </div>
-                        </TableCell>
+                        </td>
                       );
                     })}
-                  </TableRow>
+                  </tr>
                 ))
               ) : isError ? (
                 /* Error State: One row with message and Retry */
-                <TableRow className="h-[80px]">
-                  <TableCell
+                <tr className="h-[80px]">
+                  <td
                     colSpan={totalCols}
                     className="px-4 py-6 text-center text-[#DC2626] dark:text-rose-400"
                   >
@@ -314,12 +311,12 @@ export function DataTable<T>({
                         </Button>
                       )}
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : data.length === 0 ? (
-                /* Empty State: header stays, centered muted message (different for no data vs no results) */
-                <TableRow className="h-[140px]">
-                  <TableCell
+                /* Empty State: header stays, centered muted message */
+                <tr className="h-[140px]">
+                  <td
                     colSpan={totalCols}
                     className="px-4 py-8 text-center text-[#6B7280] dark:text-neutral-400"
                   >
@@ -338,8 +335,8 @@ export function DataTable<T>({
                         <div className="mt-2">{emptyState.action}</div>
                       )}
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : (
                 /* Real Data Rows */
                 data.map((item, index) => {
@@ -350,14 +347,13 @@ export function DataTable<T>({
                   const testId = rowTestId ? rowTestId(item, index) : undefined;
 
                   return (
-                    <TableRow
+                    <tr
                       key={key}
                       tabIndex={isClickable ? 0 : undefined}
                       aria-label={ariaLabelText}
                       data-testid={testId}
                       onKeyDown={(e) => handleKeyDown(item, e)}
                       onClick={(e) => {
-                        // Avoid triggering row click if interactive element inside was clicked
                         if (
                           (e.target as HTMLElement).closest(
                             'a, button, input, select, textarea, [data-prevent-row-click]'
@@ -368,7 +364,7 @@ export function DataTable<T>({
                         if (onRowClick) onRowClick(item, e);
                       }}
                       className={cn(
-                        'min-h-[64px] h-[64px] border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 transition-colors',
+                        'min-h-[56px] h-[56px] max-h-[56px] border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 transition-colors whitespace-nowrap',
                         isClickable
                           ? 'cursor-pointer hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 focus:outline-none focus:bg-[#F9F9FC] dark:focus:bg-neutral-800/50'
                           : 'hover:bg-[#FAFAFC] dark:hover:bg-neutral-800/20',
@@ -386,73 +382,84 @@ export function DataTable<T>({
                             : 'text-left';
 
                         return (
-                          <TableCell
+                          <td
                             key={col.id}
                             className={cn(
-                              'px-4 py-3.5 text-[14px] text-[#111827] dark:text-neutral-100 align-middle',
+                              'px-4 py-3.5 text-[14px] text-[#111827] dark:text-neutral-100 align-middle whitespace-nowrap',
                               alignClass,
                               col.className
                             )}
                           >
                             {col.cell(item, index)}
-                          </TableCell>
+                          </td>
                         );
                       })}
-                    </TableRow>
+                    </tr>
                   );
                 })
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
 
-        {/* Footer: keep existing pagination or load-more, restyled as a slim footer row inside card */}
-        {pagination && pagination.totalCount > 0 && (
-          <div className="data-table-footer border-t border-[#E8E8EE] dark:border-neutral-800 px-4 py-3 flex items-center justify-between text-[13px] text-[#6B7280] dark:text-neutral-400 bg-white dark:bg-neutral-900">
+        {/* Footer: OUTSIDE the horizontal scroll area, pinned inside card */}
+        {((pagination && pagination.totalCount > 0) || (!pagination && data.length > 0)) && (
+          <div className="data-table-footer border-t border-[#E8E8EE] dark:border-neutral-800 px-4 py-3 flex items-center justify-between text-[13px] text-[#6B7280] dark:text-neutral-400 bg-white dark:bg-neutral-900 shrink-0">
             <div>
-              Showing{' '}
-              <span className="font-medium text-[#111827] dark:text-neutral-200">
-                {Math.min(
-                  pagination.totalCount,
-                  (pagination.page - 1) * pagination.pageSize + 1
-                )}
-              </span>
-              {' – '}
-              <span className="font-medium text-[#111827] dark:text-neutral-200">
-                {Math.min(
-                  pagination.totalCount,
-                  pagination.page * pagination.pageSize
-                )}
-              </span>{' '}
-              of{' '}
-              <span className="font-medium text-[#111827] dark:text-neutral-200">
-                {pagination.totalCount}
-              </span>
+              {pagination ? (
+                <>
+                  Showing{' '}
+                  <span className="font-medium text-[#111827] dark:text-neutral-200">
+                    {Math.min(
+                      pagination.totalCount,
+                      (pagination.page - 1) * pagination.pageSize + 1
+                    )}
+                  </span>
+                  {' – '}
+                  <span className="font-medium text-[#111827] dark:text-neutral-200">
+                    {Math.min(
+                      pagination.totalCount,
+                      pagination.page * pagination.pageSize
+                    )}
+                  </span>{' '}
+                  of{' '}
+                  <span className="font-medium text-[#111827] dark:text-neutral-200">
+                    {pagination.totalCount}
+                  </span>{' '}
+                  {itemCountNoun}
+                </>
+              ) : (
+                <span>
+                  {data.length} {data.length === 1 ? itemCountNoun.replace(/s$/, '') : itemCountNoun}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pagination.page <= 1}
-                onClick={() => pagination.onPageChange(pagination.page - 1)}
-                className="h-8 px-2.5 rounded-[8px] border-[#E3E3EC] text-xs gap-1 cursor-pointer disabled:opacity-40"
-              >
-                <ChevronLeft size={13} />
-                <span>Previous</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={
-                  pagination.page * pagination.pageSize >= pagination.totalCount
-                }
-                onClick={() => pagination.onPageChange(pagination.page + 1)}
-                className="h-8 px-2.5 rounded-[8px] border-[#E3E3EC] text-xs gap-1 cursor-pointer disabled:opacity-40"
-              >
-                <span>Next</span>
-                <ChevronRight size={13} />
-              </Button>
-            </div>
+            {pagination && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page <= 1}
+                  onClick={() => pagination.onPageChange(pagination.page - 1)}
+                  className="h-8 px-2.5 rounded-[8px] border-[#E3E3EC] text-xs gap-1 cursor-pointer disabled:opacity-40"
+                >
+                  <ChevronLeft size={13} />
+                  <span>Previous</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    pagination.page * pagination.pageSize >= pagination.totalCount
+                  }
+                  onClick={() => pagination.onPageChange(pagination.page + 1)}
+                  className="h-8 px-2.5 rounded-[8px] border-[#E3E3EC] text-xs gap-1 cursor-pointer disabled:opacity-40"
+                >
+                  <span>Next</span>
+                  <ChevronRight size={13} />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

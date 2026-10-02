@@ -35,10 +35,15 @@ import { StatCard } from '@/components/stat-card';
 import { SidebarProCard } from '@/components/sidebar-pro-card';
 import { RecentUpdatesTabs } from '@/components/recent-updates-tabs';
 import { PageHeader, MobileNavContext } from '@/components/page-header';
+import { DataTable, type DataTableColumn } from '@/components/data-table';
+import { SegmentedControl } from '@/components/segmented-control';
+import { OrderSummaryDrawer } from '@/components/order-summary-drawer';
+import { generateOrdersCsv, downloadCsvFile } from '@/lib/order-export';
 import { ClientDetailPage } from '@/pages/client-detail';
 import { IntegrationsComingSoonPage } from '@/pages/integrations';
 import { AnalyticsPage } from '@/pages/analytics';
 import { Toaster } from '@/components/ui/toaster';
+import { useToast } from '@/hooks/use-toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AnalyticsStateMarker, getAnalyticsViewState } from '@/lib/analytics-state';
@@ -225,6 +230,15 @@ const dateShort = (value: string | null | undefined) => {
   if (!value) return '—';
   const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value);
   return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+};
+const dateFull = (value: string | null | undefined) => {
+  if (!value) return '—';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  const day = date.getDate();
+  const month = new Intl.DateTimeFormat('en-GB', { month: 'short' }).format(date);
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
 };
 type DashboardPeriod = 'day' | 'week' | 'month' | 'year' | 'custom';
 type DashboardDateRange = { from: string; to: string };
@@ -3868,24 +3882,13 @@ function RecentTransactions() {
           className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none"
         />
       </div>
-      <div className="flex items-center gap-1.5 h-[40px] p-1 rounded-[10px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shrink-0 overflow-x-auto" role="group" aria-label="Recent transaction filters">
-        {filterOptions.map((option) => (
-          <button
-            type="button"
-            key={option.value}
-            onClick={() => setFilter(option.value)}
-            aria-pressed={filter === option.value}
-            className={cn(
-              'h-7 px-3 rounded-[7px] text-[13px] font-medium transition-colors cursor-pointer select-none',
-              filter === option.value
-                ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'
-                : 'text-[#6B7280] hover:text-[#111827] dark:text-neutral-400 dark:hover:text-white'
-            )}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        ariaLabel="Recent transaction filters"
+        value={filter}
+        onChange={(val) => setFilter(val)}
+        options={filterOptions}
+        size="default"
+      />
     </div>
     <Card className="recent-transactions-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
       {query.isLoading ? (
@@ -3897,46 +3900,44 @@ function RecentTransactions() {
           <table className="list-table w-full min-w-[780px] text-left border-collapse">
             <thead>
               <tr className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80 h-[48px]">
-                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order ID</th>
-                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Buyer / item</th>
-                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-center">Traffic</th>
-                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Placed</th>
-                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order value</th>
-                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Payment</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Order ID</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Customer</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-center whitespace-nowrap">Traffic</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Order value</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Payment</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right whitespace-nowrap">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
-              {orders.map((order) => (
-                <tr key={order.id} className="transaction-row hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[56px]" data-testid={`row-transaction-${order.id}`}>
-                  <td className="px-4 py-3.5 whitespace-nowrap" data-testid={`text-transaction-order-id-${order.id}`}>
-                    <Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200" data-testid={`link-recent-order-${order.id}`} aria-label={`Open order ${order.id}`}>
-                      #{String(order.id).padStart(7, '0')}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3.5 min-w-0">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-slate-100 dark:bg-slate-800 font-mono-ui text-xs font-bold text-[#111827] dark:text-neutral-100">
-                        {initials(order.customerName || order.productName)}
+              {orders.map((order) => {
+                const isAwaiting = !order.customerPhone && (!order.customerName || order.customerName.toLowerCase() === 'waiting for buyer' || order.customerName.toLowerCase() === 'buyer pending');
+                return (
+                  <tr key={order.id} className="transaction-row hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[56px]" data-testid={`row-transaction-${order.id}`}>
+                    <td className="px-4 py-3.5 whitespace-nowrap" data-testid={`text-transaction-order-id-${order.id}`}>
+                      <Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200" data-testid={`link-recent-order-${order.id}`} aria-label={`Open order ${order.id}`}>
+                        #{String(order.id).padStart(7, '0')}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3.5 min-w-0">
+                      <div className={cn("text-[14px] truncate whitespace-nowrap", isAwaiting ? "italic text-[#9CA3AF] font-normal" : "font-medium text-[#111827] dark:text-neutral-100")} title={isAwaiting ? 'Awaiting buyer' : order.customerName}>
+                        {isAwaiting ? 'Awaiting' : order.customerName}
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-[14px] font-medium text-[#111827] dark:text-neutral-100 truncate whitespace-nowrap" title={`${order.customerName || 'Buyer pending'} · ${order.productName}`}>{order.customerName || 'Buyer pending'}</div>
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <div className="orders-traffic-cell flex justify-center">
+                        <span className="orders-traffic-icon" data-testid={`text-transaction-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}>
+                          <ChannelMark value={order.channel} size={17} />
+                        </span>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                    <div className="orders-traffic-cell flex justify-center">
-                      <span className="orders-traffic-icon" data-testid={`text-transaction-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}>
-                        <ChannelMark value={order.channel} size={17} />
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 text-[13px] text-[#6B7280] dark:text-neutral-400 font-mono-ui whitespace-nowrap">{dateShort(order.createdAt)}</td>
-                  <td className="px-4 py-3.5 font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100 whitespace-nowrap">{moneyExact(order.amount)}</td>
-                  <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                    <StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3.5 font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100 whitespace-nowrap">{moneyExact(order.amount)}</td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill>
+                    </td>
+                    <td className="px-4 py-3.5 text-[13px] text-[#6B7280] dark:text-neutral-400 font-mono-ui whitespace-nowrap text-right">{dateFull(order.createdAt)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -3956,28 +3957,23 @@ function RecentTransactionsSkeleton() {
       <table className="list-table w-full min-w-[780px] text-left border-collapse">
         <thead>
           <tr className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80 h-[48px]">
-            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order ID</th>
-            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Buyer / item</th>
-            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-center">Traffic</th>
-            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Placed</th>
-            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order value</th>
-            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Payment</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Order ID</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Customer</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-center whitespace-nowrap">Traffic</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Order value</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Payment</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right whitespace-nowrap">Date</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
           {Array.from({ length: 5 }).map((_, i) => (
             <tr key={i} className="h-[56px]">
               <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
-              <td className="px-4 py-3.5">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-[10px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
-                  <div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse flex-1 min-w-0" />
-                </div>
-              </td>
+              <td className="px-4 py-3.5"><div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
               <td className="px-4 py-3.5"><div className="flex justify-center"><div className="h-7 w-7 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div></td>
               <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
-              <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
-              <td className="px-4 py-3.5"><div className="flex justify-end"><div className="h-6 w-20 rounded-full bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div></td>
+              <td className="px-4 py-3.5"><div className="h-6 w-20 rounded-full bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+              <td className="px-4 py-3.5"><div className="flex justify-end"><div className="h-4 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div></td>
             </tr>
           ))}
         </tbody>
@@ -5391,10 +5387,12 @@ function CatalogGridCard({ product, animationDelay, onEdit, onDelete, deleteDisa
       <div className="catalog-grid-actions"><CatalogActions productId={product.id} productName={product.name} onEdit={onEdit} onDelete={onDelete} deleteDisabled={deleteDisabled} /></div>
     </div>
     <div className="catalog-grid-details">
-      <h3 title={product.name}>{product.name}</h3>
-      <div className="flex items-center justify-between mt-1">
-        <strong>{moneyExact(product.price)}</strong>
-        <span className={cn('text-xs font-medium', product.stock === 0 ? 'text-rose-600 font-semibold' : product.stock < 5 ? 'text-amber-600' : 'text-neutral-500')}>
+      <h3 title={product.name} className="text-[14px] font-medium leading-[20px] h-[40px] text-[#111827] dark:text-neutral-100 line-clamp-2 overflow-hidden text-ellipsis">
+        {product.name}
+      </h3>
+      <div className="catalog-price-stock-row flex items-center justify-between mt-1 whitespace-nowrap">
+        <strong className="text-[14px] font-semibold text-[#111827] dark:text-neutral-100 font-mono-ui whitespace-nowrap">{moneyExact(product.price)}</strong>
+        <span className={cn('text-[13px] font-medium whitespace-nowrap', product.stock === 0 ? 'text-rose-600 font-semibold' : product.stock < 5 ? 'text-amber-600' : 'text-[#6B7280] dark:text-neutral-400')}>
           {product.stock === 0 ? 'Out of stock' : `${product.stock} in stock`}
         </span>
       </div>
@@ -5649,10 +5647,16 @@ function Catalog() {
               </div>
             </div>
             <StockFilterPicker value={stockFilter} onChange={setStockFilter} />
-            <div className="catalog-view-toggle shrink-0 flex items-center h-[40px] rounded-[10px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 p-1" role="group" aria-label="Catalog view">
-              <button type="button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={cn("h-7 w-7 rounded-[7px] flex items-center justify-center transition-colors cursor-pointer", view === 'grid' ? "bg-[hsl(var(--primary))] text-white" : "text-[#6B7280] hover:text-[#111827] dark:hover:text-white")}><LayoutGrid size={15} /></button>
-              <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')} className={cn("h-7 w-7 rounded-[7px] flex items-center justify-center transition-colors cursor-pointer", view === 'list' ? "bg-[hsl(var(--primary))] text-white" : "text-[#6B7280] hover:text-[#111827] dark:hover:text-white")}><List size={15} /></button>
-            </div>
+            <SegmentedControl
+              ariaLabel="Catalog view"
+              value={view}
+              onChange={(val) => setView(val as 'grid' | 'list')}
+              size="default"
+              options={[
+                { value: 'grid', label: '', icon: <LayoutGrid size={15} /> },
+                { value: 'list', label: '', icon: <List size={15} /> },
+              ]}
+            />
           </div>
         ) : undefined}
         filterCards={allProducts.length > 0 ? catalogFilterCards : undefined}
@@ -5683,7 +5687,8 @@ function Catalog() {
                   {view === 'list' && (
                     <div className="catalog-list-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
                       <span role="columnheader">Product</span>
-                      <span role="columnheader">Options</span>
+                      <span role="columnheader">SKU / Code</span>
+                      <span role="columnheader">Category</span>
                       <span role="columnheader">Price</span>
                       <span role="columnheader">Stock</span>
                       <span role="columnheader" className="text-right">Actions</span>
@@ -5697,16 +5702,15 @@ function Catalog() {
                           <img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt="" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="truncate font-medium text-[14px] text-[#111827] dark:text-neutral-100 whitespace-nowrap" title={`${product.name}${product.category ? ` (${product.category})` : ''}`}>{product.name}</h3>
+                          <h3 className="truncate font-medium text-[14px] text-[#111827] dark:text-neutral-100 whitespace-nowrap" title={product.name}>{product.name}</h3>
                         </div>
                       </div>
-                      <div className="catalog-variants text-[13.5px] text-[#6B7280] dark:text-neutral-400 truncate whitespace-nowrap" title={product.preferences.length ? product.preferences.map((p) => `${p.label.toLowerCase() === 'choose an option' ? 'Option' : p.label}: ${p.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : undefined}>{product.preferences.length ? product.preferences.map((preference) => `${preference.label.toLowerCase() === 'choose an option' ? 'Option' : preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
+                      <div className="catalog-sku min-w-0 text-[13px] font-mono-ui text-[#6B7280] dark:text-neutral-400 truncate whitespace-nowrap" title={product.sku || '—'}>{product.sku || '—'}</div>
+                      <div className="catalog-category min-w-0 text-[13.5px] text-[#6B7280] dark:text-neutral-400 truncate whitespace-nowrap" title={product.category || '—'}>{product.category || '—'}</div>
                       <div className="catalog-number min-w-0">
-                        <span className="catalog-mobile-label">Price</span>
                         <span className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100 whitespace-nowrap" title={product.cost != null ? `Price: ${moneyExact(product.price)} · Cost: ${moneyExact(product.cost)}` : `Price: ${moneyExact(product.price)}`}>{moneyExact(product.price)}</span>
                       </div>
                       <div className="catalog-stock min-w-0">
-                        <span className="catalog-mobile-label">Stock</span>
                         <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
                           <strong className={cn("font-mono-ui text-[13.5px]", product.stock < 5 && 'is-alert')}>{product.stock}</strong>
                           <span className={cn('catalog-stock-status text-[11.5px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap', product.stock === 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' : product.stock < 5 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300')}>
@@ -5757,7 +5761,8 @@ function CatalogLoadingSkeleton({ view }: { view: CatalogView }) {
       <div className="catalog-list" role="list">
         <div className="catalog-list-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
           <span role="columnheader">Product</span>
-          <span role="columnheader">Options</span>
+          <span role="columnheader">SKU / Code</span>
+          <span role="columnheader">Category</span>
           <span role="columnheader">Price</span>
           <span role="columnheader">Stock</span>
           <span role="columnheader" className="text-right">Actions</span>
@@ -5768,7 +5773,8 @@ function CatalogLoadingSkeleton({ view }: { view: CatalogView }) {
               <div className="h-10 w-10 rounded-[10px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
               <div className="h-4 w-32 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
             </div>
-            <div><div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div><div className="h-4 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
             <div><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
             <div><div className="h-6 w-20 rounded-full bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
             <div className="flex justify-end"><div className="h-7 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
@@ -6015,6 +6021,147 @@ function Orders() {
     onClick: () => setActiveFilter(opt.value),
   })), [orderFilterOptions, activeFilter]);
   const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value;
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
+
+  const handleExport = async () => {
+    if (orders.length === 0) return;
+    setIsExporting(true);
+    try {
+      const csv = generateOrdersCsv(orders, currencySymbol());
+      const dateStr = new Date().toISOString().split('T')[0];
+      downloadCsvFile(`orders-${dateStr}.csv`, csv);
+      toast({
+        title: 'Export complete',
+        description: `Exported ${orders.length} ${orders.length === 1 ? 'order' : 'orders'} to CSV.`,
+      });
+    } catch (err) {
+      toast({
+        title: 'Export failed',
+        description: 'Could not generate CSV export. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const orderColumns: DataTableColumn<Order>[] = useMemo(() => [
+    {
+      id: 'id',
+      header: 'Order ID',
+      cell: (order) => (
+        <Link
+          href={`/orders/${order.id}`}
+          className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200 whitespace-nowrap"
+          data-testid={`link-order-${order.id}`}
+          aria-label={`Open order ${order.id}`}
+        >
+          #{String(order.id).padStart(7, '0')}
+        </Link>
+      ),
+    },
+    {
+      id: 'customer',
+      header: 'Customer',
+      cell: (order) => {
+        const isAwaiting = !order.customerPhone && (!order.customerName || order.customerName.toLowerCase() === 'waiting for buyer' || order.customerName.toLowerCase() === 'buyer pending');
+        return (
+          <span
+            className={cn('text-[14px] whitespace-nowrap', isAwaiting ? 'italic text-[#9CA3AF] font-normal' : 'font-medium text-[#111827] dark:text-neutral-100')}
+            title={isAwaiting ? 'Awaiting buyer' : order.customerName}
+          >
+            {isAwaiting ? 'Awaiting' : order.customerName}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'traffic',
+      header: 'Traffic',
+      align: 'center',
+      cell: (order) => (
+        <span
+          className="orders-traffic-icon inline-flex justify-center"
+          data-testid={`text-order-traffic-${order.id}`}
+          title={channelName(order.channel)}
+          aria-label={`Traffic source: ${channelName(order.channel)}`}
+        >
+          <ChannelMark value={order.channel} size={17} />
+        </span>
+      ),
+    },
+    {
+      id: 'amount',
+      header: 'Order value',
+      cell: (order) => (
+        <span className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100 whitespace-nowrap">
+          {moneyExact(order.amount)}
+        </span>
+      ),
+    },
+    {
+      id: 'collected',
+      header: 'Collected',
+      cell: (order) => (
+        <span className="font-mono-ui text-[13.5px] text-[#6B7280] dark:text-neutral-400 whitespace-nowrap">
+          {moneyExact(collectedFor(order))}
+        </span>
+      ),
+    },
+    {
+      id: 'payment',
+      header: 'Payment',
+      cell: (order) => (
+        <button
+          type="button"
+          disabled={update.isPending}
+          aria-label={`Advance payment status for ${order.customerName || order.productName}`}
+          title="Advance payment status"
+          data-testid={`button-payment-${order.id}`}
+          className="whitespace-nowrap cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            const status: 'reserved' | 'deposit_paid' | 'paid' =
+              order.status === 'reserved'
+                ? 'deposit_paid'
+                : order.status === 'deposit_paid'
+                ? 'paid'
+                : 'reserved';
+            updateOrder(order, { status });
+          }}
+        >
+          <StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>
+            {paymentLabel(order)}
+          </StatusPill>
+        </button>
+      ),
+    },
+    {
+      id: 'fulfillment',
+      header: 'Fulfillment',
+      cell: (order) => (
+        <div onClick={(e) => e.stopPropagation()} className="whitespace-nowrap">
+          <FulfillmentPickerCell
+            order={order}
+            disabled={update.isPending}
+            onUpdateFulfillment={(targetOrder, fulfillment) => updateOrder(targetOrder, { fulfillment })}
+          />
+        </div>
+      ),
+    },
+    {
+      id: 'date',
+      header: 'Date',
+      align: 'right',
+      cell: (order) => (
+        <span className="font-mono-ui text-[13px] text-[#6B7280] dark:text-neutral-400 whitespace-nowrap">
+          {dateFull(order.createdAt)}
+        </span>
+      ),
+    },
+  ], [update.isPending]);
 
   return <Shell>
     <PageHeader
@@ -6032,6 +6179,31 @@ function Orders() {
         placeholder: "Search orders or clients...",
       } : undefined}
       filterCards={allOrders.length > 0 ? orderFilterCards : undefined}
+      filterBarActions={allOrders.length > 0 ? (
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={orders.length === 0 || isExporting}
+            onClick={handleExport}
+            className="flex-1 md:flex-initial h-10 px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13px] font-medium text-[#111827] hover:bg-[#F9F9FC] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800 shadow-none gap-2 inline-flex items-center justify-center min-h-[44px] md:min-h-[40px] cursor-pointer"
+            data-testid="button-orders-export"
+          >
+            {isExporting ? <Loader2 size={15} className="animate-spin text-[#6B7280]" /> : <Download size={15} className="text-[#6B7280] dark:text-neutral-400" />}
+            <span>Export</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsSummaryOpen(true)}
+            className="flex-1 md:flex-initial h-10 px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13px] font-medium text-[#111827] hover:bg-[#F9F9FC] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800 shadow-none gap-2 inline-flex items-center justify-center min-h-[44px] md:min-h-[40px] cursor-pointer"
+            data-testid="button-orders-summary"
+          >
+            <BarChart3 size={15} className="text-[#6B7280] dark:text-neutral-400" />
+            <span>Summary</span>
+          </Button>
+        </div>
+      ) : undefined}
     />
     {query.isLoading ? (
       <OrdersTableSkeleton />
@@ -6053,122 +6225,33 @@ function Orders() {
       <>
         <section className="space-y-4">
           {mutationError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}
-          <Card className="orders-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
-            <div className="orders-table-wrap" role="table" aria-label="Orders">
-              <div className="orders-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
-                <span role="columnheader">Order ID</span>
-                <span role="columnheader">Buyer</span>
-                <span role="columnheader">Item</span>
-                <span role="columnheader" className="text-center">Traffic</span>
-                <span role="columnheader">Order value</span>
-                <span role="columnheader">Collected</span>
-                <span role="columnheader">Placed</span>
-                <span role="columnheader">Payment</span>
-                <span role="columnheader" className="text-right">Fulfillment</span>
-              </div>
-              {orders.length ? (
-                orders.map((order) => {
-                  const isAwaiting = !order.customerPhone && (!order.customerName || order.customerName.toLowerCase() === 'waiting for buyer' || order.customerName.toLowerCase() === 'buyer pending');
-                  return (
-                    <div
-                      key={order.id}
-                      className="orders-table-row is-clickable border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors"
-                      role="row"
-                      tabIndex={0}
-                      aria-label={`Open order ${order.id} details`}
-                      data-testid={`row-orders-order-${order.id}`}
-                      onClick={(event) => {
-                        if ((event.target as HTMLElement).closest('a,button,input,select,textarea')) return;
-                        setLocation(`/orders/${order.id}`);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') return;
-                        event.preventDefault();
-                        setLocation(`/orders/${order.id}`);
-                      }}
-                    >
-                      <div className="orders-order-id-cell min-w-0">
-                        <span className="orders-mobile-label">Order ID</span>
-                        <Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200 whitespace-nowrap" data-testid={`link-order-${order.id}`} aria-label={`Open order ${order.id}`}>
-                          #{String(order.id).padStart(7, '0')}
-                        </Link>
-                      </div>
-                      <div className="orders-buyer-cell min-w-0 flex items-center gap-2.5">
-                        {isAwaiting ? (
-                          <div className="orders-avatar bg-slate-100 text-slate-400 border border-dashed border-slate-200 shrink-0" title="Awaiting buyer completion">
-                            <Link2 size={15} />
-                          </div>
-                        ) : (
-                          <div className="orders-avatar shrink-0">{initials(order.customerName || order.productName)}</div>
-                        )}
-                        <div className={cn("truncate text-[14px] whitespace-nowrap", isAwaiting ? "font-medium italic text-slate-400" : "font-medium text-[#111827] dark:text-neutral-100")} title={isAwaiting ? 'Awaiting buyer' : order.customerName}>
-                          {isAwaiting ? 'Awaiting buyer' : order.customerName}
-                        </div>
-                      </div>
-                      <div className="orders-item-cell min-w-0">
-                        <span className="orders-mobile-label">Item</span>
-                        <div className="truncate text-[13.5px] text-[#6B7280] dark:text-neutral-400 whitespace-nowrap" title={order.productName}>
-                          {order.productName}
-                        </div>
-                      </div>
-                      <div className="orders-traffic-cell flex justify-center">
-                        <span className="orders-mobile-label">Traffic</span>
-                        <span className="orders-traffic-icon" data-testid={`text-order-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}>
-                          <ChannelMark value={order.channel} size={17} />
-                        </span>
-                      </div>
-                      <div className="orders-value-cell min-w-0">
-                        <span className="orders-mobile-label">Order value</span>
-                        <div className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100 whitespace-nowrap">{moneyExact(order.amount)}</div>
-                      </div>
-                      <div className="orders-collected-cell min-w-0">
-                        <span className="orders-mobile-label">Collected</span>
-                        <div className="font-mono-ui text-[13.5px] text-[#6B7280] dark:text-neutral-400 whitespace-nowrap">{moneyExact(collectedFor(order))}</div>
-                      </div>
-                      <div className="orders-date-cell min-w-0">
-                        <span className="orders-mobile-label">Placed</span>
-                        <span className="font-mono-ui text-[13px] text-[#6B7280] dark:text-neutral-400 whitespace-nowrap">{dateShort(order.createdAt)}</span>
-                      </div>
-                      <div className="orders-cell-labeled min-w-0">
-                        <span className="orders-mobile-label">Payment</span>
-                        <button
-                          type="button"
-                          disabled={update.isPending}
-                          aria-label={`Advance payment status for ${order.customerName || order.productName}`}
-                          title="Advance payment status"
-                          data-testid={`button-payment-${order.id}`}
-                          className="whitespace-nowrap"
-                          onClick={() => {
-                            const status: 'reserved' | 'deposit_paid' | 'paid' = order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved';
-                            updateOrder(order, { status });
-                          }}
-                        >
-                          <StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>
-                            {paymentLabel(order)}
-                          </StatusPill>
-                        </button>
-                      </div>
-                      <div className="orders-cell-labeled flex justify-end min-w-0">
-                        <span className="orders-mobile-label">Fulfillment</span>
-                        <FulfillmentPickerCell order={order} disabled={update.isPending} onUpdateFulfillment={(targetOrder, fulfillment) => updateOrder(targetOrder, { fulfillment })} />
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
-                  <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No matching orders</p>
-                  <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">Try adjusting your search terms or filter.</p>
-                </div>
-              )}
-              {orders.length > 0 && (
-                <div className="border-t border-[#E8E8EE] dark:border-neutral-800 px-4 py-3 text-[13px] text-[#6B7280] dark:text-neutral-400 flex items-center justify-between">
-                  <span>{orders.length} {orders.length === 1 ? 'link' : 'links'}</span>
-                </div>
-              )}
-            </div>
-          </Card>
+          <DataTable<Order>
+            columns={orderColumns}
+            data={orders}
+            keyExtractor={(order) => order.id}
+            onRowClick={(order) => setLocation(`/orders/${order.id}`)}
+            rowAriaLabel={(order) => `Open order ${order.id} details`}
+            rowTestId={(order) => `row-orders-order-${order.id}`}
+            tableAriaLabel="Orders"
+            emptyState={{
+              title: 'No matching orders',
+              description: 'Try adjusting your search terms or filter.',
+            }}
+            footerCount={
+              orders.length > 0 ? (
+                <span>{orders.length} {orders.length === 1 ? 'link' : 'links'}</span>
+              ) : undefined
+            }
+          />
         </section>
+        <OrderSummaryDrawer
+          isOpen={isSummaryOpen}
+          onClose={() => setIsSummaryOpen(false)}
+          orders={orders}
+          currencySymbol={currencySymbol()}
+          activeFilterLabel={orderFilterOptions.find((o) => o.value === activeFilter)?.label || 'All'}
+          searchQuery={search}
+        />
       </>
     )}
   </Shell>;
@@ -6177,34 +6260,35 @@ function Orders() {
 function OrdersTableSkeleton() {
   return (
     <Card className="orders-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none" aria-label="Loading orders">
-      <div className="orders-table-wrap" role="table">
-        <div className="orders-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
-          <span role="columnheader">Order ID</span>
-          <span role="columnheader">Buyer</span>
-          <span role="columnheader">Item</span>
-          <span role="columnheader" className="text-center">Traffic</span>
-          <span role="columnheader">Order value</span>
-          <span role="columnheader">Collected</span>
-          <span role="columnheader">Placed</span>
-          <span role="columnheader">Payment</span>
-          <span role="columnheader" className="text-right">Fulfillment</span>
-        </div>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="orders-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 h-[56px]">
-            <div><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-[11px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
-              <div className="h-4 w-24 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
-            </div>
-            <div><div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
-            <div className="flex justify-center"><div className="h-7 w-7 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
-            <div><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
-            <div><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
-            <div><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
-            <div><div className="h-6 w-20 rounded-full bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
-            <div className="flex justify-end"><div className="h-7 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
-          </div>
-        ))}
+      <div className="overflow-x-auto w-full scrollbar-thin">
+        <table className="w-full text-left border-collapse" style={{ minWidth: '100%', width: 'max-content' }}>
+          <thead>
+            <tr className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80 h-[48px]">
+              <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Order ID</th>
+              <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Customer</th>
+              <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap text-center">Traffic</th>
+              <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Order value</th>
+              <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Collected</th>
+              <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Payment</th>
+              <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap">Fulfillment</th>
+              <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case whitespace-nowrap text-right">Date</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <tr key={i} className="h-[56px]">
+                <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+                <td className="px-4 py-3.5"><div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+                <td className="px-4 py-3.5"><div className="flex justify-center"><div className="h-7 w-7 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div></td>
+                <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+                <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+                <td className="px-4 py-3.5"><div className="h-6 w-20 rounded-full bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+                <td className="px-4 py-3.5"><div className="h-7 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+                <td className="px-4 py-3.5"><div className="flex justify-end"><div className="h-4 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </Card>
   );
@@ -6317,7 +6401,7 @@ function Clients() {
          <Card className="clients-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
            <div className="clients-table-wrap" role="table" aria-label="Clients">
              <div className="clients-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
-               <span role="columnheader">Client</span>
+               <span role="columnheader">Customer</span>
                <span role="columnheader">Phone</span>
                <span role="columnheader" className="is-numeric">Orders</span>
                <span role="columnheader" className="is-numeric">Collected</span>
@@ -6333,12 +6417,9 @@ function Clients() {
                    role="row"
                    data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}
                  >
-                   <div className="clients-buyer-cell">
-                     <div className="clients-avatar">{initials(client.displayName)}</div>
-                     <div className="min-w-0">
-                       <div className="truncate text-[14px] font-medium text-[#111827] dark:text-neutral-100" data-testid={`text-client-name-${client.key}`}>
-                         {client.displayName}
-                       </div>
+                   <div className="clients-buyer-cell min-w-0">
+                     <div className="truncate text-[14px] font-medium text-[#111827] dark:text-neutral-100 whitespace-nowrap" data-testid={`text-client-name-${client.key}`} title={client.displayName}>
+                       {client.displayName}
                      </div>
                    </div>
                    <div className="clients-cell-labeled clients-phone-cell">
@@ -6435,7 +6516,7 @@ function ClientsSkeleton() {
       <Card className="clients-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
         <div className="clients-table-wrap" role="table">
           <div className="clients-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
-            <span role="columnheader">Client</span>
+            <span role="columnheader">Customer</span>
             <span role="columnheader">Phone</span>
             <span role="columnheader" className="is-numeric">Orders</span>
             <span role="columnheader" className="is-numeric">Collected</span>
@@ -6445,8 +6526,7 @@ function ClientsSkeleton() {
           </div>
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="clients-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 h-[56px]">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-[11px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
+              <div>
                 <div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
               </div>
               <div><div className="h-4 w-24 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>

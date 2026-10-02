@@ -1058,8 +1058,9 @@ button.field-input:focus {
 .catalog-list { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
 .catalog-list-head, .catalog-product-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1.55fr) minmax(140px, 0.9fr) minmax(110px, 0.7fr) minmax(120px, 0.75fr) 72px;
-  min-width: 800px;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr) minmax(100px, 0.7fr) minmax(110px, 0.8fr) 72px;
+  min-width: 820px;
+  width: 100%;
   align-items: center;
   gap: 1.25rem;
 }
@@ -1131,12 +1132,10 @@ button.field-input:focus {
 .catalog-grid-card:hover .catalog-grid-actions, .catalog-grid-card:focus-within .catalog-grid-actions { opacity: 1; }
 .catalog-grid-actions .catalog-actions { gap: .2rem; }
 .catalog-grid-actions .catalog-icon-button { height: 1.85rem; width: 1.85rem; border: 1px solid rgb(38 38 34 / 10%); border-radius: 999px; background: rgb(255 255 255 / 88%); color: #383934; box-shadow: 0 2px 6px rgb(38 38 34 / 8%); backdrop-filter: blur(7px); }
-.catalog-grid-details { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: .7rem; padding: .72rem .8rem .78rem; }
-.catalog-grid-details h3 { min-width: 0; overflow: hidden; color: #252621; font-size: .74rem; font-weight: 600; letter-spacing: -.015em; text-overflow: ellipsis; white-space: nowrap; }
-.catalog-grid-details strong { flex: 0 0 auto; color: #252621; font-size: .75rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.catalog-grid-details { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: .7rem; padding: .75rem .85rem .8rem; }
-.catalog-grid-details h3 { min-width: 0; overflow: hidden; color: #252621; font-size: .875rem; font-weight: 600; letter-spacing: -.015em; text-overflow: ellipsis; white-space: nowrap; }
-.catalog-grid-details strong { flex: 0 0 auto; color: #252621; font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.catalog-grid-details { display: flex; flex-direction: column; min-width: 0; gap: .375rem; padding: .85rem; }
+.catalog-grid-details h3 { min-width: 0; font-size: 14px; font-weight: 500; line-height: 20px; height: 40px; color: #111827; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+.catalog-grid-details .catalog-price-stock-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; white-space: nowrap; }
+.catalog-grid-details strong { flex: 0 0 auto; color: #111827; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .catalog-stock-badge, .catalog-card-edit { display: none; }
 .product-compare-price-field { margin-top: 1rem; }
 .product-reference-help { margin-top: .45rem; color: #9299a2; font-size: .64rem; line-height: 1.45; }
