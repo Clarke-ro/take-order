@@ -41,12 +41,13 @@ export function StatCard({
         <span className="text-[13.5px] font-medium text-[hsl(var(--muted-foreground))] leading-none select-none">
           {label}
         </span>
-        <Info
-          size={13}
-          className="text-[hsl(var(--muted-foreground))]/50 shrink-0"
-          title={description || label}
-          aria-label={description || label}
-        />
+        <span title={description || label} className="inline-flex">
+          <Info
+            size={13}
+            className="text-[hsl(var(--muted-foreground))]/50 shrink-0"
+            aria-label={description || label}
+          />
+        </span>
       </div>
 
       {/* Big value + optional muted suffix */}

@@ -233,7 +233,7 @@ export function AnalyticsPage() {
                       {dashboardPeriodOptions.map((opt) => (
                         <button key={opt.value} type="button"
                           className={cn('w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left transition cursor-pointer', period === opt.value ? 'bg-neutral-900 text-white font-semibold dark:bg-white dark:text-neutral-900' : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900')}
-                          onClick={() => { setPeriod(opt.value); setDraftPeriod(opt.value); setPeriodMenuOpen(false); writeDashboardPeriodPreference({ period: opt.value }); }}
+                          onClick={() => { setPeriod(opt.value); setDraftPeriod(opt.value); setPeriodMenuOpen(false); writeDashboardPeriodPreference({ period: opt.value, customFrom: appliedCustomRange.from, customTo: appliedCustomRange.to }); }}
                         >
                           <span>{opt.label}</span>
                           {period === opt.value && <Check size={12} />}

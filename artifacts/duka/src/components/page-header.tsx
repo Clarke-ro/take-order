@@ -161,7 +161,7 @@ export function PageHeader({
                   )}
                 </>
               ) : (
-                search
+                (search as ReactNode)
               )}
             </div>
           )}
