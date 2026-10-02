@@ -3838,35 +3838,151 @@ function RecentTransactions() {
       <div><div className="type-eyebrow">Latest activity</div><h3 className="type-h3 mt-1 text-lg font-bold">Recent transactions</h3></div>
       <Link href="/orders" data-testid="link-see-all-orders"><Button variant="ghost">See all <ArrowUpRight size={15} /></Button></Link>
     </div>
-    <div className="table-toolbar">
-      <div className="category-filter-card list-filter-tabs" role="group" aria-label="Recent transaction filters">
+    <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="relative w-full sm:max-w-[320px]">
+        <input
+          type="search"
+          aria-label="Search recent transactions"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search transactions..."
+          className="w-full h-[40px] min-h-[40px] pl-3.5 pr-10 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 transition shadow-2xs"
+        />
+        {search ? (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            aria-label="Clear search"
+            className="absolute right-8 top-1/2 -translate-y-1/2 p-1 text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white transition cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        ) : null}
+        <Search
+          size={15}
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none"
+        />
+      </div>
+      <div className="flex items-center gap-1.5 h-[40px] p-1 rounded-[10px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shrink-0 overflow-x-auto" role="group" aria-label="Recent transaction filters">
         {filterOptions.map((option) => (
           <button
             type="button"
             key={option.value}
             onClick={() => setFilter(option.value)}
             aria-pressed={filter === option.value}
-            className={cn('category-filter-tab list-filter-tab', filter === option.value && 'is-active')}
+            className={cn(
+              'h-7 px-3 rounded-[7px] text-[13px] font-medium transition-colors cursor-pointer select-none',
+              filter === option.value
+                ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'
+                : 'text-[#6B7280] hover:text-[#111827] dark:text-neutral-400 dark:hover:text-white'
+            )}
           >
             {option.label}
           </button>
         ))}
       </div>
-      <div className="table-search-shell list-search-shell">
-        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
-        <input
-          aria-label="Search recent transactions"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search"
-          className="table-search-input list-search-input"
-        />
-      </div>
     </div>
-    <Card className="recent-transactions-card list-card overflow-hidden rounded-2xl border border-slate-200/90 shadow-xs dark:border-slate-800">
-      {query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="overflow-x-auto"><table className="list-table w-full min-w-[780px] text-left"><thead><tr className="border-b border-slate-200/80 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/50"><th className="px-5 py-3 sm:px-6">Order ID</th><th className="px-4 py-3">Buyer / item</th><th className="px-4 py-3 text-center">Traffic</th><th className="px-4 py-3">Placed</th><th className="px-4 py-3">Order value</th><th className="px-5 py-3 sm:px-6">Payment</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{orders.map((order) => <tr key={order.id} className="transaction-row hover:bg-slate-50/80 dark:hover:bg-slate-900/50 transition-colors" data-testid={`row-transaction-${order.id}`}><td className="px-5 py-3.5 sm:px-6" data-testid={`text-transaction-order-id-${order.id}`}><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-recent-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></td><td className="px-4 py-3.5"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-slate-100 dark:bg-slate-800 font-mono-ui text-xs font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{order.productName}</div></div></div></td><td className="px-4 py-3.5"><div className="orders-traffic-cell"><span className="orders-traffic-icon" data-testid={`text-transaction-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div></td><td className="px-4 py-3.5 text-xs text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</td><td className="data-value px-4 py-3.5 text-sm font-semibold">{moneyExact(order.amount)}</td><td className="px-5 py-3.5 sm:px-6"><StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill></td></tr>)}</tbody></table></div> : <div className="p-8"><EmptyState icon={ShoppingBag} title="No transactions match" description="Try another filter or search." action={<Link href="/take-order"><Button><Plus size={15} />Create a link</Button></Link>} /></div>}
+    <Card className="recent-transactions-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+      {query.isLoading ? (
+        <RecentTransactionsSkeleton />
+      ) : query.isError ? (
+        <div className="p-6"><ErrorState retry={() => query.refetch()} /></div>
+      ) : orders.length ? (
+        <div className="overflow-x-auto w-full scrollbar-thin">
+          <table className="list-table w-full min-w-[780px] text-left border-collapse">
+            <thead>
+              <tr className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80 h-[48px]">
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order ID</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Buyer / item</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-center">Traffic</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Placed</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order value</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Payment</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
+              {orders.map((order) => (
+                <tr key={order.id} className="transaction-row hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[64px]" data-testid={`row-transaction-${order.id}`}>
+                  <td className="px-4 py-3.5" data-testid={`text-transaction-order-id-${order.id}`}>
+                    <Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200" data-testid={`link-recent-order-${order.id}`} aria-label={`Open order ${order.id}`}>
+                      #{String(order.id).padStart(7, '0')}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-slate-100 dark:bg-slate-800 font-mono-ui text-xs font-bold text-[#111827] dark:text-neutral-100">
+                        {initials(order.customerName || order.productName)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[14px] font-medium text-[#111827] dark:text-neutral-100 truncate">{order.customerName || 'Buyer pending'}</div>
+                        <div className="mt-0.5 text-[13px] text-[#6B7280] dark:text-neutral-400 truncate">{order.productName}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-center">
+                    <div className="orders-traffic-cell flex justify-center">
+                      <span className="orders-traffic-icon" data-testid={`text-transaction-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}>
+                        <ChannelMark value={order.channel} size={17} />
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-[13px] text-[#6B7280] dark:text-neutral-400 font-mono-ui">{dateShort(order.createdAt)}</td>
+                  <td className="px-4 py-3.5 font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100">{moneyExact(order.amount)}</td>
+                  <td className="px-4 py-3.5 text-right">
+                    <StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+          <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No transactions match</p>
+          <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">Try adjusting your search terms or filter.</p>
+        </div>
+      )}
     </Card>
   </div>;
+}
+
+function RecentTransactionsSkeleton() {
+  return (
+    <div className="overflow-x-auto w-full scrollbar-thin" aria-label="Loading transactions">
+      <table className="list-table w-full min-w-[780px] text-left border-collapse">
+        <thead>
+          <tr className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80 h-[48px]">
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order ID</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Buyer / item</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-center">Traffic</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Placed</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order value</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Payment</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <tr key={i} className="h-[64px]">
+              <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+              <td className="px-4 py-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-[10px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+                    <div className="h-3 w-36 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+                  </div>
+                </div>
+              </td>
+              <td className="px-4 py-3.5"><div className="flex justify-center"><div className="h-7 w-7 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div></td>
+              <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+              <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+              <td className="px-4 py-3.5"><div className="flex justify-end"><div className="h-6 w-20 rounded-full bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function OrderRow({ order, compact = false }: { order: Order; compact?: boolean }) {
