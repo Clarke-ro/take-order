@@ -34,6 +34,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { StatCard } from '@/components/stat-card';
 import { SidebarProCard } from '@/components/sidebar-pro-card';
 import { RecentUpdatesTabs } from '@/components/recent-updates-tabs';
+import { PageHeader, MobileNavContext } from '@/components/page-header';
 import { ClientDetailPage } from '@/pages/client-detail';
 import { IntegrationsComingSoonPage } from '@/pages/integrations';
 import { AnalyticsPage } from '@/pages/analytics';
@@ -643,9 +644,13 @@ function useIsOnline() {
 export function Sidebar({
   collapsed = false,
   onToggleCollapse = () => {},
+  isMobile = false,
+  onMobileClose,
 }: {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  isMobile?: boolean;
+  onMobileClose?: () => void;
 } = {}) {
   const [location] = useLocation();
   const { userId, signOut } = useAppAuth();
@@ -669,13 +674,34 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        'desktop-sidebar fixed inset-y-0 left-0 z-30 flex flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))] transition-all duration-200 ease-in-out border-r border-[hsl(var(--sidebar-border))]',
-        collapsed ? 'w-[72px]' : 'w-[272px]'
+        isMobile
+          ? 'flex flex-col h-full w-full bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))] border-r border-[hsl(var(--sidebar-border))]'
+          : 'desktop-sidebar fixed inset-y-0 left-0 z-30 hidden md:flex flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))] transition-all duration-200 ease-in-out border-r border-[hsl(var(--sidebar-border))]',
+        !isMobile && (collapsed ? 'w-[72px]' : 'w-[272px]')
       )}
       aria-label="App navigation"
     >
       {/* ── Workspace switcher / brand header ─── */}
-      {collapsed ? (
+      {isMobile ? (
+        <div className="flex h-[60px] items-center justify-between border-b border-[hsl(var(--sidebar-border))] px-4">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[hsl(var(--primary))] text-white text-[11px] font-bold shadow-xs">
+              T
+            </div>
+            <span className="truncate text-[13.5px] font-semibold text-[hsl(var(--foreground))]">Take Order App</span>
+          </div>
+          {onMobileClose && (
+            <button
+              type="button"
+              onClick={onMobileClose}
+              aria-label="Close sidebar"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--foreground))] transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
+      ) : collapsed ? (
         <div className="flex h-[60px] items-center justify-center border-b border-[hsl(var(--sidebar-border))]">
           <button
             type="button"
@@ -927,86 +953,7 @@ export function Sidebar({
   );
 }
 
-export function MobileMenuButton({ open, onClick }: { open: boolean; onClick: () => void }) {
-  return <button type="button" aria-label={open ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={open} data-testid="button-mobile-menu" onClick={onClick} className="rounded-lg p-2 hover:bg-black/5">{open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}</button>;
-}
-
-function MobileTopbar() {
-  const [open, setOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const { signOut } = useAppAuth();
-  const nav = [
-    { href: '/dashboard', label: 'Dashboard' },
-    { href: '/catalog', label: 'Catalog' },
-    { href: '/orders', label: 'Orders' },
-    { href: '/analytics', label: 'Analytics' },
-    { href: '/clients', label: 'Clients' },
-    { href: '/expenses', label: 'Expenses' },
-    { href: '/take-order', label: 'Take an order' },
-    { href: '/settings', label: 'Profile & settings' },
-    { href: '/connect', label: 'Integrations' },
-  ];
-  const [location] = useLocation();
-  return (
-    <div className="mobile-topbar sticky top-0 z-40 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-5 py-4 backdrop-blur-md">
-      <div className="flex items-center justify-between">
-        <Link href="/dashboard" aria-label="Take Order dashboard"><BrandLockup className="gap-2" /></Link>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            aria-label="Search"
-            onClick={() => setSearchOpen((prev) => !prev)}
-            className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-          >
-            <Search size={18} />
-          </button>
-          <MobileMenuButton open={open} onClick={() => setOpen(!open)} />
-        </div>
-      </div>
-      {searchOpen && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const q = (e.currentTarget.querySelector('input[name="q"]') as HTMLInputElement)?.value?.trim();
-            if (q) window.location.assign(`/orders?q=${encodeURIComponent(q)}`);
-          }}
-          className="mt-3 relative flex items-center w-full"
-        >
-          <Search size={14} className="absolute left-3 text-[hsl(var(--muted-foreground))] pointer-events-none" />
-          <input
-            name="q"
-            type="search"
-            autoFocus
-            placeholder="Search orders, catalog, clients..."
-            className="w-full h-9 pl-8 pr-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/25 transition"
-          />
-        </form>
-      )}
-      {open && (
-        <div className="mobile-nav-panel absolute left-0 right-0 top-full border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg">
-          {nav.map((item) => (
-            <Link key={item.href} href={item.href} onClick={() => setOpen(false)} aria-current={location === item.href ? 'page' : undefined} className={cn('block rounded-[10px] px-3 py-3 text-sm transition-colors', location === item.href ? 'bg-[hsl(var(--muted))] font-semibold text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]')}>
-              {item.label}
-            </Link>
-          ))}
-          <div className="border-t border-[hsl(var(--border))] mt-2 pt-2">
-            <button
-              type="button"
-              onClick={() => { setOpen(false); void signOut(); }}
-              className="w-full flex items-center gap-2 rounded-[10px] px-3 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
-            >
-              <LogOut size={16} />
-              <span>Log out</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-function Shell({ children, topbarSlot }: { children: ReactNode; topbarSlot?: ReactNode }) {
+function Shell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('takeorder-sidebar-collapsed') === 'true';
@@ -1025,98 +972,81 @@ function Shell({ children, topbarSlot }: { children: ReactNode; topbarSlot?: Rea
     });
   };
 
-  const { userId } = useAppAuth();
-  const seller = readSellerProfile(userId);
-  const entitlements = useEntitlements(userId);
-  const { isTrial } = entitlements;
-  const daysRemaining = entitlements.trial.daysRemaining;
-  const sellerInitial = (seller?.sellerName || seller?.businessName || 'A').charAt(0).toUpperCase();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [location] = useLocation();
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location]);
 
   return (
-    <div className="take-order-shell grain">
-      <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapse} />
-      <MobileTopbar />
+    <MobileNavContext.Provider
+      value={{
+        openMobileNav: () => setMobileNavOpen(true),
+      }}
+    >
+      <div className="take-order-shell grain min-h-screen bg-[hsl(var(--background))]">
+        {/* Desktop Sidebar (hidden on mobile) */}
+        <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapse} />
 
-      {/* ── Desktop Topbar (hidden on mobile) ─────────────────────────── */}
-      <header
-        className={cn(
-          'saas-desktop-topbar fixed top-0 right-0 z-20 hidden md:flex h-[60px] items-center gap-3 px-6 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] transition-all duration-200 ease-in-out',
-          collapsed ? 'left-[72px]' : 'left-[272px]'
-        )}
-      >
-        {/* Search — real handler: navigates to /orders?q= */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const q = (e.currentTarget.querySelector('input[name="q"]') as HTMLInputElement)?.value?.trim();
-            if (q) window.location.assign(`/orders?q=${encodeURIComponent(q)}`);
-          }}
-          className="relative flex items-center w-full max-w-[280px]"
-        >
-          <Search size={14} className="absolute left-3 text-[hsl(var(--muted-foreground))] pointer-events-none" />
-          <input
-            name="q"
-            type="search"
-            placeholder="Search orders, catalog, clients..."
-            className="w-full h-9 pl-8 pr-[60px] rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/25 transition"
-          />
-          <kbd className="absolute right-2.5 flex items-center gap-0.5 rounded-[4px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))] px-1.5 py-0.5 text-[10px] font-medium text-[hsl(var(--muted-foreground))] pointer-events-none select-none">
-            Ctrl+K
-          </kbd>
-        </form>
-
-        {/* Next to it: Period dropdown slot */}
-        {topbarSlot && (
-          <div className="flex items-center shrink-0">
-            {topbarSlot}
+        {/* Mobile Slide-Over Drawer */}
+        {mobileNavOpen && (
+          <div
+            className="fixed inset-0 z-50 md:hidden flex"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile Navigation"
+          >
+            <div
+              className="fixed inset-0 bg-black/45 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+              onClick={() => setMobileNavOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="relative z-50 w-[280px] max-w-[85vw] h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-200">
+              <Sidebar isMobile onMobileClose={() => setMobileNavOpen(false)} />
+            </div>
           </div>
         )}
 
-        {/* Centre: trial banner */}
-        <div className="flex-1 flex items-center justify-center min-w-0">
-          {isTrial && daysRemaining != null && daysRemaining >= 0 && (
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#BBF7D0] bg-[#ECFCCB] px-4 py-1.5 text-[12.5px] font-medium text-[#14532D] whitespace-nowrap">
-              <span>Free trial: {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left.</span>
-              <Link href="/subscribe" className="font-bold underline hover:text-[#14532D]/80 transition">Upgrade →</Link>
-            </div>
+        {/* Main Content Area — starts right at the top with generous padding */}
+        <main
+          className={cn(
+            'page-content min-h-[100dvh] transition-all duration-200 ease-in-out',
+            collapsed ? 'md:ml-[72px]' : 'md:ml-[272px]'
           )}
-        </div>
+        >
+          <div className="px-5 sm:px-8 lg:px-10 py-8 max-w-[1120px] w-full">
+            {children}
+          </div>
+        </main>
+      </div>
+    </MobileNavContext.Provider>
+  );
+}
 
-        {/* Right: Take an order */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href="/take-order"
-            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-[8px] bg-[hsl(var(--primary))] text-[13px] font-semibold text-white hover:opacity-90 transition whitespace-nowrap"
-          >
-            <Plus size={13} strokeWidth={2.5} />
-            Take an order
-          </Link>
-        </div>
-      </header>
-
-      <main
-        className={cn(
-          'page-content min-h-[100dvh] transition-all duration-200 ease-in-out',
-          collapsed ? 'md:ml-[72px]' : 'md:ml-[272px]'
-        )}
-      >
-        <div className="px-6 sm:px-8 lg:px-10 py-6 md:py-8 md:pt-[88px] max-w-[1120px]">
-          {children}
-        </div>
-      </main>
-    </div>
+export function MobileMenuButton({ open, onClick }: { open: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
+      aria-expanded={open}
+      className="md:hidden flex h-10 w-10 min-h-[44px] min-w-[44px] items-center justify-center rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition shrink-0 cursor-pointer"
+    >
+      {open ? <X size={18} /> : <Menu size={18} />}
+    </button>
   );
 }
 
 function PageHeading({ eyebrow, title, description, action }: { eyebrow?: string; title: string; description?: string; action?: ReactNode }) {
-  return <div className="page-heading mb-8 flex flex-col justify-between gap-4 border-b border-[hsl(var(--border))] pb-6 sm:flex-row sm:items-center">
-    <div className="min-w-0">
-      {eyebrow && <div className="type-eyebrow mb-1">{eyebrow}</div>}
-      <h1 className="type-h1">{title}</h1>
-      {description && <p className="mt-1.5 max-w-[580px] type-body text-[hsl(var(--muted-foreground))] leading-relaxed">{description}</p>}
-    </div>
-    {action && <div className="flex shrink-0 flex-wrap items-center gap-2.5 sm:self-center">{action}</div>}
-  </div>;
+  return (
+    <PageHeader
+      breadcrumbs={eyebrow}
+      title={title}
+      primaryAction={action}
+      children={description ? <p className="mt-1.5 max-w-[580px] text-sm text-[hsl(var(--muted-foreground))] leading-relaxed">{description}</p> : undefined}
+    />
+  );
 }
 
 function Button({ children, variant = 'primary', className, ...props }: { children: ReactNode; variant?: 'primary' | 'soft' | 'outline' | 'danger' | 'ghost'; className?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -2976,81 +2906,98 @@ export function Overview() {
     };
   }, [periodMenuOpen, period, appliedCustomRange]);
   return (
-    <Shell
-      topbarSlot={
-        <div className="relative flex items-center shrink-0" ref={periodMenuRef}>
-          <button
-            ref={periodTriggerRef}
-            type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3.5 py-1.5 text-[12.5px] font-semibold text-[hsl(var(--foreground))] shadow-2xs hover:bg-[hsl(var(--muted))] transition cursor-pointer"
-            aria-label="Reporting period"
-            aria-expanded={periodMenuOpen}
-            onClick={() => { setDraftPeriod(period); setPeriodMenuOpen((open) => !open); }}
-            data-testid="button-dashboard-period"
-          >
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="max-w-[140px] truncate">{periodLabel}</span>
-            <ChevronDown size={13} className={cn('transition-transform text-[hsl(var(--muted-foreground))]', periodMenuOpen && 'rotate-180')} />
-          </button>
-          {periodMenuOpen && (
-            <div
-              className="absolute left-0 top-full mt-2 z-50 min-w-[200px] rounded-2xl border border-[hsl(var(--border))] bg-white p-2 shadow-xl dark:bg-neutral-950"
-              role="dialog"
-              aria-label="Choose reporting period"
-            >
-              {draftPeriod !== 'custom' ? (
-                <div className="space-y-1">
-                  {dashboardPeriodOptions.map((option) => (
-                    <button
-                      type="button"
-                      key={option.value}
-                      className={cn(
-                        'w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left transition cursor-pointer',
-                        period === option.value
-                          ? 'bg-[hsl(var(--foreground))] text-[hsl(var(--background))] font-semibold'
-                          : 'text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]'
-                      )}
-                      onClick={() => { setPeriod(option.value); setDraftPeriod(option.value); setPeriodMenuOpen(false); }}
-                      aria-pressed={draftPeriod === option.value}
-                    >
-                      <span>{option.label}</span>
-                      {period === option.value && <Check size={13} />}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition cursor-pointer"
-                    onClick={chooseCustomPeriod}
-                    data-testid="button-dashboard-period-custom"
-                  >
-                    <span>Custom date range…</span>
-                  </button>
-                </div>
-              ) : (
-                <DashboardCustomRangePicker
-                  from={draftCustomRange.from}
-                  to={draftCustomRange.to}
-                  onFromChange={(from) => setDraftCustomRange((current) => ({ ...current, from }))}
-                  onToChange={(to) => setDraftCustomRange((current) => ({ ...current, to }))}
-                  onClose={closePeriodMenu}
-                  onApply={applyCustomPeriod}
-                  canApply={Boolean(draftPeriodRange)}
-                />
-              )}
-            </div>
-          )}
-        </div>
-      }
-    >
+    <Shell>
       <div data-testid="dashboard-analytics" data-analytics-state={analyticsState}>
         <AnalyticsStateMarker state={analyticsState} />
 
-        {/* ── Page title (no buttons — Take an order is in the topbar) ────── */}
-        <div className="mb-6">
-          <h1 className="text-[28px] font-semibold tracking-tight text-[hsl(var(--foreground))] leading-none">
-            Dashboard
-          </h1>
-        </div>
+        {/* ── Page Header (Page title + Take an order primary action + Period filter in toolbar) ────── */}
+        <PageHeader
+          title="Dashboard"
+          primaryAction={
+            <Link
+              href="/take-order"
+              data-testid="button-dashboard-take-order"
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-[8px] bg-[hsl(var(--primary))] text-[13px] font-semibold text-white hover:opacity-90 transition whitespace-nowrap shadow-xs cursor-pointer"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              <span>Take an order</span>
+            </Link>
+          }
+          filters={
+            <div className="relative shrink-0" ref={periodMenuRef}>
+              <button
+                ref={periodTriggerRef}
+                type="button"
+                className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3.5 py-1.5 text-[12.5px] font-semibold text-[hsl(var(--foreground))] shadow-2xs hover:bg-[hsl(var(--muted))] transition cursor-pointer"
+                aria-label="Reporting period"
+                aria-expanded={periodMenuOpen}
+                onClick={() => {
+                  setDraftPeriod(period);
+                  setPeriodMenuOpen((open) => !open);
+                }}
+                data-testid="button-dashboard-period"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="max-w-[140px] truncate">{periodLabel}</span>
+                <ChevronDown
+                  size={13}
+                  className={cn('transition-transform text-[hsl(var(--muted-foreground))]', periodMenuOpen && 'rotate-180')}
+                />
+              </button>
+              {periodMenuOpen && (
+                <div
+                  className="absolute right-0 top-full mt-2 z-50 min-w-[200px] rounded-2xl border border-[hsl(var(--border))] bg-white p-2 shadow-xl dark:bg-neutral-950"
+                  role="dialog"
+                  aria-label="Choose reporting period"
+                >
+                  {draftPeriod !== 'custom' ? (
+                    <div className="space-y-1">
+                      {dashboardPeriodOptions.map((option) => (
+                        <button
+                          type="button"
+                          key={option.value}
+                          className={cn(
+                            'w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left transition cursor-pointer',
+                            period === option.value
+                              ? 'bg-[hsl(var(--foreground))] text-[hsl(var(--background))] font-semibold'
+                              : 'text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]'
+                          )}
+                          onClick={() => {
+                            setPeriod(option.value);
+                            setDraftPeriod(option.value);
+                            setPeriodMenuOpen(false);
+                          }}
+                          aria-pressed={draftPeriod === option.value}
+                        >
+                          <span>{option.label}</span>
+                          {period === option.value && <Check size={13} />}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition cursor-pointer"
+                        onClick={chooseCustomPeriod}
+                        data-testid="button-dashboard-period-custom"
+                      >
+                        <span>Custom date range…</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <DashboardCustomRangePicker
+                      from={draftCustomRange.from}
+                      to={draftCustomRange.to}
+                      onFromChange={(from) => setDraftCustomRange((current) => ({ ...current, from }))}
+                      onToChange={(to) => setDraftCustomRange((current) => ({ ...current, to }))}
+                      onClose={closePeriodMenu}
+                      onApply={applyCustomPeriod}
+                      canApply={Boolean(draftPeriodRange)}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          }
+        />
 
         {/* Pro+ Executive Intelligence Row (only when seller has orders) */}
         {!isNewSeller && isProPlus && (
@@ -5169,14 +5116,33 @@ function Expenses() {
     }
   };
   return <Shell>
-    <div className="flex items-center justify-between gap-4 mb-5">
-      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-        Operating Expenses ({expenses.length})
-      </div>
-      <Button onClick={() => setModal('new')} data-testid="button-new-expense">
-        <Plus size={16} />Add expense
-      </Button>
-    </div>
+    <PageHeader
+      title="Expenses"
+      primaryAction={
+        <Button onClick={() => setModal('new')} data-testid="button-new-expense" className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white font-medium rounded-[8px] h-9 px-4 gap-1.5 inline-flex items-center text-[13px]">
+          <Plus size={15} />Add expense
+        </Button>
+      }
+      search={(query.data ?? []).length > 0 ? {
+        value: search,
+        onChange: setSearch,
+        placeholder: "Search expenses...",
+      } : undefined}
+      filters={(query.data ?? []).length > 0 ? (
+        <select
+          aria-label="Filter expenses by category"
+          data-testid="select-filter-expenses"
+          value={categoryFilter}
+          onChange={(event) => setCategoryFilter(event.target.value)}
+          className="h-9 px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 cursor-pointer"
+        >
+          <option value="all">All categories</option>
+          {expenseCategories.map((item) => (
+            <option key={item.value} value={item.value}>{item.label}</option>
+          ))}
+        </select>
+      ) : undefined}
+    />
     {query.isLoading ? (
       <div className="space-y-4 p-6"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
     ) : query.isError ? (
@@ -5196,51 +5162,6 @@ function Expenses() {
     ) : (
       <>
         {actionError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-expense-action-error">{actionError}</div>}
-        <div className="table-toolbar expenses-workspace-controls">
-          <div className="category-filter-card expenses-filter-bar" role="group" aria-label="Filter expenses by category">
-            <button
-              type="button"
-              onClick={() => setCategoryFilter('all')}
-              aria-pressed={categoryFilter === 'all'}
-              className={cn('category-filter-tab', categoryFilter === 'all' && 'is-active')}
-            >
-              All expenses
-            </button>
-            {expenseCategories.map((item) => (
-              <button
-                type="button"
-                key={item.value}
-                onClick={() => setCategoryFilter(item.value)}
-                aria-pressed={categoryFilter === item.value}
-                className={cn('category-filter-tab', categoryFilter === item.value && 'is-active')}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <div className="table-search-shell expenses-search">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
-            <input
-              aria-label="Search expenses"
-              data-testid="input-search-expenses"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search expenses"
-              className="table-search-input"
-            />
-          </div>
-        </div>
-        <select
-          aria-hidden="true"
-          data-testid="select-filter-expenses"
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value)}
-          className="sr-only"
-          tabIndex={-1}
-        >
-          <option value="all">All categories</option>
-          {expenseCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-        </select>
         <Card className="expenses-table-card overflow-hidden">
           <div className="expenses-table" role="table">
             <div className="table-summary-bar"><span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}</span></div>
@@ -5500,7 +5421,7 @@ function Catalog() {
   const products = useMemo(() => allProducts.filter((product) => {
     const textMatches = `${product.name} ${product.category} ${product.customFields.map((field) => `${field.label} ${field.value}`).join(' ')}`.toLowerCase().includes(search.trim().toLowerCase());
     const categoryMatches = categoryFilter === 'all' || product.category === categoryFilter;
-    const stockMatches = stockFilter === 'all' || (stockFilter === 'low' ? product.stock > 0 && product.stock < 5 : product.stock === 0);
+    const stockMatches = stockFilter === 'all' || (stockFilter === 'in_stock' ? (product.stock ?? 0) >= 5 : stockFilter === 'low' ? (product.stock ?? 0) > 0 && (product.stock ?? 0) < 5 : (product.stock ?? 0) === 0);
     const costMatches = !missingCostsOnly || (product.cost == null || product.cost === 0);
     return textMatches && categoryMatches && stockMatches && costMatches;
   }), [allProducts, search, categoryFilter, stockFilter, missingCostsOnly]);
@@ -5526,16 +5447,50 @@ function Catalog() {
   const lowStock = (query.data ?? []).filter((product) => product.stock < 5).length;
   const categories = new Set((query.data ?? []).map((product) => product.category)).size;
   const catalogCategories = ['all', ...Array.from(new Set(allProducts.map((product) => product.category).filter(Boolean))).sort()];
+  const catalogFilterCards = useMemo(() => [
+    { id: 'all', label: 'All', count: allProducts.length, active: stockFilter === 'all', onClick: () => setStockFilter('all') },
+    { id: 'in_stock', label: 'In stock', count: allProducts.filter((p) => (p.stock ?? 0) >= 5).length, active: stockFilter === 'in_stock', onClick: () => setStockFilter('in_stock') },
+    { id: 'low', label: 'Low stock', count: allProducts.filter((p) => (p.stock ?? 0) > 0 && (p.stock ?? 0) < 5).length, active: stockFilter === 'low', onClick: () => setStockFilter('low') },
+    { id: 'out', label: 'Out of stock', count: allProducts.filter((p) => (p.stock ?? 0) === 0).length, active: stockFilter === 'out', onClick: () => setStockFilter('out') },
+  ], [allProducts, stockFilter]);
+
    useEffect(() => { writeCatalogView(view); }, [view]);
    return <Shell>
-      <div className="flex items-center justify-between gap-4 mb-5">
-        <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Catalog ({allProducts.length} items)
-        </div>
-        <Button onClick={handleAddItem} data-testid="button-new-product">
-          <Plus size={16} />Add item
-        </Button>
-      </div>
+      <PageHeader
+        title="Catalog"
+        primaryAction={
+          <Button onClick={handleAddItem} data-testid="button-new-product" className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white font-medium rounded-[8px] h-9 px-4 gap-1.5 inline-flex items-center text-[13px]">
+            <Plus size={15} />Add product
+          </Button>
+        }
+        search={allProducts.length > 0 ? {
+          value: search,
+          onChange: setSearch,
+          placeholder: "Search products...",
+        } : undefined}
+        filters={allProducts.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <select
+              aria-label="Filter catalog by category"
+              data-testid="select-filter-products-category"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="h-9 px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 cursor-pointer"
+            >
+              <option value="all">All categories</option>
+              {catalogCategories.filter((c) => c !== 'all').map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+            <StockFilterPicker value={stockFilter} onChange={setStockFilter} />
+            <div className="catalog-view-toggle shrink-0" role="group" aria-label="Catalog view">
+              <button type="button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={cn(view === 'grid' && 'is-active')}><LayoutGrid size={15} /></button>
+              <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')} className={cn(view === 'list' && 'is-active')}><List size={15} /></button>
+            </div>
+          </div>
+        ) : undefined}
+        filterCards={allProducts.length > 0 ? catalogFilterCards : undefined}
+      />
       {query.isLoading ? (
         <div className="catalog-loading p-6">{[1, 2, 3].map((i) => <div key={i} className="catalog-loading-row"><Skeleton className="h-11 w-11 rounded-[13px]" /><div className="flex-1"><Skeleton className="h-4 w-40" /><Skeleton className="mt-2 h-3 w-24" /></div><Skeleton className="h-8 w-20" /></div>)}</div>
       ) : query.isError ? (
@@ -5556,52 +5511,6 @@ function Catalog() {
         <>
           <div className="space-y-5">
             {actionError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-catalog-action-error">{actionError}</div>}
-            <div className="table-toolbar catalog-page-toolbar">
-              <div className="category-filter-card catalog-filter-bar" role="group" aria-label="Filter catalog by category">
-                {catalogCategories.map((cat) => (
-                  <button
-                    type="button"
-                    key={cat}
-                    onClick={() => setCategoryFilter(cat)}
-                    aria-pressed={categoryFilter === cat}
-                    className={cn('category-filter-tab', categoryFilter === cat && 'is-active')}
-                  >
-                    {cat === 'all' ? 'All items' : cat}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-nowrap items-center gap-2 sm:gap-2.5 min-w-0">
-                <div className="table-search-shell flex-1 min-w-[120px] sm:min-w-[160px] md:w-56 lg:w-64">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
-                  <input
-                    aria-label="Search catalog"
-                    data-testid="input-search-products"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search products"
-                    className="table-search-input"
-                  />
-                </div>
-                <StockFilterPicker value={stockFilter} onChange={setStockFilter} />
-                <div className="catalog-view-toggle shrink-0" role="group" aria-label="Catalog view">
-                  <button type="button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={cn(view === 'grid' && 'is-active')}><LayoutGrid size={15} /></button>
-                  <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')} className={cn(view === 'list' && 'is-active')}><List size={15} /></button>
-                </div>
-              </div>
-            </div>
-            <select
-              aria-hidden="true"
-              data-testid="select-filter-products-category"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="sr-only"
-              tabIndex={-1}
-            >
-              <option value="all">All categories</option>
-              {catalogCategories.filter((c) => c !== 'all').map((category) => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
             <Card className="catalog-workspace list-card overflow-hidden">
               {products.length ? (
                 <div className={cn(view === 'grid' ? 'catalog-grid' : 'catalog-list')} role="list">
@@ -5857,17 +5766,32 @@ function Orders() {
     { value: 'shipped', label: 'Shipped', count: allOrders.filter((o) => o.fulfillment === 'shipped').length },
     { value: 'delivered', label: 'Delivered', count: allOrders.filter((o) => o.fulfillment === 'delivered').length },
   ], [allOrders]);
+  const orderFilterCards = useMemo(() => orderFilterOptions.map((opt) => ({
+    id: opt.value,
+    label: opt.label,
+    count: opt.count,
+    active: activeFilter === opt.value || (opt.value === 'to_ship' && activeFilter === 'pending'),
+    onClick: () => setActiveFilter(opt.value),
+  })), [orderFilterOptions, activeFilter]);
   const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value;
 
   return <Shell>
-    <div className="flex items-center justify-between gap-4 mb-5">
-      <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-        Orders
-      </h1>
-      <Link href="/take-order" data-testid="link-take-order-orders">
-        <Button><Plus size={16} />Take an order</Button>
-      </Link>
-    </div>
+    <PageHeader
+      title="Orders"
+      primaryAction={
+        <Link href="/take-order" data-testid="link-take-order-orders">
+          <Button className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white font-medium rounded-[8px] h-9 px-4 gap-1.5 inline-flex items-center text-[13px]">
+            <Plus size={15} />Take an order
+          </Button>
+        </Link>
+      }
+      search={allOrders.length > 0 ? {
+        value: search,
+        onChange: setSearch,
+        placeholder: "Search orders or clients...",
+      } : undefined}
+      filterCards={allOrders.length > 0 ? orderFilterCards : undefined}
+    />
     {query.isLoading ? (
       <div className="space-y-4 p-5 sm:p-6" aria-label="Loading orders"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
     ) : query.isError ? (
@@ -5888,37 +5812,6 @@ function Orders() {
       <>
         <section className="space-y-5">
           {mutationError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}
-          <div className="table-toolbar orders-workspace-controls flex flex-wrap items-center justify-between gap-4">
-            <div className="category-filter-card orders-filter-scroll" role="group" aria-label="Order status filter">
-              {orderFilterOptions.map((opt) => {
-                const isActive = activeFilter === opt.value || (opt.value === 'to_ship' && activeFilter === 'pending');
-                return (
-                  <button
-                    type="button"
-                    key={opt.value}
-                    onClick={() => setActiveFilter(opt.value)}
-                    className={cn('category-filter-tab orders-filter-button', isActive && 'is-active')}
-                    aria-pressed={isActive}
-                    data-testid={`button-order-filter-${opt.value}`}
-                  >
-                    <span>{opt.label}</span>
-                    <strong className="tab-count">{opt.count}</strong>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="table-search-shell list-search-shell min-w-[200px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
-              <input
-                aria-label="Search orders"
-                data-testid="input-search-orders"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search orders"
-                className="table-search-input list-search-input"
-              />
-            </div>
-          </div>
           <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
             {orders.length ? <div className="orders-table-wrap" role="table" aria-label="Orders"><div className="table-summary-bar border-b border-slate-200 dark:border-slate-800"><span>{orders.length} {orders.length === 1 ? 'order' : 'orders'}</span></div><div className="orders-table-head border-b border-slate-200 dark:border-slate-800" role="row"><span role="columnheader">Order ID</span><span role="columnheader">Customer</span><span role="columnheader">Traffic</span><span role="columnheader">Order value</span><span role="columnheader">Placed</span><span role="columnheader">Payment</span><span role="columnheader">Fulfillment</span></div>{orders.map((order) => {
               const isAwaiting = !order.customerPhone && (!order.customerName || order.customerName.toLowerCase() === 'waiting for buyer' || order.customerName.toLowerCase() === 'buyer pending');
@@ -6015,44 +5908,27 @@ function Clients() {
     { value: 'balance', label: 'Owing clients', count: balanceDueClients },
     { value: 'serve', label: 'To serve', count: clientsToServe },
   ];
+  const clientFilterCards = useMemo(() => clientFilters.map((f) => ({
+    id: f.value,
+    label: f.label,
+    count: f.count,
+    active: clientFilter === f.value,
+    onClick: () => setClientFilter(f.value),
+  })), [clientFilters, clientFilter]);
 
   return <Shell>
-    <div className="flex items-center justify-between gap-4 mb-5">
-      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-        Clients Directory ({clients.length})
-      </div>
-    </div>
-    {query.isLoading ? <ClientsSkeleton /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : !clients.length ? <EmptyState card icon={Users} title="Your client list starts with an order" description="When a buyer shares their details, Take Order will keep their purchase history together here." action={<Link href="/take-order" data-testid="link-clients-empty-order"><Button><Plus size={15} />Take an order</Button></Link>} /> : <>
+    <PageHeader
+      title="Clients"
+      search={clients.length > 0 ? {
+        value: search,
+        onChange: setSearch,
+        placeholder: "Search clients...",
+      } : undefined}
+      filterCards={clients.length > 0 ? clientFilterCards : undefined}
+    />
+    {query.isLoading ? <ClientsSkeleton /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : !clients.length ? <EmptyState card icon={Users} title="Your client list starts with an order" description="When a buyer shares their details, Take Order will keep their purchase history together here." action={<Link href="/take-order" data-testid="link-clients-empty-order"><Button className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white font-medium rounded-[8px] h-9 px-4 gap-1.5 inline-flex items-center text-[13px]"><Plus size={15} />Take an order</Button></Link>} /> : <>
        <section className="clients-list-section space-y-5">
-         <div className="table-toolbar clients-workspace-controls">
-           <div className="category-filter-card clients-filter-bar" role="group" aria-label="Filter clients">
-             {clientFilters.map((filterOption) => (
-               <button
-                 key={filterOption.value}
-                 type="button"
-                 className={cn('category-filter-tab clients-filter-tab', clientFilter === filterOption.value && 'is-active')}
-                 aria-pressed={clientFilter === filterOption.value}
-                 data-testid={`button-client-filter-${filterOption.value}`}
-                 onClick={() => setClientFilter(filterOption.value)}
-               >
-                 <span>{filterOption.label}</span>
-                 <strong className="tab-count">{filterOption.count}</strong>
-               </button>
-             ))}
-           </div>
-           <div className="table-search-shell clients-search">
-             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
-             <input
-               aria-label="Search clients"
-               data-testid="input-search-clients"
-               value={search}
-               onChange={(event) => setSearch(event.target.value)}
-               placeholder="Search clients"
-               className="table-search-input"
-             />
-           </div>
-         </div>
-          <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
+         <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
             {filteredClients.length ? <div className="clients-table-wrap"><div className="table-summary-bar border-b border-slate-200 dark:border-slate-800"><span>{filteredClients.length} {filteredClients.length === 1 ? 'client' : 'clients'}</span></div><div className="clients-table-head border-b border-slate-200 dark:border-slate-800"><span className="w-10">#</span><span>Client</span><span>Phone</span><span className="is-numeric">Orders</span><span className="is-numeric">Collected</span><span className="is-numeric">Balance due</span><span className="is-numeric">Last purchase</span><span className="sr-only">Details</span></div>{filteredClients.map((client, index) => <div className="clients-table-row border-b border-slate-200/90 dark:border-slate-800/90 py-3" key={client.key} data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="w-10 shrink-0 font-mono-ui text-xs font-bold text-slate-400 flex items-center">#{index + 1}</div><div className="clients-buyer-cell"><div className="clients-avatar">{initials(client.displayName)}</div><div className="min-w-0"><div className="truncate text-[15px] font-semibold" data-testid={`text-client-name-${client.key}`}>{client.displayName}</div></div></div><div className="clients-cell-labeled clients-phone-cell"><span className="clients-mobile-label">Phone</span><span className="inline-flex items-center gap-1.5"><span>{client.phone || '—'}</span>{client.phone && <button type="button" className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-[#25D366] hover:bg-emerald-100 transition-colors" title={`Open WhatsApp chat with ${client.displayName}`} aria-label={`Open WhatsApp chat with ${client.displayName}`} onClick={() => openWhatsApp(client.phone, `Hi ${client.displayName}!`)}><SiWhatsapp size={13} /></button>}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Orders</span><span className="font-mono-ui text-sm font-bold">{client.orderCount}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Collected</span><span className="font-mono-ui text-sm font-bold">{moneyExact(client.collected)}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Balance due</span><span className="font-mono-ui text-sm font-bold">{client.outstanding ? moneyExact(client.outstanding) : '—'}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Last purchase</span><span className="font-mono-ui text-sm">{dateShort(client.latestPurchase)}</span></div><div className="clients-actions flex items-center gap-2">{client.outstanding > 0 && client.phone && <button type="button" className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors" title="Send balance reminder on WhatsApp" onClick={() => { const profile = readSellerProfile(); const msg = buildClientBalanceReminderMessage({ clientName: client.displayName, balanceDue: client.outstanding, shopName: profile?.businessName || 'our shop', currencySymbol: currencySymbol() }); openWhatsApp(client.phone, msg); }}><MessageSquare size={12} />Remind</button>}<Link href={`/clients/${encodeURIComponent(client.key)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link">View <ArrowRight size={13} /></Link></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={Search} title="No clients match" /></div>}
         </Card>
       </section>
@@ -6904,47 +6780,40 @@ function MultiItemTakeOrderModern() {
   };
 
   return <Shell>
-    <div className="take-order-page">
-      <div className="take-order-header-bar flex items-center justify-between gap-4 mb-3">
-        <div className="flex items-center gap-3">
+    <PageHeader
+      title={
+        <div className="flex items-center gap-2.5">
           {canGoBack && (
             <button
               type="button"
-              className="take-order-header-back-btn"
+              className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition cursor-pointer"
               onClick={handleBack}
               aria-label="Go back"
               title="Go back"
             >
-              <ArrowLeft size={18} strokeWidth={2.2} />
+              <ArrowLeft size={16} strokeWidth={2} />
             </button>
           )}
-          <div className="relative w-64 sm:w-80">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
-            <input
-              type="text"
-              placeholder="Search catalog products..."
-              value={catalogSearch}
-              onChange={(e) => setCatalogSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
-            />
-          </div>
+          <h1 className="text-[24px] sm:text-[28px] md:text-[30px] font-semibold tracking-tight text-[hsl(var(--foreground))] leading-none">
+            Take an order
+          </h1>
         </div>
-        <div className="flex items-center gap-2">
-          {step === 3 && (
-            <Button
-              type="submit"
-              form="take-order-form"
-              className="h-9 px-4 text-xs font-semibold rounded-full shadow-sm"
-              disabled={!canContinue || busy}
-              data-testid="button-create-order-link"
-            >
-              {busy && <Loader2 className="animate-spin" size={14} />}
-              Create buyer link <ArrowUpRight size={14} />
-            </Button>
-          )}
-        </div>
-      </div>
-      <div className="text-center text-xs sm:text-sm text-slate-500 dark:text-slate-400 my-2">
+      }
+      primaryAction={step === 3 ? (
+        <Button
+          type="submit"
+          form="take-order-form"
+          className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white font-medium rounded-[8px] h-9 px-4 gap-1.5 inline-flex items-center text-[13px]"
+          disabled={!canContinue || busy}
+          data-testid="button-create-order-link"
+        >
+          {busy && <Loader2 className="animate-spin" size={14} />}
+          Create buyer link <ArrowUpRight size={14} />
+        </Button>
+      ) : undefined}
+    />
+    <div className="take-order-page">
+      <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-6">
         Create an order link to send directly to your buyer
       </div>
       <div className={cn('take-order-layout mt-6 sm:mt-8', choiceOnly && 'is-choice-only')}>
@@ -8700,35 +8569,15 @@ function SettingsPage() {
 
   return (
     <Shell>
-      <div className="w-full my-2 sm:my-4">
-        {/* Top Header: Search bar + Notification Bell ONLY */}
-        <div className="flex items-center justify-between gap-4 pb-4 mb-5 border-b border-neutral-200/80 dark:border-neutral-800">
-          <div className="relative flex-1 max-w-md">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="text"
-              placeholder="Search settings..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-neutral-100/90 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl outline-none text-neutral-800 dark:text-neutral-100 placeholder:text-neutral-400 focus:ring-1 focus:ring-black"
-              data-testid="input-search-settings"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center justify-center text-neutral-600 dark:text-neutral-300 shadow-2xs">
-              <Bell size={16} />
-            </div>
-          </div>
-        </div>
+      <PageHeader
+        title="Settings"
+        search={{
+          value: searchQuery,
+          onChange: setSearchQuery,
+          placeholder: "Search settings...",
+        }}
+      />
+      <div className="w-full">
 
         {/* Full-width Settings card */}
         <div className="bg-white dark:bg-neutral-950 border border-neutral-200/90 dark:border-neutral-800 rounded-3xl shadow-xs overflow-hidden flex flex-col md:flex-row min-h-[680px]">
@@ -9616,6 +9465,7 @@ function ClientDetailRoute() {
 function ConnectRoute() {
   return (
     <Shell>
+      <PageHeader title="Connect" />
       <IntegrationsComingSoonPage />
     </Shell>
   );

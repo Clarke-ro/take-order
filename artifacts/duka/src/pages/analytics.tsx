@@ -21,6 +21,7 @@ import {
   Cell,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/page-header';
 import {
   useGetDashboardSummary,
   getGetDashboardSummaryQueryKey,
@@ -207,70 +208,67 @@ export function AnalyticsPage() {
   return (
     <div className="space-y-8">
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-xs text-neutral-500 font-medium">Business Analytics</p>
-          <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight text-neutral-950 dark:text-white">
-            Financial Insights
-          </h1>
-        </div>
+      <PageHeader
+        title="Analytics"
+        filters={
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Period selector */}
+            <div className="relative" ref={periodMenuRef}>
+              <button
+                ref={periodTriggerRef}
+                type="button"
+                onClick={() => { setDraftPeriod(period); setDraftCustomRange(appliedCustomRange); setPeriodMenuOpen((o) => !o); }}
+                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition cursor-pointer"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                <Calendar size={13} className="text-[hsl(var(--muted-foreground))]" />
+                <span>{periodLabel}</span>
+                <ChevronDown size={12} className={cn('transition-transform text-[hsl(var(--muted-foreground))]', periodMenuOpen && 'rotate-180')} />
+              </button>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Period selector */}
-          <div className="relative" ref={periodMenuRef}>
-            <button
-              ref={periodTriggerRef}
-              type="button"
-              onClick={() => { setDraftPeriod(period); setDraftCustomRange(appliedCustomRange); setPeriodMenuOpen((o) => !o); }}
-              className="inline-flex items-center gap-2 rounded-full border border-neutral-200/90 bg-white px-3.5 py-1.5 text-xs font-semibold text-neutral-800 shadow-2xs hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 transition cursor-pointer"
-            >
-              <Calendar size={13} className="text-neutral-500" />
-              <span>{periodLabel}</span>
-              <ChevronDown size={12} className={cn('transition-transform text-neutral-400', periodMenuOpen && 'rotate-180')} />
-            </button>
-
-            {periodMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 z-50 min-w-[200px] rounded-2xl border border-neutral-200/90 bg-white p-2 shadow-xl dark:border-neutral-800 dark:bg-neutral-950" role="dialog">
-                {draftPeriod !== 'custom' ? (
-                  <div className="space-y-1">
-                    {dashboardPeriodOptions.map((opt) => (
-                      <button key={opt.value} type="button"
-                        className={cn('w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left transition cursor-pointer', period === opt.value ? 'bg-neutral-900 text-white font-semibold dark:bg-white dark:text-neutral-900' : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900')}
-                        onClick={() => { setPeriod(opt.value); setDraftPeriod(opt.value); setPeriodMenuOpen(false); writeDashboardPeriodPreference({ period: opt.value }); }}
-                      >
-                        <span>{opt.label}</span>
-                        {period === opt.value && <Check size={12} />}
+              {periodMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 z-50 min-w-[200px] rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-2 shadow-xl" role="dialog">
+                  {draftPeriod !== 'custom' ? (
+                    <div className="space-y-1">
+                      {dashboardPeriodOptions.map((opt) => (
+                        <button key={opt.value} type="button"
+                          className={cn('w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left transition cursor-pointer', period === opt.value ? 'bg-neutral-900 text-white font-semibold dark:bg-white dark:text-neutral-900' : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900')}
+                          onClick={() => { setPeriod(opt.value); setDraftPeriod(opt.value); setPeriodMenuOpen(false); writeDashboardPeriodPreference({ period: opt.value }); }}
+                        >
+                          <span>{opt.label}</span>
+                          {period === opt.value && <Check size={12} />}
+                        </button>
+                      ))}
+                      <button type="button" className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900 transition cursor-pointer" onClick={() => setDraftPeriod('custom')}>
+                        <span>Custom date range…</span>
                       </button>
-                    ))}
-                    <button type="button" className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900 transition cursor-pointer" onClick={() => setDraftPeriod('custom')}>
-                      <span>Custom date range…</span>
-                    </button>
-                  </div>
-                ) : (
-                  <DashboardCustomRangePicker
-                    from={draftCustomRange.from}
-                    to={draftCustomRange.to}
-                    onFromChange={(from) => setDraftCustomRange((c) => ({ ...c, from }))}
-                    onToChange={(to) => setDraftCustomRange((c) => ({ ...c, to }))}
-                    onClose={() => { setDraftPeriod(period); setPeriodMenuOpen(false); }}
-                    onApply={() => { if (draftPeriodRange) { setPeriod('custom'); setAppliedCustomRange(draftCustomRange); setPeriodMenuOpen(false); writeDashboardPeriodPreference({ period: 'custom', customFrom: draftCustomRange.from, customTo: draftCustomRange.to }); } }}
-                    canApply={Boolean(draftPeriodRange)}
-                  />
-                )}
-              </div>
-            )}
-          </div>
+                    </div>
+                  ) : (
+                    <DashboardCustomRangePicker
+                      from={draftCustomRange.from}
+                      to={draftCustomRange.to}
+                      onFromChange={(from) => setDraftCustomRange((c) => ({ ...c, from }))}
+                      onToChange={(to) => setDraftCustomRange((c) => ({ ...c, to }))}
+                      onClose={() => { setDraftPeriod(period); setPeriodMenuOpen(false); }}
+                      onApply={() => { if (draftPeriodRange) { setPeriod('custom'); setAppliedCustomRange(draftCustomRange); setPeriodMenuOpen(false); writeDashboardPeriodPreference({ period: 'custom', customFrom: draftCustomRange.from, customTo: draftCustomRange.to }); } }}
+                      canApply={Boolean(draftPeriodRange)}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
 
-          <button
-            type="button"
-            onClick={handleExport}
-            className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200/90 bg-white px-3.5 py-1.5 text-xs font-semibold text-neutral-800 shadow-2xs hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 transition cursor-pointer"
-          >
-            {exported ? <Check size={12} className="text-emerald-600" /> : <Download size={12} />}
-            <span>{exported ? 'Downloaded' : 'Export CSV'}</span>
-          </button>
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition cursor-pointer"
+            >
+              {exported ? <Check size={12} className="text-emerald-600" /> : <Download size={12} />}
+              <span>{exported ? 'Downloaded' : 'Export CSV'}</span>
+            </button>
+          </div>
+        }
+      />
 
       {/* ── Row 1: 2 Big Stat Cards + Revenue highlight + Profit highlight ─── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
