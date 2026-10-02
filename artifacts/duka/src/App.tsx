@@ -7404,7 +7404,7 @@ function MultiItemTakeOrderModern() {
     event.preventDefault();
     setFeedback(null);
     if (step === 1 && !canContinue) {
-      setFeedback(items.length ? 'Every item needs a price greater than $0.00.' : 'Add at least one item to continue.');
+      setFeedback(items.length ? `Every item needs a price greater than ${currencySymbol()}0.00.` : 'Add at least one item to continue.');
       return;
     }
     if (step === 2 && !paymentMode) {
@@ -7412,11 +7412,11 @@ function MultiItemTakeOrderModern() {
       return;
     }
     if (step === 2 && !validDeposit) {
-      setFeedback('The deposit must be greater than $0.00 and no more than the order total.');
+      setFeedback(`The deposit must be greater than ${currencySymbol()}0.00 and no more than the order total.`);
       return;
     }
     if (step === 2 && !validDeliveryFee) {
-      setFeedback('The delivery fee must be $0.00 or more.');
+      setFeedback(`The delivery fee must be ${currencySymbol()}0.00 or more.`);
       return;
     }
     if (step === 2 && !channel) {
@@ -10027,112 +10027,208 @@ function OrderDetail() {
   };
 
   if (!validOrderId) {
-    return <Shell><Link href="/orders" className="order-detail-back" data-testid="link-back-orders"><ArrowLeft size={15} />Back to orders</Link><EmptyState card icon={PackageSearch} title="Order not found" description="That order number is not valid." action={<Button variant="outline" onClick={() => setLocation('/orders')} data-testid="button-return-orders">View all orders</Button>} /></Shell>;
+    return (
+      <Shell>
+        <PageHeader
+          breadcrumbs={
+            <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer" data-testid="link-back-orders">
+              <ArrowLeft size={13} />
+              <span>Back to orders</span>
+            </Link>
+          }
+          title="Order not found"
+        />
+        <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
+          <EmptyState card={false} icon={PackageSearch} title="Order not found" description="That order number is not valid." action={<Button variant="outline" onClick={() => setLocation('/orders')} data-testid="button-return-orders">View all orders</Button>} />
+        </div>
+      </Shell>
+    );
   }
   if (query.isLoading) {
-    return <Shell><div className="order-detail-loading" aria-label="Loading order"><Skeleton className="h-4 w-24" /><Skeleton className="mt-7 h-12 w-64" /><div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]"><Skeleton className="h-[520px] w-full" /><Skeleton className="h-[420px] w-full" /></div></div></Shell>;
+    return (
+      <Shell>
+        <PageHeader
+          breadcrumbs={
+            <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer" data-testid="link-back-orders">
+              <ArrowLeft size={13} />
+              <span>Back to orders</span>
+            </Link>
+          }
+          title="Loading order..."
+        />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 space-y-4">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+          <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 space-y-4">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        </div>
+      </Shell>
+    );
   }
   if (query.isError) {
-    return <Shell><Link href="/orders" className="order-detail-back" data-testid="link-back-orders"><ArrowLeft size={15} />Back to orders</Link><div className="mt-7"><ErrorState retry={() => query.refetch()} /></div></Shell>;
+    return (
+      <Shell>
+        <PageHeader
+          breadcrumbs={
+            <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer" data-testid="link-back-orders">
+              <ArrowLeft size={13} />
+              <span>Back to orders</span>
+            </Link>
+          }
+          title="Order error"
+        />
+        <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
+          <ErrorState retry={() => query.refetch()} />
+        </div>
+      </Shell>
+    );
   }
   if (!order) {
-    return <Shell><Link href="/orders" className="order-detail-back" data-testid="link-back-orders"><ArrowLeft size={15} />Back to orders</Link><EmptyState card icon={PackageSearch} title="Order not found" description="This order may have been removed, or the link is no longer valid." action={<Button variant="outline" onClick={() => setLocation('/orders')} data-testid="button-return-orders">View all orders</Button>} /></Shell>;
+    return (
+      <Shell>
+        <PageHeader
+          breadcrumbs={
+            <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer" data-testid="link-back-orders">
+              <ArrowLeft size={13} />
+              <span>Back to orders</span>
+            </Link>
+          }
+          title="Order not found"
+        />
+        <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
+          <EmptyState card={false} icon={PackageSearch} title="Order not found" description="This order may have been removed, or the link is no longer valid." action={<Button variant="outline" onClick={() => setLocation('/orders')} data-testid="button-return-orders">View all orders</Button>} />
+        </div>
+      </Shell>
+    );
   }
 
   return <Shell>
     <div className="order-detail-page" data-testid={`page-order-detail-${order.id}`}>
-      <div className="order-detail-toolbar no-print">
-        <Link href="/orders" className="order-detail-back" data-testid="link-back-orders"><ArrowLeft size={16} />Back to orders</Link>
-        <div className="order-detail-actions flex flex-wrap items-center gap-2">
-          <div className="relative">
+      <PageHeader
+        breadcrumbs={
+          <Link
+            href="/orders"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer no-print"
+            data-testid="link-back-orders"
+          >
+            <ArrowLeft size={13} />
+            <span>Back to orders</span>
+          </Link>
+        }
+        title={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-[20px] sm:text-[24px] font-bold text-[#111827] tracking-tight">
+              Order #{String(order.id).padStart(7, '0')}
+            </span>
+            <div className="flex items-center gap-1.5" data-testid="status-order-overview">
+              <StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill>
+              <StatusPill tone={fulfillmentTone(order.fulfillment)}>{fulfillmentLabel(order.fulfillment)}</StatusPill>
+            </div>
+          </div>
+        }
+        secondaryActions={
+          <div className="flex flex-wrap items-center gap-2 no-print">
+            <div className="relative">
+              <button
+                type="button"
+                className="order-action-button"
+                onClick={() => setWhatsAppMenuOpen((prev) => !prev)}
+                disabled={!order.customerPhone}
+                data-testid="button-message-buyer"
+                title={order.customerPhone ? 'WhatsApp quick actions' : 'Buyer phone not available'}
+              >
+                <SiWhatsapp size={14} className="text-[#25D366]" />
+                <span>Message buyer</span>
+                <ChevronDown size={12} className={cn('transition-transform', whatsAppMenuOpen && 'rotate-180')} />
+              </button>
+              {whatsAppMenuOpen && (
+                <div className="absolute left-0 top-full mt-1.5 z-40 w-56 rounded-[12px] border border-[hsl(var(--border))] bg-white p-1.5 shadow-lg">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-[hsl(var(--muted))] cursor-pointer"
+                    onClick={() => { setWhatsAppMenuOpen(false); messageBuyer(); }}
+                  >
+                    <MessageSquare size={13} className="text-emerald-600" />
+                    Order confirmation
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-[hsl(var(--muted))] cursor-pointer"
+                    onClick={() => { setWhatsAppMenuOpen(false); sendDispatchUpdate(); }}
+                  >
+                    <Truck size={13} className="text-blue-600" />
+                    Out for delivery notice
+                  </button>
+                  {outstanding > 0 && (
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-[hsl(var(--muted))] cursor-pointer"
+                      onClick={() => { setWhatsAppMenuOpen(false); sendBalanceReminder(); }}
+                    >
+                      <CircleDollarSign size={13} className="text-amber-600" />
+                      Payment reminder
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               type="button"
               className="order-action-button"
-              onClick={() => setWhatsAppMenuOpen((prev) => !prev)}
-              disabled={!order.customerPhone}
-              data-testid="button-message-buyer"
-              title={order.customerPhone ? 'WhatsApp quick actions' : 'Buyer phone not available'}
+              onClick={copyRiderSlip}
+              data-testid="button-copy-rider-slip"
+              title="Copy formatted delivery slip for motorbike rider or courier app"
             >
-              <SiWhatsapp size={14} className="text-[#25D366]" />
-              Message buyer
-              <ChevronDown size={12} className={cn('transition-transform', whatsAppMenuOpen && 'rotate-180')} />
+              <Truck size={14} />
+              <span>{riderCopied ? 'Copied slip!' : 'Copy rider slip'}</span>
             </button>
-            {whatsAppMenuOpen && (
-              <div className="absolute left-0 top-full mt-1.5 z-40 w-56 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1.5 shadow-lg">
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-[hsl(var(--muted))]"
-                  onClick={() => { setWhatsAppMenuOpen(false); messageBuyer(); }}
-                >
-                  <MessageSquare size={13} className="text-emerald-600" />
-                  Order confirmation
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-[hsl(var(--muted))]"
-                  onClick={() => { setWhatsAppMenuOpen(false); sendDispatchUpdate(); }}
-                >
-                  <Truck size={13} className="text-blue-600" />
-                  Out for delivery notice
-                </button>
-                {outstanding > 0 && (
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-[hsl(var(--muted))]"
-                    onClick={() => { setWhatsAppMenuOpen(false); sendBalanceReminder(); }}
-                  >
-                    <CircleDollarSign size={13} className="text-amber-600" />
-                    Payment reminder
-                  </button>
-                )}
-              </div>
-            )}
+            <button
+              type="button"
+              className="order-action-button"
+              onClick={() => setReceiptOpen(true)}
+              data-testid="button-view-receipt"
+              title="View branded digital receipt"
+            >
+              <Receipt size={14} />
+              <span>E-Receipt</span>
+            </button>
+            <button
+              type="button"
+              className="order-action-button"
+              onClick={copyBuyerLink}
+              data-testid="button-copy-buyer-link"
+            >
+              <Copy size={14} />
+              <span>{copied ? 'Copied link' : 'Copy buyer link'}</span>
+            </button>
           </div>
+        }
+        primaryAction={
           <button
             type="button"
-            className="order-action-button"
-            onClick={copyRiderSlip}
-            data-testid="button-copy-rider-slip"
-            title="Copy formatted delivery slip for motorbike rider or courier app"
+            className="order-action-button order-action-primary no-print"
+            onClick={() => window.print()}
+            data-testid="button-print-invoice"
           >
-            <Truck size={14} />
-            {riderCopied ? 'Copied slip!' : 'Copy rider slip'}
-          </button>
-          <button
-            type="button"
-            className="order-action-button"
-            onClick={() => setReceiptOpen(true)}
-            data-testid="button-view-receipt"
-            title="View branded digital receipt"
-          >
-            <Receipt size={14} />
-            E-Receipt
-          </button>
-          <button type="button" className="order-action-button" onClick={copyBuyerLink} data-testid="button-copy-buyer-link">
-            <Copy size={14} />
-            {copied ? 'Copied link' : 'Copy buyer link'}
-          </button>
-          <button type="button" className="order-action-button order-action-primary" onClick={() => window.print()} data-testid="button-print-invoice">
             <ReceiptText size={14} />
-            Print invoice
+            <span>Print invoice</span>
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-2 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-3">
-          <span className="font-mono-ui font-bold text-sm text-slate-900 dark:text-slate-100">Order #{String(order.id).padStart(7, '0')}</span>
-          <span className="text-slate-300 dark:text-slate-700">·</span>
-          <span className="text-xs text-slate-500">{dateShort(order.createdAt)}</span>
-          <span className="text-slate-300 dark:text-slate-700">·</span>
-          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{order.customerName || 'Awaiting buyer'}</span>
-          <span className="text-slate-300 dark:text-slate-700">·</span>
-          <span className="text-xs text-slate-500">{order.items.length} {order.items.length === 1 ? 'item' : 'items'} via {channelName(order.channel)}</span>
-        </div>
-        <div className="flex items-center gap-2" data-testid="status-order-overview">
-          <StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill>
-          <StatusPill tone={fulfillmentTone(order.fulfillment)}>{fulfillmentLabel(order.fulfillment)}</StatusPill>
-        </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-[#6B7280] mb-6 -mt-2">
+        <span>Placed on {dateShort(order.createdAt)}</span>
+        <span className="text-[#D1D5DB]">·</span>
+        <span className="font-medium text-[#111827]">{order.customerName || 'Awaiting buyer'}</span>
+        <span className="text-[#D1D5DB]">·</span>
+        <span>{order.items.length} {order.items.length === 1 ? 'item' : 'items'} via {channelName(order.channel)}</span>
       </div>
 
       {actionError && <div className="order-detail-error" role="alert" data-testid="status-order-action-error"><AlertTriangle size={15} />{actionError}</div>}
@@ -10197,7 +10293,7 @@ function OrderDetail() {
               <div className="order-outstanding-line">
                 <span>Outstanding balance</span>
                 <strong data-testid="text-order-outstanding">
-                  {outstanding > 0 ? moneyExact(outstanding) : 'Cleared ($0.00)'}
+                  {outstanding > 0 ? moneyExact(outstanding) : `Cleared (${moneyExact(0)})`}
                 </strong>
               </div>
             </div>
