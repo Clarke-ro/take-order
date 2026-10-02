@@ -264,12 +264,12 @@ export function ClientDetailPage() {
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-50/80 dark:bg-slate-950">
                   <th className="px-5 py-3">#</th>
                   <th className="px-4 py-3">Order ID</th>
-                  <th className="px-4 py-3">Item</th>
-                  <th className="px-4 py-3">Channel</th>
-                  <th className="px-4 py-3">Value</th>
+                  <th className="px-4 py-3">Product / Items</th>
+                  <th className="px-4 py-3">Traffic</th>
+                  <th className="px-4 py-3">Order Value</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3 text-right">Details</th>
+                  <th className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -314,7 +314,7 @@ export function ClientDetailPage() {
                         className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <span>Open</span>
+                        <span>Details</span>
                         <ChevronRight size={13} />
                       </Link>
                     </td>
