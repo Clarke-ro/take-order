@@ -94,81 +94,45 @@ export function PageHeader({
         </div>
       </div>
 
-      {/* Row 2: Toolbar (Search & Filter dropdowns, 16px below row 1) */}
+      {/* Row 2: Toolbar (Search & Filter dropdowns, 16px gap above table) */}
       {hasToolbar && (
-        <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Search Area */}
           {hasSearch && (
-            <div className="flex items-center gap-2 min-w-0 flex-1 sm:max-w-[340px]">
+            <div className="flex items-center gap-3 min-w-0 w-full sm:max-w-[340px]">
               {searchObj ? (
-                <>
-                  {/* Desktop / tablet search input */}
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      searchObj.onSubmit?.(e);
-                    }}
-                    className={cn(
-                      'relative items-center w-full transition-all',
-                      mobileSearchOpen ? 'flex' : 'hidden sm:flex'
-                    )}
-                  >
-                    <Search
-                      size={14}
-                      className="absolute left-3 text-[hsl(var(--muted-foreground))] pointer-events-none"
-                    />
-                    <input
-                      type="search"
-                      value={searchObj.value}
-                      onChange={(e) => searchObj.onChange(e.target.value)}
-                      placeholder={searchObj.placeholder || 'Search...'}
-                      className="w-full h-9 min-h-[38px] pl-8 pr-8 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/25 transition"
-                    />
-                    {searchObj.value ? (
-                      <button
-                        type="button"
-                        onClick={() => searchObj.onChange('')}
-                        aria-label="Clear search"
-                        className="absolute right-2.5 p-0.5 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] cursor-pointer"
-                      >
-                        <X size={13} />
-                      </button>
-                    ) : mobileSearchOpen ? (
-                      <button
-                        type="button"
-                        onClick={() => setMobileSearchOpen(false)}
-                        aria-label="Close search"
-                        className="sm:hidden absolute right-2.5 p-0.5 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] cursor-pointer"
-                      >
-                        <X size={13} />
-                      </button>
-                    ) : null}
-                  </form>
-
-                  {/* Mobile search toggle icon button when collapsed */}
-                  {!mobileSearchOpen && (
+                <div className="relative w-full">
+                  <input
+                    type="search"
+                    value={searchObj.value}
+                    onChange={(e) => searchObj.onChange(e.target.value)}
+                    placeholder={searchObj.placeholder || 'Search...'}
+                    className="w-full h-[40px] min-h-[40px] pl-3.5 pr-10 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 transition shadow-2xs"
+                  />
+                  {searchObj.value ? (
                     <button
                       type="button"
-                      onClick={() => setMobileSearchOpen(true)}
-                      aria-label="Search"
-                      className="sm:hidden inline-flex items-center gap-1.5 h-9 min-h-[44px] px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[12.5px] font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer"
+                      onClick={() => searchObj.onChange('')}
+                      aria-label="Clear search"
+                      className="absolute right-8 top-1/2 -translate-y-1/2 p-1 text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white transition cursor-pointer"
                     >
-                      <Search size={14} />
-                      <span className="truncate max-w-[120px]">
-                        {searchObj.value || searchObj.placeholder || 'Search...'}
-                      </span>
+                      <X size={14} />
                     </button>
-                  )}
-                </>
+                  ) : null}
+                  <Search
+                    size={15}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none"
+                  />
+                </div>
               ) : (
-                search
+                (search as ReactNode)
               )}
             </div>
           )}
 
-          {/* Filter dropdowns on the right of toolbar */}
+          {/* Filter dropdowns on the right of toolbar (or stacked on mobile) */}
           {filters && (
-            <div className="flex items-center gap-2 shrink-0 overflow-x-auto pb-0.5 scrollbar-none sm:ml-auto">
+            <div className="flex items-center gap-3 w-full sm:w-auto shrink-0 overflow-x-auto pb-0.5 scrollbar-none sm:ml-auto">
               {filters}
             </div>
           )}

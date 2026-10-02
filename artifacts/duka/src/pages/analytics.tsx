@@ -233,7 +233,7 @@ export function AnalyticsPage() {
                       {dashboardPeriodOptions.map((opt) => (
                         <button key={opt.value} type="button"
                           className={cn('w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left transition cursor-pointer', period === opt.value ? 'bg-neutral-900 text-white font-semibold dark:bg-white dark:text-neutral-900' : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900')}
-                          onClick={() => { setPeriod(opt.value); setDraftPeriod(opt.value); setPeriodMenuOpen(false); writeDashboardPeriodPreference({ period: opt.value }); }}
+                          onClick={() => { setPeriod(opt.value); setDraftPeriod(opt.value); setPeriodMenuOpen(false); writeDashboardPeriodPreference({ period: opt.value, customFrom: appliedCustomRange.from, customTo: appliedCustomRange.to }); }}
                         >
                           <span>{opt.label}</span>
                           {period === opt.value && <Check size={12} />}
@@ -509,47 +509,47 @@ export function AnalyticsPage() {
 
       {/* ── Row 4: Channel Performance Table (if data exists) ─────────────────── */}
       {(summary?.channelPerformance?.length ?? 0) > 0 && (
-        <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-2xs dark:border-neutral-800 dark:bg-neutral-900 overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 dark:border-neutral-800">
+        <div className="rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#E3E3EC] dark:border-neutral-800">
             <h3 className="text-sm font-bold text-neutral-900 dark:text-white">Channel Performance</h3>
             <Link href="/reports/channel-conversion" className="text-xs font-semibold text-neutral-600 hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white flex items-center gap-1 transition">
               <span>Details</span>
               <ArrowUpRight size={13} />
             </Link>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[500px] text-sm">
-              <thead>
-                <tr className="bg-neutral-50/80 dark:bg-neutral-950 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-                  <th className="px-6 py-3 text-left">Channel</th>
-                  <th className="px-4 py-3 text-right">Orders</th>
-                  <th className="px-4 py-3 text-right">Revenue</th>
-                  <th className="px-4 py-3 text-right">Conversion</th>
-                  <th className="px-6 py-3 text-right">Share</th>
+          <div className="overflow-x-auto w-full scrollbar-thin">
+            <table className="list-table w-full min-w-[500px] text-left border-collapse">
+              <thead className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80">
+                <tr className="h-[48px]">
+                  <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-left">Channel</th>
+                  <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Orders</th>
+                  <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Revenue</th>
+                  <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Conversion</th>
+                  <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Share</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+              <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
                 {summary!.channelPerformance!.map((ch, i) => (
-                  <tr key={ch.channel} className="hover:bg-neutral-50/80 dark:hover:bg-neutral-900/60 transition">
-                    <td className="px-6 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: DONUT_PALETTE[i % DONUT_PALETTE.length] }} />
-                        <span className="font-semibold text-neutral-900 dark:text-white">{channelName(ch.channel)}</span>
+                  <tr key={ch.channel} className="hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[64px]">
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: DONUT_PALETTE[i % DONUT_PALETTE.length] }} />
+                        <span className="text-[14px] font-medium text-[#111827] dark:text-neutral-100">{channelName(ch.channel)}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-neutral-900 dark:text-white">{ch.orders}</td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-neutral-900 dark:text-white">{money(ch.revenue)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={cn('text-xs font-bold', ch.conversionRate >= 50 ? 'text-emerald-700 dark:text-emerald-400' : 'text-neutral-700 dark:text-neutral-300')}>
+                    <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] text-[#6B7280] dark:text-neutral-400">{ch.orders}</td>
+                    <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] font-semibold text-[#111827] dark:text-neutral-100">{money(ch.revenue)}</td>
+                    <td className="px-4 py-3.5 text-right">
+                      <span className={cn('text-[13px] font-medium font-mono-ui', ch.conversionRate >= 50 ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#6B7280] dark:text-neutral-400')}>
                         {ch.conversionRate}%
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-right">
+                    <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <div className="w-20 h-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
-                          <div className="h-full rounded-full bg-neutral-900 dark:bg-white" style={{ width: `${Math.min(100, ch.conversionRate)}%` }} />
+                        <div className="w-20 h-1.5 rounded-full bg-[#E8E8EE] dark:bg-neutral-800 overflow-hidden">
+                          <div className="h-full rounded-full bg-[#111827] dark:bg-white" style={{ width: `${Math.min(100, ch.conversionRate)}%` }} />
                         </div>
-                        <span className="text-[11px] text-neutral-500 w-8 text-right">{ch.conversionRate}%</span>
+                        <span className="text-[12px] font-mono-ui text-[#6B7280] dark:text-neutral-400 w-8 text-right">{ch.conversionRate}%</span>
                       </div>
                     </td>
                   </tr>

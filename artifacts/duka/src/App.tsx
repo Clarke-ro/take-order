@@ -3501,33 +3501,33 @@ function Reports() {
               </div>
             </div>
 
-            <div className="lg:col-span-7 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs overflow-hidden">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="lg:col-span-7 rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-[#E3E3EC] dark:border-neutral-800">
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Leaderboard</div>
-                  <h3 className="text-base font-bold text-slate-950 mt-0.5">Top-Selling Products</h3>
+                  <h3 className="text-base font-bold text-slate-950 dark:text-neutral-100 mt-0.5">Top-Selling Products</h3>
                 </div>
                 <Package size={18} className="text-slate-400" />
               </div>
               {rankedProducts.length ? (
-                <div className="overflow-x-auto mt-2">
-                  <table className="w-full text-left text-xs">
+                <div className="overflow-x-auto w-full scrollbar-thin">
+                  <table className="list-table w-full min-w-[500px] text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 font-semibold">
-                        <th className="py-2.5">Item</th>
-                        <th className="py-2.5 text-right">Orders</th>
-                        <th className="py-2.5 text-right">Revenue</th>
-                        <th className="py-2.5 text-right">Margin</th>
+                      <tr className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80 h-[48px]">
+                        <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Item</th>
+                        <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Orders</th>
+                        <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Revenue</th>
+                        <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Margin</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {rankedProducts.slice(0, 6).map((item, index) => (
-                        <tr key={`${item.name}-${index}`} className="hover:bg-slate-50/50">
-                          <td className="py-3 font-semibold text-slate-900">{item.name}</td>
-                          <td className="py-3 text-right text-slate-600">{item.orders}</td>
-                          <td className="py-3 text-right font-bold text-slate-950">{money(item.revenue)}</td>
-                          <td className="py-3 text-right">
-                            <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
+                      {rankedProducts.map((item, index) => (
+                        <tr key={`${item.name}-${index}`} className="hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[64px]">
+                          <td className="px-4 py-3.5 text-[14px] font-medium text-[#111827] dark:text-neutral-100">{item.name}</td>
+                          <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] text-[#6B7280] dark:text-neutral-400">{item.orders}</td>
+                          <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] font-semibold text-[#111827] dark:text-neutral-100">{money(item.revenue)}</td>
+                          <td className="px-4 py-3.5 text-right">
+                            <span className="inline-flex items-center justify-center font-medium font-mono-ui text-[12px] h-6 px-2.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
                               {item.margin.toFixed(0)}%
                             </span>
                           </td>
@@ -3537,7 +3537,10 @@ function Reports() {
                   </table>
                 </div>
               ) : (
-                <div className="p-8 text-center text-slate-400 text-xs">No product sales recorded in this period.</div>
+                <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+                  <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No product sales recorded</p>
+                  <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">No sales recorded for this period.</p>
+                </div>
               )}
             </div>
           </section>
@@ -3838,35 +3841,151 @@ function RecentTransactions() {
       <div><div className="type-eyebrow">Latest activity</div><h3 className="type-h3 mt-1 text-lg font-bold">Recent transactions</h3></div>
       <Link href="/orders" data-testid="link-see-all-orders"><Button variant="ghost">See all <ArrowUpRight size={15} /></Button></Link>
     </div>
-    <div className="table-toolbar">
-      <div className="category-filter-card list-filter-tabs" role="group" aria-label="Recent transaction filters">
+    <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="relative w-full sm:max-w-[320px]">
+        <input
+          type="search"
+          aria-label="Search recent transactions"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search transactions..."
+          className="w-full h-[40px] min-h-[40px] pl-3.5 pr-10 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 transition shadow-2xs"
+        />
+        {search ? (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            aria-label="Clear search"
+            className="absolute right-8 top-1/2 -translate-y-1/2 p-1 text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white transition cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        ) : null}
+        <Search
+          size={15}
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none"
+        />
+      </div>
+      <div className="flex items-center gap-1.5 h-[40px] p-1 rounded-[10px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shrink-0 overflow-x-auto" role="group" aria-label="Recent transaction filters">
         {filterOptions.map((option) => (
           <button
             type="button"
             key={option.value}
             onClick={() => setFilter(option.value)}
             aria-pressed={filter === option.value}
-            className={cn('category-filter-tab list-filter-tab', filter === option.value && 'is-active')}
+            className={cn(
+              'h-7 px-3 rounded-[7px] text-[13px] font-medium transition-colors cursor-pointer select-none',
+              filter === option.value
+                ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'
+                : 'text-[#6B7280] hover:text-[#111827] dark:text-neutral-400 dark:hover:text-white'
+            )}
           >
             {option.label}
           </button>
         ))}
       </div>
-      <div className="table-search-shell list-search-shell">
-        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={15} />
-        <input
-          aria-label="Search recent transactions"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search"
-          className="table-search-input list-search-input"
-        />
-      </div>
     </div>
-    <Card className="recent-transactions-card list-card overflow-hidden rounded-2xl border border-slate-200/90 shadow-xs dark:border-slate-800">
-      {query.isLoading ? <div className="space-y-4 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : query.isError ? <div className="p-6"><ErrorState retry={() => query.refetch()} /></div> : orders.length ? <div className="overflow-x-auto"><table className="list-table w-full min-w-[780px] text-left"><thead><tr className="border-b border-slate-200/80 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/50"><th className="px-5 py-3 sm:px-6">Order ID</th><th className="px-4 py-3">Customer</th><th className="px-4 py-3 text-center">Traffic</th><th className="px-4 py-3">Placed</th><th className="px-4 py-3">Order value</th><th className="px-5 py-3 sm:px-6">Payment</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{orders.map((order) => <tr key={order.id} className="transaction-row hover:bg-slate-50/80 dark:hover:bg-slate-900/50 transition-colors" data-testid={`row-transaction-${order.id}`}><td className="px-5 py-3.5 sm:px-6" data-testid={`text-transaction-order-id-${order.id}`}><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-recent-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></td><td className="px-4 py-3.5"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-slate-100 dark:bg-slate-800 font-mono-ui text-xs font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{order.productName}</div></div></div></td><td className="px-4 py-3.5"><div className="orders-traffic-cell"><span className="orders-traffic-icon" data-testid={`text-transaction-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div></td><td className="px-4 py-3.5 text-xs text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</td><td className="data-value px-4 py-3.5 text-sm font-semibold">{moneyExact(order.amount)}</td><td className="px-5 py-3.5 sm:px-6"><StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill></td></tr>)}</tbody></table></div> : <div className="p-8"><EmptyState icon={ShoppingBag} title="No transactions match" description="Try another filter or search." action={<Link href="/take-order"><Button><Plus size={15} />Create a link</Button></Link>} /></div>}
+    <Card className="recent-transactions-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+      {query.isLoading ? (
+        <RecentTransactionsSkeleton />
+      ) : query.isError ? (
+        <div className="p-6"><ErrorState retry={() => query.refetch()} /></div>
+      ) : orders.length ? (
+        <div className="overflow-x-auto w-full scrollbar-thin">
+          <table className="list-table w-full min-w-[780px] text-left border-collapse">
+            <thead>
+              <tr className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80 h-[48px]">
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order ID</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Buyer / item</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-center">Traffic</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Placed</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order value</th>
+                <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Payment</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
+              {orders.map((order) => (
+                <tr key={order.id} className="transaction-row hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[64px]" data-testid={`row-transaction-${order.id}`}>
+                  <td className="px-4 py-3.5" data-testid={`text-transaction-order-id-${order.id}`}>
+                    <Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200" data-testid={`link-recent-order-${order.id}`} aria-label={`Open order ${order.id}`}>
+                      #{String(order.id).padStart(7, '0')}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-slate-100 dark:bg-slate-800 font-mono-ui text-xs font-bold text-[#111827] dark:text-neutral-100">
+                        {initials(order.customerName || order.productName)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[14px] font-medium text-[#111827] dark:text-neutral-100 truncate">{order.customerName || 'Buyer pending'}</div>
+                        <div className="mt-0.5 text-[13px] text-[#6B7280] dark:text-neutral-400 truncate">{order.productName}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-center">
+                    <div className="orders-traffic-cell flex justify-center">
+                      <span className="orders-traffic-icon" data-testid={`text-transaction-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}>
+                        <ChannelMark value={order.channel} size={17} />
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-[13px] text-[#6B7280] dark:text-neutral-400 font-mono-ui">{dateShort(order.createdAt)}</td>
+                  <td className="px-4 py-3.5 font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100">{moneyExact(order.amount)}</td>
+                  <td className="px-4 py-3.5 text-right">
+                    <StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+          <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No transactions match</p>
+          <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">Try adjusting your search terms or filter.</p>
+        </div>
+      )}
     </Card>
   </div>;
+}
+
+function RecentTransactionsSkeleton() {
+  return (
+    <div className="overflow-x-auto w-full scrollbar-thin" aria-label="Loading transactions">
+      <table className="list-table w-full min-w-[780px] text-left border-collapse">
+        <thead>
+          <tr className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80 h-[48px]">
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order ID</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Buyer / item</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-center">Traffic</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Placed</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order value</th>
+            <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Payment</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <tr key={i} className="h-[64px]">
+              <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+              <td className="px-4 py-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-[10px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+                    <div className="h-3 w-36 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+                  </div>
+                </div>
+              </td>
+              <td className="px-4 py-3.5"><div className="flex justify-center"><div className="h-7 w-7 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div></td>
+              <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+              <td className="px-4 py-3.5"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></td>
+              <td className="px-4 py-3.5"><div className="flex justify-end"><div className="h-6 w-20 rounded-full bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function OrderRow({ order, compact = false }: { order: Order; compact?: boolean }) {
@@ -5129,22 +5248,29 @@ function Expenses() {
         placeholder: "Search expenses...",
       } : undefined}
       filters={(query.data ?? []).length > 0 ? (
-        <select
-          aria-label="Filter expenses by category"
-          data-testid="select-filter-expenses"
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value)}
-          className="h-9 px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 cursor-pointer"
-        >
-          <option value="all">All categories</option>
-          {expenseCategories.map((item) => (
-            <option key={item.value} value={item.value}>{item.label}</option>
-          ))}
-        </select>
+        <div className="relative inline-flex items-center">
+          <select
+            aria-label="Filter expenses by category"
+            data-testid="select-filter-expenses"
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            className="h-[40px] min-h-[40px] appearance-none pl-3.5 pr-8 rounded-[10px] border border-[#E3E3EC] bg-white text-[13px] font-medium text-[#374151] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition cursor-pointer select-none shadow-2xs"
+          >
+            <option value="all">All categories</option>
+            {expenseCategories.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
+        </div>
       ) : undefined}
     />
     {query.isLoading ? (
-      <div className="space-y-4 p-6"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+      <ExpensesTableSkeleton />
     ) : query.isError ? (
       <div className="p-6"><ErrorState retry={() => query.refetch()} /></div>
     ) : !(query.data ?? []).length ? (
@@ -5162,37 +5288,44 @@ function Expenses() {
     ) : (
       <>
         {actionError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-expense-action-error">{actionError}</div>}
-        <Card className="expenses-table-card overflow-hidden">
-          <div className="expenses-table" role="table">
-            <div className="table-summary-bar"><span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}</span></div>
-            <div className="expenses-table-head" role="row"><span>Expense</span><span>Category</span><span>Date</span><span className="is-numeric">Amount</span><span className="sr-only">Actions</span></div>
+        <Card className="expenses-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+          <div className="expenses-table" role="table" aria-label="Expenses">
+            <div className="table-summary-bar border-b border-[#E8E8EE] dark:border-neutral-800 px-4 py-2.5 text-[13px] text-[#6B7280] dark:text-neutral-400">
+              <span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}</span>
+            </div>
+            <div className="expenses-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+              <span role="columnheader">Expense</span>
+              <span role="columnheader">Category</span>
+              <span role="columnheader">Date</span>
+              <span role="columnheader" className="is-numeric">Amount</span>
+              <span role="columnheader" className="text-right">Actions</span>
+            </div>
             {expenses.length ? (
-              <div className="divide-y divide-[hsl(var(--border))]">
-                {expenses.map((expense) => (
-                  <div key={expense.id} className="expenses-table-row" data-testid={`row-expense-${expense.id}`} role="row">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
-                          <Receipt size={16} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-[15px] font-semibold">{expense.title}</div>
-                          {expense.note && <div className="mt-1 truncate text-xs text-[hsl(var(--muted-foreground))]">{expense.note}</div>}
-                        </div>
+              expenses.map((expense) => (
+                <div key={expense.id} className="expenses-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors" data-testid={`row-expense-${expense.id}`} role="row">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
+                        <Receipt size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-[14px] font-medium text-[#111827] dark:text-neutral-100">{expense.title}</div>
+                        {expense.note && <div className="mt-0.5 truncate text-[13px] text-[#6B7280] dark:text-neutral-400">{expense.note}</div>}
                       </div>
                     </div>
-                    <div className="expenses-table-cell" data-label="Category">{expenseCategoryLabel(expense.category)}</div>
-                    <div className="expenses-table-cell" data-label="Date">{dateShort(expense.date)}</div>
-                    <div className="expenses-table-cell expenses-table-amount" data-label="Amount">{moneyExact(expense.amount)}</div>
-                    <div className="flex justify-end">
-                      <ExpenseActions expenseId={expense.id} expenseTitle={expense.title} onEdit={() => setModal(expense)} onDelete={() => remove(expense)} deleteDisabled={deleteExpense.isPending} />
-                    </div>
                   </div>
-                ))}
-              </div>
+                  <div className="expenses-table-cell text-[13.5px] text-[#6B7280] dark:text-neutral-400" data-label="Category">{expenseCategoryLabel(expense.category)}</div>
+                  <div className="expenses-table-cell text-[13px] text-[#6B7280] dark:text-neutral-400" data-label="Date">{dateShort(expense.date)}</div>
+                  <div className="expenses-table-cell expenses-table-amount text-right font-mono-ui font-medium text-[14px] text-[#111827] dark:text-neutral-100" data-label="Amount">{moneyExact(expense.amount)}</div>
+                  <div className="flex justify-end">
+                    <ExpenseActions expenseId={expense.id} expenseTitle={expense.title} onEdit={() => setModal(expense)} onDelete={() => remove(expense)} deleteDisabled={deleteExpense.isPending} />
+                  </div>
+                </div>
+              ))
             ) : (
-              <div className="p-6">
-                <EmptyState icon={Receipt} title="No matching expenses" description="Try another search or category." />
+              <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+                <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No matching expenses</p>
+                <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">Try adjusting your search terms or category.</p>
               </div>
             )}
           </div>
@@ -5201,6 +5334,37 @@ function Expenses() {
     )}
     {modal && <ExpenseModal expense={modal === 'new' ? undefined : modal} onClose={() => setModal(null)} />}
   </Shell>;
+}
+
+function ExpensesTableSkeleton() {
+  return (
+    <Card className="expenses-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none" aria-label="Loading expenses">
+      <div className="expenses-table" role="table">
+        <div className="expenses-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+          <span role="columnheader">Expense</span>
+          <span role="columnheader">Category</span>
+          <span role="columnheader">Date</span>
+          <span role="columnheader" className="is-numeric">Amount</span>
+          <span role="columnheader" className="text-right">Actions</span>
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="expenses-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 h-[64px]">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-[11px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="h-4 w-32 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+                <div className="h-3 w-24 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+              </div>
+            </div>
+            <div><div className="h-4 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="flex justify-end"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="flex justify-end"><div className="h-7 w-14 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
 }
 
 function CatalogEditorRoute() {
@@ -5213,20 +5377,14 @@ function CatalogEditorRoute() {
   return <Shell><ProductModal product={product} fullPage onClose={() => setLocation('/catalog')} /></Shell>;
 }
 
-function CatalogGridCard({ product, animationDelay, onEdit, onDelete, deleteDisabled, index }: {
+function CatalogGridCard({ product, animationDelay, onEdit, onDelete, deleteDisabled }: {
   product: Product;
   animationDelay: string;
   onEdit: () => void;
   onDelete: () => void;
   deleteDisabled: boolean;
-  index?: number;
 }) {
-  return <div className="catalog-grid-card rise-in relative" style={{ animationDelay }} data-testid={`card-product-${product.id}`} role="listitem">
-    {typeof index === 'number' && (
-      <span className="absolute top-2 left-2 z-10 rounded-md bg-black/60 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white backdrop-blur-xs">
-        #{index + 1}
-      </span>
-    )}
+  return <div className="catalog-grid-card rise-in" style={{ animationDelay }} data-testid={`card-product-${product.id}`} role="listitem">
     <div className="catalog-grid-image">
       <img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt={product.name} />
       <div className="catalog-grid-actions"><CatalogActions productId={product.id} productName={product.name} onEdit={onEdit} onDelete={onDelete} deleteDisabled={deleteDisabled} /></div>
@@ -5469,30 +5627,37 @@ function Catalog() {
           placeholder: "Search products...",
         } : undefined}
         filters={allProducts.length > 0 ? (
-          <div className="flex items-center gap-2">
-            <select
-              aria-label="Filter catalog by category"
-              data-testid="select-filter-products-category"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-9 px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 cursor-pointer"
-            >
-              <option value="all">All categories</option>
-              {catalogCategories.filter((c) => c !== 'all').map((category) => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
+          <div className="flex items-center gap-3">
+            <div className="relative inline-flex items-center">
+              <select
+                aria-label="Filter catalog by category"
+                data-testid="select-filter-products-category"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="h-[40px] min-h-[40px] appearance-none pl-3.5 pr-8 rounded-[10px] border border-[#E3E3EC] bg-white text-[13px] font-medium text-[#374151] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition cursor-pointer select-none shadow-2xs"
+              >
+                <option value="all">All categories</option>
+                {catalogCategories.filter((c) => c !== 'all').map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </div>
+            </div>
             <StockFilterPicker value={stockFilter} onChange={setStockFilter} />
-            <div className="catalog-view-toggle shrink-0" role="group" aria-label="Catalog view">
-              <button type="button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={cn(view === 'grid' && 'is-active')}><LayoutGrid size={15} /></button>
-              <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')} className={cn(view === 'list' && 'is-active')}><List size={15} /></button>
+            <div className="catalog-view-toggle shrink-0 flex items-center h-[40px] rounded-[10px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 p-1" role="group" aria-label="Catalog view">
+              <button type="button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={cn("h-7 w-7 rounded-[7px] flex items-center justify-center transition-colors cursor-pointer", view === 'grid' ? "bg-[hsl(var(--primary))] text-white" : "text-[#6B7280] hover:text-[#111827] dark:hover:text-white")}><LayoutGrid size={15} /></button>
+              <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')} className={cn("h-7 w-7 rounded-[7px] flex items-center justify-center transition-colors cursor-pointer", view === 'list' ? "bg-[hsl(var(--primary))] text-white" : "text-[#6B7280] hover:text-[#111827] dark:hover:text-white")}><List size={15} /></button>
             </div>
           </div>
         ) : undefined}
         filterCards={allProducts.length > 0 ? catalogFilterCards : undefined}
       />
       {query.isLoading ? (
-        <div className="catalog-loading p-6">{[1, 2, 3].map((i) => <div key={i} className="catalog-loading-row"><Skeleton className="h-11 w-11 rounded-[13px]" /><div className="flex-1"><Skeleton className="h-4 w-40" /><Skeleton className="mt-2 h-3 w-24" /></div><Skeleton className="h-8 w-20" /></div>)}</div>
+        <CatalogLoadingSkeleton view={view} />
       ) : query.isError ? (
         <div className="p-6"><ErrorState retry={() => query.refetch()} /></div>
       ) : !allProducts.length ? (
@@ -5509,26 +5674,36 @@ function Catalog() {
         />
       ) : (
         <>
-          <div className="space-y-5">
+          <div className="space-y-4">
             {actionError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-catalog-action-error">{actionError}</div>}
-            <Card className="catalog-workspace list-card overflow-hidden">
+            <Card className="catalog-workspace list-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
               {products.length ? (
                 <div className={cn(view === 'grid' ? 'catalog-grid' : 'catalog-list')} role="list">
-                  {view === 'list' && <div className="catalog-list-head" aria-hidden="true"><span className="w-10">#</span><span>Product</span><span>Options</span><span>Price / cost</span><span>Stock</span><span /></div>}
+                  {view === 'list' && (
+                    <div className="catalog-list-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+                      <span role="columnheader">Product</span>
+                      <span role="columnheader">Options</span>
+                      <span role="columnheader">Price / cost</span>
+                      <span role="columnheader">Stock</span>
+                      <span role="columnheader" className="text-right">Actions</span>
+                    </div>
+                  )}
                   {products.map((product, index) => view === 'grid'
-                    ? <CatalogGridCard key={product.id} product={product} index={index + 1} animationDelay={`${index * 50}ms`} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
-                    : <div key={product.id} className="catalog-product-row rise-in" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
-                      <div className="w-10 shrink-0 font-mono-ui text-xs font-bold text-slate-400 flex items-center">#{index + 1}</div>
-                      <div className="catalog-product-main"><div className="catalog-product-thumb"><img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt="" /></div><div className="min-w-0"><h3 className="truncate font-display text-base font-bold tracking-[-.025em]">{product.name}</h3><div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
-                      <div className="catalog-variants">{product.preferences.length ? product.preferences.map((preference) => `${preference.label.toLowerCase() === 'choose an option' ? 'Option' : preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
-                      <div className="catalog-number"><span className="catalog-mobile-label">Price</span><strong>{moneyExact(product.price)}</strong><small>{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
-                      <div className="catalog-stock"><span className="catalog-mobile-label">Stock</span><strong className={cn(product.stock < 5 && 'is-alert')}>{product.stock}</strong><span className={cn('catalog-stock-status', product.stock < 5 ? 'is-alert' : 'is-good')}>{product.stock === 0 ? 'Out of stock' : product.stock < 5 ? 'Running low' : 'In stock'}</span></div>
-                      <CatalogActions productId={product.id} productName={product.name} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
+                    ? <CatalogGridCard key={product.id} product={product} animationDelay={`${index * 50}ms`} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
+                    : <div key={product.id} className="catalog-product-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors rise-in" style={{ animationDelay: `${index * 50}ms` }} data-testid={`card-product-${product.id}`} role="listitem">
+                      <div className="catalog-product-main"><div className="catalog-product-thumb rounded-[10px] overflow-hidden"><img src={product.imageUrls?.[0] ?? product.imageUrl ?? productImageFor(product.name)} alt="" /></div><div className="min-w-0"><h3 className="truncate font-medium text-[14px] text-[#111827] dark:text-neutral-100">{product.name}</h3><div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12.5px] text-[#6B7280] dark:text-neutral-400"><span className="catalog-category">{product.category}</span>{product.customFields.slice(0, 2).map((field) => <span key={field.label}>· {field.label}: {field.value}</span>)}</div></div></div>
+                      <div className="catalog-variants text-[13.5px] text-[#6B7280] dark:text-neutral-400">{product.preferences.length ? product.preferences.map((preference) => `${preference.label.toLowerCase() === 'choose an option' ? 'Option' : preference.label}: ${preference.options.join(', ')}`).join(' · ') : product.variants.length ? product.variants.join(' · ') : 'No buyer options'}</div>
+                      <div className="catalog-number"><span className="catalog-mobile-label">Price</span><span className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100 block">{moneyExact(product.price)}</span><small className="text-[12px] text-[#6B7280] dark:text-neutral-400">{product.cost == null ? 'Cost not tracked' : `Cost ${moneyExact(product.cost)}`}</small></div>
+                      <div className="catalog-stock"><span className="catalog-mobile-label">Stock</span><div className="inline-flex items-center gap-1.5"><strong className={cn("font-mono-ui text-[13.5px]", product.stock < 5 && 'is-alert')}>{product.stock}</strong><span className={cn('catalog-stock-status text-[11.5px] px-2 py-0.5 rounded-full font-semibold', product.stock === 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' : product.stock < 5 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300')}>{product.stock === 0 ? 'Out of stock' : product.stock < 5 ? 'Low stock' : 'In stock'}</span></div></div>
+                      <div className="flex justify-end">
+                        <CatalogActions productId={product.id} productName={product.name} onEdit={() => setLocation(`/catalog/edit/${product.id}`)} onDelete={() => remove(product)} deleteDisabled={deleteProduct.isPending} />
+                      </div>
                     </div>)}
                 </div>
               ) : (
-                <div className="p-6">
-                  <EmptyState icon={Package} title={search || categoryFilter !== 'all' || stockFilter !== 'all' || missingCostsOnly ? 'No matching items' : 'Your catalog is waiting'} description="Try another search or filter, or add your first catalog item." action={<Button onClick={() => setLocation('/catalog/new')}><Plus size={15} />Add item</Button>} />
+                <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+                  <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No matching products</p>
+                  <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">Try adjusting your search terms or filter, or add a new product.</p>
                 </div>
               )}
             </Card>
@@ -5536,6 +5711,54 @@ function Catalog() {
         </>
       )}
     </Shell>;
+}
+
+function CatalogLoadingSkeleton({ view }: { view: CatalogView }) {
+  if (view === 'grid') {
+    return (
+      <div className="catalog-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 p-3 space-y-3">
+            <div className="aspect-square w-full rounded-[10px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+            <div className="h-4 w-3/4 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+            <div className="h-4 w-1/2 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <Card className="catalog-workspace list-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none" aria-label="Loading catalog">
+      <div className="catalog-list" role="list">
+        <div className="catalog-list-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+          <span role="columnheader">Product</span>
+          <span role="columnheader">Options</span>
+          <span role="columnheader">Price / cost</span>
+          <span role="columnheader">Stock</span>
+          <span role="columnheader" className="text-right">Actions</span>
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="catalog-product-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 h-[64px]">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-[10px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="h-4 w-32 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+                <div className="h-3 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+              </div>
+            </div>
+            <div><div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="space-y-1.5">
+              <div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+              <div className="h-3 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+            </div>
+            <div><div className="h-6 w-20 rounded-full bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="flex justify-end"><div className="h-7 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
 }
 
 function LegacyOrders() {
@@ -5793,7 +6016,7 @@ function Orders() {
       filterCards={allOrders.length > 0 ? orderFilterCards : undefined}
     />
     {query.isLoading ? (
-      <div className="space-y-4 p-5 sm:p-6" aria-label="Loading orders"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
+      <OrdersTableSkeleton />
     ) : query.isError ? (
       <div className="p-5 sm:p-6"><ErrorState retry={() => query.refetch()} /></div>
     ) : !allOrders.length ? (
@@ -5810,18 +6033,160 @@ function Orders() {
       />
     ) : (
       <>
-        <section className="space-y-5">
+        <section className="space-y-4">
           {mutationError && <div className="rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-order-action-error">{mutationError}</div>}
-          <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
-            {orders.length ? <div className="orders-table-wrap" role="table" aria-label="Orders"><div className="table-summary-bar border-b border-slate-200 dark:border-slate-800"><span>{orders.length} {orders.length === 1 ? 'order' : 'orders'}</span></div><div className="orders-table-head border-b border-slate-200 dark:border-slate-800" role="row"><span role="columnheader">Order ID</span><span role="columnheader">Customer</span><span role="columnheader">Traffic</span><span role="columnheader">Order value</span><span role="columnheader">Placed</span><span role="columnheader">Payment</span><span role="columnheader">Fulfillment</span></div>{orders.map((order) => {
-              const isAwaiting = !order.customerPhone && (!order.customerName || order.customerName.toLowerCase() === 'waiting for buyer' || order.customerName.toLowerCase() === 'buyer pending');
-              return <div key={order.id} className="orders-table-row is-clickable border-b border-slate-200/90 dark:border-slate-800/90 py-3" role="row" tabIndex={0} aria-label={`Open order ${order.id} details`} data-testid={`row-orders-order-${order.id}`} onClick={(event) => { if ((event.target as HTMLElement).closest('a,button,input,select,textarea')) return; setLocation(`/orders/${order.id}`); }} onKeyDown={(event) => { if (event.key !== 'Enter' && event.key !== ' ') return; event.preventDefault(); setLocation(`/orders/${order.id}`); }}><div className="orders-order-id-cell"><span className="orders-mobile-label">Order ID</span><Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link" data-testid={`link-order-${order.id}`} aria-label={`Open order ${order.id}`}>#{String(order.id).padStart(7, '0')}</Link></div><div className="orders-buyer-cell">{isAwaiting ? <div className="orders-avatar bg-slate-100 text-slate-400 border border-dashed border-slate-200" title="Awaiting buyer completion"><Link2 size={15} /></div> : <div className="orders-avatar">{initials(order.customerName || order.productName)}</div>}<div className="min-w-0"><div className={cn("truncate text-[15px]", isAwaiting ? "font-medium italic text-slate-400" : "font-semibold")}>{isAwaiting ? 'Awaiting buyer' : order.customerName}</div><div className="mt-0.5 truncate text-xs text-[hsl(var(--muted-foreground))]">{order.productName}</div>{order.deliveryMethod && <div className="mt-0.5 truncate text-xs text-[hsl(var(--muted-foreground))]" title={order.deliveryAddress ?? undefined}>{order.deliveryMethod === 'delivery' ? `Delivery · ${moneyExact(order.deliveryFee)}` : 'Pickup'}{order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}</div>}</div></div><div className="orders-traffic-cell"><span className="orders-mobile-label">Traffic</span><span className="orders-traffic-icon" data-testid={`text-order-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}><ChannelMark value={order.channel} size={17} /></span></div><div className="orders-value-cell"><span className="orders-mobile-label">Order value</span><div className="font-mono-ui text-sm font-bold">{moneyExact(order.amount)}</div><div className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{moneyExact(collectedFor(order))} collected</div></div><div className="orders-date-cell"><span className="orders-mobile-label">Placed</span><span className="font-mono-ui text-xs text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</span></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Payment</span><button type="button" disabled={update.isPending} aria-label={`Advance payment status for ${order.customerName || order.productName}`} title="Advance payment status" data-testid={`button-payment-${order.id}`} onClick={() => { const status: 'reserved' | 'deposit_paid' | 'paid' = order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved'; updateOrder(order, { status }); }}><StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>{paymentLabel(order)}</StatusPill></button></div><div className="orders-cell-labeled"><span className="orders-mobile-label">Fulfillment</span><FulfillmentPickerCell order={order} disabled={update.isPending} onUpdateFulfillment={(targetOrder, fulfillment) => updateOrder(targetOrder, { fulfillment })} /></div></div>;
-            })}</div> : <div className="p-5 sm:p-6"><EmptyState icon={ShoppingBag} title="No orders match" description="Try another filter or search." /></div>}
+          <Card className="orders-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+            <div className="orders-table-wrap" role="table" aria-label="Orders">
+              <div className="table-summary-bar border-b border-[#E8E8EE] dark:border-neutral-800 px-4 py-2.5 text-[13px] text-[#6B7280] dark:text-neutral-400">
+                <span>{orders.length} {orders.length === 1 ? 'link' : 'links'}</span>
+              </div>
+              <div className="orders-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+                <span role="columnheader">Order ID</span>
+                <span role="columnheader">Buyer / item</span>
+                <span role="columnheader">Traffic</span>
+                <span role="columnheader">Order value</span>
+                <span role="columnheader">Placed</span>
+                <span role="columnheader">Payment</span>
+                <span role="columnheader">Fulfillment</span>
+              </div>
+              {orders.length ? (
+                orders.map((order) => {
+                  const isAwaiting = !order.customerPhone && (!order.customerName || order.customerName.toLowerCase() === 'waiting for buyer' || order.customerName.toLowerCase() === 'buyer pending');
+                  return (
+                    <div
+                      key={order.id}
+                      className="orders-table-row is-clickable border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors"
+                      role="row"
+                      tabIndex={0}
+                      aria-label={`Open order ${order.id} details`}
+                      data-testid={`row-orders-order-${order.id}`}
+                      onClick={(event) => {
+                        if ((event.target as HTMLElement).closest('a,button,input,select,textarea')) return;
+                        setLocation(`/orders/${order.id}`);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        setLocation(`/orders/${order.id}`);
+                      }}
+                    >
+                      <div className="orders-order-id-cell">
+                        <span className="orders-mobile-label">Order ID</span>
+                        <Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200" data-testid={`link-order-${order.id}`} aria-label={`Open order ${order.id}`}>
+                          #{String(order.id).padStart(7, '0')}
+                        </Link>
+                      </div>
+                      <div className="orders-buyer-cell">
+                        {isAwaiting ? (
+                          <div className="orders-avatar bg-slate-100 text-slate-400 border border-dashed border-slate-200" title="Awaiting buyer completion">
+                            <Link2 size={15} />
+                          </div>
+                        ) : (
+                          <div className="orders-avatar">{initials(order.customerName || order.productName)}</div>
+                        )}
+                        <div className="min-w-0">
+                          <div className={cn("truncate text-[14px]", isAwaiting ? "font-medium italic text-slate-400" : "font-medium text-[#111827] dark:text-neutral-100")}>
+                            {isAwaiting ? 'Awaiting buyer' : order.customerName}
+                          </div>
+                          <div className="mt-0.5 truncate text-[13px] text-[#6B7280] dark:text-neutral-400">{order.productName}</div>
+                          {order.deliveryMethod && (
+                            <div className="mt-0.5 truncate text-[12px] text-[#6B7280] dark:text-neutral-400" title={order.deliveryAddress ?? undefined}>
+                              {order.deliveryMethod === 'delivery' ? `Delivery · ${moneyExact(order.deliveryFee)}` : 'Pickup'}
+                              {order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="orders-traffic-cell">
+                        <span className="orders-mobile-label">Traffic</span>
+                        <span className="orders-traffic-icon" data-testid={`text-order-traffic-${order.id}`} title={channelName(order.channel)} aria-label={`Traffic source: ${channelName(order.channel)}`}>
+                          <ChannelMark value={order.channel} size={17} />
+                        </span>
+                      </div>
+                      <div className="orders-value-cell">
+                        <span className="orders-mobile-label">Order value</span>
+                        <div className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100">{moneyExact(order.amount)}</div>
+                        <div className="mt-0.5 text-[13px] text-[#6B7280] dark:text-neutral-400">{moneyExact(collectedFor(order))} collected</div>
+                      </div>
+                      <div className="orders-date-cell">
+                        <span className="orders-mobile-label">Placed</span>
+                        <span className="font-mono-ui text-[13px] text-[#6B7280] dark:text-neutral-400">{dateShort(order.createdAt)}</span>
+                      </div>
+                      <div className="orders-cell-labeled">
+                        <span className="orders-mobile-label">Payment</span>
+                        <button
+                          type="button"
+                          disabled={update.isPending}
+                          aria-label={`Advance payment status for ${order.customerName || order.productName}`}
+                          title="Advance payment status"
+                          data-testid={`button-payment-${order.id}`}
+                          onClick={() => {
+                            const status: 'reserved' | 'deposit_paid' | 'paid' = order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved';
+                            updateOrder(order, { status });
+                          }}
+                        >
+                          <StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>
+                            {paymentLabel(order)}
+                          </StatusPill>
+                        </button>
+                      </div>
+                      <div className="orders-cell-labeled flex justify-end">
+                        <span className="orders-mobile-label">Fulfillment</span>
+                        <FulfillmentPickerCell order={order} disabled={update.isPending} onUpdateFulfillment={(targetOrder, fulfillment) => updateOrder(targetOrder, { fulfillment })} />
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+                  <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No matching orders</p>
+                  <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">Try adjusting your search terms or filter.</p>
+                </div>
+              )}
+            </div>
           </Card>
         </section>
       </>
     )}
   </Shell>;
+}
+
+function OrdersTableSkeleton() {
+  return (
+    <Card className="orders-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none" aria-label="Loading orders">
+      <div className="orders-table-wrap" role="table">
+        <div className="orders-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+          <span role="columnheader">Order ID</span>
+          <span role="columnheader">Buyer / item</span>
+          <span role="columnheader">Traffic</span>
+          <span role="columnheader">Order value</span>
+          <span role="columnheader">Placed</span>
+          <span role="columnheader">Payment</span>
+          <span role="columnheader">Fulfillment</span>
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="orders-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 h-[64px]">
+            <div><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-[11px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+                <div className="h-3 w-36 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+              </div>
+            </div>
+            <div className="flex justify-center"><div className="h-7 w-7 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="space-y-1.5">
+              <div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+              <div className="h-3 w-14 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+            </div>
+            <div><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div><div className="h-6 w-20 rounded-full bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="flex justify-end"><div className="h-7 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
 }
 
 type ClientSummary = {
@@ -5927,17 +6292,152 @@ function Clients() {
       filterCards={clients.length > 0 ? clientFilterCards : undefined}
     />
     {query.isLoading ? <ClientsSkeleton /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : !clients.length ? <EmptyState card icon={Users} title="Your client list starts with an order" description="When a buyer shares their details, Take Order will keep their purchase history together here." action={<Link href="/take-order" data-testid="link-clients-empty-order"><Button className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white font-medium rounded-[8px] h-9 px-4 gap-1.5 inline-flex items-center text-[13px]"><Plus size={15} />Take an order</Button></Link>} /> : <>
-       <section className="clients-list-section space-y-5">
-         <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
-            {filteredClients.length ? <div className="clients-table-wrap"><div className="table-summary-bar border-b border-slate-200 dark:border-slate-800"><span>{filteredClients.length} {filteredClients.length === 1 ? 'client' : 'clients'}</span></div><div className="clients-table-head border-b border-slate-200 dark:border-slate-800"><span className="w-10">#</span><span>Client</span><span>Phone</span><span className="is-numeric">Orders</span><span className="is-numeric">Collected</span><span className="is-numeric">Balance due</span><span className="is-numeric">Last purchase</span><span className="sr-only">Details</span></div>{filteredClients.map((client, index) => <div className="clients-table-row border-b border-slate-200/90 dark:border-slate-800/90 py-3" key={client.key} data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="w-10 shrink-0 font-mono-ui text-xs font-bold text-slate-400 flex items-center">#{index + 1}</div><div className="clients-buyer-cell"><div className="clients-avatar">{initials(client.displayName)}</div><div className="min-w-0"><div className="truncate text-[15px] font-semibold" data-testid={`text-client-name-${client.key}`}>{client.displayName}</div></div></div><div className="clients-cell-labeled clients-phone-cell"><span className="clients-mobile-label">Phone</span><span className="inline-flex items-center gap-1.5"><span>{client.phone || '—'}</span>{client.phone && <button type="button" className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-[#25D366] hover:bg-emerald-100 transition-colors" title={`Open WhatsApp chat with ${client.displayName}`} aria-label={`Open WhatsApp chat with ${client.displayName}`} onClick={() => openWhatsApp(client.phone, `Hi ${client.displayName}!`)}><SiWhatsapp size={13} /></button>}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Orders</span><span className="font-mono-ui text-sm font-bold">{client.orderCount}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Collected</span><span className="font-mono-ui text-sm font-bold">{moneyExact(client.collected)}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Balance due</span><span className="font-mono-ui text-sm font-bold">{client.outstanding ? moneyExact(client.outstanding) : '—'}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Last purchase</span><span className="font-mono-ui text-sm">{dateShort(client.latestPurchase)}</span></div><div className="clients-actions flex items-center gap-2">{client.outstanding > 0 && client.phone && <button type="button" className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors" title="Send balance reminder on WhatsApp" onClick={() => { const profile = readSellerProfile(); const msg = buildClientBalanceReminderMessage({ clientName: client.displayName, balanceDue: client.outstanding, shopName: profile?.businessName || 'our shop', currencySymbol: currencySymbol() }); openWhatsApp(client.phone, msg); }}><MessageSquare size={12} />Remind</button>}<Link href={`/clients/${encodeURIComponent(client.key)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link">View <ArrowRight size={13} /></Link></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={Search} title="No clients match" /></div>}
-        </Card>
-      </section>
+       <section className="clients-list-section space-y-4">
+         <Card className="clients-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+           <div className="clients-table-wrap" role="table" aria-label="Clients">
+             <div className="table-summary-bar border-b border-[#E8E8EE] dark:border-neutral-800 px-4 py-2.5 text-[13px] text-[#6B7280] dark:text-neutral-400">
+               <span>{filteredClients.length} {filteredClients.length === 1 ? 'client' : 'clients'}</span>
+             </div>
+             <div className="clients-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+               <span role="columnheader">Client</span>
+               <span role="columnheader">Phone</span>
+               <span role="columnheader" className="is-numeric">Orders</span>
+               <span role="columnheader" className="is-numeric">Collected</span>
+               <span role="columnheader" className="is-numeric">Balance due</span>
+               <span role="columnheader" className="is-numeric">Last purchase</span>
+               <span role="columnheader" className="text-right">Details</span>
+             </div>
+             {filteredClients.length ? (
+               filteredClients.map((client) => (
+                 <div
+                   key={client.key}
+                   className="clients-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors"
+                   role="row"
+                   data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}
+                 >
+                   <div className="clients-buyer-cell">
+                     <div className="clients-avatar">{initials(client.displayName)}</div>
+                     <div className="min-w-0">
+                       <div className="truncate text-[14px] font-medium text-[#111827] dark:text-neutral-100" data-testid={`text-client-name-${client.key}`}>
+                         {client.displayName}
+                       </div>
+                     </div>
+                   </div>
+                   <div className="clients-cell-labeled clients-phone-cell">
+                     <span className="clients-mobile-label">Phone</span>
+                     <span className="inline-flex items-center gap-1.5 text-[13.5px] text-[#6B7280] dark:text-neutral-400">
+                       <span>{client.phone || '—'}</span>
+                       {client.phone && (
+                         <button
+                           type="button"
+                           className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-[#25D366] hover:bg-emerald-100 transition-colors cursor-pointer"
+                           title={`Open WhatsApp chat with ${client.displayName}`}
+                           aria-label={`Open WhatsApp chat with ${client.displayName}`}
+                           onClick={() => openWhatsApp(client.phone, `Hi ${client.displayName}!`)}
+                         >
+                           <SiWhatsapp size={13} />
+                         </button>
+                       )}
+                     </span>
+                   </div>
+                   <div className="clients-cell-labeled clients-numeric-cell text-right">
+                     <span className="clients-mobile-label">Orders</span>
+                     <span className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100">{client.orderCount}</span>
+                   </div>
+                   <div className="clients-cell-labeled clients-numeric-cell text-right">
+                     <span className="clients-mobile-label">Collected</span>
+                     <span className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100">{moneyExact(client.collected)}</span>
+                   </div>
+                   <div className="clients-cell-labeled clients-numeric-cell text-right">
+                     <span className="clients-mobile-label">Balance due</span>
+                     <span className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100">{client.outstanding ? moneyExact(client.outstanding) : '—'}</span>
+                   </div>
+                   <div className="clients-cell-labeled clients-numeric-cell text-right">
+                     <span className="clients-mobile-label">Last purchase</span>
+                     <span className="font-mono-ui text-[13px] text-[#6B7280] dark:text-neutral-400">{dateShort(client.latestPurchase)}</span>
+                   </div>
+                   <div className="clients-actions flex items-center justify-end gap-2">
+                     {client.outstanding > 0 && client.phone && (
+                       <button
+                         type="button"
+                         className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
+                         title="Send balance reminder on WhatsApp"
+                         onClick={() => {
+                           const profile = readSellerProfile();
+                           const msg = buildClientBalanceReminderMessage({
+                             clientName: client.displayName,
+                             balanceDue: client.outstanding,
+                             shopName: profile?.businessName || 'our shop',
+                             currencySymbol: currencySymbol(),
+                           });
+                           openWhatsApp(client.phone, msg);
+                         }}
+                       >
+                         <MessageSquare size={12} />
+                         <span>Remind</span>
+                       </button>
+                     )}
+                     <Link href={`/clients/${encodeURIComponent(client.key)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link text-[13px] font-medium">
+                       <span>View</span>
+                       <ArrowRight size={13} />
+                     </Link>
+                   </div>
+                 </div>
+               ))
+             ) : (
+               <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+                 <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No matching clients</p>
+                 <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">Try adjusting your search terms or filter.</p>
+               </div>
+             )}
+           </div>
+         </Card>
+       </section>
     </>}
   </Shell>;
 }
 
 function ClientsSkeleton() {
-  return <div className="space-y-8 sm:space-y-10" aria-label="Loading clients"><div className="clients-overview">{Array.from({ length: 4 }, (_, index) => <Card key={index} className="h-[176px] p-6 sm:p-7 flex flex-col justify-between"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-16" /><Skeleton className="h-4 w-32" /></Card>)}</div><Card className="h-[360px] p-6 sm:p-7"><Skeleton className="h-6 w-24" /><Skeleton className="mt-8 h-11 w-56 ml-auto" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div>;
+  return (
+    <div className="space-y-6" aria-label="Loading clients">
+      <div className="clients-overview">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Card key={index} className="h-[176px] p-6 sm:p-7 flex flex-col justify-between rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+            <Skeleton className="h-4 w-24 rounded-[8px]" />
+            <Skeleton className="h-10 w-16 rounded-[8px]" />
+            <Skeleton className="h-4 w-32 rounded-[8px]" />
+          </Card>
+        ))}
+      </div>
+      <Card className="clients-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+        <div className="clients-table-wrap" role="table">
+          <div className="clients-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+            <span role="columnheader">Client</span>
+            <span role="columnheader">Phone</span>
+            <span role="columnheader" className="is-numeric">Orders</span>
+            <span role="columnheader" className="is-numeric">Collected</span>
+            <span role="columnheader" className="is-numeric">Balance due</span>
+            <span role="columnheader" className="is-numeric">Last purchase</span>
+            <span role="columnheader" className="text-right">Details</span>
+          </div>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="clients-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 h-[64px]">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-[11px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
+                <div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+              </div>
+              <div><div className="h-4 w-24 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+              <div className="flex justify-end"><div className="h-4 w-10 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+              <div className="flex justify-end"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+              <div className="flex justify-end"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+              <div className="flex justify-end"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+              <div className="flex justify-end"><div className="h-7 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
 }
 
 type TakeOrderPath = 'catalog' | 'custom';

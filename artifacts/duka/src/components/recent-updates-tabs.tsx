@@ -74,7 +74,7 @@ export function RecentUpdatesTabs({ orders, products, outstanding }: RecentUpdat
                 >
                   <span className="truncate pr-3 font-medium">
                     {order.customerName || 'Customer'}
-                    {order.productName ? ` · ${order.productName}` : ` · #${order.id.slice(-4)}`}
+                    {order.productName ? ` · ${order.productName}` : ` · #${String(order.id).slice(-4)}`}
                   </span>
                   <span className="shrink-0 text-[12.5px] font-medium text-[hsl(var(--muted-foreground))]">
                     {moneyExact(order.amount)}
@@ -161,7 +161,7 @@ export function RecentUpdatesTabs({ orders, products, outstanding }: RecentUpdat
                 >
                   <span className="truncate pr-3 font-medium">
                     {order.customerName || 'Customer'}
-                    {order.productName ? ` · ${order.productName}` : ` · #${order.id.slice(-4)}`}
+                    {order.productName ? ` · ${order.productName}` : ` · #${String(order.id).slice(-4)}`}
                   </span>
                   <span className="shrink-0 text-[12.5px] font-medium text-rose-600 dark:text-rose-400">
                     {moneyExact(order.amount)} owed
