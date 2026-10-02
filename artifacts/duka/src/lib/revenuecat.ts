@@ -14,7 +14,6 @@ const runtimeEnv = (import.meta as ImportMeta & { env?: Record<string, string | 
 export const REVENUECAT_API_KEY =
   runtimeEnv.VITE_RC_API_KEY ||
   runtimeEnv.RC_API_KEY ||
-  runtimeEnv.REVENUECAT_API_KEY ||
   'rcb_sb_HXGmjiScvdUHSTWLYKCOQgWBl';
 
 export const PRO_ENTITLEMENT_ID =

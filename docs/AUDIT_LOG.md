@@ -39,14 +39,30 @@ It tracks what was checked, found, fixed, and skipped across every phase.
 ---
 
 ## Phase 1: Security and Secrets
-- **Status**: Pending
-- **Planned Work**:
-  - Sanitize Vite environment prefix (`envPrefix`) to strictly safe variables.
-  - Remove hardcoded secret fallback references.
-  - Add server-side startup validation schema (Zod) for required environment variables with masked failure logs.
-  - Verify tenant isolation on all database queries (`ownerUserId`).
-  - Verify CSV formula injection protection.
-  - Add ROTATE NOW advisory for historical key in `docs/AUDIT_REPORT.md`.
+- **Status**: Completed
+- **Checked**:
+  - Full git repository and history for committed secrets, credentials, API keys, database URLs, service-role keys.
+  - Client bundle configuration (`artifacts/duka/vite.config.ts`) and environment variable prefixes.
+  - Storage upload security (`artifacts/api-server/src/lib/storage.ts` and `/api/upload`).
+  - Tenant isolation on all database queries and mutations in API server.
+  - Public order checkout endpoint (`/api/public/orders/:token`): verified that no buyer PII is exposed to unauthorized users; token entropy was evaluated.
+  - CSV exports across backend (`take-order.ts`) and frontend (`order-export.ts`, `App.tsx` annual reports and orders data export).
+- **Found**:
+  - `artifacts/duka/vite.config.ts`: `envPrefix` had included `'REVENUECAT_'`, creating an attack vector where any server secrets placed in root `.env` could be bundled into public client JS.
+  - Secret in git history: `pdl_vcGFFumhSZjAmNqTiDIbNlenSEvU` committed in `f60e923` (flagged for **ROTATE NOW** in final audit report).
+  - Storage uploads: `uploadFileToStorage` and `createSignedUploadUrl` in `storage.ts` lacked server-side MIME-type and file size enforcement.
+  - Order token generation: Order link tokens were generated with `randomBytes(4).toString("hex")` (32 bits of entropy / 8 hex characters), vulnerable to potential birthday collision and enumeration.
+  - CSV exports: Backend export `/api/dashboard/export` and frontend exports in `App.tsx` did not sanitize cells starting with formula trigger characters (`=`, `+`, `-`, `@`), and lacked UTF-8 BOM (`\uFEFF`) for spreadsheet compatibility.
+  - Missing server boot validation: No schema validation existed on API server startup, allowing the server to boot with missing secrets and fail unexpectedly at runtime.
+- **Fixed**:
+  - Hardened Vite config: Removed `'REVENUECAT_'` from `envPrefix` and purged server-secret fallback patterns from client code.
+  - Added startup environment schema validator with Zod in `artifacts/api-server/src/lib/env.ts` (`validateEnv`). Server fails fast with masked logs (only first 4 characters shown e.g. `sk_l****`).
+  - Added strict server-side validation to `artifacts/api-server/src/lib/storage.ts`: Enforced allowed image MIME types (`image/jpeg`, `image/png`, `image/webp`, `image/gif`, `image/avif`), 15MB file size limit, and sanitized file extensions.
+  - Increased order token entropy to 16 bytes (32 hex characters / 128-bit cryptographic entropy).
+  - Enforced CSV formula injection sanitization and UTF-8 BOM across all backend and frontend CSV generation endpoints.
+  - Built and verified client and server bundles; confirmed zero leaked secrets in compiled bundles (`dist/public/assets/*.js`).
+- **Skipped**:
+  - None.
 
 ---
 

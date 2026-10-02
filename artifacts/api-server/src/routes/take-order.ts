@@ -734,7 +734,7 @@ sellerRouter.post("/orders", requireSellerAuth, async (req, res): Promise<void> 
     .insert(ordersTable)
     .values({
       ownerUserId: sellerId(res),
-      token: randomBytes(4).toString("hex"),
+      token: randomBytes(16).toString("hex"),
       productId: firstProduct.id,
       productName: requestedItems.length === 1
         ? firstProduct.name
@@ -1060,20 +1060,29 @@ publicRouter.post("/public/orders/:token", async (req, res): Promise<void> => {
       .where(eq(ordersTable.ownerUserId, ownerUserId))
       .orderBy(desc(ordersTable.createdAt));
 
+    const sanitizeCell = (val: unknown): string => {
+      if (val == null) return '""';
+      let str = String(val).trim();
+      if (/^[=+\-@]/.test(str)) {
+        str = `'${str}`;
+      }
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
     const headers = ["Order ID", "Order Token", "Product", "Buyer", "Phone", "Channel", "Status", "Fulfillment", "Amount", "Created At"];
     const rows = orders.map((o) => [
-      o.id,
-      o.token,
-      `"${(o.productName || "").replace(/"/g, '""')}"`,
-      `"${(o.customerName || "").replace(/"/g, '""')}"`,
-      `"${(o.customerPhone || "").replace(/"/g, '""')}"`,
-      o.channel,
-      o.status,
-      o.fulfillment,
-      Number(o.amount).toFixed(2),
-      o.createdAt ? new Date(o.createdAt).toISOString() : "",
+      sanitizeCell(o.id),
+      sanitizeCell(o.token),
+      sanitizeCell(o.productName),
+      sanitizeCell(o.customerName),
+      sanitizeCell(o.customerPhone),
+      sanitizeCell(o.channel),
+      sanitizeCell(o.status),
+      sanitizeCell(o.fulfillment),
+      sanitizeCell(Number(o.amount).toFixed(2)),
+      sanitizeCell(o.createdAt ? new Date(o.createdAt).toISOString() : ""),
     ]);
-    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", 'attachment; filename="take-order-export.csv"');
     res.send(csvContent);

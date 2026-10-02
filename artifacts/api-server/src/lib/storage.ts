@@ -27,6 +27,16 @@ export function getSupabaseClient(): SupabaseClient | null {
 
 export const DEFAULT_STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "order-reference-images";
 
+export const ALLOWED_STORAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+]);
+
+export const MAX_STORAGE_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
+
 export type UploadResult = {
   url: string;
   path: string;
@@ -38,18 +48,28 @@ export async function uploadFileToStorage(params: {
   contentType: string;
   bucket?: string;
 }): Promise<UploadResult> {
+  const normalizedMime = params.contentType.toLowerCase().trim();
+  if (!ALLOWED_STORAGE_MIME_TYPES.has(normalizedMime)) {
+    throw new Error(`Unsupported image type: ${normalizedMime}. Allowed types: ${Array.from(ALLOWED_STORAGE_MIME_TYPES).join(", ")}`);
+  }
+
+  if (params.buffer.length > MAX_STORAGE_FILE_SIZE_BYTES) {
+    throw new Error(`File size (${(params.buffer.length / (1024 * 1024)).toFixed(1)}MB) exceeds the maximum allowed 15MB limit`);
+  }
+
   const supabase = getSupabaseClient();
   if (!supabase) {
     throw new Error("Supabase storage is not configured on the server. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
   }
 
   const bucket = params.bucket || DEFAULT_STORAGE_BUCKET;
-  const extension = params.filename.split(".").pop()?.toLowerCase() || "png";
+  const rawExt = params.filename.split(".").pop()?.toLowerCase() || "png";
+  const extension = /^[a-z0-9]{2,5}$/.test(rawExt) ? rawExt : "png";
   const uniqueId = `${Date.now()}-${randomBytes(8).toString("hex")}.${extension}`;
   const filePath = `uploads/${uniqueId}`;
 
   const { data, error } = await supabase.storage.from(bucket).upload(filePath, params.buffer, {
-    contentType: params.contentType,
+    contentType: normalizedMime,
     upsert: false,
   });
 
@@ -78,13 +98,19 @@ export async function createSignedUploadUrl(params: {
   contentType: string;
   bucket?: string;
 }): Promise<PresignedUploadResult> {
+  const normalizedMime = params.contentType.toLowerCase().trim();
+  if (!ALLOWED_STORAGE_MIME_TYPES.has(normalizedMime)) {
+    throw new Error(`Unsupported image type: ${normalizedMime}. Allowed types: ${Array.from(ALLOWED_STORAGE_MIME_TYPES).join(", ")}`);
+  }
+
   const supabase = getSupabaseClient();
   if (!supabase) {
     throw new Error("Supabase storage is not configured on the server. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
   }
 
   const bucket = params.bucket || DEFAULT_STORAGE_BUCKET;
-  const extension = params.filename.split(".").pop()?.toLowerCase() || "png";
+  const rawExt = params.filename.split(".").pop()?.toLowerCase() || "png";
+  const extension = /^[a-z0-9]{2,5}$/.test(rawExt) ? rawExt : "png";
   const uniqueId = `${Date.now()}-${randomBytes(8).toString("hex")}.${extension}`;
   const filePath = `uploads/${uniqueId}`;
 

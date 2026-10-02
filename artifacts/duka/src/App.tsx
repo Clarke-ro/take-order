@@ -38,7 +38,7 @@ import { PageHeader, MobileNavContext } from '@/components/page-header';
 import { DataTable, type DataTableColumn } from '@/components/data-table';
 import { SegmentedControl } from '@/components/segmented-control';
 import { OrderSummaryDrawer } from '@/components/order-summary-drawer';
-import { generateOrdersCsv, downloadCsvFile } from '@/lib/order-export';
+import { generateOrdersCsv, downloadCsvFile, sanitizeCsvCell } from '@/lib/order-export';
 import { ClientDetailPage } from '@/pages/client-detail';
 import { IntegrationsComingSoonPage } from '@/pages/integrations';
 import { AnalyticsPage } from '@/pages/analytics';
@@ -3222,17 +3222,17 @@ function Reports() {
   const handleExportAnnualReport = () => {
     const headers = ['Report Period', 'Gross Sales', 'COGS', 'Operating Expenses', 'Net Profit', 'Total Orders', 'Paid Orders', 'Catalog Inventory Value', 'Active Products'];
     const row = [
-      `"${periodLabel}"`,
-      (summary?.revenue ?? 0).toFixed(2),
-      (summary?.productCosts ?? 0).toFixed(2),
-      (summary?.operatingExpenses ?? 0).toFixed(2),
-      (summary?.profit ?? 0).toFixed(2),
-      orderCount,
-      paidOrders.length,
-      inventoryValue.toFixed(2),
-      products.length
+      sanitizeCsvCell(periodLabel),
+      sanitizeCsvCell((summary?.revenue ?? 0).toFixed(2)),
+      sanitizeCsvCell((summary?.productCosts ?? 0).toFixed(2)),
+      sanitizeCsvCell((summary?.operatingExpenses ?? 0).toFixed(2)),
+      sanitizeCsvCell((summary?.profit ?? 0).toFixed(2)),
+      sanitizeCsvCell(orderCount),
+      sanitizeCsvCell(paidOrders.length),
+      sanitizeCsvCell(inventoryValue.toFixed(2)),
+      sanitizeCsvCell(products.length)
     ];
-    const csvContent = [headers.join(','), row.join(',')].join('\n');
+    const csvContent = '\uFEFF' + [headers.join(','), row.join(',')].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -8434,19 +8434,19 @@ function SettingsPage() {
   const exportOrdersToCsv = (orders: Order[]) => {
     const headers = ['Order ID', 'Date', 'Customer Name', 'Phone', 'Product / Items', 'Channel', 'Delivery Fee', 'Total', 'Payment Mode', 'Status', 'Fulfillment'];
     const rows = orders.map((o) => [
-      `"#${o.id}"`,
-      `"${o.createdAt ? new Date(o.createdAt).toLocaleDateString() : ''}"`,
-      `"${(o.customerName || '').replace(/"/g, '""')}"`,
-      `"${(o.customerPhone || '').replace(/"/g, '""')}"`,
-      `"${(o.productName || '').replace(/"/g, '""')}"`,
-      `"${o.channel || ''}"`,
-      (o.deliveryFee || 0).toFixed(2),
-      o.amount.toFixed(2),
-      `"${o.paymentMode || 'full'}"`,
-      `"${o.status}"`,
-      `"${o.fulfillment}"`,
+      sanitizeCsvCell(`#${o.id}`),
+      sanitizeCsvCell(o.createdAt ? new Date(o.createdAt).toLocaleDateString() : ''),
+      sanitizeCsvCell(o.customerName || ''),
+      sanitizeCsvCell(o.customerPhone || ''),
+      sanitizeCsvCell(o.productName || ''),
+      sanitizeCsvCell(o.channel || ''),
+      sanitizeCsvCell((o.deliveryFee || 0).toFixed(2)),
+      sanitizeCsvCell(o.amount.toFixed(2)),
+      sanitizeCsvCell(o.paymentMode || 'full'),
+      sanitizeCsvCell(o.status),
+      sanitizeCsvCell(o.fulfillment),
     ]);
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

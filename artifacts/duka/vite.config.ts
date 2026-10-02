@@ -9,13 +9,13 @@ const basePath = process.env.BASE_PATH || '/';
 export default defineConfig({
   base: basePath,
   envDir: path.resolve(import.meta.dirname, '../../'),
-  envPrefix: ['VITE_', 'API_URL', 'CLERK_PUBLISHABLE_KEY', 'CLERK_PROXY_URL', 'RC_API_KEY', 'REVENUECAT_'],
+  envPrefix: ['VITE_', 'API_URL', 'CLERK_PUBLISHABLE_KEY', 'CLERK_PROXY_URL', 'RC_API_KEY'],
   define: {
     'import.meta.env.VITE_API_URL': JSON.stringify(
       (process.env.VITE_API_URL || process.env.API_URL || process.env.VITE_API_BASE_URL || 'https://api.usetakeorder.app').replace(/\/+$/, '')
     ),
     'import.meta.env.VITE_RC_API_KEY': JSON.stringify(
-      process.env.VITE_RC_API_KEY || process.env.RC_API_KEY || process.env.REVENUECAT_API_KEY || 'rcb_sb_HXGmjiScvdUHSTWLYKCOQgWBl'
+      process.env.VITE_RC_API_KEY || process.env.RC_API_KEY || 'rcb_sb_HXGmjiScvdUHSTWLYKCOQgWBl'
     ),
     'import.meta.env.VITE_CLERK_PUBLISHABLE_KEY': JSON.stringify(
       process.env.VITE_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY || 'pk_live_Y2xlcmsudXNldGFrZW9yZGVyLmFwcCQ'

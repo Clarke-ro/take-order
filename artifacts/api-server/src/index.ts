@@ -4,12 +4,11 @@ import { createApp } from "./app";
 
 import { ensureDatabaseSchema } from "./lib/ensure-tables";
 
-const rawPort = process.env["PORT"] || "5000";
-const port = Number(rawPort);
+import { validateEnv } from "./lib/env";
 
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+// Fail fast on missing/malformed required secrets before starting services
+const env = validateEnv();
+const port = env.PORT;
 
 // Ensure database tables exist before listening
 await ensureDatabaseSchema(db);
