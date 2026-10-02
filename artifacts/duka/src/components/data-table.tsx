@@ -7,6 +7,7 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Search, X, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
 

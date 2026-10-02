@@ -5213,7 +5213,7 @@ function CatalogEditorRoute() {
   return <Shell><ProductModal product={product} fullPage onClose={() => setLocation('/catalog')} /></Shell>;
 }
 
-function CatalogGridCard({ product, animationDelay, onEdit, onDelete, deleteDisabled, index }: {
+function CatalogGridCard({ product, animationDelay, onEdit, onDelete, deleteDisabled }: {
   product: Product;
   animationDelay: string;
   onEdit: () => void;
