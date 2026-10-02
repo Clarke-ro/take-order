@@ -82,53 +82,58 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  --background: 210 20% 98%;
-  --foreground: 222 47% 11%;
-  --border: 214 32% 91%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --card-border: 214 32% 91%;
-  --sidebar: 0 0% 100%;
-  --sidebar-foreground: 222 47% 11%;
-  --sidebar-border: 214 32% 91%;
-  --sidebar-primary: 222 47% 11%;
+  /* ── SaaS restyle tokens ─────────────────────────────────────────── */
+  --background: 240 11% 97%;        /* #F6F6FA lavender-grey page bg  */
+  --foreground: 224 40% 9%;         /* near-black headings/text        */
+  --border: 228 14% 90%;            /* #E5E6EE light grey borders      */
+  --card: 0 0% 100%;                /* white cards                     */
+  --card-foreground: 224 40% 9%;
+  --card-border: 228 14% 90%;
+  --sidebar: 0 0% 100%;             /* white sidebar                   */
+  --sidebar-foreground: 224 40% 9%;
+  --sidebar-border: 228 14% 90%;
+  --sidebar-primary: 243 85% 64%;   /* indigo #5B5BF0 active           */
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 210 40% 96.1%;
-  --sidebar-accent-foreground: 222 47% 11%;
-  --sidebar-ring: 222 47% 11%;
+  --sidebar-accent: 240 9% 96%;     /* very light hover bg             */
+  --sidebar-accent-foreground: 224 40% 9%;
+  --sidebar-ring: 243 85% 64%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --popover-border: 214 32% 91%;
-  --primary: 222 47% 11%;
+  --popover-foreground: 224 40% 9%;
+  --popover-border: 228 14% 90%;
+  --primary: 243 85% 64%;           /* #5B5BF0 indigo primary          */
   --primary-foreground: 0 0% 100%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222 47% 11%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 222 47% 11%;
+  --secondary: 240 9% 96%;
+  --secondary-foreground: 224 40% 9%;
+  --muted: 240 9% 96%;
+  --muted-foreground: 220 13% 52%;  /* grey secondary text             */
+  --accent: 243 85% 64%;
   --accent-foreground: 0 0% 100%;
-  --destructive: 345 52% 42%;
+  --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --input: 214 32% 91%;
-  --ring: 222 47% 11%;
+  --input: 228 14% 90%;
+  --ring: 243 85% 64%;
   --chart-1: 32 60% 52%;
   --chart-2: 163 37% 45%;
-  --chart-3: 345 39% 58%;
+  --chart-3: 243 85% 64%;
   --chart-4: 220 45% 57%;
   --chart-5: 25 59% 61%;
-  --accent-hover: 222 47% 18%;
+  --accent-hover: 243 85% 55%;
   --teal-tint: 157 42% 94%;
   --app-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --app-font-sans: var(--app-font-family);
   --app-font-serif: var(--app-font-family);
-  --app-font-mono: var(--app-font-family);
+  --app-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
   --app-font-display: var(--app-font-family);
   --app-text-body: 0.9375rem;
   --app-text-small: .875rem;
   --app-text-label: .8125rem;
   --app-text-caption: .75rem;
   --app-text-micro: .6875rem;
-  --radius: 0.5rem; /* 8px */
+  --radius: 0.75rem;                /* 12px card radius                */
+  /* Sidebar layout */
+  --saas-sidebar-width: 272px;
+  --saas-sidebar-collapsed-width: 72px;
+  --saas-topbar-height: 60px;
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
   --shadow-sm:

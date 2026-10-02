@@ -670,50 +670,57 @@ export function Sidebar({
     <aside
       className={cn(
         'desktop-sidebar fixed inset-y-0 left-0 z-30 flex flex-col bg-[hsl(var(--sidebar))] text-[hsl(var(--sidebar-foreground))] transition-all duration-200 ease-in-out border-r border-[hsl(var(--sidebar-border))]',
-        collapsed ? 'w-[72px]' : 'w-[250px]'
+        collapsed ? 'w-[72px]' : 'w-[272px]'
       )}
       aria-label="App navigation"
     >
-      {/* Top Brand Header (App icon only, no text name as requested) */}
+      {/* ── Workspace switcher / brand header ─── */}
       {collapsed ? (
-        <div className="flex h-16 items-center justify-center border-b border-[hsl(var(--sidebar-border))]/60">
+        <div className="flex h-[60px] items-center justify-center border-b border-[hsl(var(--sidebar-border))]">
           <button
             type="button"
             onClick={onToggleCollapse}
             aria-label="Expand sidebar"
             title="Expand sidebar"
-            className="group relative flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[hsl(var(--sidebar-accent))] transition-colors cursor-pointer"
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl hover:bg-[hsl(var(--sidebar-accent))] transition-colors cursor-pointer"
           >
-            <img
-              src={brandAssets.icon}
-              alt="Take Order"
-              className="h-8 w-8 rounded-lg object-contain shadow-2xs transition-all duration-200 group-hover:scale-0 group-hover:opacity-0"
-            />
+            <div className="flex h-7 w-7 items-center justify-center rounded-[6px] bg-[hsl(var(--primary))] text-white text-[11px] font-bold transition-all duration-200 group-hover:scale-0 group-hover:opacity-0">
+              T
+            </div>
             <PanelLeftOpen
-              size={20}
+              size={18}
               className="absolute text-[hsl(var(--sidebar-foreground))] transition-all duration-200 scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100"
             />
           </button>
         </div>
       ) : (
-        <div className="flex items-center justify-between px-4 pt-4 pb-3">
-          <Link href="/dashboard" aria-label="Dashboard" className="flex items-center">
-            <img src={brandAssets.icon} alt="Take Order" className="h-8 w-8 rounded-xl object-contain shadow-2xs hover:scale-105 transition-transform" />
+        <div className="flex h-[60px] items-center justify-between border-b border-[hsl(var(--sidebar-border))] px-4">
+          {/* Workspace switcher button */}
+          <Link
+            href="/dashboard"
+            aria-label="Dashboard"
+            className="flex items-center gap-2.5 min-w-0 flex-1 hover:bg-[hsl(var(--sidebar-accent))] rounded-[8px] px-2 py-1.5 -mx-2 transition-colors"
+          >
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[hsl(var(--primary))] text-white text-[11px] font-bold shadow-xs">
+              T
+            </div>
+            <span className="truncate text-[13.5px] font-semibold text-[hsl(var(--foreground))]">Take Order App</span>
+            <ChevronDown size={13} className="shrink-0 text-[hsl(var(--muted-foreground))] ml-auto" />
           </Link>
           <button
             type="button"
             onClick={onToggleCollapse}
             aria-label="Collapse sidebar"
             title="Collapse sidebar"
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--sidebar-foreground))]/50 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))] transition-colors"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--foreground))] transition-colors ml-1"
           >
-            <PanelLeftClose size={16} />
+            <PanelLeftClose size={15} />
           </button>
         </div>
       )}
 
-      {/* Navigation Links */}
-      <nav aria-label="Navigation" className={cn('sidebar-scroll flex-1 overflow-y-auto py-2', collapsed ? 'px-2' : 'px-3')}>
+      {/* ── Navigation Links ── */}
+      <nav aria-label="Navigation" className={cn('sidebar-scroll flex-1 overflow-y-auto pt-3 pb-2', collapsed ? 'px-2' : 'px-3')}>
         {links.map(({ href, label, icon: Icon, badge, dot }) => {
           const isActive = location === href;
           return (
@@ -724,34 +731,34 @@ export function Sidebar({
               aria-current={isActive ? 'page' : undefined}
               title={collapsed ? label : undefined}
               className={cn(
-                'group flex items-center transition-colors rounded-[11px] font-medium text-sm',
+                'group flex items-center transition-colors rounded-[8px] text-[13.5px]',
                 collapsed
-                  ? 'h-10 w-10 mx-auto justify-center mb-1.5'
-                  : 'gap-3 px-3.5 py-2.5 mb-1',
+                  ? 'h-10 w-10 mx-auto justify-center mb-1'
+                  : 'gap-2.5 px-3 py-2 mb-0.5',
                 isActive
-                  ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))] font-semibold shadow-xs'
-                  : 'text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]'
+                  ? 'bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--foreground))] font-semibold'
+                  : 'font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--foreground))]'
               )}
             >
               <Icon
                 aria-hidden="true"
-                size={18}
-                strokeWidth={isActive ? 2.3 : 1.8}
+                size={17}
+                strokeWidth={isActive ? 2 : 1.7}
                 className="shrink-0"
               />
               {!collapsed && (
                 <div className="flex items-center justify-between flex-1 min-w-0">
                   <span className="truncate">{label}</span>
                   {badge && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] shrink-0">
                       {badge}
                     </span>
                   )}
                   {dot && !badge && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#7c3aed] shrink-0" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] shrink-0" />
                   )}
                   {!entitlements.isLoading && entitlements.tier === 'free' && (href === '/analytics' || href === '/reports') && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs shrink-0">
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[hsl(var(--primary))] text-white shadow-2xs shrink-0">
                       PRO
                     </span>
                   )}
@@ -1195,17 +1202,84 @@ function Shell({ children }: { children: ReactNode }) {
     });
   };
 
+  const { userId } = useAppAuth();
+  const seller = readSellerProfile(userId);
+  const entitlements = useEntitlements(userId);
+  const { isTrial } = entitlements;
+  const daysRemaining = entitlements.trial.daysRemaining;
+  const sellerInitial = (seller?.sellerName || seller?.businessName || 'A').charAt(0).toUpperCase();
+
   return (
     <div className="take-order-shell grain">
       <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapse} />
       <MobileTopbar />
-      <main
+
+      {/* ── Desktop Topbar (hidden on mobile) ─────────────────────────── */}
+      <header
         className={cn(
-          'page-content min-h-[100dvh] px-6 sm:px-10 lg:px-14 xl:px-16 py-8 md:py-10 transition-all duration-200 ease-in-out max-w-[1600px]',
-          collapsed ? 'md:ml-[72px]' : 'md:ml-[250px]'
+          'saas-desktop-topbar fixed top-0 right-0 z-20 hidden md:flex h-[60px] items-center gap-4 px-6 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] transition-all duration-200 ease-in-out',
+          collapsed ? 'left-[72px]' : 'left-[272px]'
         )}
       >
-        {children}
+        {/* Search */}
+        <div className="relative flex items-center w-full max-w-[280px]">
+          <Search size={14} className="absolute left-3 text-[hsl(var(--muted-foreground))] pointer-events-none" />
+          <input
+            type="search"
+            placeholder="Search for anything"
+            className="w-full h-9 pl-8 pr-[52px] rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/25 transition"
+            readOnly
+          />
+          <kbd className="absolute right-2.5 flex items-center gap-0.5 rounded-[4px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))] px-1.5 py-0.5 text-[10px] font-medium text-[hsl(var(--muted-foreground))] pointer-events-none select-none">
+            Ctrl+K
+          </kbd>
+        </div>
+
+        {/* Centre: plan/trial banner */}
+        <div className="flex-1 flex items-center justify-center">
+          {isTrial && daysRemaining != null && daysRemaining >= 0 && (
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#BBF7D0] bg-[#ECFCCB] px-4 py-1.5 text-[12.5px] font-medium text-[#14532D]">
+              <span>Free trial: {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left.</span>
+              <Link href="/subscribe" className="font-bold underline hover:text-[#14532D]/80 transition">Upgrade →</Link>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Help + Support + avatar */}
+        <div className="flex items-center gap-2 shrink-0">
+          <a
+            href="https://takeorder.app/help"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center h-8 px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[12.5px] font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition"
+          >
+            Help
+          </a>
+          <a
+            href="mailto:support@takeorder.app"
+            className="inline-flex items-center h-8 px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[12.5px] font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition"
+          >
+            Support
+          </a>
+          <Link
+            href="/settings"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-[13px] font-bold hover:ring-2 hover:ring-[hsl(var(--primary))]/30 transition"
+            title="Account profile"
+          >
+            {sellerInitial}
+          </Link>
+        </div>
+      </header>
+
+      <main
+        className={cn(
+          'page-content min-h-[100dvh] transition-all duration-200 ease-in-out',
+          collapsed ? 'md:ml-[72px]' : 'md:ml-[272px]'
+        )}
+      >
+        <div className="px-6 sm:px-8 lg:px-10 py-6 md:py-8 md:pt-[88px] max-w-[1120px]">
+          {children}
+        </div>
       </main>
     </div>
   );
@@ -3083,6 +3157,28 @@ export function Overview() {
       <div data-testid="dashboard-analytics" data-analytics-state={analyticsState}>
         <AnalyticsStateMarker state={analyticsState} />
 
+        {/* ── Page header ──────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-[28px] font-semibold tracking-tight text-[hsl(var(--foreground))] leading-none">
+            Dashboard
+          </h1>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/take-order"
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition"
+            >
+              <Plus size={13} />
+              New order
+            </Link>
+            <Link
+              href="/take-order"
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-[8px] bg-[hsl(var(--primary))] text-[13px] font-medium text-white hover:opacity-90 transition"
+            >
+              Take an order
+            </Link>
+          </div>
+        </div>
+
         {/* Dashboard Top Header with Search, Timeframe Picker, Notifications, Take Order */}
         <DashboardTopHeader
           periodLabel={periodLabel}
@@ -3191,25 +3287,29 @@ export function Overview() {
               <ErrorState retry={() => summaryQuery.refetch()} />
             ) : (
               <>
-                {/* 4 StatCards with clean values matching theme */}
-                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                {/* ── Snapshot section heading ─────────────────────────────── */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Snapshot</h2>
+                  <span className="text-[12.5px] text-[hsl(var(--muted-foreground))]">{periodLabel}</span>
+                </div>
+
+                {/* ── 3 SaaS stat cards ─────────────────────────────────────── */}
+                <div className="grid gap-5 sm:grid-cols-3">
                   <StatCard
                     label="Total Sales"
                     value={money(summary?.revenue ?? 0)}
-                    trend={revenueTrend ? { direction: revenueTrend.direction, percentage: revenueTrend.percentage, periodLabel: periodLabel } : undefined}
+                    description="Total revenue collected from settled orders in this period"
                   />
                   <StatCard
                     label="Total Orders"
                     value={ordersQuery.isLoading ? '—' : periodOrders.length}
-                    trend={salesTrend ? { direction: salesTrend.direction, percentage: salesTrend.percentage, periodLabel: periodLabel } : undefined}
-                  />
-                  <StatCard
-                    label="Average Order Value"
-                    value={money(summary?.orders ? (summary.revenue / summary.orders) : 0)}
+                    description="Number of orders placed in this period"
                   />
                   <StatCard
                     label="Outstanding Balance"
                     value={money(summary?.outstanding ?? 0)}
+                    description="Uncollected balances from unpaid and deposit orders"
+                    suffix={summary?.outstanding && summary.outstanding > 0 ? `${waitingPayments} unpaid` : undefined}
                   />
                 </div>
 
