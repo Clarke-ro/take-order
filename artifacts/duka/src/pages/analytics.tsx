@@ -530,21 +530,21 @@ export function AnalyticsPage() {
               </thead>
               <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
                 {summary!.channelPerformance!.map((ch, i) => (
-                  <tr key={ch.channel} className="hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[64px]">
-                    <td className="px-4 py-3.5">
+                  <tr key={ch.channel} className="hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[56px]">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
                       <div className="flex items-center gap-2.5">
                         <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: DONUT_PALETTE[i % DONUT_PALETTE.length] }} />
                         <span className="text-[14px] font-medium text-[#111827] dark:text-neutral-100">{channelName(ch.channel)}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] text-[#6B7280] dark:text-neutral-400">{ch.orders}</td>
-                    <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] font-semibold text-[#111827] dark:text-neutral-100">{money(ch.revenue)}</td>
-                    <td className="px-4 py-3.5 text-right">
+                    <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] text-[#6B7280] dark:text-neutral-400 whitespace-nowrap">{ch.orders}</td>
+                    <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] font-semibold text-[#111827] dark:text-neutral-100 whitespace-nowrap">{money(ch.revenue)}</td>
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
                       <span className={cn('text-[13px] font-medium font-mono-ui', ch.conversionRate >= 50 ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#6B7280] dark:text-neutral-400')}>
                         {ch.conversionRate}%
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-right">
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
                         <div className="w-20 h-1.5 rounded-full bg-[#E8E8EE] dark:bg-neutral-800 overflow-hidden">
                           <div className="h-full rounded-full bg-[#111827] dark:bg-white" style={{ width: `${Math.min(100, ch.conversionRate)}%` }} />

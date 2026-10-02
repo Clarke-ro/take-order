@@ -278,23 +278,18 @@ export function ClientDetailPage() {
                     <tr
                       key={order.id}
                       onClick={() => setLocation(`/orders/${order.id}`)}
-                      className="hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors cursor-pointer h-[64px]"
+                      className="hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors cursor-pointer h-[56px]"
                     >
-                      <td className="px-4 py-3.5 font-mono-ui text-[13px] text-[#6B7280] dark:text-neutral-400">
+                      <td className="px-4 py-3.5 font-mono-ui text-[13px] text-[#6B7280] dark:text-neutral-400 whitespace-nowrap">
                         {idx + 1}
                       </td>
-                      <td className="px-4 py-3.5 font-mono-ui text-[13.5px] font-medium text-[#111827] dark:text-neutral-100">
+                      <td className="px-4 py-3.5 font-mono-ui text-[13.5px] font-medium text-[#111827] dark:text-neutral-100 whitespace-nowrap">
                         #{String(order.id).padStart(6, '0')}
                       </td>
-                      <td className="px-4 py-3.5">
-                        <div className="text-[14px] font-medium text-[#111827] dark:text-neutral-100 truncate max-w-[200px]">{order.productName}</div>
-                        {order.deliveryMethod && (
-                          <div className="text-[13px] text-[#6B7280] dark:text-neutral-400 mt-0.5">
-                            {order.deliveryMethod === 'delivery' ? 'Delivery' : 'Pickup'}
-                          </div>
-                        )}
+                      <td className="px-4 py-3.5 min-w-0">
+                        <div className="text-[14px] font-medium text-[#111827] dark:text-neutral-100 truncate max-w-[220px] whitespace-nowrap" title={order.productName}>{order.productName}</div>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5" title={channelName(order.channel)}>
                           <ChannelMark value={order.channel} size={16} />
                           <span className="text-[13px] text-[#6B7280] dark:text-neutral-400 hidden sm:inline">{channelName(order.channel)}</span>
