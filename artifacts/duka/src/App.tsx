@@ -3521,7 +3521,7 @@ function Reports() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {rankedProducts.slice(0, 6).map((item, index) => (
+                      {rankedProducts.map((item, index) => (
                         <tr key={`${item.name}-${index}`} className="hover:bg-slate-50/50">
                           <td className="py-3 font-semibold text-slate-900">{item.name}</td>
                           <td className="py-3 text-right text-slate-600">{item.orders}</td>
