@@ -257,72 +257,79 @@ export function ClientDetailPage() {
           </span>
         </div>
 
-        <Card className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-50/80 dark:bg-slate-950">
-                  <th className="px-5 py-3">#</th>
-                  <th className="px-4 py-3">Order ID</th>
-                  <th className="px-4 py-3">Product / Items</th>
-                  <th className="px-4 py-3">Traffic</th>
-                  <th className="px-4 py-3">Order Value</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {clientData.orders.map((order, idx) => (
-                  <tr
-                    key={order.id}
-                    onClick={() => setLocation(`/orders/${order.id}`)}
-                    className="hover:bg-slate-50/80 dark:hover:bg-slate-900/60 transition cursor-pointer"
-                  >
-                    <td className="px-5 py-4 font-mono text-xs font-semibold text-slate-400">
-                      {idx + 1}
-                    </td>
-                    <td className="px-4 py-4 font-mono text-xs font-bold text-slate-900 dark:text-white">
-                      #{String(order.id).padStart(6, '0')}
-                    </td>
-                    <td className="px-4 py-4 text-sm font-medium text-slate-800 dark:text-slate-200">
-                      <div className="truncate max-w-[180px]">{order.productName}</div>
-                      {order.deliveryMethod && (
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                          {order.deliveryMethod === 'delivery' ? 'Delivery' : 'Pickup'}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="inline-flex items-center gap-1.5" title={channelName(order.channel)}>
-                        <ChannelMark value={order.channel} size={14} />
-                        <span className="text-xs text-slate-500 hidden sm:inline">{channelName(order.channel)}</span>
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 font-mono text-sm font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                      {moneyExact(order.amount)}
-                    </td>
-                    <td className="px-4 py-4 text-xs text-slate-500 whitespace-nowrap">
-                      {dateShort(order.createdAt)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill>
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <Link
-                        href={`/orders/${order.id}`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span>Details</span>
-                        <ChevronRight size={13} />
-                      </Link>
-                    </td>
+        <Card className="rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none overflow-hidden">
+          {clientData.orders.length ? (
+            <div className="overflow-x-auto w-full scrollbar-thin">
+              <table className="list-table w-full min-w-[760px] text-left border-collapse">
+                <thead className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80">
+                  <tr className="h-[48px]">
+                    <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case w-12">#</th>
+                    <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order ID</th>
+                    <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Product / Items</th>
+                    <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Traffic</th>
+                    <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Order Value</th>
+                    <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Date</th>
+                    <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case">Payment</th>
+                    <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
+                  {clientData.orders.map((order, idx) => (
+                    <tr
+                      key={order.id}
+                      onClick={() => setLocation(`/orders/${order.id}`)}
+                      className="hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors cursor-pointer h-[64px]"
+                    >
+                      <td className="px-4 py-3.5 font-mono-ui text-[13px] text-[#6B7280] dark:text-neutral-400">
+                        {idx + 1}
+                      </td>
+                      <td className="px-4 py-3.5 font-mono-ui text-[13.5px] font-medium text-[#111827] dark:text-neutral-100">
+                        #{String(order.id).padStart(6, '0')}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="text-[14px] font-medium text-[#111827] dark:text-neutral-100 truncate max-w-[200px]">{order.productName}</div>
+                        {order.deliveryMethod && (
+                          <div className="text-[13px] text-[#6B7280] dark:text-neutral-400 mt-0.5">
+                            {order.deliveryMethod === 'delivery' ? 'Delivery' : 'Pickup'}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="inline-flex items-center gap-1.5" title={channelName(order.channel)}>
+                          <ChannelMark value={order.channel} size={16} />
+                          <span className="text-[13px] text-[#6B7280] dark:text-neutral-400 hidden sm:inline">{channelName(order.channel)}</span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100 whitespace-nowrap">
+                        {moneyExact(order.amount)}
+                      </td>
+                      <td className="px-4 py-3.5 font-mono-ui text-[13px] text-[#6B7280] dark:text-neutral-400 whitespace-nowrap">
+                        {dateShort(order.createdAt)}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <StatusPill tone={paymentTone(order.status)}>{paymentLabel(order)}</StatusPill>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <Link
+                          href={`/orders/${order.id}`}
+                          className="inline-flex items-center gap-1 text-[13px] font-medium text-[#6B7280] hover:text-[#111827] dark:text-neutral-400 dark:hover:text-white"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span>Details</span>
+                          <ChevronRight size={14} />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+              <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No orders yet</p>
+              <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">This client hasn't placed any orders yet.</p>
+            </div>
+          )}
         </Card>
       </div>
     </div>
