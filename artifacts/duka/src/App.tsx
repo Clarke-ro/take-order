@@ -5129,22 +5129,29 @@ function Expenses() {
         placeholder: "Search expenses...",
       } : undefined}
       filters={(query.data ?? []).length > 0 ? (
-        <select
-          aria-label="Filter expenses by category"
-          data-testid="select-filter-expenses"
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value)}
-          className="h-9 px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 cursor-pointer"
-        >
-          <option value="all">All categories</option>
-          {expenseCategories.map((item) => (
-            <option key={item.value} value={item.value}>{item.label}</option>
-          ))}
-        </select>
+        <div className="relative inline-flex items-center">
+          <select
+            aria-label="Filter expenses by category"
+            data-testid="select-filter-expenses"
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            className="h-[40px] min-h-[40px] appearance-none pl-3.5 pr-8 rounded-[10px] border border-[#E3E3EC] bg-white text-[13px] font-medium text-[#374151] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition cursor-pointer select-none shadow-2xs"
+          >
+            <option value="all">All categories</option>
+            {expenseCategories.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
+        </div>
       ) : undefined}
     />
     {query.isLoading ? (
-      <div className="space-y-4 p-6"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+      <ExpensesTableSkeleton />
     ) : query.isError ? (
       <div className="p-6"><ErrorState retry={() => query.refetch()} /></div>
     ) : !(query.data ?? []).length ? (
@@ -5162,37 +5169,44 @@ function Expenses() {
     ) : (
       <>
         {actionError && <div className="mb-4 rounded-[12px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-4 py-3 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-expense-action-error">{actionError}</div>}
-        <Card className="expenses-table-card overflow-hidden">
-          <div className="expenses-table" role="table">
-            <div className="table-summary-bar"><span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}</span></div>
-            <div className="expenses-table-head" role="row"><span>Expense</span><span>Category</span><span>Date</span><span className="is-numeric">Amount</span><span className="sr-only">Actions</span></div>
+        <Card className="expenses-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+          <div className="expenses-table" role="table" aria-label="Expenses">
+            <div className="table-summary-bar border-b border-[#E8E8EE] dark:border-neutral-800 px-4 py-2.5 text-[13px] text-[#6B7280] dark:text-neutral-400">
+              <span>{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}</span>
+            </div>
+            <div className="expenses-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+              <span role="columnheader">Expense</span>
+              <span role="columnheader">Category</span>
+              <span role="columnheader">Date</span>
+              <span role="columnheader" className="is-numeric">Amount</span>
+              <span role="columnheader" className="text-right">Actions</span>
+            </div>
             {expenses.length ? (
-              <div className="divide-y divide-[hsl(var(--border))]">
-                {expenses.map((expense) => (
-                  <div key={expense.id} className="expenses-table-row" data-testid={`row-expense-${expense.id}`} role="row">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
-                          <Receipt size={16} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-[15px] font-semibold">{expense.title}</div>
-                          {expense.note && <div className="mt-1 truncate text-xs text-[hsl(var(--muted-foreground))]">{expense.note}</div>}
-                        </div>
+              expenses.map((expense) => (
+                <div key={expense.id} className="expenses-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors" data-testid={`row-expense-${expense.id}`} role="row">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
+                        <Receipt size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-[14px] font-medium text-[#111827] dark:text-neutral-100">{expense.title}</div>
+                        {expense.note && <div className="mt-0.5 truncate text-[13px] text-[#6B7280] dark:text-neutral-400">{expense.note}</div>}
                       </div>
                     </div>
-                    <div className="expenses-table-cell" data-label="Category">{expenseCategoryLabel(expense.category)}</div>
-                    <div className="expenses-table-cell" data-label="Date">{dateShort(expense.date)}</div>
-                    <div className="expenses-table-cell expenses-table-amount" data-label="Amount">{moneyExact(expense.amount)}</div>
-                    <div className="flex justify-end">
-                      <ExpenseActions expenseId={expense.id} expenseTitle={expense.title} onEdit={() => setModal(expense)} onDelete={() => remove(expense)} deleteDisabled={deleteExpense.isPending} />
-                    </div>
                   </div>
-                ))}
-              </div>
+                  <div className="expenses-table-cell text-[13.5px] text-[#6B7280] dark:text-neutral-400" data-label="Category">{expenseCategoryLabel(expense.category)}</div>
+                  <div className="expenses-table-cell text-[13px] text-[#6B7280] dark:text-neutral-400" data-label="Date">{dateShort(expense.date)}</div>
+                  <div className="expenses-table-cell expenses-table-amount text-right font-mono-ui font-medium text-[14px] text-[#111827] dark:text-neutral-100" data-label="Amount">{moneyExact(expense.amount)}</div>
+                  <div className="flex justify-end">
+                    <ExpenseActions expenseId={expense.id} expenseTitle={expense.title} onEdit={() => setModal(expense)} onDelete={() => remove(expense)} deleteDisabled={deleteExpense.isPending} />
+                  </div>
+                </div>
+              ))
             ) : (
-              <div className="p-6">
-                <EmptyState icon={Receipt} title="No matching expenses" description="Try another search or category." />
+              <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+                <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No matching expenses</p>
+                <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">Try adjusting your search terms or category.</p>
               </div>
             )}
           </div>
@@ -5201,6 +5215,37 @@ function Expenses() {
     )}
     {modal && <ExpenseModal expense={modal === 'new' ? undefined : modal} onClose={() => setModal(null)} />}
   </Shell>;
+}
+
+function ExpensesTableSkeleton() {
+  return (
+    <Card className="expenses-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none" aria-label="Loading expenses">
+      <div className="expenses-table" role="table">
+        <div className="expenses-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+          <span role="columnheader">Expense</span>
+          <span role="columnheader">Category</span>
+          <span role="columnheader">Date</span>
+          <span role="columnheader" className="is-numeric">Amount</span>
+          <span role="columnheader" className="text-right">Actions</span>
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="expenses-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 h-[64px]">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-[11px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="h-4 w-32 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+                <div className="h-3 w-24 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+              </div>
+            </div>
+            <div><div className="h-4 w-20 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="flex justify-end"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            <div className="flex justify-end"><div className="h-7 w-14 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
 }
 
 function CatalogEditorRoute() {
