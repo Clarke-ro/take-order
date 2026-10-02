@@ -848,14 +848,15 @@ button.field-input:focus {
 .orders-table-wrap { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
 .orders-table-head, .orders-table-row {
   display: grid;
-  grid-template-columns: minmax(110px, .65fr) minmax(230px, 1.4fr) minmax(70px, .45fr) minmax(130px, .8fr) minmax(100px, .6fr) minmax(120px, .75fr) minmax(130px, .8fr);
-  min-width: 980px;
+  grid-template-columns: minmax(90px, .6fr) minmax(150px, 1.2fr) minmax(130px, 1fr) minmax(60px, .4fr) minmax(110px, .75fr) minmax(110px, .75fr) minmax(95px, .65fr) minmax(120px, .85fr) minmax(130px, .9fr);
+  min-width: 1000px;
   gap: 1rem;
   align-items: center;
 }
 .orders-table-head {
   min-height: 48px;
   height: 48px;
+  max-height: 48px;
   background: #F0F0F8;
   padding: 0 1rem;
   color: #111827;
@@ -871,14 +872,17 @@ button.field-input:focus {
   color: #F3F4F6;
   border-bottom-color: rgba(255, 255, 255, 0.1);
 }
-.orders-table-head > span:nth-child(3) { text-align: center; }
+.orders-table-head > span:nth-child(4) { text-align: center; }
 .orders-table-head > span:last-child { text-align: right; }
 .orders-table-row {
-  min-height: 64px;
+  min-height: 56px;
+  height: 56px;
+  max-height: 56px;
   border-bottom: 1px solid #E8E8EE;
-  padding: 0.85rem 1rem;
+  padding: 0 1rem;
   transition: background-color .15s ease;
   align-items: center;
+  white-space: nowrap;
 }
 .dark .orders-table-row {
   border-bottom-color: rgba(255, 255, 255, 0.08);
@@ -907,7 +911,7 @@ button.field-input:focus {
 .orders-table-row [data-testid^="button-fulfillment-"] { border: 0; background: transparent; padding: 0; color: inherit; text-align: left; display: inline-flex; }
 .orders-cell-labeled > button:focus-visible, .orders-icon-button:focus-visible, .orders-table-row [data-testid^="button-fulfillment-"]:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 .orders-mobile-label { display: none; color: hsl(var(--muted-foreground)); font-family: var(--app-font-mono); font-size: .55rem; text-transform: uppercase; letter-spacing: .1em; }
-.orders-value-cell, .orders-date-cell { min-width: 0; }
+.orders-value-cell, .orders-date-cell, .orders-item-cell, .orders-collected-cell { min-width: 0; }
 .orders-table-row button:disabled { cursor: wait; opacity: .55; }
 .clients-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
 .clients-intro-card { background: hsl(220 25% 18%); border-color: hsl(220 23% 26%); color: hsl(45 33% 96%); box-shadow: none; }
@@ -951,6 +955,7 @@ button.field-input:focus {
 .clients-table-head {
   min-height: 48px;
   height: 48px;
+  max-height: 48px;
   background: #F0F0F8;
   padding: 0 1rem;
   color: #111827;
@@ -975,11 +980,14 @@ button.field-input:focus {
 .clients-table-head > span:last-child { justify-content: flex-end; }
 .clients-table-row > .clients-numeric-cell { text-align: right; }
 .clients-table-row {
-  min-height: 64px;
+  min-height: 56px;
+  height: 56px;
+  max-height: 56px;
   border-bottom: 1px solid #E8E8EE;
-  padding: 0.85rem 1rem;
+  padding: 0 1rem;
   transition: background-color .15s ease;
   align-items: center;
+  white-space: nowrap;
 }
 .dark .clients-table-row {
   border-bottom-color: rgba(255, 255, 255, 0.08);
@@ -1058,6 +1066,7 @@ button.field-input:focus {
 .catalog-list-head {
   min-height: 48px;
   height: 48px;
+  max-height: 48px;
   background: #F0F0F8;
   padding: 0 1rem;
   color: #111827;
@@ -1065,6 +1074,7 @@ button.field-input:focus {
   font-weight: 600;
   letter-spacing: normal;
   text-transform: none;
+  white-space: nowrap;
   border-bottom: 1px solid #E3E3EC;
 }
 .dark .catalog-list-head {
@@ -1074,11 +1084,14 @@ button.field-input:focus {
 }
 .catalog-list-head > span:last-child { text-align: right; }
 .catalog-product-row {
-  min-height: 64px;
+  min-height: 56px;
+  height: 56px;
+  max-height: 56px;
   border-bottom: 1px solid #E8E8EE;
-  padding: 0.85rem 1rem;
+  padding: 0 1rem;
   transition: background-color .15s ease, transform .15s ease;
   align-items: center;
+  white-space: nowrap;
 }
 .dark .catalog-product-row {
   border-bottom-color: rgba(255, 255, 255, 0.08);
@@ -1317,12 +1330,15 @@ button.field-input:focus {
 .expenses-table-head {
   min-height: 48px;
   height: 48px;
+  max-height: 48px;
   background: #F0F0F8;
+  padding: 0 1rem;
   color: #111827;
   font-size: 14px;
   font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
+  white-space: nowrap;
   border-bottom: 1px solid #E3E3EC;
 }
 .dark .expenses-table-head {
@@ -1338,11 +1354,14 @@ button.field-input:focus {
 .expenses-table-head > span.is-numeric { justify-content: flex-end; text-align: right; }
 .expenses-table-head > span:last-child { justify-content: flex-end; text-align: right; }
 .expenses-table-row {
-  min-height: 64px;
+  min-height: 56px;
+  height: 56px;
+  max-height: 56px;
   border-bottom: 1px solid #E8E8EE;
-  padding: 0.85rem 1rem;
+  padding: 0 1rem;
   transition: background-color .15s ease;
   align-items: center;
+  white-space: nowrap;
 }
 .dark .expenses-table-row {
   border-bottom-color: rgba(255, 255, 255, 0.08);
@@ -1361,6 +1380,9 @@ button.field-input:focus {
 }
 .list-table thead,
 .reports-table thead {
+  min-height: 48px;
+  height: 48px;
+  max-height: 48px;
   background: #F0F0F8;
   color: #111827;
   font-size: 14px;
@@ -1395,9 +1417,12 @@ button.field-input:focus {
 }
 .list-table tbody tr,
 .reports-table tbody tr {
-  min-height: 64px;
+  min-height: 56px;
+  height: 56px;
+  max-height: 56px;
   border-bottom: 1px solid #E8E8EE;
   transition: background-color .15s ease;
+  white-space: nowrap;
 }
 .dark .list-table tbody tr,
 .dark .reports-table tbody tr {
@@ -1417,9 +1442,10 @@ button.field-input:focus {
 }
 .list-table tbody td,
 .reports-table tbody td {
-  padding: 0.85rem 1rem;
+  padding: 0 1rem;
   font-size: 14px;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 @media (max-width: 1100px) {
