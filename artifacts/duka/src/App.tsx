@@ -8,7 +8,7 @@ import {
   CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, Crown, Download, ExternalLink, Eye, EyeOff, FileText, Globe2, Info, LayoutDashboard, LayoutGrid, Link2, List, Loader2, Mail, Menu, Minus, MoreHorizontal,
   ImagePlus, MessageSquare, Package, PackageSearch, PackageX, Pencil, Percent, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
   Trash2, TrendingUp, Truck, UserRound, Users, UsersRound, WalletCards, Workflow, Wrench, X,
-  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound, Bell, Zap, Settings
+  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound, Bell, Zap, Settings, QrCode, Send
 } from 'lucide-react';
 import { SiFacebook, SiInstagram, SiSnapchat, SiTiktok, SiWhatsapp, SiX } from 'react-icons/si';
 import {
@@ -7133,6 +7133,10 @@ function MultiItemTakeOrderModern() {
   const [deliveryFee, setDeliveryFee] = useState('0');
   const [channel, setChannel] = useState<OrderInput['channel'] | ''>('');
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [orderNotes, setOrderNotes] = useState('');
   const [created, setCreated] = useState<Order | null>(null);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -7285,6 +7289,10 @@ function MultiItemTakeOrderModern() {
       depositAmount: paymentMode === 'deposit' ? deposit : null,
       deliveryFee: deliveryFeeAmount,
       channel: channel as OrderInput['channel'],
+      customerName: customerName.trim() || undefined,
+      customerPhone: customerPhone.trim() || undefined,
+      deliveryAddress: deliveryAddress.trim() || undefined,
+      buyerDetails: orderNotes.trim() || undefined,
     };
     createOrder.mutate({ data }, {
       onSuccess: (order) => { setFeedback(null); setCreated(order); },
@@ -7374,25 +7382,101 @@ function MultiItemTakeOrderModern() {
     setItemSource(null);
     setCustomDraft({ name: '', amount: '', preferences: [] });
     setCatalogSearch('');
+    setCustomerName('');
+    setCustomerPhone('');
+    setDeliveryAddress('');
+    setOrderNotes('');
     setPaymentMode(null);
     setDepositAmount('');
     setDeliveryFee('0');
-     setChannel('');
+    setChannel('');
   };
 
   if (created) {
-    return <Shell><div className="take-order-success page-in">
-      <div className="take-order-success-mark"><Check size={28} /></div>
-      <div className="take-order-kicker">Link is ready</div>
-      <h1>Send it their way.</h1>
-      <p>Your buyer page is live with {items.length} item{items.length === 1 ? '' : 's'} and a combined total of <strong>{moneyExact(total)}</strong>.</p>
-      <Card className="take-order-link-card">
-        <div className="take-order-section-eyebrow">Buyer link</div>
-        <div className="take-order-link-row"><Link2 size={16} aria-hidden="true" /><span>{link}</span><Button onClick={copy} variant="soft" data-testid="button-copy-created-link">{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? 'Copied' : 'Copy link'}</Button></div>
-        {copyError && <p className="take-order-copy-error" role="status">Copying is unavailable here. Select and copy the link manually.</p>}
-      </Card>
-      <div className="take-order-success-actions"><Link href={`/o/${created.token}`} data-testid="link-preview-created-order"><Button variant="outline"><ExternalLink size={15} />Preview buyer page</Button></Link><Button onClick={reset} variant="ghost">Create another</Button></div>
-    </div></Shell>;
+    const buyerPhone = (created.customerPhone || '').replace(/[^0-9]/g, '');
+    const whatsappMsg = `Hi ${created.customerName && created.customerName !== 'Waiting for buyer' ? created.customerName : 'there'}! Here is your order link for ${moneyExact(total)}: ${link}`;
+    const whatsappUrl = buyerPhone
+      ? `https://wa.me/${buyerPhone}?text=${encodeURIComponent(whatsappMsg)}`
+      : `https://wa.me/?text=${encodeURIComponent(whatsappMsg)}`;
+
+    return (
+      <Shell>
+        <div className="max-w-[620px] mx-auto py-8">
+          <div className="rounded-[16px] border border-[hsl(var(--card-border))] bg-white p-6 sm:p-8 shadow-sm dark:bg-neutral-900 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 mb-4">
+              <Check size={28} strokeWidth={2.5} />
+            </div>
+            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Order Link Ready</span>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900 dark:text-white">Send it to your buyer</h1>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              Live link generated with {items.length} item{items.length === 1 ? '' : 's'} and total of <strong>{moneyExact(total)}</strong>.
+            </p>
+
+            {/* Link Box */}
+            <div className="mt-6 p-4 rounded-[12px] border border-[hsl(var(--border))] bg-neutral-50 dark:bg-neutral-800/50 text-left">
+              <div className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-1.5">Direct buyer link</div>
+              <div className="flex items-center justify-between gap-2 bg-white dark:bg-neutral-900 p-2.5 rounded-[8px] border border-[hsl(var(--border))]">
+                <span className="truncate text-xs font-mono text-neutral-800 dark:text-neutral-200">{link}</span>
+                <button
+                  type="button"
+                  onClick={copy}
+                  data-testid="button-copy-created-link"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-800 transition shrink-0 cursor-pointer"
+                >
+                  {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                  <span>{copied ? 'Copied' : 'Copy link'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Actions: WhatsApp Share + Preview */}
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-[10px] bg-[#25D366] text-white text-xs font-semibold hover:opacity-90 transition shadow-xs"
+              >
+                <Send size={14} />
+                <span>Share via WhatsApp</span>
+              </a>
+
+              <Link
+                href={`/o/${created.token}`}
+                target="_blank"
+                className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-[10px] border border-[hsl(var(--border))] bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs font-semibold hover:bg-neutral-50 dark:hover:bg-neutral-700 transition"
+                data-testid="link-preview-created-order"
+              >
+                <ExternalLink size={14} />
+                <span>Preview checkout</span>
+              </Link>
+            </div>
+
+            {/* QR Code Container */}
+            <div className="mt-6 pt-6 border-t border-[hsl(var(--border))] flex flex-col items-center">
+              <span className="text-xs font-semibold text-neutral-500 mb-3">Scan QR to open checkout on phone</span>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(link)}`}
+                alt="Order Link QR Code"
+                className="w-36 h-36 rounded-lg border border-[hsl(var(--border))] bg-white p-2 shadow-2xs"
+                loading="lazy"
+              />
+            </div>
+
+            {/* Bottom Reset */}
+            <div className="mt-6 pt-4 border-t border-[hsl(var(--border))] flex justify-center">
+              <button
+                type="button"
+                onClick={reset}
+                className="text-xs font-semibold text-neutral-600 hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white transition cursor-pointer"
+              >
+                + Take another order
+              </button>
+            </div>
+          </div>
+        </div>
+      </Shell>
+    );
   }
 
   const canGoBack = step > 1 || (step === 1 && (itemSource !== null || items.length > 0));
@@ -7405,6 +7489,9 @@ function MultiItemTakeOrderModern() {
       setItemSource(null);
     }
   };
+
+  const isLinkLimitReached = entitlements.tier === 'free' && (entitlements.limits.activeLinkLimitReached || entitlements.usage.activeLinkCount >= FREE_ACTIVE_LINK_LIMIT);
+  const isLinkNearLimit = entitlements.tier === 'free' && (entitlements.usage.activeLinkCount / FREE_ACTIVE_LINK_LIMIT) >= 0.8;
 
   return <Shell>
     <PageHeader
@@ -7424,6 +7511,40 @@ function MultiItemTakeOrderModern() {
           <h1 className="text-[24px] sm:text-[28px] md:text-[30px] font-semibold tracking-tight text-[hsl(var(--foreground))] leading-none">
             Take an order
           </h1>
+        </div>
+      }
+      secondaryActions={
+        <div className="flex items-center gap-2">
+          {entitlements.tier === 'free' ? (
+            <div
+              className={cn(
+                'inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] border text-xs font-medium',
+                isLinkLimitReached
+                  ? 'border-rose-300 bg-rose-50 text-rose-800'
+                  : isLinkNearLimit
+                    ? 'border-amber-300 bg-amber-50 text-amber-800'
+                    : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))]'
+              )}
+            >
+              <span>
+                {entitlements.usage.activeLinkCount} of {FREE_ACTIVE_LINK_LIMIT} active links
+              </span>
+              {(isLinkNearLimit || isLinkLimitReached) && (
+                <button
+                  type="button"
+                  onClick={() => setUpgradeDialogReason('link_limit')}
+                  className="font-bold underline text-neutral-900 dark:text-white ml-1 cursor-pointer"
+                >
+                  Upgrade
+                </button>
+              )}
+            </div>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-xs font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Unlimited links
+            </span>
+          )}
         </div>
       }
       primaryAction={step === 3 ? (
@@ -7580,6 +7701,60 @@ function MultiItemTakeOrderModern() {
                   </div>
 
                   <div className="take-order-checkout-main">
+                    <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-5 shadow-xs mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[14px] font-semibold text-[hsl(var(--foreground))]">Customer Details</div>
+                        <span className="text-[12px] text-[hsl(var(--muted-foreground))]">Optional</span>
+                      </div>
+                      <p className="text-[12.5px] text-[hsl(var(--muted-foreground))] mb-3.5">
+                        Pre-fill customer details from your chat, or leave blank to let the buyer fill them at checkout.
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-customer-name">
+                            Customer Name
+                          </label>
+                          <input
+                            id="input-customer-name"
+                            data-testid="input-customer-name"
+                            type="text"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            placeholder="e.g. Sarah Mensah"
+                            className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-customer-phone">
+                            Phone / WhatsApp
+                          </label>
+                          <input
+                            id="input-customer-phone"
+                            data-testid="input-customer-phone"
+                            type="tel"
+                            value={customerPhone}
+                            onChange={(e) => setCustomerPhone(e.target.value)}
+                            placeholder="e.g. +233 24 123 4567"
+                            className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-delivery-address">
+                            Delivery Address
+                          </label>
+                          <input
+                            id="input-delivery-address"
+                            data-testid="input-delivery-address"
+                            type="text"
+                            value={deliveryAddress}
+                            onChange={(e) => setDeliveryAddress(e.target.value)}
+                            placeholder="e.g. House 14, East Legon, Accra"
+                            className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="take-order-payment-config-card">
                       <div className="take-order-field-group">
                         <div className="field-label text-base font-semibold mb-2.5">How should they pay?</div>

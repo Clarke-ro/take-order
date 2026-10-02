@@ -316,7 +316,11 @@ export const CreateOrderBody = zod.object({
   "deliveryFee": zod.number().min(createOrderBodyDeliveryFeeMin).optional(),
   "depositAmount": zod.number().min(createOrderBodyDepositAmountMin).nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
-  "channel": zod.enum(['whatsapp', 'instagram', 'tiktok', 'snapchat', 'in_person'])
+  "channel": zod.enum(['whatsapp', 'instagram', 'tiktok', 'snapchat', 'in_person']),
+  "customerName": zod.string().optional(),
+  "customerPhone": zod.string().optional(),
+  "deliveryAddress": zod.string().optional(),
+  "buyerDetails": zod.string().optional()
 })
 
 

@@ -280,6 +280,10 @@ export interface OrderInput {
   depositAmount?: number | null;
   paymentMode: OrderInputPaymentMode;
   channel: OrderInputChannel;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  buyerDetails?: string;
 }
 
 export type OrderUpdateStatus = typeof OrderUpdateStatus[keyof typeof OrderUpdateStatus];

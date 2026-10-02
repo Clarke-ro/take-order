@@ -501,6 +501,10 @@ components:
         depositAmount: { type: ["number", "null"], minimum: 0 }
         paymentMode: { type: string, enum: [full, deposit, reserve] }
         channel: { type: string, enum: [whatsapp, instagram, tiktok, snapchat, in_person] }
+        customerName: { type: string }
+        customerPhone: { type: string }
+        deliveryAddress: { type: string }
+        buyerDetails: { type: string }
     OrderUpdate:
       type: object
       properties:

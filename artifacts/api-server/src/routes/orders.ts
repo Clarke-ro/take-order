@@ -279,7 +279,10 @@ export function createOrdersRouter(database: typeof db, requireSellerAuth: Reque
         paymentMode: parsed.data.paymentMode,
         status: "reserved",
         fulfillment: "pending",
-        customerName: "",
+        customerName: parsed.data.customerName?.trim() || "Waiting for buyer",
+        customerPhone: parsed.data.customerPhone?.trim() || null,
+        deliveryAddress: parsed.data.deliveryAddress?.trim() || null,
+        buyerDetails: parsed.data.buyerDetails?.trim() || null,
       })
       .returning();
     await database.insert(orderItemsTable).values(
