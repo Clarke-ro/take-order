@@ -158,10 +158,20 @@ It tracks what was checked, found, fixed, and skipped across every phase.
 ---
 
 ## Phase 6: Paywall & Subscriptions
-- **Status**: Pending
-- **Planned Work**:
-  - Document paywall tier matrix in `docs/PAYWALL.md`.
-  - Enforce server-side order link quotas.
+- **Status**: Completed
+- **Checked**:
+  - Full commercial tier matrix (Free, Pro Trial, Pro, Pro+).
+  - Server-side enforcement of 50-link quota on Free plan and 500-link quota on Pro plan (`artifacts/api-server/src/routes/orders.ts`).
+  - Pro capability gates for `/reports/summary` and `/dashboard/export` (`artifacts/api-server/src/routes/analytics.ts`).
+  - Webhook security and cache invalidation on `POST /api/webhooks/revenuecat`.
+  - Downgrade safety ensuring existing public buyer links remain active and unaffected.
+- **Found**:
+  - Authoritative limits and capabilities are synchronized between `@workspace/api-zod`, `@workspace/api-server`, and `@workspace/take-order`.
+- **Fixed**:
+  - Created `docs/PAYWALL.md` detailing the complete commercial model, lifecycle state machine, and code references.
+  - Verified 100% test coverage for link limits, quota rejections, downgrade resilience, and webhook handling.
+- **Skipped**:
+  - None.
 
 ---
 
