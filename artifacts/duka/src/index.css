@@ -4742,13 +4742,13 @@ button[data-testid^="button-filter-"]:focus-visible {
   max-height: 100dvh;
   padding: 1.5rem 1.5rem;
   background-color: #ffffff;
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 
 .auth-split-left.is-onboarding {
-  justify-content: space-between;
+  justify-content: center;
   overflow-y: auto;
-  background-color: hsl(var(--background));
+  background-color: #ffffff;
 }
 
 @media (min-width: 640px) {
@@ -4761,11 +4761,11 @@ button[data-testid^="button-filter-"]:focus-visible {
   .auth-split-left {
     width: 50%;
     padding: 2rem 3.5rem;
-    overflow-y: hidden;
+    overflow-y: auto;
   }
   .auth-split-left.is-onboarding {
-    width: 54%;
-    padding: 2.5rem 3.5rem;
+    width: 50%;
+    padding: 2rem 3.5rem;
     overflow-y: auto;
   }
 }
@@ -4776,8 +4776,8 @@ button[data-testid^="button-filter-"]:focus-visible {
     padding: 2.5rem 4.5rem;
   }
   .auth-split-left.is-onboarding {
-    width: 56%;
-    padding: 3rem 4.5rem;
+    width: 48%;
+    padding: 2.5rem 4.5rem;
   }
 }
 
@@ -4794,11 +4794,11 @@ button[data-testid^="button-filter-"]:focus-visible {
     flex: 1;
     height: 100dvh;
     max-height: 100dvh;
-    padding: 16px;
+    padding: 0;
     background-color: #ffffff;
     position: relative;
     overflow: hidden;
-    border-left: none;
+    border-left: 1px solid #F3F4F6;
   }
 }
 

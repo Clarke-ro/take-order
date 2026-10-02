@@ -8,7 +8,8 @@ import {
   CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, Crown, Download, ExternalLink, Eye, EyeOff, FileText, Globe2, Info, LayoutDashboard, LayoutGrid, Link2, List, Loader2, Mail, Menu, Minus, MoreHorizontal,
   ImagePlus, MessageSquare, Package, PackageSearch, PackageX, Pencil, Percent, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
   Trash2, TrendingUp, Truck, UserRound, Users, UsersRound, WalletCards, Workflow, Wrench, X,
-  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound, Bell, Zap, Settings, QrCode, Send
+  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound, Bell, Zap, Settings, QrCode, Send,
+  Shirt, Scissors, Coffee, Heart
 } from 'lucide-react';
 import { SiFacebook, SiInstagram, SiSnapchat, SiTiktok, SiWhatsapp, SiX } from 'react-icons/si';
 import {
@@ -1200,18 +1201,26 @@ function GoogleIcon({ className = 'h-5 w-5' }: { className?: string }) {
   );
 }
 
+function AppleIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8 1.01-2.87-.96.04-2.07.65-2.73 1.41-.57.66-.99 1.69-.93 2.76 1.05.08 2.06-.57 2.65-1.3z" />
+    </svg>
+  );
+}
+
 function AuthShowcaseCard() {
   return (
-    <div className="relative w-full h-full rounded-[16px] overflow-hidden flex items-center justify-center bg-[#0052cc] shadow-xs">
+    <div className="relative w-full h-full overflow-hidden flex items-center justify-center bg-neutral-900 select-none">
       <img
-        src="/illustrations/auth-showcase-mosaic.jpg"
-        alt="Take Order Shopping & Orders Showcase"
-        className="w-full h-full object-cover object-center select-none pointer-events-none rounded-[16px]"
+        src="/illustrations/takemarket1_3.jpg"
+        alt="Take Order Showcase"
+        className="w-full h-full object-cover object-center select-none pointer-events-none"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none rounded-[16px]" />
-      <div className="absolute bottom-6 right-6 px-4 py-2.5 rounded-full bg-white/95 backdrop-blur-md border border-white/60 text-[#111827] text-xs font-semibold flex items-center gap-2 shadow-lg">
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span>Sell through DMs with instant checkout links</span>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center text-white pointer-events-none drop-shadow-md">
+        <div className="text-3xl font-black tracking-tight lowercase">take order</div>
+        <div className="text-sm font-medium tracking-wide opacity-90 mt-0.5">for sellers</div>
       </div>
     </div>
   );
@@ -1428,7 +1437,6 @@ export function OnboardingShowcase({ step, profile }: { step: number; profile: S
 
 function AuthSplitLayout({
   children,
-  rightVariant = 'default',
   showcase,
 }: {
   children: ReactNode;
@@ -1436,34 +1444,15 @@ function AuthSplitLayout({
   showcase?: ReactNode;
 }) {
   return (
-    <div className={cn("auth-split-wrapper", rightVariant === 'onboarding' && 'bg-[hsl(var(--background))]')}>
-      <div className={cn("auth-split-left", rightVariant === 'onboarding' && 'is-onboarding')}>
-        {rightVariant === 'onboarding' ? (
-          <>
-            <header className="flex items-center justify-between pb-5 w-full max-w-[460px] mx-auto">
-              <Link href="/" aria-label="Take Order home" className="inline-flex items-center gap-2.5" data-testid="link-auth-logo">
-                <img src={brandAssets.icon} alt="Take Order" className="h-8 w-auto rounded-xl object-contain shadow-xs" />
-                <span className="font-extrabold tracking-tight text-lg text-neutral-900 leading-none">
-                  Take Order
-                </span>
-              </Link>
-            </header>
-            <main className="w-full max-w-[460px] mx-auto my-auto py-2">
-              {children}
-            </main>
-            <footer className="pt-5 text-xs text-[#9CA3AF] text-center w-full max-w-[460px] mx-auto">
-              <span>Step-by-step store setup • Take Order</span>
-            </footer>
-          </>
-        ) : (
-          <main className="w-full max-w-[380px] sm:max-w-[400px] mx-auto my-auto flex flex-col justify-center">
-            {children}
-          </main>
-        )}
+    <div className="auth-split-wrapper">
+      <div className="auth-split-left">
+        <div className="w-full max-w-[420px] mx-auto my-auto py-6 flex flex-col justify-center">
+          {children}
+        </div>
       </div>
 
       {/* Right Column Showcase */}
-      <div className={cn("auth-split-right", rightVariant === 'onboarding' && 'is-onboarding')} aria-hidden="true">
+      <div className="auth-split-right" aria-hidden="true">
         {showcase || <AuthShowcaseCard />}
       </div>
     </div>
@@ -1481,23 +1470,38 @@ const countryCurrencyMap: Record<string, SellerSettings['currency']> = {
   'Other': 'USD',
 };
 
+const countryDialPrefixMap: Record<string, string> = {
+  'Ghana': '+233',
+  'Nigeria': '+234',
+  'Kenya': '+254',
+  'South Africa': '+27',
+  'United Kingdom': '+44',
+  'United States': '+1',
+  'Canada': '+1',
+  'Other': '+1',
+};
+
 const onboardingCategories = [
-  { id: 'fashion', label: 'Fashion & Apparel', icon: '👗' },
-  { id: 'beauty', label: 'Beauty & Skincare', icon: '💄' },
-  { id: 'sneakers', label: 'Sneakers & Shoes', icon: '👟' },
-  { id: 'jewelry', label: 'Jewelry & Accessories', icon: '💍' },
-  { id: 'fragrance', label: 'Perfumes & Scents', icon: '🧴' },
-  { id: 'electronics', label: 'Tech & Gadgets', icon: '📱' },
-  { id: 'food', label: 'Food & Bakery', icon: '🧁' },
-  { id: 'home', label: 'Home & Living', icon: '🪴' },
-  { id: 'other', label: 'Other Products', icon: '✨' },
+  { id: 'fashion', label: 'Fashion & Apparel', icon: <Shirt size={22} className="stroke-[1.75]" /> },
+  { id: 'beauty', label: 'Beauty & Skincare', icon: <Sparkles size={22} className="stroke-[1.75]" /> },
+  { id: 'sneakers', label: 'Sneakers & Shoes', icon: <Package size={22} className="stroke-[1.75]" /> },
+  { id: 'jewelry', label: 'Jewelry & Accessories', icon: <Sparkles size={22} className="stroke-[1.75]" /> },
+  { id: 'hair', label: 'Hair & Salon', icon: <Scissors size={22} className="stroke-[1.75]" /> },
+  { id: 'barber', label: 'Barber & Grooming', icon: <Scissors size={22} className="stroke-[1.75]" /> },
+  { id: 'electronics', label: 'Tech & Gadgets', icon: <Smartphone size={22} className="stroke-[1.75]" /> },
+  { id: 'food', label: 'Food & Bakery', icon: <Coffee size={22} className="stroke-[1.75]" /> },
+  { id: 'home', label: 'Home & Living', icon: <Building2 size={22} className="stroke-[1.75]" /> },
+  { id: 'fragrance', label: 'Perfumes & Scents', icon: <Zap size={22} className="stroke-[1.75]" /> },
+  { id: 'wellness', label: 'Fitness & Recovery', icon: <Heart size={22} className="stroke-[1.75]" /> },
+  { id: 'other', label: 'Other Products & Services', icon: <ShoppingBag size={22} className="stroke-[1.75]" /> },
 ];
 
 const teamSizeOptions = [
-  { id: 'solo', label: 'Just me', subtitle: 'Solo seller' },
-  { id: 'small', label: '2–5 people', subtitle: 'Small team' },
-  { id: 'medium', label: '6–10 people', subtitle: 'Growing business' },
-  { id: 'large', label: '11+ people', subtitle: 'Established team' },
+  { id: 'solo', label: "I'm an Independent", subtitle: 'Solo seller or creator' },
+  { id: '2-5', label: '2-5 people', subtitle: 'Small team' },
+  { id: '6-10', label: '6-10 people', subtitle: 'Growing business' },
+  { id: '11-20', label: '11-20 people', subtitle: 'Mid-sized operation' },
+  { id: '20+', label: '20+ people', subtitle: 'Established team' },
 ];
 
 export function Onboarding() {
@@ -1508,6 +1512,8 @@ export function Onboarding() {
   const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile(userId));
   const [onboardingSaveError, setOnboardingSaveError] = useState('');
   const [offlineSavedNotice, setOfflineSavedNotice] = useState(false);
+  const [agreedOutreach, setAgreedOutreach] = useState(false);
+  const [agreedTerms, setAgreedTerms] = useState(true);
   const settingsQuery = useGetSellerSettings();
   const saveOnboardingSettingsMutation = useUpdateSellerSettings();
 
@@ -1604,74 +1610,77 @@ export function Onboarding() {
     });
   };
 
-  return (
-    <AuthSplitLayout rightVariant="onboarding" showcase={<OnboardingShowcase step={step} profile={profile} />}>
-      <div className="w-full max-w-[460px] mx-auto rounded-[16px] border border-[#E3E3EC] bg-white p-6 sm:p-8 shadow-sm">
-        {!isOnline && (
-          <div className="mb-4 flex items-center gap-2 px-3.5 py-2.5 rounded-[10px] bg-amber-50 border border-amber-200 text-xs font-medium text-amber-900" role="status">
-            <WifiOff size={15} className="shrink-0 text-amber-600" />
-            <span>Working offline. All your entries are safely saved on this device.</span>
+  // STEP 0: Finish signing up / User details - SPLIT LAYOUT WITH RIGHT IMAGE PANEL
+  if (step === 0) {
+    return (
+      <AuthSplitLayout showcase={<AuthShowcaseCard />}>
+        <div className="w-full">
+          {/* Top back button */}
+          <div className="w-full flex items-center justify-start mb-6">
+            <button
+              type="button"
+              onClick={() => setLocation('/sign-in')}
+              className="inline-flex items-center text-neutral-600 hover:text-neutral-900 transition-colors cursor-pointer"
+              aria-label="Back to sign in"
+            >
+              <ArrowLeft size={20} />
+            </button>
           </div>
-        )}
-        {step < 4 && (
-          <div className="flex items-center gap-1.5 mb-6" aria-label={`Step ${step + 1} of 4`}>
-            {[0, 1, 2, 3].map((s) => (
-              <div
-                key={s}
-                className={cn(
-                  'h-1.5 flex-1 rounded-full transition-all duration-300',
-                  s <= step ? 'bg-[#111111]' : 'bg-[#E3E3EC]'
-                )}
-              />
-            ))}
-          </div>
-        )}
 
-        {/* STEP 0: Finish signing up */}
-        {step === 0 && (
-          <div className="space-y-5">
+          <div className="text-center mb-6">
+            <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight text-neutral-900">
+              Continue signing up
+            </h1>
+            <p className="mt-1.5 text-sm text-neutral-500">
+              We need a couple more details from you
+            </p>
+          </div>
+
+          {!isOnline && (
+            <div className="mb-4 flex items-center gap-2 px-3.5 py-2.5 rounded-[10px] bg-amber-50 border border-amber-200 text-xs font-medium text-amber-900" role="status">
+              <WifiOff size={15} className="shrink-0 text-amber-600" />
+              <span>Working offline. All your entries are safely saved on this device.</span>
+            </div>
+          )}
+
+          <div className="space-y-4">
             <div>
-              <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-[#111827]">Finish signing up</h1>
-              <p className="mt-1 text-[13.5px] text-[#6B7280]">
-                Enter your details to complete your seller profile.
-              </p>
+              <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-first-name">
+                First name
+              </label>
+              <input
+                autoFocus
+                id="onboarding-first-name"
+                data-testid="input-onboarding-first-name"
+                value={profile.firstName ?? ''}
+                onChange={(e) => update('firstName', e.target.value)}
+                placeholder="First name"
+                className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+              />
             </div>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="onboarding-first-name">
-                    First name
-                  </label>
-                  <input
-                    autoFocus
-                    id="onboarding-first-name"
-                    data-testid="input-onboarding-first-name"
-                    value={profile.firstName ?? ''}
-                    onChange={(e) => update('firstName', e.target.value)}
-                    placeholder="First name"
-                    className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="onboarding-last-name">
-                    Last name
-                  </label>
-                  <input
-                    id="onboarding-last-name"
-                    data-testid="input-onboarding-last-name"
-                    value={profile.lastName ?? ''}
-                    onChange={(e) => update('lastName', e.target.value)}
-                    placeholder="Last name"
-                    className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
-                  />
-                </div>
-              </div>
+            <div>
+              <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-last-name">
+                Last name
+              </label>
+              <input
+                id="onboarding-last-name"
+                data-testid="input-onboarding-last-name"
+                value={profile.lastName ?? ''}
+                onChange={(e) => update('lastName', e.target.value)}
+                placeholder="Last name"
+                className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+              />
+            </div>
 
-              <div>
-                <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="onboarding-phone">
-                  Mobile number
-                </label>
+            <div>
+              <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-phone">
+                Mobile number
+              </label>
+              <div className="flex gap-2">
+                <div className="w-[84px] shrink-0 h-12 rounded-xl border border-neutral-300 bg-neutral-50 flex items-center justify-center text-sm font-semibold text-neutral-700">
+                  {countryDialPrefixMap[profile.country ?? 'Ghana'] || '+233'}
+                </div>
                 <input
                   id="onboarding-phone"
                   data-testid="input-onboarding-phone"
@@ -1681,50 +1690,152 @@ export function Onboarding() {
                     update('phone', e.target.value);
                     update('whatsappPhone', e.target.value);
                   }}
-                  placeholder="e.g. +233 24 123 4567"
-                  className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
+                  placeholder="24 123 4567"
+                  className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
                 />
               </div>
-
-              <div>
-                <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="onboarding-country">
-                  Country
-                </label>
-                <select
-                  id="onboarding-country"
-                  data-testid="select-onboarding-country"
-                  value={profile.country ?? 'Ghana'}
-                  onChange={(e) => handleCountryChange(e.target.value)}
-                  className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs cursor-pointer"
-                >
-                  <option value="Ghana">🇬🇭 Ghana (GHS)</option>
-                  <option value="Nigeria">🇳🇬 Nigeria (NGN)</option>
-                  <option value="Kenya">🇰🇪 Kenya (KES)</option>
-                  <option value="South Africa">🇿🇦 South Africa (ZAR)</option>
-                  <option value="United Kingdom">🇬🇧 United Kingdom (GBP)</option>
-                  <option value="United States">🇺🇸 United States (USD)</option>
-                  <option value="Canada">🇨🇦 Canada (CAD)</option>
-                  <option value="Other">🌐 Other (USD)</option>
-                </select>
-              </div>
             </div>
 
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const full = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
-                  if (full) update('sellerName', full);
-                  changeStep(1);
-                }}
-                disabled={!(profile.firstName?.trim() && profile.lastName?.trim() && (profile.phone?.trim() || profile.whatsappPhone?.trim()))}
-                className="w-full h-[42px] rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed transition shadow-xs cursor-pointer flex items-center justify-center gap-2"
-                data-testid="button-onboarding-step0-continue"
+            <div>
+              <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-country">
+                Country
+              </label>
+              <select
+                id="onboarding-country"
+                data-testid="select-onboarding-country"
+                value={profile.country ?? 'Ghana'}
+                onChange={(e) => handleCountryChange(e.target.value)}
+                className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition cursor-pointer"
               >
-                <span>Continue</span>
-                <ArrowRight size={15} />
-              </button>
+                <option value="Ghana">🇬🇭 Ghana (GHS)</option>
+                <option value="Nigeria">🇳🇬 Nigeria (NGN)</option>
+                <option value="Kenya">🇰🇪 Kenya (KES)</option>
+                <option value="South Africa">🇿🇦 South Africa (ZAR)</option>
+                <option value="United Kingdom">🇬🇧 United Kingdom (GBP)</option>
+                <option value="United States">🇺🇸 United States (USD)</option>
+                <option value="Canada">🇨🇦 Canada (CAD)</option>
+                <option value="Other">🌐 Other (USD)</option>
+              </select>
             </div>
+
+            <div className="space-y-3 pt-2">
+              <label className="flex items-start gap-3 cursor-pointer text-xs text-neutral-600 leading-normal">
+                <input
+                  type="checkbox"
+                  checked={agreedOutreach}
+                  onChange={(e) => setAgreedOutreach(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                />
+                <span>
+                  I agree to receive outreach texts about onboarding from Take Order. Message frequency varies and message & data rates may apply. Reply STOP to unsubscribe or HELP for help.
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer text-xs text-neutral-600 leading-normal">
+                <input
+                  type="checkbox"
+                  checked={agreedTerms}
+                  onChange={(e) => setAgreedTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link href="/privacy" className="text-[#6366F1] underline underline-offset-2">Privacy Policy</Link>,{' '}
+                  <Link href="/terms" className="text-[#6366F1] underline underline-offset-2">Terms of Service</Link> and Terms of Business.
+                </span>
+              </label>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const full = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
+                if (full) update('sellerName', full);
+                changeStep(1);
+              }}
+              disabled={!(profile.firstName?.trim() && profile.lastName?.trim() && (profile.phone?.trim() || profile.whatsappPhone?.trim())) || !agreedTerms}
+              className="w-full h-12 mt-4 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+              data-testid="button-onboarding-step0-continue"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      </AuthSplitLayout>
+    );
+  }
+
+  // STEPS 1-4: ONE FULL PAGE (NO RIGHT PANEL)
+  return (
+    <div className="min-h-screen w-full bg-white flex flex-col justify-between">
+      {/* Top progress bar and navigation row */}
+      <div className="w-full">
+        {/* Multi-segment progress bar spanning the top edge */}
+        <div className="w-full px-6 pt-3 pb-2 flex items-center gap-2">
+          {[1, 2, 3, 4].map((s) => (
+            <div
+              key={s}
+              className={cn(
+                'h-1.5 flex-1 rounded-full transition-all duration-300',
+                s <= step ? 'bg-[#5B5BF0]' : 'bg-[#E5E7EB]'
+              )}
+            />
+          ))}
+        </div>
+
+        {/* Top navigation row */}
+        <div className="w-full px-6 py-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => changeStep(step - 1)}
+            className="w-10 h-10 rounded-full border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition cursor-pointer shadow-2xs"
+            data-testid={step === 1 ? 'button-onboarding-step1-back' : step === 2 ? 'button-onboarding-step2-back' : 'button-onboarding-step3-back'}
+            aria-label="Back"
+          >
+            <ArrowLeft size={18} className="text-neutral-700" />
+          </button>
+
+          {step < 3 ? (
+            <button
+              type="button"
+              onClick={() => changeStep(step + 1)}
+              disabled={step === 1 ? !profile.businessName.trim() : !profile.category}
+              className="h-10 px-6 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm flex items-center gap-2 transition cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+              data-testid={step === 1 ? 'button-onboarding-step1-continue' : 'button-onboarding-step2-continue'}
+            >
+              <span>Continue</span>
+              <ArrowRight size={15} />
+            </button>
+          ) : step === 3 ? (
+            <button
+              type="button"
+              onClick={() => finishSetup(false)}
+              disabled={saveOnboardingSettingsMutation.isPending}
+              className="h-10 px-6 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm flex items-center gap-2 transition cursor-pointer shadow-xs disabled:opacity-50"
+              data-testid="button-onboarding-finish"
+            >
+              {saveOnboardingSettingsMutation.isPending ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  <span>Setting up…</span>
+                </>
+              ) : (
+                <>
+                  <span>Continue</span>
+                  <ArrowRight size={15} />
+                </>
+              )}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Main content area */}
+      <main className="w-full max-w-[840px] mx-auto px-6 py-6 flex-1 flex flex-col justify-start">
+        {!isOnline && (
+          <div className="mb-6 flex items-center gap-2 px-3.5 py-2.5 rounded-[10px] bg-amber-50 border border-amber-200 text-xs font-medium text-amber-900" role="status">
+            <WifiOff size={15} className="shrink-0 text-amber-600" />
+            <span>Working offline. All your entries are safely saved on this device.</span>
           </div>
         )}
 
@@ -1732,13 +1843,14 @@ export function Onboarding() {
         {step === 1 && (
           <div className="space-y-6">
             <div>
-              <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-[#111827]">What's your business name?</h1>
-              <p className="mt-1 text-[13.5px] text-[#6B7280]">
+              <div className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Account setup</div>
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900">What's your business name?</h1>
+              <p className="mt-2 text-sm text-neutral-500">
                 This is the name your buyers will see on checkout links and receipts.
               </p>
             </div>
 
-            <div className="pt-1">
+            <div className="pt-2">
               <input
                 autoFocus
                 id="onboarding-business-name"
@@ -1746,43 +1858,26 @@ export function Onboarding() {
                 value={profile.businessName}
                 onChange={(e) => update('businessName', e.target.value)}
                 placeholder="e.g. The Sunday Edit or Kicks Vault"
-                className="w-full h-[44px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
+                className="w-full h-14 px-5 rounded-2xl border border-neutral-300 bg-white text-lg text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition shadow-xs"
               />
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <button
-                type="button"
-                onClick={() => changeStep(0)}
-                className="text-[13px] font-medium text-[#6B7280] hover:text-[#111827] flex items-center gap-1.5 cursor-pointer transition-colors"
-                data-testid="button-onboarding-step1-back"
-              >
-                <ArrowLeft size={15} />
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => changeStep(2)}
-                disabled={!profile.businessName.trim()}
-                className="h-[42px] px-6 rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed transition shadow-xs cursor-pointer flex items-center gap-2"
-                data-testid="button-onboarding-step1-continue"
-              >
-                <span>Continue</span>
-                <ArrowRight size={15} />
-              </button>
             </div>
           </div>
         )}
 
-        {/* STEP 2: Categories */}
+        {/* STEP 2: Categories (Image 2) */}
         {step === 2 && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             <div>
-              <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-[#111827]">What best describes your business?</h1>
-              <p className="mt-1 text-[13.5px] text-[#6B7280]">Select what you sell to customize your workspace.</p>
+              <div className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Account setup</div>
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900">
+                Select categories that best describe your business
+              </h1>
+              <p className="mt-2 text-sm text-neutral-500">
+                Choose your primary and up to 3 related service type
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1" role="group" aria-label="Select business category">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2" role="group" aria-label="Select business category">
               {onboardingCategories.map((cat) => {
                 const isSelected = profile.category === cat.label;
                 return (
@@ -1791,75 +1886,56 @@ export function Onboarding() {
                     type="button"
                     onClick={() => update('category', cat.label)}
                     className={cn(
-                      'flex items-center gap-2.5 p-3 rounded-[10px] border text-left text-[13px] font-medium transition cursor-pointer',
+                      'flex flex-col items-start p-5 rounded-2xl border text-left transition-all cursor-pointer group bg-white',
                       isSelected
-                        ? 'border-[#111111] bg-[#111111] text-white shadow-xs'
-                        : 'border-[#E3E3EC] bg-white text-[#111827] hover:border-[#CBD5E1] hover:bg-[#F9F9FC]'
+                        ? 'border-neutral-900 ring-2 ring-neutral-900 bg-neutral-50/60 shadow-xs'
+                        : 'border-neutral-200 hover:border-neutral-400 hover:shadow-2xs'
                     )}
                   >
-                    <span className="text-base" aria-hidden="true">{cat.icon}</span>
-                    <span className="truncate">{cat.label}</span>
+                    <div className={cn("mb-3 transition-colors", isSelected ? "text-neutral-900" : "text-neutral-600 group-hover:text-neutral-900")}>
+                      {cat.icon}
+                    </div>
+                    <span className="text-sm font-semibold text-neutral-900">{cat.label}</span>
                   </button>
                 );
               })}
             </div>
-
-            <div className="flex items-center justify-between pt-4">
-              <button
-                type="button"
-                onClick={() => changeStep(1)}
-                className="text-[13px] font-medium text-[#6B7280] hover:text-[#111827] flex items-center gap-1.5 cursor-pointer transition-colors"
-                data-testid="button-onboarding-step2-back"
-              >
-                <ArrowLeft size={15} />
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => changeStep(3)}
-                disabled={!profile.category}
-                className="h-[42px] px-6 rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed transition shadow-xs cursor-pointer flex items-center gap-2"
-                data-testid="button-onboarding-step2-continue"
-              >
-                <span>Continue</span>
-                <ArrowRight size={15} />
-              </button>
-            </div>
           </div>
         )}
 
-        {/* STEP 3: Team size selection */}
+        {/* STEP 3: Team size (Image 3) */}
         {step === 3 && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             <div>
-              <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-[#111827]">What's your team size?</h1>
-              <p className="mt-1 text-[13.5px] text-[#6B7280]">How many people work in your business?</p>
+              <div className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Account setup</div>
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900">What's your team size?</h1>
+              <p className="mt-2 text-sm text-neutral-500">This will help us set up your workspace correctly</p>
             </div>
 
-            <div className="space-y-2.5 pt-1" role="group" aria-label="Select team size">
+            <div className="space-y-3 max-w-[680px] pt-2" role="group" aria-label="Select team size">
               {teamSizeOptions.map((opt) => {
-                const isSelected = (profile.teamSize ?? 'Just me') === opt.label;
+                const isSelected = (profile.teamSize === opt.label) || (opt.id === 'solo' && profile.teamSize === 'Just me');
                 return (
                   <button
                     key={opt.id}
                     type="button"
                     onClick={() => update('teamSize', opt.label)}
                     className={cn(
-                      'w-full flex items-center justify-between p-3.5 rounded-[10px] border text-left transition cursor-pointer',
+                      'w-full flex items-center justify-between p-5 rounded-2xl border text-left transition-all cursor-pointer bg-white',
                       isSelected
-                        ? 'border-[#111111] bg-[#F9F9FC] text-[#111827] ring-1 ring-[#111111]'
-                        : 'border-[#E3E3EC] bg-white text-[#111827] hover:border-[#CBD5E1] hover:bg-[#F9F9FC]'
+                        ? 'border-neutral-900 ring-2 ring-neutral-900 bg-neutral-50/60 shadow-xs'
+                        : 'border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50/30'
                     )}
                   >
                     <div>
-                      <div className="text-[13.5px] font-semibold text-[#111827]">{opt.label}</div>
-                      <div className="text-xs text-[#6B7280]">{opt.subtitle}</div>
+                      <div className="text-base font-semibold text-neutral-900">{opt.label}</div>
+                      <div className="text-xs text-neutral-500 mt-0.5">{opt.subtitle}</div>
                     </div>
                     <div className={cn(
-                      'w-4 h-4 rounded-full border flex items-center justify-center transition',
-                      isSelected ? 'border-[#111111] bg-[#111111]' : 'border-[#CBD5E1]'
+                      'w-5 h-5 rounded-full border flex items-center justify-center transition',
+                      isSelected ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'
                     )}>
-                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
                     </div>
                   </button>
                 );
@@ -1867,7 +1943,7 @@ export function Onboarding() {
             </div>
 
             {onboardingSaveError && (
-              <div role="alert" className="p-3.5 rounded-[10px] bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-2">
+              <div role="alert" className="p-3.5 rounded-[12px] bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-2 mt-4">
                 <div className="flex items-center gap-1.5 font-medium">
                   <WifiOff size={14} className="shrink-0 text-amber-700" />
                   <span>{onboardingSaveError}</span>
@@ -1894,92 +1970,62 @@ export function Onboarding() {
                 )}
               </div>
             )}
-
-            <div className="flex items-center justify-between pt-4">
-              <button
-                type="button"
-                onClick={() => changeStep(2)}
-                className="text-[13px] font-medium text-[#6B7280] hover:text-[#111827] flex items-center gap-1.5 cursor-pointer transition-colors"
-                data-testid="button-onboarding-step3-back"
-              >
-                <ArrowLeft size={15} />
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => finishSetup(false)}
-                disabled={saveOnboardingSettingsMutation.isPending}
-                className="h-[42px] px-6 rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] disabled:opacity-50 transition shadow-xs cursor-pointer flex items-center gap-2"
-                data-testid="button-onboarding-finish"
-              >
-                {saveOnboardingSettingsMutation.isPending ? (
-                  <>
-                    <Loader2 size={15} className="animate-spin" />
-                    <span>Setting up workspace…</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Complete setup</span>
-                    <ArrowRight size={15} />
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         )}
 
         {/* STEP 4: 7-Day Free Trial Paywall */}
         {step === 4 && (
-          <div className="space-y-5">
+          <div className="space-y-6 max-w-[600px]">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-3">
+              <div className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Account setup</div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-3">
                 <Sparkles size={13} className="text-blue-600" />
                 <span>7-Day Free Trial</span>
               </div>
-              <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-[#111827]">Start your 7-day free trial</h1>
-              <p className="mt-1 text-[13.5px] text-[#6B7280]">
-                Unlock full access for <strong className="text-[#111827]">{profile.businessName || 'your business'}</strong>. No charge today.
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900">Start your 7-day free trial</h1>
+              <p className="mt-2 text-sm text-neutral-500">
+                Unlock full access for <strong className="text-neutral-900">{profile.businessName || 'your business'}</strong>. No charge today.
               </p>
             </div>
 
-            <div className="rounded-[12px] border border-[#E3E3EC] bg-[#F9F9FC] p-4 space-y-2.5 text-xs text-[#374151]">
-              <div className="flex items-center gap-2.5 text-[#111827] font-medium">
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-6 space-y-3.5 text-sm text-neutral-700">
+              <div className="flex items-center gap-3 text-neutral-900 font-medium">
                 <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <Check size={12} strokeWidth={3} />
                 </div>
                 <span>Unlimited Take Order links for WhatsApp, IG & TikTok</span>
               </div>
-              <div className="flex items-center gap-2.5 text-[#111827] font-medium">
+              <div className="flex items-center gap-3 text-neutral-900 font-medium">
                 <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <Check size={12} strokeWidth={3} />
                 </div>
-                <span>Instant buyer receipts & real-time delivery slips</span>
+                <span>Accept Mobile Money and Card payments instantly</span>
               </div>
-              <div className="flex items-center gap-2.5 text-[#111827] font-medium">
+              <div className="flex items-center gap-3 text-neutral-900 font-medium">
                 <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <Check size={12} strokeWidth={3} />
                 </div>
-                <span>Verified business badge on your store</span>
+                <span>Auto receipts, customer database & inventory tracking</span>
               </div>
-              <div className="flex items-center gap-2.5 text-[#111827] font-medium">
+              <div className="flex items-center gap-3 text-neutral-900 font-medium">
                 <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <Check size={12} strokeWidth={3} />
                 </div>
-                <span>Automatic inventory alerts & sales channel analytics</span>
+                <span>Real-time sales analytics and exportable reports</span>
               </div>
             </div>
 
-            <div className="rounded-[12px] bg-[#111111] text-white p-4 space-y-1">
+            <div className="rounded-2xl border border-neutral-300 bg-white p-5 space-y-1 shadow-2xs">
               <div className="flex items-baseline justify-between">
-                <span className="text-[13.5px] font-semibold">Take Order Pro</span>
-                <span className="text-base font-bold">$19<span className="text-xs font-normal text-neutral-300">/mo</span></span>
+                <span className="text-sm font-semibold text-neutral-900">Take Order Pro</span>
+                <span className="text-base font-bold text-neutral-900">$19<span className="text-xs font-normal text-neutral-500">/mo</span></span>
               </div>
-              <p className="text-xs text-neutral-300">
+              <p className="text-xs text-neutral-500">
                 7 days free, then $19/month. Cancel anytime in one click from settings.
               </p>
             </div>
 
-            <div className="space-y-2.5 pt-1">
+            <div className="space-y-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -2015,29 +2061,35 @@ export function Onboarding() {
                   finishOnboarding(userId);
                   setLocation('/dashboard');
                 }}
-                className="w-full h-[44px] rounded-[10px] bg-[#111111] text-white text-[14px] font-medium hover:bg-[#262626] active:scale-[0.98] transition shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                className="w-full h-12 rounded-full bg-[#111111] text-white text-sm font-semibold hover:bg-[#262626] active:scale-[0.99] transition shadow-xs cursor-pointer flex items-center justify-center gap-2"
                 data-testid="button-onboarding-start-trial"
               >
                 <span>Start 7-Day Free Trial</span>
                 <ArrowRight size={15} />
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  finishOnboarding(userId);
-                  setLocation('/dashboard');
-                }}
-                className="w-full py-2.5 text-center text-xs font-medium text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer"
-                data-testid="button-onboarding-skip-trial"
-              >
-                Skip and continue with Free plan
-              </button>
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    finishOnboarding(userId);
+                    setLocation('/dashboard');
+                  }}
+                  className="text-xs font-medium text-neutral-500 hover:text-neutral-900 cursor-pointer transition-colors"
+                  data-testid="button-onboarding-skip-trial"
+                >
+                  Skip and continue with Free plan
+                </button>
+              </div>
             </div>
           </div>
         )}
-      </div>
-    </AuthSplitLayout>
+      </main>
+
+      <footer className="w-full py-6 text-center text-xs text-neutral-400">
+        Take Order • Account Setup
+      </footer>
+    </div>
   );
 }
 
@@ -2050,7 +2102,7 @@ const clerkAppearance = {
     logoPlacement: 'none' as const,
   },
   variables: {
-    colorPrimary: '#0052cc',
+    colorPrimary: '#111111',
     colorForeground: '#111827',
     colorMutedForeground: '#6B7280',
     colorDanger: '#EF4444',
@@ -2059,33 +2111,33 @@ const clerkAppearance = {
     colorInputForeground: '#111827',
     colorNeutral: '#E5E7EB',
     fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-    borderRadius: '0.5rem',
+    borderRadius: '0.75rem',
   },
   elements: {
     rootBox: 'w-full flex justify-center',
     cardBox: 'w-full flex justify-center !shadow-none !border-0 !bg-transparent !p-0',
-    card: '!w-full max-w-[380px] sm:max-w-[400px] !rounded-none !border-0 !bg-transparent !p-0 !shadow-none',
-    headerTitle: '!text-[28px] sm:!text-[32px] !font-bold !tracking-tight !text-[#111827] !text-left',
-    headerSubtitle: '!mt-1 !text-[14px] !text-[#6B7280] !text-left',
-    socialButtonsBlockButton: '!w-full !h-[44px] !rounded-[8px] !border !border-[#E5E7EB] !bg-white hover:!bg-[#F9FAFB] !text-[#374151] !text-[13.5px] !font-medium transition-all !shadow-none !cursor-pointer flex items-center justify-center gap-2.5',
-    socialButtonsBlockButtonText: '!text-[#374151] !font-medium !text-[13.5px]',
+    card: '!w-full max-w-[420px] !rounded-none !border-0 !bg-transparent !p-0 !shadow-none',
+    headerTitle: '!text-[26px] sm:!text-[28px] !font-bold !tracking-tight !text-[#111827] !text-center',
+    headerSubtitle: '!mt-1.5 !text-[14px] !text-[#6B7280] !text-center',
+    socialButtonsBlockButton: '!w-full !h-12 !rounded-full !border !border-neutral-300 !bg-white hover:!bg-neutral-50 !text-neutral-900 !text-sm !font-semibold transition-all !shadow-2xs !cursor-pointer flex items-center justify-center gap-3',
+    socialButtonsBlockButtonText: '!text-neutral-900 !font-semibold !text-sm',
     socialButtonsProviderIcon: '!h-4.5 !w-4.5',
-    dividerRow: '!my-3.5 !flex !items-center !justify-center',
-    dividerLine: '!border-[#E5E7EB]',
-    dividerText: '!text-[#9CA3AF] !text-xs !font-medium !bg-white !px-3',
-    formFieldLabel: '!text-[13px] !font-medium !text-[#374151] !mb-1.5',
-    formFieldInput: '!w-full !h-[44px] !rounded-[8px] !border !border-[#E5E7EB] !bg-white !text-[14px] !text-[#111827] placeholder:!text-[#9CA3AF] focus:!border-[#0052cc] focus:!ring-2 focus:!ring-[#0052cc]/20 transition-all',
-    formButtonPrimary: '!w-full !h-[44px] !rounded-[8px] !bg-[#0052cc] hover:!bg-[#0047b3] !text-white !text-[14px] !font-semibold !uppercase !tracking-wider active:scale-[0.99] transition-all !shadow-xs !cursor-pointer flex items-center justify-center !mt-2',
-    footer: '!shadow-none !border-0 !bg-transparent !rounded-none !mt-4 !pt-3 !border-t !border-[#E5E7EB] text-center',
-    footerAction: '!text-[13px] !text-[#6B7280]',
-    footerActionText: '!text-[13px] !text-[#6B7280]',
-    footerActionLink: '!font-semibold !text-[#0052cc] hover:!underline !text-[13.5px]',
+    dividerRow: '!my-5 !flex !items-center !justify-center',
+    dividerLine: '!border-neutral-200',
+    dividerText: '!text-neutral-400 !text-xs !font-semibold !uppercase !tracking-wider !bg-white !px-3',
+    formFieldLabel: '!text-sm !font-semibold !text-neutral-900 !mb-1.5',
+    formFieldInput: '!w-full !h-12 !rounded-xl !border !border-neutral-300 !bg-white !text-sm !text-neutral-900 placeholder:!text-neutral-400 focus:!border-neutral-900 focus:!ring-1 focus:!ring-neutral-900 transition-all',
+    formButtonPrimary: '!w-full !h-12 !rounded-full !bg-[#111111] hover:!bg-[#262626] !text-white !text-sm !font-semibold transition-all !shadow-xs !cursor-pointer flex items-center justify-center !mt-4 active:scale-[0.99]',
+    footer: '!shadow-none !border-0 !bg-transparent !rounded-none !mt-6 !pt-4 !border-t !border-neutral-200 text-center',
+    footerAction: '!text-sm !text-neutral-500',
+    footerActionText: '!text-sm !text-neutral-500',
+    footerActionLink: '!font-semibold !text-neutral-900 hover:!underline !text-sm',
     footerPages: 'hidden',
-    identityPreview: '!rounded-[8px] !border !border-[#E5E7EB] !p-3 !bg-[#F9FAFB]',
-    identityPreviewText: '!text-[13.5px] !font-medium !text-[#111827]',
-    identityPreviewEditButton: '!text-xs !text-[#0052cc] hover:underline',
-    otpCodeFieldInput: '!h-11 !rounded-[8px] !border !border-[#E5E7EB] !bg-[#F9FAFB] !text-lg !font-mono text-center focus:!border-[#0052cc] focus:!bg-white',
-    formFieldAction: '!text-xs !text-[#EF4444] hover:!text-[#DC2626] !font-medium',
+    identityPreview: '!rounded-xl !border !border-neutral-200 !p-3.5 !bg-neutral-50',
+    identityPreviewText: '!text-sm !font-medium !text-neutral-900',
+    identityPreviewEditButton: '!text-xs !text-[#6366F1] hover:underline',
+    otpCodeFieldInput: '!h-12 !rounded-xl !border !border-neutral-300 !bg-neutral-50 !text-lg !font-mono text-center focus:!border-neutral-900 focus:!bg-white',
+    formFieldAction: '!text-xs !text-neutral-500 hover:!text-neutral-900 !font-medium',
     logoBox: 'hidden',
     logoImage: 'hidden',
     internal: 'hidden',
@@ -2100,8 +2152,32 @@ function FallbackSignInForm() {
   const [error, setError] = useState('');
   const [, setLocation] = useLocation();
 
+  const handleMobileAuth = () => {
+    const derivedUserId = `seller_mobile_${Date.now()}`;
+    localStorage.setItem('duka-test-auth', 'true');
+    localStorage.setItem('duka-test-user-id', derivedUserId);
+    if (typeof window !== 'undefined') {
+      (window as any).__DUKA_TEST_USER_ID__ = derivedUserId;
+    }
+    setActiveSellerUserId(derivedUserId);
+    queryClient.clear();
+    setLocation('/onboarding');
+  };
+
   const handleGoogleAuth = () => {
     const derivedUserId = `seller_google_${Date.now()}`;
+    localStorage.setItem('duka-test-auth', 'true');
+    localStorage.setItem('duka-test-user-id', derivedUserId);
+    if (typeof window !== 'undefined') {
+      (window as any).__DUKA_TEST_USER_ID__ = derivedUserId;
+    }
+    setActiveSellerUserId(derivedUserId);
+    queryClient.clear();
+    setLocation('/onboarding');
+  };
+
+  const handleAppleAuth = () => {
+    const derivedUserId = `seller_apple_${Date.now()}`;
     localStorage.setItem('duka-test-auth', 'true');
     localStorage.setItem('duka-test-user-id', derivedUserId);
     if (typeof window !== 'undefined') {
@@ -2139,25 +2215,36 @@ function FallbackSignInForm() {
   };
 
   return (
-    <div className="w-full max-w-[380px] sm:max-w-[400px] mx-auto">
-      <div className="text-left mb-6">
-        <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-[#111827]">
-          Log in
+    <div className="w-full">
+      {/* Top back button */}
+      <div className="w-full flex items-center justify-start mb-6">
+        <Link
+          href="/"
+          className="inline-flex items-center text-neutral-600 hover:text-neutral-900 transition-colors cursor-pointer"
+          aria-label="Back to home"
+        >
+          <ArrowLeft size={20} />
+        </Link>
+      </div>
+
+      <div className="text-center mb-6">
+        <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight text-neutral-900">
+          Take Order for sellers
         </h1>
-        <p className="mt-1 text-[14px] text-[#6B7280]">
-          Welcome back! Please enter your email.
+        <p className="mt-1.5 text-sm text-neutral-500">
+          Create an account or log in to manage your business
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-2.5 rounded-[8px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mb-4 p-2.5 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signin-email-fallback">
+          <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="signin-email-fallback">
             Email
           </label>
           <div className="relative flex items-center">
@@ -2170,18 +2257,29 @@ function FallbackSignInForm() {
                 writeDraftAuth({ signInEmail: e.target.value });
                 setError('');
               }}
-              placeholder="Your Email"
+              placeholder="Your email"
               autoComplete="email"
-              className="w-full h-[44px] pl-3.5 pr-10 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0052cc]/20 focus:border-[#0052cc] transition"
+              className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
             />
-            <Mail size={16} className="absolute right-3.5 text-[#9CA3AF] pointer-events-none" />
           </div>
+          <p className="text-xs text-neutral-500 mt-1.5">
+            We'll send you a verification code.
+          </p>
         </div>
 
         <div>
-          <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signin-password-fallback">
-            Password
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-sm font-semibold text-neutral-900" htmlFor="signin-password-fallback">
+              Password
+            </label>
+            <button
+              type="button"
+              onClick={() => alert('Password reset instructions will be sent to your registered email.')}
+              className="text-xs text-neutral-500 hover:text-neutral-900 font-medium transition cursor-pointer"
+            >
+              Forgot password?
+            </button>
+          </div>
           <div className="relative flex items-center">
             <input
               id="signin-password-fallback"
@@ -2190,51 +2288,88 @@ function FallbackSignInForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               autoComplete="current-password"
-              className="w-full h-[44px] pl-3.5 pr-10 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0052cc]/20 focus:border-[#0052cc] transition"
+              className="w-full h-12 pl-3.5 pr-10 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 text-[#9CA3AF] hover:text-[#4B5563] p-1 cursor-pointer transition"
+              className="absolute right-3.5 text-neutral-400 hover:text-neutral-700 p-1 cursor-pointer transition"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-          <div className="flex justify-end mt-1.5">
-            <button
-              type="button"
-              onClick={() => alert('Password reset instructions will be sent to your registered email.')}
-              className="text-xs text-[#EF4444] hover:text-[#DC2626] font-medium transition cursor-pointer"
-            >
-              Forgot password?
             </button>
           </div>
         </div>
 
         <button
           type="submit"
-          className="w-full h-[44px] rounded-[8px] bg-[#0052cc] hover:bg-[#0047b3] text-white text-[14px] font-semibold uppercase tracking-wider active:scale-[0.99] transition shadow-xs cursor-pointer flex items-center justify-center mt-2"
+          className="w-full h-12 mt-2 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs active:scale-[0.99]"
           data-testid="button-auth-login"
         >
-          LOGIN
+          Continue
+        </button>
+      </form>
+
+      {/* OR Divider */}
+      <div className="relative my-6 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-neutral-200" />
+        </div>
+        <span className="relative bg-white px-3 text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+          OR
+        </span>
+      </div>
+
+      {/* 3 Pill buttons */}
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={handleMobileAuth}
+          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
+        >
+          <Smartphone size={18} className="text-neutral-700 absolute left-5" />
+          <span>Continue with mobile</span>
         </button>
 
         <button
           type="button"
           onClick={handleGoogleAuth}
-          className="w-full h-[44px] rounded-[8px] border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] text-[#374151] text-[13.5px] font-medium flex items-center justify-center gap-2.5 transition cursor-pointer active:scale-[0.99]"
+          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
         >
-          <GoogleIcon className="h-4.5 w-4.5" />
-          <span>Sign in with Google</span>
+          <GoogleIcon className="h-4.5 w-4.5 absolute left-5" />
+          <span>Continue with Google</span>
         </button>
-      </form>
 
-      <div className="mt-6 text-center text-[13.5px] text-[#6B7280]">
+        <button
+          type="button"
+          onClick={handleAppleAuth}
+          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
+        >
+          <AppleIcon className="h-4.5 w-4.5 text-neutral-900 absolute left-5" />
+          <span>Continue with Apple</span>
+        </button>
+      </div>
+
+      {/* Buyer tracking prompt */}
+      <div className="mt-7 text-center">
+        <p className="text-sm font-semibold text-neutral-900">Are you a customer looking to track an order?</p>
+        <Link href="/track" className="text-sm font-semibold text-[#6366F1] hover:underline mt-1 inline-block">
+          Go to Take Order for buyers
+        </Link>
+      </div>
+
+      {/* Switch to sign-up */}
+      <div className="mt-4 text-center text-sm text-neutral-500">
         Don't have an account?{' '}
-        <Link href="/sign-up" className="font-semibold text-[#0052cc] hover:underline" data-testid="link-auth-sign-up">
+        <Link href="/sign-up" className="font-semibold text-neutral-900 hover:underline" data-testid="link-auth-sign-up">
           Sign up
         </Link>
+      </div>
+
+      {/* reCAPTCHA footer */}
+      <div className="mt-6 text-center text-[11px] text-neutral-400 leading-relaxed">
+        <p>This site is protected by reCAPTCHA</p>
+        <p>Google Privacy Policy and Terms of Service apply</p>
       </div>
     </div>
   );
@@ -2249,8 +2384,34 @@ function FallbackSignUpForm() {
   const [error, setError] = useState('');
   const [, setLocation] = useLocation();
 
+  const handleMobileAuth = () => {
+    const newUserId = `seller_mobile_${Date.now()}`;
+    localStorage.setItem('duka-test-auth', 'true');
+    localStorage.setItem('duka-test-user-id', newUserId);
+    if (typeof window !== 'undefined') {
+      (window as any).__DUKA_TEST_USER_ID__ = newUserId;
+    }
+    setActiveSellerUserId(newUserId);
+    queryClient.clear();
+    writeOnboardingStep(0, newUserId);
+    setLocation('/onboarding');
+  };
+
   const handleGoogleAuth = () => {
     const newUserId = `seller_google_${Date.now()}`;
+    localStorage.setItem('duka-test-auth', 'true');
+    localStorage.setItem('duka-test-user-id', newUserId);
+    if (typeof window !== 'undefined') {
+      (window as any).__DUKA_TEST_USER_ID__ = newUserId;
+    }
+    setActiveSellerUserId(newUserId);
+    queryClient.clear();
+    writeOnboardingStep(0, newUserId);
+    setLocation('/onboarding');
+  };
+
+  const handleAppleAuth = () => {
+    const newUserId = `seller_apple_${Date.now()}`;
     localStorage.setItem('duka-test-auth', 'true');
     localStorage.setItem('duka-test-user-id', newUserId);
     if (typeof window !== 'undefined') {
@@ -2292,25 +2453,36 @@ function FallbackSignUpForm() {
   };
 
   return (
-    <div className="w-full max-w-[380px] sm:max-w-[400px] mx-auto">
-      <div className="text-left mb-6">
-        <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-[#111827]">
-          Sign up
+    <div className="w-full">
+      {/* Top back button */}
+      <div className="w-full flex items-center justify-start mb-6">
+        <Link
+          href="/"
+          className="inline-flex items-center text-neutral-600 hover:text-neutral-900 transition-colors cursor-pointer"
+          aria-label="Back to home"
+        >
+          <ArrowLeft size={20} />
+        </Link>
+      </div>
+
+      <div className="text-center mb-6">
+        <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight text-neutral-900">
+          Take Order for sellers
         </h1>
-        <p className="mt-1 text-[14px] text-[#6B7280]">
-          Create your account to start selling in seconds.
+        <p className="mt-1.5 text-sm text-neutral-500">
+          Create an account or log in to manage your business
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-2.5 rounded-[8px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mb-4 p-2.5 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3.5">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signup-email-fallback">
+          <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="signup-email-fallback">
             Email
           </label>
           <div className="relative flex items-center">
@@ -2323,17 +2495,19 @@ function FallbackSignUpForm() {
                 writeDraftAuth({ signUpEmail: e.target.value });
                 setError('');
               }}
-              placeholder="Your Email"
+              placeholder="Your email"
               autoComplete="email"
-              className="w-full h-[44px] pl-3.5 pr-10 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0052cc]/20 focus:border-[#0052cc] transition"
+              className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
             />
-            <Mail size={16} className="absolute right-3.5 text-[#9CA3AF] pointer-events-none" />
           </div>
+          <p className="text-xs text-neutral-500 mt-1.5">
+            We'll send you a verification code.
+          </p>
         </div>
 
         <div>
-          <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signup-name-fallback">
-            Store name <span className="text-[#9CA3AF] font-normal">(optional)</span>
+          <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="signup-name-fallback">
+            Store name <span className="text-neutral-400 font-normal">(optional)</span>
           </label>
           <div className="relative flex items-center">
             <input
@@ -2345,14 +2519,13 @@ function FallbackSignUpForm() {
                 writeDraftAuth({ signUpFullName: e.target.value });
               }}
               placeholder="e.g. Sunday Edit or Kicks Vault"
-              className="w-full h-[44px] pl-3.5 pr-10 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0052cc]/20 focus:border-[#0052cc] transition"
+              className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
             />
-            <Store size={16} className="absolute right-3.5 text-[#9CA3AF] pointer-events-none" />
           </div>
         </div>
 
         <div>
-          <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signup-password-fallback">
+          <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="signup-password-fallback">
             Password
           </label>
           <div className="relative flex items-center">
@@ -2363,12 +2536,12 @@ function FallbackSignUpForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
               autoComplete="new-password"
-              className="w-full h-[44px] pl-3.5 pr-10 rounded-[8px] border border-[#E5E7EB] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0052cc]/20 focus:border-[#0052cc] transition"
+              className="w-full h-12 pl-3.5 pr-10 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 text-[#9CA3AF] hover:text-[#4B5563] p-1 cursor-pointer transition"
+              className="absolute right-3.5 text-neutral-400 hover:text-neutral-700 p-1 cursor-pointer transition"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -2378,34 +2551,73 @@ function FallbackSignUpForm() {
 
         <button
           type="submit"
-          className="w-full h-[44px] rounded-[8px] bg-[#0052cc] hover:bg-[#0047b3] text-white text-[14px] font-semibold uppercase tracking-wider active:scale-[0.99] transition shadow-xs cursor-pointer flex items-center justify-center mt-2"
+          className="w-full h-12 mt-2 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs active:scale-[0.99]"
           data-testid="button-auth-signup"
         >
-          SIGN UP
+          Continue
+        </button>
+      </form>
+
+      {/* OR Divider */}
+      <div className="relative my-6 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-neutral-200" />
+        </div>
+        <span className="relative bg-white px-3 text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+          OR
+        </span>
+      </div>
+
+      {/* 3 Pill buttons */}
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={handleMobileAuth}
+          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
+        >
+          <Smartphone size={18} className="text-neutral-700 absolute left-5" />
+          <span>Continue with mobile</span>
         </button>
 
         <button
           type="button"
           onClick={handleGoogleAuth}
-          className="w-full h-[44px] rounded-[8px] border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] text-[#374151] text-[13.5px] font-medium flex items-center justify-center gap-2.5 transition cursor-pointer active:scale-[0.99]"
+          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
         >
-          <GoogleIcon className="h-4.5 w-4.5" />
-          <span>Sign up with Google</span>
+          <GoogleIcon className="h-4.5 w-4.5 absolute left-5" />
+          <span>Continue with Google</span>
         </button>
-      </form>
 
-      <p className="mt-3.5 text-center text-xs text-[#9CA3AF] leading-relaxed">
-        By continuing, you agree to Take Order's{' '}
-        <Link href="/terms" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Terms</Link>{' '}
-        and{' '}
-        <Link href="/privacy" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Privacy Policy</Link>.
-      </p>
+        <button
+          type="button"
+          onClick={handleAppleAuth}
+          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
+        >
+          <AppleIcon className="h-4.5 w-4.5 text-neutral-900 absolute left-5" />
+          <span>Continue with Apple</span>
+        </button>
+      </div>
 
-      <div className="mt-4 text-center text-[13.5px] text-[#6B7280]">
+      {/* Buyer tracking link */}
+      <div className="mt-7 text-center">
+        <p className="text-sm font-semibold text-neutral-900">Are you a customer looking to track an order?</p>
+        <Link href="/track" className="text-sm font-semibold text-[#6366F1] hover:underline mt-1 inline-block">
+          Go to Take Order for buyers
+        </Link>
+      </div>
+
+      {/* Switch between sign-up and sign-in */}
+      <div className="mt-4 text-center text-sm text-neutral-500">
         Already have an account?{' '}
-        <Link href="/sign-in" className="font-semibold text-[#0052cc] hover:underline" data-testid="link-auth-sign-in">
+        <Link href="/sign-in" className="font-semibold text-neutral-900 hover:underline" data-testid="link-auth-sign-in">
           Log in
         </Link>
+      </div>
+
+      {/* reCAPTCHA footer */}
+      <div className="mt-6 text-center text-[11px] text-neutral-400 leading-relaxed">
+        <p>This site is protected by reCAPTCHA</p>
+        <p>Google Privacy Policy and Terms of Service apply</p>
       </div>
     </div>
   );
