@@ -6062,17 +6062,152 @@ function Clients() {
       filterCards={clients.length > 0 ? clientFilterCards : undefined}
     />
     {query.isLoading ? <ClientsSkeleton /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : !clients.length ? <EmptyState card icon={Users} title="Your client list starts with an order" description="When a buyer shares their details, Take Order will keep their purchase history together here." action={<Link href="/take-order" data-testid="link-clients-empty-order"><Button className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white font-medium rounded-[8px] h-9 px-4 gap-1.5 inline-flex items-center text-[13px]"><Plus size={15} />Take an order</Button></Link>} /> : <>
-       <section className="clients-list-section space-y-5">
-         <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
-            {filteredClients.length ? <div className="clients-table-wrap"><div className="table-summary-bar border-b border-slate-200 dark:border-slate-800"><span>{filteredClients.length} {filteredClients.length === 1 ? 'client' : 'clients'}</span></div><div className="clients-table-head border-b border-slate-200 dark:border-slate-800"><span>Client</span><span>Phone</span><span className="is-numeric">Orders</span><span className="is-numeric">Collected</span><span className="is-numeric">Balance due</span><span className="is-numeric">Last purchase</span><span className="sr-only">Details</span></div>{filteredClients.map((client) => <div className="clients-table-row border-b border-slate-200/90 dark:border-slate-800/90 py-3" key={client.key} data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="clients-buyer-cell"><div className="clients-avatar">{initials(client.displayName)}</div><div className="min-w-0"><div className="truncate text-[15px] font-semibold" data-testid={`text-client-name-${client.key}`}>{client.displayName}</div></div></div><div className="clients-cell-labeled clients-phone-cell"><span className="clients-mobile-label">Phone</span><span className="inline-flex items-center gap-1.5"><span>{client.phone || '—'}</span>{client.phone && <button type="button" className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-[#25D366] hover:bg-emerald-100 transition-colors" title={`Open WhatsApp chat with ${client.displayName}`} aria-label={`Open WhatsApp chat with ${client.displayName}`} onClick={() => openWhatsApp(client.phone, `Hi ${client.displayName}!`)}><SiWhatsapp size={13} /></button>}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Orders</span><span className="font-mono-ui text-sm font-bold">{client.orderCount}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Collected</span><span className="font-mono-ui text-sm font-bold">{moneyExact(client.collected)}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Balance due</span><span className="font-mono-ui text-sm font-bold">{client.outstanding ? moneyExact(client.outstanding) : '—'}</span></div><div className="clients-cell-labeled clients-numeric-cell"><span className="clients-mobile-label">Last purchase</span><span className="font-mono-ui text-sm">{dateShort(client.latestPurchase)}</span></div><div className="clients-actions flex items-center gap-2">{client.outstanding > 0 && client.phone && <button type="button" className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors" title="Send balance reminder on WhatsApp" onClick={() => { const profile = readSellerProfile(); const msg = buildClientBalanceReminderMessage({ clientName: client.displayName, balanceDue: client.outstanding, shopName: profile?.businessName || 'our shop', currencySymbol: currencySymbol() }); openWhatsApp(client.phone, msg); }}><MessageSquare size={12} />Remind</button>}<Link href={`/clients/${encodeURIComponent(client.key)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link">View <ArrowRight size={13} /></Link></div></div>)}</div> : <div className="p-5 sm:p-6"><EmptyState icon={Search} title="No clients match" /></div>}
-        </Card>
-      </section>
+       <section className="clients-list-section space-y-4">
+         <Card className="clients-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+           <div className="clients-table-wrap" role="table" aria-label="Clients">
+             <div className="table-summary-bar border-b border-[#E8E8EE] dark:border-neutral-800 px-4 py-2.5 text-[13px] text-[#6B7280] dark:text-neutral-400">
+               <span>{filteredClients.length} {filteredClients.length === 1 ? 'client' : 'clients'}</span>
+             </div>
+             <div className="clients-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+               <span role="columnheader">Client</span>
+               <span role="columnheader">Phone</span>
+               <span role="columnheader" className="is-numeric">Orders</span>
+               <span role="columnheader" className="is-numeric">Collected</span>
+               <span role="columnheader" className="is-numeric">Balance due</span>
+               <span role="columnheader" className="is-numeric">Last purchase</span>
+               <span role="columnheader" className="text-right">Details</span>
+             </div>
+             {filteredClients.length ? (
+               filteredClients.map((client) => (
+                 <div
+                   key={client.key}
+                   className="clients-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors"
+                   role="row"
+                   data-testid={`row-client-${client.key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}
+                 >
+                   <div className="clients-buyer-cell">
+                     <div className="clients-avatar">{initials(client.displayName)}</div>
+                     <div className="min-w-0">
+                       <div className="truncate text-[14px] font-medium text-[#111827] dark:text-neutral-100" data-testid={`text-client-name-${client.key}`}>
+                         {client.displayName}
+                       </div>
+                     </div>
+                   </div>
+                   <div className="clients-cell-labeled clients-phone-cell">
+                     <span className="clients-mobile-label">Phone</span>
+                     <span className="inline-flex items-center gap-1.5 text-[13.5px] text-[#6B7280] dark:text-neutral-400">
+                       <span>{client.phone || '—'}</span>
+                       {client.phone && (
+                         <button
+                           type="button"
+                           className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-[#25D366] hover:bg-emerald-100 transition-colors cursor-pointer"
+                           title={`Open WhatsApp chat with ${client.displayName}`}
+                           aria-label={`Open WhatsApp chat with ${client.displayName}`}
+                           onClick={() => openWhatsApp(client.phone, `Hi ${client.displayName}!`)}
+                         >
+                           <SiWhatsapp size={13} />
+                         </button>
+                       )}
+                     </span>
+                   </div>
+                   <div className="clients-cell-labeled clients-numeric-cell text-right">
+                     <span className="clients-mobile-label">Orders</span>
+                     <span className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100">{client.orderCount}</span>
+                   </div>
+                   <div className="clients-cell-labeled clients-numeric-cell text-right">
+                     <span className="clients-mobile-label">Collected</span>
+                     <span className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100">{moneyExact(client.collected)}</span>
+                   </div>
+                   <div className="clients-cell-labeled clients-numeric-cell text-right">
+                     <span className="clients-mobile-label">Balance due</span>
+                     <span className="font-mono-ui text-[14px] font-medium text-[#111827] dark:text-neutral-100">{client.outstanding ? moneyExact(client.outstanding) : '—'}</span>
+                   </div>
+                   <div className="clients-cell-labeled clients-numeric-cell text-right">
+                     <span className="clients-mobile-label">Last purchase</span>
+                     <span className="font-mono-ui text-[13px] text-[#6B7280] dark:text-neutral-400">{dateShort(client.latestPurchase)}</span>
+                   </div>
+                   <div className="clients-actions flex items-center justify-end gap-2">
+                     {client.outstanding > 0 && client.phone && (
+                       <button
+                         type="button"
+                         className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
+                         title="Send balance reminder on WhatsApp"
+                         onClick={() => {
+                           const profile = readSellerProfile();
+                           const msg = buildClientBalanceReminderMessage({
+                             clientName: client.displayName,
+                             balanceDue: client.outstanding,
+                             shopName: profile?.businessName || 'our shop',
+                             currencySymbol: currencySymbol(),
+                           });
+                           openWhatsApp(client.phone, msg);
+                         }}
+                       >
+                         <MessageSquare size={12} />
+                         <span>Remind</span>
+                       </button>
+                     )}
+                     <Link href={`/clients/${encodeURIComponent(client.key)}`} data-testid={`link-view-client-${client.key}`} className="clients-view-link text-[13px] font-medium">
+                       <span>View</span>
+                       <ArrowRight size={13} />
+                     </Link>
+                   </div>
+                 </div>
+               ))
+             ) : (
+               <div className="py-12 px-6 text-center text-[#6B7280] dark:text-neutral-400">
+                 <p className="text-[14px] font-medium text-[#111827] dark:text-neutral-200">No matching clients</p>
+                 <p className="text-[13px] mt-1 text-[#6B7280] dark:text-neutral-400">Try adjusting your search terms or filter.</p>
+               </div>
+             )}
+           </div>
+         </Card>
+       </section>
     </>}
   </Shell>;
 }
 
 function ClientsSkeleton() {
-  return <div className="space-y-8 sm:space-y-10" aria-label="Loading clients"><div className="clients-overview">{Array.from({ length: 4 }, (_, index) => <Card key={index} className="h-[176px] p-6 sm:p-7 flex flex-col justify-between"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-16" /><Skeleton className="h-4 w-32" /></Card>)}</div><Card className="h-[360px] p-6 sm:p-7"><Skeleton className="h-6 w-24" /><Skeleton className="mt-8 h-11 w-56 ml-auto" /><Skeleton className="mt-4 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /><Skeleton className="mt-3 h-14 w-full" /></Card></div>;
+  return (
+    <div className="space-y-6" aria-label="Loading clients">
+      <div className="clients-overview">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Card key={index} className="h-[176px] p-6 sm:p-7 flex flex-col justify-between rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+            <Skeleton className="h-4 w-24 rounded-[8px]" />
+            <Skeleton className="h-10 w-16 rounded-[8px]" />
+            <Skeleton className="h-4 w-32 rounded-[8px]" />
+          </Card>
+        ))}
+      </div>
+      <Card className="clients-table-card overflow-hidden rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none">
+        <div className="clients-table-wrap" role="table">
+          <div className="clients-table-head border-b border-[#E3E3EC] dark:border-neutral-800" role="row">
+            <span role="columnheader">Client</span>
+            <span role="columnheader">Phone</span>
+            <span role="columnheader" className="is-numeric">Orders</span>
+            <span role="columnheader" className="is-numeric">Collected</span>
+            <span role="columnheader" className="is-numeric">Balance due</span>
+            <span role="columnheader" className="is-numeric">Last purchase</span>
+            <span role="columnheader" className="text-right">Details</span>
+          </div>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="clients-table-row border-b border-[#E8E8EE] dark:border-neutral-800/80 last:border-b-0 h-[64px]">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-[11px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse shrink-0" />
+                <div className="h-4 w-28 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" />
+              </div>
+              <div><div className="h-4 w-24 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+              <div className="flex justify-end"><div className="h-4 w-10 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+              <div className="flex justify-end"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+              <div className="flex justify-end"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+              <div className="flex justify-end"><div className="h-4 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+              <div className="flex justify-end"><div className="h-7 w-16 rounded-[8px] bg-[#F4F4FA] dark:bg-neutral-800 animate-pulse" /></div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
 }
 
 type TakeOrderPath = 'catalog' | 'custom';
