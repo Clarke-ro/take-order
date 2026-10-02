@@ -39,6 +39,7 @@ import { DataTable, type DataTableColumn } from '@/components/data-table';
 import { SegmentedControl } from '@/components/segmented-control';
 import { OrderSummaryDrawer } from '@/components/order-summary-drawer';
 import { generateOrdersCsv, downloadCsvFile, sanitizeCsvCell } from '@/lib/order-export';
+import { getSafeRedirectUrl } from '@/lib/redirect';
 import { ClientDetailPage } from '@/pages/client-detail';
 import { IntegrationsComingSoonPage } from '@/pages/integrations';
 import { AnalyticsPage } from '@/pages/analytics';
@@ -203,16 +204,19 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
     window.location.href = '/sign-in';
   };
 
-  const value = useMemo(
-    () => ({
-      isLoaded: auth.isLoaded || isTestAuth,
-      isSignedIn: Boolean(auth.isSignedIn || (isTestAuth && Boolean(testUserId))),
+  const value = useMemo(() => {
+    const isLoaded = Boolean(auth.isLoaded || isTestAuth);
+    const isSignedIn = Boolean(auth.isSignedIn || (isTestAuth && Boolean(testUserId)));
+    const authState = !isLoaded ? 'loading' : isSignedIn ? 'signed_in' : 'signed_out';
+    return {
+      isLoaded,
+      isSignedIn,
+      authState,
       userId: effectiveUserId,
       email: effectiveEmail,
       signOut,
-    }),
-    [auth.isLoaded, auth.isSignedIn, isTestAuth, testUserId, effectiveUserId, effectiveEmail]
-  );
+    };
+  }, [auth.isLoaded, auth.isSignedIn, isTestAuth, testUserId, effectiveUserId, effectiveEmail]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
@@ -2405,15 +2409,16 @@ function FallbackSignUpForm() {
 
 function SignInPage() {
   const [, setLocation] = useLocation();
-  const { isLoaded, isSignedIn } = useAppAuth();
+  const { authState, isLoaded, isSignedIn } = useAppAuth();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
+  const target = getSafeRedirectUrl(typeof window !== 'undefined' ? window.location.search : '', '/dashboard');
 
   useEffect(() => {
-    if (isLoaded && effectiveSignedIn) {
-      setLocation('/dashboard');
+    if (isLoaded && effectiveSignedIn && authState !== 'loading') {
+      setLocation(target);
     }
-  }, [isLoaded, effectiveSignedIn, setLocation]);
+  }, [isLoaded, effectiveSignedIn, authState, setLocation, target]);
 
   return (
     <AuthSplitLayout>
@@ -2428,8 +2433,8 @@ function SignInPage() {
             routing="path"
             path={`${basePath}/sign-in`}
             signUpUrl={`${basePath}/sign-up`}
-            fallbackRedirectUrl={`${basePath}/dashboard`}
-            forceRedirectUrl={`${basePath}/dashboard`}
+            fallbackRedirectUrl={target}
+            forceRedirectUrl={target}
             appearance={clerkAppearance}
           />
         </div>
@@ -2442,15 +2447,16 @@ function SignInPage() {
 
 function SignUpPage() {
   const [, setLocation] = useLocation();
-  const { isLoaded, isSignedIn } = useAppAuth();
+  const { authState, isLoaded, isSignedIn } = useAppAuth();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
+  const target = getSafeRedirectUrl(typeof window !== 'undefined' ? window.location.search : '', '/onboarding');
 
   useEffect(() => {
-    if (isLoaded && effectiveSignedIn) {
-      setLocation('/dashboard');
+    if (isLoaded && effectiveSignedIn && authState !== 'loading') {
+      setLocation(target);
     }
-  }, [isLoaded, effectiveSignedIn, setLocation]);
+  }, [isLoaded, effectiveSignedIn, authState, setLocation, target]);
 
   return (
     <AuthSplitLayout>
@@ -2465,8 +2471,8 @@ function SignUpPage() {
             routing="path"
             path={`${basePath}/sign-up`}
             signInUrl={`${basePath}/sign-in`}
-            fallbackRedirectUrl={`${basePath}/onboarding`}
-            forceRedirectUrl={`${basePath}/onboarding`}
+            fallbackRedirectUrl={target}
+            forceRedirectUrl={target}
             appearance={clerkAppearance}
           />
         </div>
@@ -2478,8 +2484,8 @@ function SignUpPage() {
 }
 
 function SellerRoute({ children }: { children: ReactNode }) {
-  const [, setLocation] = useLocation();
-  const { isLoaded, isSignedIn, userId } = useAppAuth();
+  const [location, setLocation] = useLocation();
+  const { authState, isLoaded, isSignedIn, userId } = useAppAuth();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
   const settingsQuery = useGetSellerSettings({
@@ -2513,17 +2519,25 @@ function SellerRoute({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (clerkPubKey && !isLoaded && !isTestAuth) {
+    // 1. While auth is loading or resolving session, DO NOT REDIRECT
+    if (!isTestAuth && (authState === 'loading' || !isLoaded)) {
       return;
     }
-    if (!effectiveSignedIn) {
-      setLocation('/sign-in');
+
+    // 2. Only redirect once definitively resolved to unauthenticated
+    if (!effectiveSignedIn || authState === 'signed_out') {
+      const redirectParam = location && location !== '/' && !location.startsWith('/sign-in') && !location.startsWith('/sign-up')
+        ? `?redirect=${encodeURIComponent(location)}`
+        : '';
+      setLocation(`/sign-in${redirectParam}`);
       return;
     }
-    // Do not redirect while query is resolving on initial load or refresh
+
+    // 3. Do not redirect while seller profile query is resolving on initial load or refresh
     if (clerkPubKey && (settingsQuery.isLoading || settingsQuery.isPending) && !settingsQuery.data) {
       return;
     }
+
     const completed = readOnboardingComplete(userId);
     const localProfile = readSellerProfile(userId);
     const hasBusinessProfile = Boolean(settingsQuery.data?.businessName?.trim() || localProfile?.businessName?.trim());
@@ -2538,11 +2552,22 @@ function SellerRoute({ children }: { children: ReactNode }) {
       return;
     }
     setReady(true);
-  }, [isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.isLoading, settingsQuery.isPending, settingsQuery.isSuccess, settingsQuery.data?.businessName, setLocation]);
+  }, [authState, isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.isLoading, settingsQuery.isPending, settingsQuery.isSuccess, settingsQuery.data?.businessName, setLocation, location]);
 
   setActiveCurrency(settingsQuery.data?.currency ?? 'GHS');
-  if (!clerkPubKey && !isTestAuth) return <Redirect to="/sign-in" />;
-  if ((!isLoaded || !effectiveSignedIn || !ready) && !isTestAuth) {
+
+  if (!clerkPubKey && !isTestAuth) {
+    const redirectParam = location && location !== '/' ? `?redirect=${encodeURIComponent(location)}` : '';
+    return <Redirect to={`/sign-in${redirectParam}`} />;
+  }
+
+  // Render stable loading skeleton while restoring session or fetching initial seller settings
+  if ((authState === 'loading' || !isLoaded || !effectiveSignedIn || !ready) && !isTestAuth) {
+    // If definitively unauthenticated, perform safe redirect
+    if (authState === 'signed_out') {
+      const redirectParam = location && location !== '/' ? `?redirect=${encodeURIComponent(location)}` : '';
+      return <Redirect to={`/sign-in${redirectParam}`} />;
+    }
     return (
       <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6">
         <div className="w-full max-w-[320px]">
@@ -2565,7 +2590,7 @@ function HomeRoute() {
 }
 
 function OnboardingRoute() {
-  const { isLoaded, isSignedIn, userId } = useAppAuth();
+  const { authState, isLoaded, isSignedIn, userId } = useAppAuth();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
   const [, setLocation] = useLocation();
@@ -2577,9 +2602,9 @@ function OnboardingRoute() {
   });
 
   useEffect(() => {
-    if (!isLoaded && !isTestAuth) return;
-    if (!effectiveSignedIn) {
-      setLocation('/sign-in');
+    if (!isTestAuth && (authState === 'loading' || !isLoaded)) return;
+    if (!effectiveSignedIn || authState === 'signed_out') {
+      setLocation('/sign-in?redirect=/onboarding');
       return;
     }
     if (clerkPubKey && (settingsQuery.isLoading || settingsQuery.isPending) && !settingsQuery.data) return;
@@ -2592,9 +2617,9 @@ function OnboardingRoute() {
       }
       setLocation('/dashboard');
     }
-  }, [isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.isLoading, settingsQuery.isPending, settingsQuery.data?.businessName, setLocation]);
+  }, [authState, isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.isLoading, settingsQuery.isPending, settingsQuery.data?.businessName, setLocation]);
 
-  if (!isLoaded && !isTestAuth) {
+  if (!isTestAuth && (authState === 'loading' || !isLoaded)) {
     return (
       <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6">
         <div className="w-full max-w-[320px]">
@@ -2605,7 +2630,7 @@ function OnboardingRoute() {
       </div>
     );
   }
-  if (!effectiveSignedIn) return <Redirect to="/sign-in" />;
+  if (!effectiveSignedIn || authState === 'signed_out') return <Redirect to="/sign-in?redirect=/onboarding" />;
   return <Onboarding />;
 }
 

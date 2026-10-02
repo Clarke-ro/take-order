@@ -67,11 +67,26 @@ It tracks what was checked, found, fixed, and skipped across every phase.
 ---
 
 ## Phase 2: Routing & Auth-Flow Bugs
-- **Status**: Pending
-- **Planned Work**:
-  - Implement three-valued auth state (`loading` | `signed_in` | `signed_out`).
-  - Render branded skeleton during `loading` to prevent reload-to-signup redirects.
-  - Preserve deep-link redirect parameters.
+- **Status**: Completed
+- **Checked**:
+  - Route guards in `App.tsx` (`SellerRoute`, `ProtectedRoute`, `OnboardingRoute`, `SignInPage`, `SignUpPage`).
+  - Auth context provider and initialization in `artifacts/duka/src/lib/auth-context.ts` and `ClerkAuthBridge`.
+  - Reload behavior across protected routes (`/dashboard`, `/orders`, `/orders/:id`, `/catalog`, `/clients`, `/expenses`, `/settings`).
+  - Public routes (`/`, `/o/:token`, `/terms`, `/privacy`, `/refund-policy`): verified they remain completely unguarded.
+  - Deep-link preservation and redirection loops.
+- **Found**:
+  - Root cause of reload-to-signup bug: `AuthContext` initialized with default `isLoaded: true, isSignedIn: false`, creating a race condition where `SellerRoute` evaluated the user as unauthenticated during initial render before `<ClerkAuthBridge>` finished syncing with Clerk.
+  - Hardcoded redirects: `SignInPage` and `SignUpPage` had hardcoded redirects to `/dashboard` (and `forceRedirectUrl` in Clerk component), discarding the intended destination upon reload or login.
+  - Premature redirects: `SellerRoute` called `setLocation('/sign-in')` before auth session was fully resolved.
+- **Fixed**:
+  - Implemented explicit three-valued auth state (`authState: 'loading' | 'signed_in' | 'signed_out'`) in `artifacts/duka/src/lib/auth-context.ts`.
+  - Defaulted `AuthContext` to `isLoaded: false` and `authState: 'loading'`.
+  - Updated `SellerRoute` and `OnboardingRoute` to render a branded skeleton during `'loading'`, completely eliminating reload-to-signup bouncing.
+  - Implemented `getSafeRedirectUrl` utility (`src/lib/redirect.ts`) with open-redirect protection.
+  - Updated `SignInPage` and `SignUpPage` to preserve and honor deep-link `?redirect=` parameters.
+  - Added unit tests in `artifacts/duka/src/lib/auth-routing.test.ts` (6/6 passing; 57/57 total frontend tests passing).
+- **Skipped**:
+  - None.
 
 ---
 
