@@ -1210,16 +1210,16 @@ function GoogleIcon({ className = 'h-5 w-5' }: { className?: string }) {
 
 function AuthShowcaseCard() {
   return (
-    <div className="relative w-full h-full min-h-screen overflow-hidden flex items-center justify-center bg-[#0d0e12]">
+    <div className="relative w-full h-full min-h-screen overflow-hidden flex items-center justify-center bg-[#0052cc]">
       <img
         src="/illustrations/auth-showcase-mosaic.jpg"
-        alt="Take Order Apparel & Orders Showcase"
-        className="w-full h-full min-h-screen object-cover object-center select-none pointer-events-none transform scale-100"
+        alt="Take Order Shopping & Orders Showcase"
+        className="w-full h-full min-h-screen object-cover object-center select-none pointer-events-none"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
-      <div className="absolute bottom-6 right-6 px-4 py-2 rounded-full bg-neutral-900/80 backdrop-blur-md border border-neutral-700/60 text-white text-xs font-semibold flex items-center gap-2 shadow-lg">
-        <span className="w-2 h-2 rounded-full bg-[#F5B418] animate-pulse" />
-        <span>Curated Orders &amp; Boutique Collection</span>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute bottom-8 right-8 px-4 py-2.5 rounded-full bg-white/95 backdrop-blur-md border border-white/60 text-[#111827] text-xs font-semibold flex items-center gap-2 shadow-lg">
+        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span>Sell through DMs with instant checkout links</span>
       </div>
     </div>
   );
@@ -1448,7 +1448,7 @@ function AuthSplitLayout({
       <div className={cn("auth-split-left", rightVariant === 'onboarding' && 'is-onboarding')}>
         {rightVariant === 'onboarding' ? (
           <>
-            <header className="flex items-center justify-between pb-4 w-full">
+            <header className="flex items-center justify-between pb-5 w-full max-w-[460px] mx-auto">
               <Link href="/" aria-label="Take Order home" className="inline-flex items-center gap-2.5" data-testid="link-auth-logo">
                 <img src={brandAssets.icon} alt="Take Order" className="h-8 w-auto rounded-xl object-contain shadow-xs" />
                 <span className="font-extrabold tracking-tight text-lg text-neutral-900 leading-none">
@@ -1456,15 +1456,15 @@ function AuthSplitLayout({
                 </span>
               </Link>
             </header>
-            <main className="w-full max-w-[460px] mx-auto my-auto py-4">
+            <main className="w-full max-w-[460px] mx-auto my-auto py-2">
               {children}
             </main>
-            <footer className="pt-4 text-xs text-neutral-400 text-center sm:text-left w-full">
+            <footer className="pt-5 text-xs text-[#9CA3AF] text-center w-full max-w-[460px] mx-auto">
               <span>Step-by-step store setup • Take Order</span>
             </footer>
           </>
         ) : (
-          <main className="w-full max-w-[390px] mx-auto my-auto py-2">
+          <main className="w-full max-w-[440px] mx-auto my-auto py-6 flex flex-col justify-center">
             {children}
           </main>
         )}
@@ -1614,7 +1614,7 @@ export function Onboarding() {
 
   return (
     <AuthSplitLayout rightVariant="onboarding" showcase={<OnboardingShowcase step={step} profile={profile} />}>
-      <div className="w-full">
+      <div className="w-full max-w-[460px] mx-auto rounded-[16px] border border-[#E3E3EC] bg-white p-6 sm:p-8 shadow-sm">
         {!isOnline && (
           <div className="mb-4 flex items-center gap-2 px-3.5 py-2.5 rounded-[10px] bg-amber-50 border border-amber-200 text-xs font-medium text-amber-900" role="status">
             <WifiOff size={15} className="shrink-0 text-amber-600" />
@@ -1628,7 +1628,7 @@ export function Onboarding() {
                 key={s}
                 className={cn(
                   'h-1.5 flex-1 rounded-full transition-all duration-300',
-                  s <= step ? 'bg-neutral-900' : 'bg-neutral-200'
+                  s <= step ? 'bg-[#111111]' : 'bg-[#E3E3EC]'
                 )}
               />
             ))}
@@ -1639,8 +1639,8 @@ export function Onboarding() {
         {step === 0 && (
           <div className="space-y-5">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Finish signing up</h1>
-              <p className="mt-1.5 text-sm text-neutral-600">
+              <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-[#111827]">Finish signing up</h1>
+              <p className="mt-1 text-[13.5px] text-[#6B7280]">
                 Enter your details to complete your seller profile.
               </p>
             </div>
@@ -1648,7 +1648,7 @@ export function Onboarding() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="onboarding-first-name">
+                  <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="onboarding-first-name">
                     First name
                   </label>
                   <input
@@ -1658,11 +1658,11 @@ export function Onboarding() {
                     value={profile.firstName ?? ''}
                     onChange={(e) => update('firstName', e.target.value)}
                     placeholder="First name"
-                    className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+                    className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="onboarding-last-name">
+                  <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="onboarding-last-name">
                     Last name
                   </label>
                   <input
@@ -1671,13 +1671,13 @@ export function Onboarding() {
                     value={profile.lastName ?? ''}
                     onChange={(e) => update('lastName', e.target.value)}
                     placeholder="Last name"
-                    className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+                    className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="onboarding-phone">
+                <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="onboarding-phone">
                   Mobile number
                 </label>
                 <input
@@ -1690,12 +1690,12 @@ export function Onboarding() {
                     update('whatsappPhone', e.target.value);
                   }}
                   placeholder="e.g. +233 24 123 4567"
-                  className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+                  className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-800 mb-1.5" htmlFor="onboarding-country">
+                <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="onboarding-country">
                   Country
                 </label>
                 <select
@@ -1703,7 +1703,7 @@ export function Onboarding() {
                   data-testid="select-onboarding-country"
                   value={profile.country ?? 'Ghana'}
                   onChange={(e) => handleCountryChange(e.target.value)}
-                  className="w-full h-11 px-3.5 py-2.5 rounded-[10px] border border-neutral-200 bg-white text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+                  className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs cursor-pointer"
                 >
                   <option value="Ghana">🇬🇭 Ghana (GHS)</option>
                   <option value="Nigeria">🇳🇬 Nigeria (NGN)</option>
@@ -1726,7 +1726,7 @@ export function Onboarding() {
                   changeStep(1);
                 }}
                 disabled={!(profile.firstName?.trim() && profile.lastName?.trim() && (profile.phone?.trim() || profile.whatsappPhone?.trim()))}
-                className="w-full py-2.5 px-4 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                className="w-full h-[42px] rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed transition shadow-xs cursor-pointer flex items-center justify-center gap-2"
                 data-testid="button-onboarding-step0-continue"
               >
                 <span>Continue</span>
@@ -1740,7 +1740,10 @@ export function Onboarding() {
         {step === 1 && (
           <div className="space-y-6">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">What's your business name?</h1>
+              <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-[#111827]">What's your business name?</h1>
+              <p className="mt-1 text-[13.5px] text-[#6B7280]">
+                This is the name your buyers will see on checkout links and receipts.
+              </p>
             </div>
 
             <div className="pt-1">
@@ -1751,7 +1754,7 @@ export function Onboarding() {
                 value={profile.businessName}
                 onChange={(e) => update('businessName', e.target.value)}
                 placeholder="e.g. The Sunday Edit or Kicks Vault"
-                className="w-full h-12 px-4 py-3 rounded-[10px] border border-neutral-200 bg-white text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all shadow-xs"
+                className="w-full h-[44px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
               />
             </div>
 
@@ -1759,7 +1762,7 @@ export function Onboarding() {
               <button
                 type="button"
                 onClick={() => changeStep(0)}
-                className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1.5 cursor-pointer"
+                className="text-[13px] font-medium text-[#6B7280] hover:text-[#111827] flex items-center gap-1.5 cursor-pointer transition-colors"
                 data-testid="button-onboarding-step1-back"
               >
                 <ArrowLeft size={15} />
@@ -1769,7 +1772,7 @@ export function Onboarding() {
                 type="button"
                 onClick={() => changeStep(2)}
                 disabled={!profile.businessName.trim()}
-                className="px-6 py-2.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer flex items-center gap-2"
+                className="h-[42px] px-6 rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed transition shadow-xs cursor-pointer flex items-center gap-2"
                 data-testid="button-onboarding-step1-continue"
               >
                 <span>Continue</span>
@@ -1783,8 +1786,8 @@ export function Onboarding() {
         {step === 2 && (
           <div className="space-y-5">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">What best describes your business?</h1>
-              <p className="mt-1.5 text-sm text-neutral-600">Select what you sell to customize your workspace.</p>
+              <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-[#111827]">What best describes your business?</h1>
+              <p className="mt-1 text-[13.5px] text-[#6B7280]">Select what you sell to customize your workspace.</p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1" role="group" aria-label="Select business category">
@@ -1796,10 +1799,10 @@ export function Onboarding() {
                     type="button"
                     onClick={() => update('category', cat.label)}
                     className={cn(
-                      'flex items-center gap-2 p-3 rounded-[10px] border text-left text-xs font-medium transition-all cursor-pointer',
+                      'flex items-center gap-2.5 p-3 rounded-[10px] border text-left text-[13px] font-medium transition cursor-pointer',
                       isSelected
-                        ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs'
-                        : 'border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50'
+                        ? 'border-[#111111] bg-[#111111] text-white shadow-xs'
+                        : 'border-[#E3E3EC] bg-white text-[#111827] hover:border-[#CBD5E1] hover:bg-[#F9F9FC]'
                     )}
                   >
                     <span className="text-base" aria-hidden="true">{cat.icon}</span>
@@ -1813,7 +1816,7 @@ export function Onboarding() {
               <button
                 type="button"
                 onClick={() => changeStep(1)}
-                className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1.5 cursor-pointer"
+                className="text-[13px] font-medium text-[#6B7280] hover:text-[#111827] flex items-center gap-1.5 cursor-pointer transition-colors"
                 data-testid="button-onboarding-step2-back"
               >
                 <ArrowLeft size={15} />
@@ -1823,7 +1826,7 @@ export function Onboarding() {
                 type="button"
                 onClick={() => changeStep(3)}
                 disabled={!profile.category}
-                className="px-6 py-2.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer flex items-center gap-2"
+                className="h-[42px] px-6 rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed transition shadow-xs cursor-pointer flex items-center gap-2"
                 data-testid="button-onboarding-step2-continue"
               >
                 <span>Continue</span>
@@ -1837,8 +1840,8 @@ export function Onboarding() {
         {step === 3 && (
           <div className="space-y-5">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">What's your team size?</h1>
-              <p className="mt-1.5 text-sm text-neutral-600">How many people work in your business?</p>
+              <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-[#111827]">What's your team size?</h1>
+              <p className="mt-1 text-[13.5px] text-[#6B7280]">How many people work in your business?</p>
             </div>
 
             <div className="space-y-2.5 pt-1" role="group" aria-label="Select team size">
@@ -1850,19 +1853,19 @@ export function Onboarding() {
                     type="button"
                     onClick={() => update('teamSize', opt.label)}
                     className={cn(
-                      'w-full flex items-center justify-between p-3.5 rounded-[10px] border text-left transition-all cursor-pointer',
+                      'w-full flex items-center justify-between p-3.5 rounded-[10px] border text-left transition cursor-pointer',
                       isSelected
-                        ? 'border-neutral-900 bg-neutral-50 text-neutral-900 ring-1 ring-neutral-900'
-                        : 'border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50'
+                        ? 'border-[#111111] bg-[#F9F9FC] text-[#111827] ring-1 ring-[#111111]'
+                        : 'border-[#E3E3EC] bg-white text-[#111827] hover:border-[#CBD5E1] hover:bg-[#F9F9FC]'
                     )}
                   >
                     <div>
-                      <div className="text-sm font-bold text-neutral-900">{opt.label}</div>
-                      <div className="text-xs text-neutral-500">{opt.subtitle}</div>
+                      <div className="text-[13.5px] font-semibold text-[#111827]">{opt.label}</div>
+                      <div className="text-xs text-[#6B7280]">{opt.subtitle}</div>
                     </div>
                     <div className={cn(
-                      'w-4 h-4 rounded-full border flex items-center justify-center',
-                      isSelected ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'
+                      'w-4 h-4 rounded-full border flex items-center justify-center transition',
+                      isSelected ? 'border-[#111111] bg-[#111111]' : 'border-[#CBD5E1]'
                     )}>
                       {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
@@ -1872,7 +1875,7 @@ export function Onboarding() {
             </div>
 
             {onboardingSaveError && (
-              <div role="alert" className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-2">
+              <div role="alert" className="p-3.5 rounded-[10px] bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-2">
                 <div className="flex items-center gap-1.5 font-medium">
                   <WifiOff size={14} className="shrink-0 text-amber-700" />
                   <span>{onboardingSaveError}</span>
@@ -1882,7 +1885,7 @@ export function Onboarding() {
                     <button
                       type="button"
                       onClick={() => finishSetup(true)}
-                      className="px-3 py-1.5 rounded-md bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-[8px] bg-[#111111] text-white text-xs font-semibold hover:bg-[#262626] transition-colors cursor-pointer"
                       data-testid="button-onboarding-offline-proceed"
                     >
                       Proceed to workspace
@@ -1890,7 +1893,7 @@ export function Onboarding() {
                     <button
                       type="button"
                       onClick={() => finishSetup(false)}
-                      className="px-3 py-1.5 rounded-md border border-neutral-300 bg-white text-neutral-800 text-xs font-semibold hover:bg-neutral-50 transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-[8px] border border-[#E3E3EC] bg-white text-[#111827] text-xs font-semibold hover:bg-[#F9F9FC] transition-colors cursor-pointer"
                       data-testid="button-onboarding-offline-retry"
                     >
                       Retry sync
@@ -1904,7 +1907,7 @@ export function Onboarding() {
               <button
                 type="button"
                 onClick={() => changeStep(2)}
-                className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1.5 cursor-pointer"
+                className="text-[13px] font-medium text-[#6B7280] hover:text-[#111827] flex items-center gap-1.5 cursor-pointer transition-colors"
                 data-testid="button-onboarding-step3-back"
               >
                 <ArrowLeft size={15} />
@@ -1914,7 +1917,7 @@ export function Onboarding() {
                 type="button"
                 onClick={() => finishSetup(false)}
                 disabled={saveOnboardingSettingsMutation.isPending}
-                className="px-6 py-2.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50 transition-all shadow-xs cursor-pointer flex items-center gap-2"
+                className="h-[42px] px-6 rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] disabled:opacity-50 transition shadow-xs cursor-pointer flex items-center gap-2"
                 data-testid="button-onboarding-finish"
               >
                 {saveOnboardingSettingsMutation.isPending ? (
@@ -1941,32 +1944,32 @@ export function Onboarding() {
                 <Sparkles size={13} className="text-blue-600" />
                 <span>7-Day Free Trial</span>
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Start your 7-day free trial</h1>
-              <p className="mt-1.5 text-sm text-neutral-600">
-                Unlock full access for <strong className="text-neutral-900">{profile.businessName || 'your business'}</strong>. No charge today.
+              <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-[#111827]">Start your 7-day free trial</h1>
+              <p className="mt-1 text-[13.5px] text-[#6B7280]">
+                Unlock full access for <strong className="text-[#111827]">{profile.businessName || 'your business'}</strong>. No charge today.
               </p>
             </div>
 
-            <div className="rounded-[14px] border border-neutral-200 bg-neutral-50/70 p-4 space-y-2.5 text-xs text-neutral-700">
-              <div className="flex items-center gap-2.5 text-neutral-900 font-medium">
+            <div className="rounded-[12px] border border-[#E3E3EC] bg-[#F9F9FC] p-4 space-y-2.5 text-xs text-[#374151]">
+              <div className="flex items-center gap-2.5 text-[#111827] font-medium">
                 <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <Check size={12} strokeWidth={3} />
                 </div>
                 <span>Unlimited Take Order links for WhatsApp, IG & TikTok</span>
               </div>
-              <div className="flex items-center gap-2.5 text-neutral-900 font-medium">
+              <div className="flex items-center gap-2.5 text-[#111827] font-medium">
                 <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <Check size={12} strokeWidth={3} />
                 </div>
                 <span>Instant buyer receipts & real-time delivery slips</span>
               </div>
-              <div className="flex items-center gap-2.5 text-neutral-900 font-medium">
+              <div className="flex items-center gap-2.5 text-[#111827] font-medium">
                 <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <Check size={12} strokeWidth={3} />
                 </div>
                 <span>Verified business badge on your store</span>
               </div>
-              <div className="flex items-center gap-2.5 text-neutral-900 font-medium">
+              <div className="flex items-center gap-2.5 text-[#111827] font-medium">
                 <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <Check size={12} strokeWidth={3} />
                 </div>
@@ -1974,9 +1977,9 @@ export function Onboarding() {
               </div>
             </div>
 
-            <div className="rounded-[12px] bg-neutral-900 text-white p-4 space-y-1">
+            <div className="rounded-[12px] bg-[#111111] text-white p-4 space-y-1">
               <div className="flex items-baseline justify-between">
-                <span className="text-sm font-semibold">Take Order Pro</span>
+                <span className="text-[13.5px] font-semibold">Take Order Pro</span>
                 <span className="text-base font-bold">$19<span className="text-xs font-normal text-neutral-300">/mo</span></span>
               </div>
               <p className="text-xs text-neutral-300">
@@ -2020,7 +2023,7 @@ export function Onboarding() {
                   finishOnboarding(userId);
                   setLocation('/dashboard');
                 }}
-                className="w-full py-3.5 rounded-[10px] bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-800 active:scale-[0.98] transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                className="w-full h-[44px] rounded-[10px] bg-[#111111] text-white text-[14px] font-medium hover:bg-[#262626] active:scale-[0.98] transition shadow-xs cursor-pointer flex items-center justify-center gap-2"
                 data-testid="button-onboarding-start-trial"
               >
                 <span>Start 7-Day Free Trial</span>
@@ -2033,7 +2036,7 @@ export function Onboarding() {
                   finishOnboarding(userId);
                   setLocation('/dashboard');
                 }}
-                className="w-full py-2 text-center text-xs font-medium text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer"
+                className="w-full py-2.5 text-center text-xs font-medium text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer"
                 data-testid="button-onboarding-skip-trial"
               >
                 Skip and continue with Free plan
@@ -2052,47 +2055,45 @@ const clerkAppearance = {
   theme: shadcn,
   cssLayerName: 'clerk',
   options: {
-    logoPlacement: 'inside' as const,
-    logoLinkUrl: basePath || '/',
-    logoImageUrl: `${browserOrigin}${basePath}/branding/takeorder-icon.png`,
+    logoPlacement: 'none' as const,
   },
   variables: {
     colorPrimary: '#111111',
-    colorForeground: '#171717',
-    colorMutedForeground: '#737373',
-    colorDanger: '#b42318',
+    colorForeground: '#111827',
+    colorMutedForeground: '#6B7280',
+    colorDanger: '#DC2626',
     colorBackground: '#ffffff',
     colorInput: '#ffffff',
-    colorInputForeground: '#171717',
-    colorNeutral: '#d4d4d4',
+    colorInputForeground: '#111827',
+    colorNeutral: '#E3E3EC',
     fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-    borderRadius: '0.75rem',
+    borderRadius: '0.625rem',
   },
   elements: {
     rootBox: 'w-full flex justify-center',
-    cardBox: 'w-full !shadow-none !border-0 !bg-transparent !p-0',
-    card: '!shadow-none !border-0 !bg-transparent !rounded-none !p-0 w-full max-w-[390px]',
-    headerTitle: '!text-2xl sm:!text-3xl !font-extrabold !tracking-tight !text-neutral-800 text-center',
-    headerSubtitle: '!mt-1.5 !text-xs sm:!text-sm !text-neutral-500 text-center',
-    socialButtonsBlockButton: '!w-full !h-11 !rounded-xl !border !border-neutral-200 !bg-white hover:!bg-neutral-50 !text-neutral-800 !text-sm !font-semibold transition-all !shadow-xs !cursor-pointer flex items-center justify-center gap-3',
-    socialButtonsBlockButtonText: '!text-neutral-800 !font-semibold !text-sm',
-    socialButtonsProviderIcon: '!h-5 !w-5',
+    cardBox: 'w-full flex justify-center !shadow-none !border-0 !bg-transparent !p-0',
+    card: '!w-full max-w-[420px] !rounded-[16px] !border !border-[#E3E3EC] !bg-white !p-7 sm:!p-9 !shadow-sm',
+    headerTitle: '!text-[24px] sm:!text-[26px] !font-bold !tracking-tight !text-[#111827] !text-left',
+    headerSubtitle: '!mt-1.5 !text-[13.5px] !text-[#6B7280] !text-left',
+    socialButtonsBlockButton: '!w-full !h-[42px] !rounded-[10px] !border !border-[#E3E3EC] !bg-white hover:!bg-[#F9F9FC] !text-[#111827] !text-[13.5px] !font-medium transition-all !shadow-2xs !cursor-pointer flex items-center justify-center gap-2.5',
+    socialButtonsBlockButtonText: '!text-[#111827] !font-medium !text-[13.5px]',
+    socialButtonsProviderIcon: '!h-4.5 !w-4.5',
     dividerRow: '!my-5 !flex !items-center !justify-center',
-    dividerLine: '!border-neutral-200',
-    dividerText: '!text-neutral-400 !text-xs !font-medium !bg-white !px-3',
-    formFieldLabel: '!text-xs !font-semibold !text-neutral-700 !mb-1.5',
-    formFieldInput: '!w-full !h-11 !rounded-xl !border !border-neutral-200 !bg-neutral-50/50 !text-sm !text-neutral-900 placeholder:!text-neutral-400 focus:!border-neutral-900 focus:!bg-white transition-all !shadow-xs',
-    formButtonPrimary: '!w-full !h-11 !rounded-xl !bg-neutral-950 hover:!bg-neutral-800 !text-white !text-sm !font-bold active:scale-[0.99] transition-all !shadow-xs !cursor-pointer flex items-center justify-center !mt-2',
-    footer: '!shadow-none !border-0 !bg-transparent !rounded-none !mt-5 !pt-0 text-center',
-    footerAction: '!text-sm !text-neutral-600',
-    footerActionText: '!text-sm !text-neutral-600',
-    footerActionLink: '!font-bold !text-neutral-900 underline underline-offset-2 hover:!text-black !text-sm',
+    dividerLine: '!border-[#E3E3EC]',
+    dividerText: '!text-[#9CA3AF] !text-xs !font-medium !bg-white !px-3',
+    formFieldLabel: '!text-[13px] !font-medium !text-[#374151] !mb-1.5',
+    formFieldInput: '!w-full !h-[42px] !rounded-[10px] !border !border-[#E3E3EC] !bg-white !text-[13.5px] !text-[#111827] placeholder:!text-[#9CA3AF] focus:!border-[#111111] focus:!ring-2 focus:!ring-[#111111]/10 transition-all !shadow-2xs',
+    formButtonPrimary: '!w-full !h-[42px] !rounded-[10px] !bg-[#111111] hover:!bg-[#262626] !text-white !text-[13.5px] !font-medium active:scale-[0.99] transition-all !shadow-xs !cursor-pointer flex items-center justify-center !mt-3',
+    footer: '!shadow-none !border-0 !bg-transparent !rounded-none !mt-5 !pt-4 !border-t !border-[#E3E3EC] text-center',
+    footerAction: '!text-[13px] !text-[#6B7280]',
+    footerActionText: '!text-[13px] !text-[#6B7280]',
+    footerActionLink: '!font-semibold !text-[#111827] hover:!underline !text-[13px]',
     footerPages: 'hidden',
-    identityPreview: '!rounded-xl !border !border-neutral-200 !p-3 !bg-neutral-50',
-    identityPreviewText: '!text-sm !font-medium !text-neutral-800',
-    identityPreviewEditButton: '!text-xs !text-neutral-500 hover:!text-neutral-900 underline',
-    otpCodeFieldInput: '!h-12 !rounded-xl !border !border-neutral-200 !bg-neutral-50/50 !text-lg !font-mono text-center !shadow-xs focus:!border-neutral-900 focus:!bg-white',
-    formFieldAction: '!text-xs !text-neutral-500 hover:!text-neutral-900 underline',
+    identityPreview: '!rounded-[10px] !border !border-[#E3E3EC] !p-3 !bg-[#F9F9FC]',
+    identityPreviewText: '!text-[13.5px] !font-medium !text-[#111827]',
+    identityPreviewEditButton: '!text-xs !text-[#6B7280] hover:!text-[#111827] underline',
+    otpCodeFieldInput: '!h-12 !rounded-[10px] !border !border-[#E3E3EC] !bg-[#F9F9FC] !text-lg !font-mono text-center !shadow-2xs focus:!border-[#111111] focus:!bg-white',
+    formFieldAction: '!text-xs !text-[#6B7280] hover:!text-[#111827] underline',
     logoBox: 'hidden',
     logoImage: 'hidden',
     internal: 'hidden',
@@ -2144,24 +2145,18 @@ function FallbackSignInForm() {
   };
 
   return (
-    <div className="w-full">
-      <div className="flex justify-center mb-5">
-        <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
-          <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
-        </Link>
-      </div>
-
-      <div className="text-center mb-6">
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
+    <div className="w-full max-w-[420px] mx-auto rounded-[16px] border border-[#E3E3EC] bg-white p-7 sm:p-9 shadow-sm">
+      <div className="text-left mb-6">
+        <h1 className="text-[24px] sm:text-[26px] font-bold tracking-tight text-[#111827]">
           Welcome back
         </h1>
-        <p className="mt-1.5 text-xs sm:text-sm text-neutral-500">
+        <p className="mt-1.5 text-[13.5px] text-[#6B7280]">
           Log in to access your orders, products, and seller dashboard.
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mb-4 p-3 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
         </div>
       )}
@@ -2169,21 +2164,24 @@ function FallbackSignInForm() {
       <button
         type="button"
         onClick={handleGoogleAuth}
-        className="w-full h-11 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+        className="w-full h-[42px] rounded-[10px] border border-[#E3E3EC] bg-white hover:bg-[#F9F9FC] text-[#111827] text-[13.5px] font-medium flex items-center justify-center gap-2.5 transition shadow-2xs cursor-pointer active:scale-[0.99]"
       >
-        <GoogleIcon className="h-5 w-5" />
+        <GoogleIcon className="h-4.5 w-4.5" />
         <span>Continue with Google</span>
       </button>
 
       <div className="relative my-5 flex items-center justify-center">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-neutral-200" />
+          <div className="w-full border-t border-[#E3E3EC]" />
         </div>
-        <span className="relative px-3 bg-white text-xs text-neutral-400 font-medium">or</span>
+        <span className="relative px-3 bg-white text-xs text-[#9CA3AF] font-medium">or</span>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
+          <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signin-email-fallback">
+            Email address
+          </label>
           <input
             id="signin-email-fallback"
             type="email"
@@ -2193,61 +2191,61 @@ function FallbackSignInForm() {
               writeDraftAuth({ signInEmail: e.target.value });
               setError('');
             }}
-            placeholder="Enter email address"
+            placeholder="Enter your email"
             autoComplete="email"
-            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
           />
         </div>
 
         <div>
-          <div className="relative">
-            <input
-              id="signin-password-fallback"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              autoComplete="current-password"
-              className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
-            />
-          </div>
-          <div className="flex justify-end mt-1.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[13px] font-medium text-[#374151]" htmlFor="signin-password-fallback">
+              Password
+            </label>
             <button
               type="button"
               onClick={() => alert('Password reset instructions will be sent to your registered email.')}
-              className="text-xs text-neutral-500 hover:text-neutral-900 underline"
+              className="text-xs text-[#6B7280] hover:text-[#111827] underline transition"
             >
               Forgot password?
             </button>
           </div>
+          <input
+            id="signin-password-fallback"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            autoComplete="current-password"
+            className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
+          />
         </div>
 
         <button
           type="submit"
-          className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
+          className="w-full h-[42px] rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] transition shadow-xs cursor-pointer flex items-center justify-center mt-3"
           data-testid="button-auth-login"
         >
           Log in
         </button>
       </form>
 
-      <p className="mt-4 text-center text-xs text-neutral-400 leading-relaxed">
+      <p className="mt-4 text-center text-xs text-[#9CA3AF] leading-relaxed">
         By continuing, you agree to Take Order's{' '}
-        <Link href="/terms" className="text-neutral-700 underline underline-offset-2 hover:text-black">Terms of Service</Link>{' '}
+        <Link href="/terms" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Terms</Link>{' '}
         and{' '}
-        <Link href="/privacy" className="text-neutral-700 underline underline-offset-2 hover:text-black">Privacy Policy</Link>.
+        <Link href="/privacy" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Privacy Policy</Link>.
       </p>
 
-      <div className="mt-5 text-center text-sm text-neutral-600">
+      <div className="mt-5 pt-4 border-t border-[#E3E3EC] text-center text-[13px] text-[#6B7280]">
         Don't have an account?{' '}
-        <Link href="/sign-up" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-up">
+        <Link href="/sign-up" className="font-semibold text-[#111827] hover:underline" data-testid="link-auth-sign-up">
           Sign up
         </Link>
       </div>
     </div>
   );
 }
-
 
 function FallbackSignUpForm() {
   const draft = readDraftAuth();
@@ -2300,24 +2298,18 @@ function FallbackSignUpForm() {
   };
 
   return (
-    <div className="w-full">
-      <div className="flex justify-center mb-5">
-        <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
-          <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
-        </Link>
-      </div>
-
-      <div className="text-center mb-6">
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-800">
-          Create your free account
+    <div className="w-full max-w-[420px] mx-auto rounded-[16px] border border-[#E3E3EC] bg-white p-7 sm:p-9 shadow-sm">
+      <div className="text-left mb-6">
+        <h1 className="text-[24px] sm:text-[26px] font-bold tracking-tight text-[#111827]">
+          Create your account
         </h1>
-        <p className="mt-1.5 text-xs sm:text-sm text-neutral-500">
+        <p className="mt-1.5 text-[13.5px] text-[#6B7280]">
           Set up your online order link in seconds. No credit card required.
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mb-4 p-3 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
         </div>
       )}
@@ -2325,21 +2317,24 @@ function FallbackSignUpForm() {
       <button
         type="button"
         onClick={handleGoogleAuth}
-        className="w-full h-11 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+        className="w-full h-[42px] rounded-[10px] border border-[#E3E3EC] bg-white hover:bg-[#F9F9FC] text-[#111827] text-[13.5px] font-medium flex items-center justify-center gap-2.5 transition shadow-2xs cursor-pointer active:scale-[0.99]"
       >
-        <GoogleIcon className="h-5 w-5" />
+        <GoogleIcon className="h-4.5 w-4.5" />
         <span>Continue with Google</span>
       </button>
 
       <div className="relative my-5 flex items-center justify-center">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-neutral-200" />
+          <div className="w-full border-t border-[#E3E3EC]" />
         </div>
-        <span className="relative px-3 bg-white text-xs text-neutral-400 font-medium">or</span>
+        <span className="relative px-3 bg-white text-xs text-[#9CA3AF] font-medium">or</span>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
+          <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signup-email-fallback">
+            Email address
+          </label>
           <input
             id="signup-email-fallback"
             type="email"
@@ -2349,13 +2344,16 @@ function FallbackSignUpForm() {
               writeDraftAuth({ signUpEmail: e.target.value });
               setError('');
             }}
-            placeholder="Enter email address"
+            placeholder="Enter your email"
             autoComplete="email"
-            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
           />
         </div>
 
         <div>
+          <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signup-name-fallback">
+            Store or business name <span className="text-[#9CA3AF] font-normal">(optional)</span>
+          </label>
           <input
             id="signup-name-fallback"
             type="text"
@@ -2364,42 +2362,45 @@ function FallbackSignUpForm() {
               setBusinessName(e.target.value);
               writeDraftAuth({ signUpFullName: e.target.value });
             }}
-            placeholder="Store or business name (optional)"
-            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            placeholder="e.g. Sunday Edit or Kicks Vault"
+            className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
           />
         </div>
 
         <div>
+          <label className="block text-[13px] font-medium text-[#374151] mb-1.5" htmlFor="signup-password-fallback">
+            Create password
+          </label>
           <input
             id="signup-password-fallback"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Create password"
+            placeholder="At least 8 characters"
             autoComplete="new-password"
-            className="w-full h-11 px-4 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 focus:bg-white transition-all shadow-xs"
+            className="w-full h-[42px] px-3.5 rounded-[10px] border border-[#E3E3EC] bg-white text-[13.5px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] transition shadow-2xs"
           />
         </div>
 
         <button
           type="submit"
-          className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-bold hover:bg-neutral-800 active:scale-[0.99] transition-all shadow-xs cursor-pointer flex items-center justify-center mt-2"
+          className="w-full h-[42px] rounded-[10px] bg-[#111111] text-white text-[13.5px] font-medium hover:bg-[#262626] active:scale-[0.99] transition shadow-xs cursor-pointer flex items-center justify-center mt-3"
           data-testid="button-auth-signup"
         >
           Continue
         </button>
       </form>
 
-      <p className="mt-4 text-center text-xs text-neutral-400 leading-relaxed">
+      <p className="mt-4 text-center text-xs text-[#9CA3AF] leading-relaxed">
         By continuing, you agree to Take Order's{' '}
-        <Link href="/terms" className="text-neutral-700 underline underline-offset-2 hover:text-black">Terms of Service</Link>{' '}
+        <Link href="/terms" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Terms of Service</Link>{' '}
         and{' '}
-        <Link href="/privacy" className="text-neutral-700 underline underline-offset-2 hover:text-black">Privacy Policy</Link>.
+        <Link href="/privacy" className="text-[#374151] underline underline-offset-2 hover:text-[#111827]">Privacy Policy</Link>.
       </p>
 
-      <div className="mt-5 text-center text-sm text-neutral-600">
+      <div className="mt-5 pt-4 border-t border-[#E3E3EC] text-center text-[13px] text-[#6B7280]">
         Already have an account?{' '}
-        <Link href="/sign-in" className="font-bold text-neutral-900 underline underline-offset-2 hover:text-black" data-testid="link-auth-sign-in">
+        <Link href="/sign-in" className="font-semibold text-[#111827] hover:underline" data-testid="link-auth-sign-in">
           Log in
         </Link>
       </div>
@@ -2424,11 +2425,6 @@ function SignInPage() {
     <AuthSplitLayout>
       {clerkPubKey ? (
         <div className="w-full flex flex-col items-center">
-          <div className="flex justify-center mb-5">
-            <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
-              <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
-            </Link>
-          </div>
           <SignIn
             routing="path"
             path={`${basePath}/sign-in`}
@@ -2462,11 +2458,6 @@ function SignUpPage() {
     <AuthSplitLayout>
       {clerkPubKey ? (
         <div className="w-full flex flex-col items-center">
-          <div className="flex justify-center mb-5">
-            <Link href="/" aria-label="Take Order Home" className="inline-block transition-transform hover:scale-105">
-              <img src={brandAssets.icon} alt="Take Order" className="h-11 w-11 rounded-2xl object-contain shadow-xs" />
-            </Link>
-          </div>
           <SignUp
             routing="path"
             path={`${basePath}/sign-up`}

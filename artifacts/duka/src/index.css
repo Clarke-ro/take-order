@@ -4728,7 +4728,7 @@ button[data-testid^="button-filter-"]:focus-visible {
   height: 100dvh;
   max-height: 100dvh;
   width: 100%;
-  background-color: #ffffff;
+  background-color: hsl(var(--background));
   overflow: hidden;
 }
 
@@ -4741,7 +4741,7 @@ button[data-testid^="button-filter-"]:focus-visible {
   height: 100dvh;
   max-height: 100dvh;
   padding: 1.5rem 1.25rem;
-  background-color: #ffffff;
+  background-color: hsl(var(--background));
   overflow-y: auto;
 }
 
@@ -4757,9 +4757,9 @@ button[data-testid^="button-filter-"]:focus-visible {
 
 @media (min-width: 1024px) {
   .auth-split-left {
-    width: 56%;
+    width: 54%;
     padding: 2.5rem 3.5rem;
-    overflow-y: hidden;
+    overflow-y: auto;
   }
   .auth-split-left.is-onboarding {
     overflow-y: auto;
@@ -4768,7 +4768,7 @@ button[data-testid^="button-filter-"]:focus-visible {
 
 @media (min-width: 1280px) {
   .auth-split-left {
-    width: 58%;
+    width: 56%;
     padding: 3rem 4.5rem;
   }
 }
@@ -4787,9 +4787,10 @@ button[data-testid^="button-filter-"]:focus-visible {
     height: 100dvh;
     max-height: 100dvh;
     padding: 0;
-    background-color: #0c0d10;
+    background-color: #0052cc;
     position: relative;
     overflow: hidden;
+    border-left: 1px solid hsl(var(--border));
   }
 }
 
@@ -4797,11 +4798,11 @@ button[data-testid^="button-filter-"]:focus-visible {
   width: 100%;
   max-width: 420px;
   background-color: #fff;
-  border-radius: 22px;
+  border-radius: 16px;
   padding: 2rem 2rem 1.5rem;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.09), 0 1px 4px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
   position: relative;
-  border: 1px solid rgba(0,0,0,0.07);
+  border: 1px solid hsl(var(--border));
 }
 
 .auth-merchant-photo {
@@ -4810,7 +4811,7 @@ button[data-testid^="button-filter-"]:focus-visible {
   border-radius: 12px;
   overflow: hidden;
   position: relative;
-  background-color: #0f4963;
+  background-color: #0052cc;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4825,8 +4826,8 @@ button[data-testid^="button-filter-"]:focus-visible {
 
 @media (min-width: 1024px) {
   .auth-split-right.is-onboarding {
-    background-color: #EDE8DF;
-    border-left: 1px solid #ddd7cc;
+    background-color: hsl(var(--background));
+    border-left: 1px solid hsl(var(--border));
     padding: 3rem 2.5rem;
   }
 }
@@ -4842,10 +4843,10 @@ button[data-testid^="button-filter-"]:focus-visible {
 .onboarding-showcase-card {
   width: 100%;
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.07);
-  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.06);
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
@@ -4853,7 +4854,7 @@ button[data-testid^="button-filter-"]:focus-visible {
   position: relative;
   width: 100%;
   height: 270px;
-  background-color: #eee9e0;
+  background-color: #f1f2f6;
   overflow: hidden;
 }
 
@@ -4867,13 +4868,13 @@ button[data-testid^="button-filter-"]:focus-visible {
   position: absolute;
   top: 1rem;
   left: 1rem;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(17, 17, 17, 0.88);
   backdrop-filter: blur(8px);
   color: #ffffff;
-  font-family: var(--app-font-mono, monospace);
+  font-family: inherit;
   font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 0.35rem 0.75rem;
   border-radius: 9999px;
@@ -4888,9 +4889,9 @@ button[data-testid^="button-filter-"]:focus-visible {
 .onboarding-showcase-subcard {
   margin-top: 1rem;
   padding: 1rem 1.15rem;
-  background: #fbf9f6;
-  border: 1px solid #eee7dc;
-  border-radius: 14px;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
 }
 
 @keyframes msgIn {
