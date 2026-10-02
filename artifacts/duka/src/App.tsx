@@ -1217,56 +1217,52 @@ function Shell({ children }: { children: ReactNode }) {
       {/* ── Desktop Topbar (hidden on mobile) ─────────────────────────── */}
       <header
         className={cn(
-          'saas-desktop-topbar fixed top-0 right-0 z-20 hidden md:flex h-[60px] items-center gap-4 px-6 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] transition-all duration-200 ease-in-out',
+          'saas-desktop-topbar fixed top-0 right-0 z-20 hidden md:flex h-[60px] items-center gap-3 px-6 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] transition-all duration-200 ease-in-out',
           collapsed ? 'left-[72px]' : 'left-[272px]'
         )}
       >
-        {/* Search */}
-        <div className="relative flex items-center w-full max-w-[280px]">
+        {/* Search — real handler: navigates to /orders?q= */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const q = (e.currentTarget.querySelector('input[name="q"]') as HTMLInputElement)?.value?.trim();
+            if (q) window.location.assign(`/orders?q=${encodeURIComponent(q)}`);
+          }}
+          className="relative flex items-center w-full max-w-[300px]"
+        >
           <Search size={14} className="absolute left-3 text-[hsl(var(--muted-foreground))] pointer-events-none" />
           <input
+            name="q"
             type="search"
-            placeholder="Search for anything"
-            className="w-full h-9 pl-8 pr-[52px] rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/25 transition"
-            readOnly
+            placeholder="Search orders, catalog, clients..."
+            className="w-full h-9 pl-8 pr-[60px] rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/25 transition"
           />
           <kbd className="absolute right-2.5 flex items-center gap-0.5 rounded-[4px] border border-[hsl(var(--border))] bg-[hsl(var(--muted))] px-1.5 py-0.5 text-[10px] font-medium text-[hsl(var(--muted-foreground))] pointer-events-none select-none">
             Ctrl+K
           </kbd>
-        </div>
+        </form>
 
-        {/* Centre: plan/trial banner */}
-        <div className="flex-1 flex items-center justify-center">
+        {/* Period picker slot — rendered by Dashboard page via portal-like pattern */}
+        <div id="saas-topbar-period" className="flex items-center shrink-0" />
+
+        {/* Centre: trial banner */}
+        <div className="flex-1 flex items-center justify-center min-w-0">
           {isTrial && daysRemaining != null && daysRemaining >= 0 && (
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#BBF7D0] bg-[#ECFCCB] px-4 py-1.5 text-[12.5px] font-medium text-[#14532D]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#BBF7D0] bg-[#ECFCCB] px-4 py-1.5 text-[12.5px] font-medium text-[#14532D] whitespace-nowrap">
               <span>Free trial: {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left.</span>
               <Link href="/subscribe" className="font-bold underline hover:text-[#14532D]/80 transition">Upgrade →</Link>
             </div>
           )}
         </div>
 
-        {/* Right: Help + Support + avatar */}
+        {/* Right: Take an order */}
         <div className="flex items-center gap-2 shrink-0">
-          <a
-            href="https://takeorder.app/help"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center h-8 px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[12.5px] font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition"
-          >
-            Help
-          </a>
-          <a
-            href="mailto:support@takeorder.app"
-            className="inline-flex items-center h-8 px-3 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[12.5px] font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition"
-          >
-            Support
-          </a>
           <Link
-            href="/settings"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-[13px] font-bold hover:ring-2 hover:ring-[hsl(var(--primary))]/30 transition"
-            title="Account profile"
+            href="/take-order"
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-[8px] bg-[hsl(var(--primary))] text-[13px] font-semibold text-white hover:opacity-90 transition whitespace-nowrap"
           >
-            {sellerInitial}
+            <Plus size={13} strokeWidth={2.5} />
+            Take an order
           </Link>
         </div>
       </header>
@@ -3157,46 +3153,76 @@ export function Overview() {
       <div data-testid="dashboard-analytics" data-analytics-state={analyticsState}>
         <AnalyticsStateMarker state={analyticsState} />
 
-        {/* ── Page header ──────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-6">
+        {/* ── Page title (no buttons — Take an order is in the topbar) ────── */}
+        <div className="mb-8">
           <h1 className="text-[28px] font-semibold tracking-tight text-[hsl(var(--foreground))] leading-none">
             Dashboard
           </h1>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/take-order"
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition"
-            >
-              <Plus size={13} />
-              New order
-            </Link>
-            <Link
-              href="/take-order"
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-[8px] bg-[hsl(var(--primary))] text-[13px] font-medium text-white hover:opacity-90 transition"
-            >
-              Take an order
-            </Link>
-          </div>
         </div>
 
-        {/* Dashboard Top Header with Search, Timeframe Picker, Notifications, Take Order */}
-        <DashboardTopHeader
-          periodLabel={periodLabel}
-          periodMenuOpen={periodMenuOpen}
-          setPeriodMenuOpen={setPeriodMenuOpen}
-          period={period}
-          setPeriod={setPeriod}
-          draftPeriod={draftPeriod}
-          setDraftPeriod={setDraftPeriod}
-          draftCustomRange={draftCustomRange}
-          setDraftCustomRange={setDraftCustomRange}
-          periodMenuRef={periodMenuRef}
-          periodTriggerRef={periodTriggerRef}
-          chooseCustomPeriod={chooseCustomPeriod}
-          applyCustomPeriod={applyCustomPeriod}
-          closePeriodMenu={closePeriodMenu}
-          draftPeriodRange={draftPeriodRange}
-        />
+        {/* Period picker — inline below title, compact pill row */}
+        <div className="relative mb-6 flex items-center gap-3" ref={periodMenuRef}>
+          <button
+            ref={periodTriggerRef}
+            type="button"
+            className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3.5 py-1.5 text-[12.5px] font-semibold text-[hsl(var(--foreground))] shadow-2xs hover:bg-[hsl(var(--muted))] transition cursor-pointer"
+            aria-label="Reporting period"
+            aria-expanded={periodMenuOpen}
+            onClick={() => { setDraftPeriod(period); setPeriodMenuOpen((open) => !open); }}
+            data-testid="button-dashboard-period"
+          >
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="max-w-[140px] truncate">{periodLabel}</span>
+            <ChevronDown size={13} className={cn('transition-transform text-[hsl(var(--muted-foreground))]', periodMenuOpen && 'rotate-180')} />
+          </button>
+          {periodMenuOpen && (
+            <div
+              className="absolute left-0 top-full mt-2 z-50 min-w-[200px] rounded-2xl border border-[hsl(var(--border))] bg-white p-2 shadow-xl dark:bg-neutral-950"
+              role="dialog"
+              aria-label="Choose reporting period"
+            >
+              {draftPeriod !== 'custom' ? (
+                <div className="space-y-1">
+                  {dashboardPeriodOptions.map((option) => (
+                    <button
+                      type="button"
+                      key={option.value}
+                      className={cn(
+                        'w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left transition cursor-pointer',
+                        period === option.value
+                          ? 'bg-[hsl(var(--foreground))] text-[hsl(var(--background))] font-semibold'
+                          : 'text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]'
+                      )}
+                      onClick={() => { setPeriod(option.value); setDraftPeriod(option.value); setPeriodMenuOpen(false); }}
+                      aria-pressed={draftPeriod === option.value}
+                    >
+                      <span>{option.label}</span>
+                      {period === option.value && <Check size={13} />}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition cursor-pointer"
+                    onClick={chooseCustomPeriod}
+                    data-testid="button-dashboard-period-custom"
+                  >
+                    <span>Custom date range…</span>
+                  </button>
+                </div>
+              ) : (
+                <DashboardCustomRangePicker
+                  from={draftCustomRange.from}
+                  to={draftCustomRange.to}
+                  onFromChange={(from) => setDraftCustomRange((current) => ({ ...current, from }))}
+                  onToChange={(to) => setDraftCustomRange((current) => ({ ...current, to }))}
+                  onClose={closePeriodMenu}
+                  onApply={applyCustomPeriod}
+                  canApply={Boolean(draftPeriodRange)}
+                />
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Pro+ Executive Intelligence Row (only when seller has orders) */}
         {!isNewSeller && isProPlus && (
@@ -3287,9 +3313,8 @@ export function Overview() {
               <ErrorState retry={() => summaryQuery.refetch()} />
             ) : (
               <>
-                {/* ── Snapshot section heading ─────────────────────────────── */}
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[15px] font-semibold text-[hsl(var(--foreground))]">Snapshot</h2>
+                {/* ── Snapshot period label ─────────────────────── */}
+                <div className="flex justify-end mb-4">
                   <span className="text-[12.5px] text-[hsl(var(--muted-foreground))]">{periodLabel}</span>
                 </div>
 
