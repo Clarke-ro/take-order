@@ -390,3 +390,69 @@ test("adjusts stock only when an order enters or leaves the paid state", () => {
   assert.equal(stockDeltaForOrderStatusChange("reserved", "deposit_paid"), 0);
   assert.equal(stockDeltaForOrderStatusChange("paid", "paid"), 0);
 });
+
+test("accurately verifies canonical 3-orders financial scenario", () => {
+  const catalogProducts: AnalyticsProduct[] = [
+    { id: 101, name: "Product A", category: "Apparel", cost: "200.00", stock: 10 },
+    { id: 102, name: "Product B", category: "Apparel", cost: "250.00", stock: 10 },
+    { id: 103, name: "Product C", category: "Apparel", cost: "150.00", stock: 10 },
+  ];
+  const testNow = new Date("2026-10-01T14:00:00.000Z");
+  const testOrders: AnalyticsOrder[] = [
+    {
+      productId: 101,
+      productName: "Product A",
+      channel: "whatsapp",
+      amount: "400.00",
+      productCost: "200.00",
+      depositAmount: null,
+      status: "paid",
+      createdAt: testNow,
+      linkOpens: 5,
+    },
+    {
+      productId: 102,
+      productName: "Product B",
+      channel: "whatsapp",
+      amount: "500.00",
+      productCost: "250.00",
+      depositAmount: "200.00",
+      status: "deposit_paid",
+      createdAt: testNow,
+      linkOpens: 4,
+    },
+    {
+      productId: 103,
+      productName: "Product C",
+      channel: "instagram",
+      amount: "300.00",
+      productCost: "150.00",
+      depositAmount: null,
+      status: "pending",
+      createdAt: testNow,
+      linkOpens: 3,
+    },
+  ];
+  const testExpenses: AnalyticsExpense[] = [
+    { amount: "100.00", expenseDate: "2026-10-01" },
+  ];
+
+  const summary = calculateDashboardSummary(
+    catalogProducts,
+    testOrders,
+    testExpenses,
+    testNow,
+    { from: "2026-10-01", to: "2026-10-01" },
+    "Africa/Accra",
+  );
+
+  assert.equal(summary.orders, 3);
+  assert.equal(summary.orderValue, 1200);
+  assert.equal(summary.averageOrderValue, 400);
+  assert.equal(summary.revenue, 600);
+  assert.equal(summary.outstanding, 600);
+  assert.equal(summary.productCosts, 450);
+  assert.equal(summary.operatingExpenses, 100);
+  assert.equal(summary.expenses, 550);
+  assert.equal(summary.profit, 50);
+});

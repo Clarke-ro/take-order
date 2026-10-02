@@ -582,6 +582,8 @@ export const GetDashboardSummaryQueryParams = zod.object({
 
 export const GetDashboardSummaryResponse = zod.object({
   "revenue": zod.number(),
+  "orderValue": zod.number().optional().describe('Total value of orders placed in the reporting window.'),
+  "averageOrderValue": zod.number().optional().describe('Average order value across placed orders in the reporting window.'),
   "productCosts": zod.number(),
   "estimatedProductCosts": zod.number().describe('Current catalog-cost estimates included for legacy sales without a captured sale-time cost.'),
   "operatingExpenses": zod.number(),

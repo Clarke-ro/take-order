@@ -4,6 +4,7 @@ import {
   expensesTable,
   ordersTable,
   productsTable,
+  sellerSettingsTable,
 } from "@workspace/db/schema";
 import type { db } from "@workspace/db";
 import { GetDashboardSummaryResponse } from "@workspace/api-zod";
@@ -38,7 +39,7 @@ export function createAnalyticsRouter(database: typeof db, requireSellerAuth: Re
       return;
     }
     const currentOwnerUserId = sellerId(res);
-    const [orders, expenses, products] = await Promise.all([
+    const [orders, expenses, products, sellerSettingsRows] = await Promise.all([
       database.select().from(ordersTable)
         .where(eq(ordersTable.ownerUserId, currentOwnerUserId))
         .orderBy(desc(ordersTable.createdAt)),
@@ -48,13 +49,18 @@ export function createAnalyticsRouter(database: typeof db, requireSellerAuth: Re
       database.select().from(productsTable)
         .where(eq(productsTable.ownerUserId, currentOwnerUserId))
         .orderBy(productsTable.id),
+      database.select().from(sellerSettingsTable)
+        .where(eq(sellerSettingsTable.ownerUserId, currentOwnerUserId))
+        .limit(1),
     ]);
+    const sellerSettings = sellerSettingsRows[0]?.settings as Record<string, unknown> | undefined;
+    const timezone = typeof sellerSettings?.timezone === "string" ? sellerSettings.timezone : "Africa/Accra";
     const range: DashboardRange | undefined = from || to ? { from, to } : undefined;
-    const summary = calculateDashboardSummary(products, orders, expenses, new Date(), range);
+    const summary = calculateDashboardSummary(products, orders, expenses, new Date(), range, timezone);
     res.json(GetDashboardSummaryResponse.parse(summary));
   });
 
-  router.get("/dashboard/export", requireSellerAuth, async (_req, res): Promise<void> => {
+  router.get("/dashboard/export", requireSellerAuth, async (req, res): Promise<void> => {
     const ownerUserId = sellerId(res);
     const entitlement = await resolveSellerEntitlement(database, ownerUserId);
     if (!entitlement.capabilities.canExportAnalytics) {
@@ -66,11 +72,32 @@ export function createAnalyticsRouter(database: typeof db, requireSellerAuth: Re
       });
       return;
     }
-    const orders = await database
-      .select()
-      .from(ordersTable)
-      .where(eq(ordersTable.ownerUserId, ownerUserId))
-      .orderBy(desc(ordersTable.createdAt));
+    const parseDateQuery = (value: unknown): string | undefined => {
+      if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+      const parsed = new Date(`${value}T00:00:00.000Z`);
+      return Number.isNaN(parsed.getTime()) ? undefined : value;
+    };
+    const from = parseDateQuery(req.query.from);
+    const to = parseDateQuery(req.query.to);
+    const range: DashboardRange | undefined = from || to ? { from, to } : undefined;
+
+    const [orders, expenses, products, sellerSettingsRows] = await Promise.all([
+      database.select().from(ordersTable)
+        .where(eq(ordersTable.ownerUserId, ownerUserId))
+        .orderBy(desc(ordersTable.createdAt)),
+      database.select().from(expensesTable)
+        .where(eq(expensesTable.ownerUserId, ownerUserId))
+        .orderBy(desc(expensesTable.expenseDate), desc(expensesTable.id)),
+      database.select().from(productsTable)
+        .where(eq(productsTable.ownerUserId, ownerUserId))
+        .orderBy(productsTable.id),
+      database.select().from(sellerSettingsTable)
+        .where(eq(sellerSettingsTable.ownerUserId, ownerUserId))
+        .limit(1),
+    ]);
+    const sellerSettings = sellerSettingsRows[0]?.settings as Record<string, unknown> | undefined;
+    const timezone = typeof sellerSettings?.timezone === "string" ? sellerSettings.timezone : "Africa/Accra";
+    const summary = calculateDashboardSummary(products, orders, expenses, new Date(), range, timezone);
 
     const sanitizeCell = (val: unknown): string => {
       if (val == null) return '""';
@@ -81,22 +108,44 @@ export function createAnalyticsRouter(database: typeof db, requireSellerAuth: Re
       return `"${str.replace(/"/g, '""')}"`;
     };
 
-    const headers = ["Order ID", "Order Token", "Product", "Buyer", "Phone", "Channel", "Status", "Fulfillment", "Amount", "Created At"];
-    const rows = orders.map((o) => [
-      sanitizeCell(o.id),
-      sanitizeCell(o.token),
-      sanitizeCell(o.productName),
-      sanitizeCell(o.customerName),
-      sanitizeCell(o.customerPhone),
-      sanitizeCell(o.channel),
-      sanitizeCell(o.status),
-      sanitizeCell(o.fulfillment),
-      sanitizeCell(Number(o.amount).toFixed(2)),
-      sanitizeCell(o.createdAt ? new Date(o.createdAt).toISOString() : ""),
+    // Columns: Date, Orders, Order value, Revenue collected, Outstanding, Product costs, Operating expenses, Net profit
+    const headers = [
+      "Date",
+      "Orders",
+      "Order value",
+      "Revenue collected",
+      "Outstanding",
+      "Product costs",
+      "Operating expenses",
+      "Net profit",
+    ];
+
+    const rows = summary.dailyPerformance.map((d) => [
+      sanitizeCell(d.date),
+      sanitizeCell(d.orders),
+      sanitizeCell(d.revenue.toFixed(2)), // Day revenue
+      sanitizeCell(d.revenue.toFixed(2)),
+      sanitizeCell("0.00"),
+      sanitizeCell(d.productCosts.toFixed(2)),
+      sanitizeCell(d.operatingExpenses.toFixed(2)),
+      sanitizeCell(d.profit.toFixed(2)),
     ]);
+
+    // Append summary totals row
+    rows.push([
+      sanitizeCell("TOTAL"),
+      sanitizeCell(summary.orders),
+      sanitizeCell((summary.orderValue ?? summary.revenue).toFixed(2)),
+      sanitizeCell(summary.revenue.toFixed(2)),
+      sanitizeCell(summary.outstanding.toFixed(2)),
+      sanitizeCell(summary.productCosts.toFixed(2)),
+      sanitizeCell(summary.operatingExpenses.toFixed(2)),
+      sanitizeCell(summary.profit.toFixed(2)),
+    ]);
+
     const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", 'attachment; filename="take-order-export.csv"');
+    res.setHeader("Content-Disposition", 'attachment; filename="take-order-analytics.csv"');
     res.send(csvContent);
   });
 

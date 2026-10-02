@@ -1,13 +1,19 @@
 import React from 'react';
-import { Info } from 'lucide-react';
+import { Info, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface StatCardProps {
   label: string;
   value: string | number;
   suffix?: string;       // muted text beside value, e.g. "0% of orders"
   description?: string;  // shown on the info icon tooltip
+  caption?: string;      // short caption below value
   onClick?: () => void;
   className?: string;
+  expanded?: boolean;
+  ariaControls?: string;
+  badge?: React.ReactNode;
+  sparkline?: React.ReactNode;
   // Legacy compat props — kept so existing callers don't break at compile time
   trend?: any;
   subtitle?: string;
@@ -24,43 +30,92 @@ export function StatCard({
   value,
   suffix,
   description,
+  caption,
   onClick,
   className = '',
+  expanded = false,
+  ariaControls,
+  badge,
+  sparkline,
+  active = false,
+  subtitle,
 }: StatCardProps) {
+  const isInteractive = Boolean(onClick);
+  const isSelected = active || expanded;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isInteractive && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onClick?.();
+    }
+  };
+
   return (
     <div
+      role={isInteractive ? 'button' : undefined}
+      tabIndex={isInteractive ? 0 : undefined}
+      aria-expanded={isInteractive ? expanded : undefined}
+      aria-controls={ariaControls}
       onClick={onClick}
-      className={[
-        'saas-stat-card flex flex-col justify-between rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-6 min-h-[110px]',
-        onClick ? 'cursor-pointer hover:border-[hsl(var(--primary))]/40 hover:shadow-sm transition-all' : '',
-        className,
-      ].filter(Boolean).join(' ')}
+      onKeyDown={handleKeyDown}
+      className={cn(
+        'saas-stat-card flex flex-col justify-between rounded-[12px] border bg-[hsl(var(--card))] p-5 transition-all outline-none',
+        isSelected
+          ? 'border-neutral-900 ring-1 ring-neutral-900 shadow-sm dark:border-white dark:ring-white'
+          : 'border-[hsl(var(--card-border))] hover:border-neutral-400 dark:hover:border-neutral-700',
+        isInteractive && 'cursor-pointer select-none',
+        className
+      )}
     >
-      {/* Label + info icon */}
-      <div className="flex items-center gap-1.5">
-        <span className="text-[13.5px] font-medium text-[hsl(var(--muted-foreground))] leading-none select-none">
-          {label}
-        </span>
-        <span title={description || label} className="inline-flex">
-          <Info
-            size={13}
-            className="text-[hsl(var(--muted-foreground))]/50 shrink-0"
-            aria-label={description || label}
-          />
-        </span>
-      </div>
-
-      {/* Big value + optional muted suffix */}
-      <div className="mt-3 flex items-baseline gap-2 flex-wrap">
-        <span className="text-[36px] leading-none font-semibold tracking-tight text-[hsl(var(--foreground))]">
-          {value}
-        </span>
-        {suffix && (
-          <span className="text-[13px] font-normal text-[hsl(var(--muted-foreground))] leading-none">
-            {suffix}
+      {/* Label row + info icon + optional expand chevron */}
+      <div className="flex items-center justify-between gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-[13px] font-medium text-[hsl(var(--muted-foreground))] leading-none truncate">
+            {label}
           </span>
+          {description && (
+            <span title={description} className="inline-flex shrink-0">
+              <Info
+                size={13}
+                className="text-[hsl(var(--muted-foreground))]/60 hover:text-[hsl(var(--foreground))] transition-colors"
+                aria-label={description}
+              />
+            </span>
+          )}
+        </div>
+        {isInteractive && (
+          <ChevronDown
+            size={14}
+            className={cn(
+              'text-[hsl(var(--muted-foreground))] transition-transform duration-200 shrink-0',
+              expanded && 'rotate-180 text-neutral-900 dark:text-white'
+            )}
+          />
         )}
       </div>
+
+      {/* Big value row + sparkline */}
+      <div className="mt-3 flex items-end justify-between gap-2">
+        <div className="flex items-baseline gap-1.5 flex-wrap">
+          <span className="text-[28px] sm:text-[32px] leading-none font-semibold tracking-tight text-[hsl(var(--foreground))]">
+            {value}
+          </span>
+          {suffix && (
+            <span className="text-[12px] font-normal text-[hsl(var(--muted-foreground))] leading-none">
+              {suffix}
+            </span>
+          )}
+        </div>
+        {sparkline && <div className="shrink-0">{sparkline}</div>}
+      </div>
+
+      {/* Caption & optional badge */}
+      {(caption || subtitle || badge) && (
+        <div className="mt-2.5 flex items-center justify-between gap-2 pt-1 border-t border-[hsl(var(--border))]/40 text-[11px] text-[hsl(var(--muted-foreground))]">
+          <span className="truncate">{caption || subtitle}</span>
+          {badge && <span className="shrink-0">{badge}</span>}
+        </div>
+      )}
     </div>
   );
 }

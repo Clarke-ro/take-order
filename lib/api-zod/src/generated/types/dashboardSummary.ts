@@ -11,6 +11,10 @@ import type { ProductPerformance } from './productPerformance';
 
 export interface DashboardSummary {
   revenue: number;
+  /** Total value of orders placed in the reporting window. */
+  orderValue?: number;
+  /** Average order value across placed orders in the reporting window. */
+  averageOrderValue?: number;
   productCosts: number;
   /** Current catalog-cost estimates included for legacy sales without a captured sale-time cost. */
   estimatedProductCosts: number;

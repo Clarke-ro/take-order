@@ -586,6 +586,8 @@ components:
       required: [revenue, productCosts, estimatedProductCosts, operatingExpenses, expenses, profit, cashBalance, orders, snapshotOrders, legacyOrders, legacyRevenue, outstanding, bestSeller, shares, likes, channelPerformance, dailyPerformance, productPerformance, insights]
       properties:
         revenue: { type: number }
+        orderValue: { type: number, description: Total value of orders placed in the reporting window. }
+        averageOrderValue: { type: number, description: Average order value across placed orders in the reporting window. }
         productCosts: { type: number }
         estimatedProductCosts: { type: number, description: Current catalog-cost estimates included for legacy sales without a captured sale-time cost. }
         operatingExpenses: { type: number }

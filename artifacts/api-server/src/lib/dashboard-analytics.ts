@@ -28,6 +28,8 @@ export type AnalyticsExpense = {
 
 export type DashboardSummary = {
   revenue: number;
+  orderValue?: number;
+  averageOrderValue?: number;
   productCosts: number;
   estimatedProductCosts: number;
   operatingExpenses: number;
@@ -131,16 +133,32 @@ function totalRecordedEngagement(
   return values.length ? values.reduce((total, value) => total + Number(value), 0) : null;
 }
 
+function getLocalDateString(dateInput: Date | string, tz: string = "UTC"): string {
+  try {
+    const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  } catch {
+    const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+    return d.toISOString().slice(0, 10);
+  }
+}
+
 export function calculateDashboardSummary(
   products: AnalyticsProduct[],
   orders: AnalyticsOrder[],
   operatingExpenseRows: AnalyticsExpense[],
   now = new Date(),
   range?: DashboardRange,
+  timezone: string = "UTC",
 ): DashboardSummary {
   const productMap = new Map(products.map((product) => [product.id, product]));
   const orderIsInRange = (order: AnalyticsOrder) => {
-    const date = order.createdAt.toISOString().slice(0, 10);
+    const date = getLocalDateString(order.createdAt, timezone);
     return (!range?.from || date >= range.from) && (!range?.to || date <= range.to);
   };
   const expenseIsInRange = (expense: AnalyticsExpense) =>
@@ -149,6 +167,9 @@ export function calculateDashboardSummary(
   const scopedOrders = orders.filter(orderIsInRange);
   const scopedExpenseRows = operatingExpenseRows.filter(expenseIsInRange);
   const paidOrders = scopedOrders.filter(isPaidOrder);
+  const placedOrders = scopedOrders.filter((order) => order.status !== "reserved");
+  const orderValue = placedOrders.reduce((sum, order) => sum + Number(order.amount), 0);
+  const averageOrderValue = placedOrders.length > 0 ? orderValue / placedOrders.length : 0;
   const revenue = paidOrders.reduce((sum, order) => sum + orderRevenue(order), 0);
   const legacyOrders = paidOrders.filter(orderHasLegacyCost);
   const snapshotOrders = paidOrders.length - legacyOrders.length;
@@ -171,13 +192,15 @@ export function calculateDashboardSummary(
   );
   const expenses = productCosts + operatingExpenses;
   const profit = revenue - expenses;
-  const outstanding = scopedOrders
-    .filter((order) => order.status === "deposit_paid")
-    .reduce(
-      (sum, order) =>
-        sum + Math.max(0, Number(order.amount) - Number(order.depositAmount ?? 0)),
-      0,
-    );
+  const openOrders = scopedOrders.filter(
+    (order) => order.status === "deposit_paid" || order.status === "pending" || order.status === "unpaid",
+  );
+  const outstanding = openOrders.reduce((sum, order) => {
+    if (order.status === "deposit_paid") {
+      return sum + Math.max(0, Number(order.amount) - Number(order.depositAmount ?? 0));
+    }
+    return sum + Number(order.amount);
+  }, 0);
   const bestSeller = paidOrders.reduce<{ name: string; count: number }>(
     (best, order) => {
       const count = paidOrders.filter(
@@ -205,8 +228,9 @@ export function calculateDashboardSummary(
     })
     .filter((item) => item.orders > 0 || item.opens > 0);
 
-  const today = new Date(now);
-  today.setUTCHours(0, 0, 0, 0);
+  const todayStr = getLocalDateString(now, timezone);
+  const [nowY, nowM, nowD] = todayStr.split("-").map(Number);
+  const today = new Date(Date.UTC(nowY, nowM - 1, nowD, 0, 0, 0));
   const defaultStart = new Date(today);
   defaultStart.setUTCDate(today.getUTCDate() - 6);
   const rangeStart = range?.from ? new Date(`${range.from}T00:00:00.000Z`) : defaultStart;
@@ -220,7 +244,7 @@ export function calculateDashboardSummary(
     day.setUTCDate(dailyStart.getUTCDate() + index);
     const date = day.toISOString().slice(0, 10);
     const dayOrders = paidOrders.filter(
-      (order) => order.createdAt.toISOString().slice(0, 10) === date,
+      (order) => getLocalDateString(order.createdAt, timezone) === date,
     );
     const dayRevenue = dayOrders.reduce(
       (sum, order) => sum + orderRevenue(order),
@@ -235,11 +259,13 @@ export function calculateDashboardSummary(
       .filter((expense) => expense.expenseDate === date)
       .reduce((sum, expense) => sum + Number(expense.amount), 0);
     const dayExpenses = dayProductCosts + dayOperatingExpenses;
+    const [y, m, dNum] = date.split("-").map(Number);
+    const dayObj = new Date(Date.UTC(y, m - 1, dNum, 12, 0, 0));
     return {
       date,
       label: dayCount <= 14
-        ? day.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })
-        : day.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+        ? dayObj.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })
+        : dayObj.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
       revenue: dayRevenue,
       productCosts: dayProductCosts,
       operatingExpenses: dayOperatingExpenses,
@@ -312,13 +338,15 @@ export function calculateDashboardSummary(
 
   return {
     revenue,
+    orderValue,
+    averageOrderValue,
     productCosts,
     estimatedProductCosts,
     operatingExpenses,
     expenses,
     profit,
     cashBalance: revenue - expenses,
-    orders: paidOrders.length,
+    orders: placedOrders.length,
     snapshotOrders,
     legacyOrders: legacyOrders.length,
     legacyRevenue,

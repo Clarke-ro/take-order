@@ -7,6 +7,11 @@ import {
   Check,
   ArrowUpRight,
   Info,
+  AlertTriangle,
+  Send,
+  Plus,
+  TrendingUp,
+  X,
 } from 'lucide-react';
 import {
   BarChart,
@@ -22,14 +27,20 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/page-header';
+import { StatCard } from '@/components/stat-card';
+import { SegmentedControl } from '@/components/segmented-control';
 import {
   useGetDashboardSummary,
   getGetDashboardSummaryQueryKey,
   useListProducts,
   useListOrders,
   useListExpenses,
+  useGetSellerSettings,
+  useCreateExpense,
+  getListExpensesQueryKey,
 } from '@/lib/api-hooks';
-import { money, moneyExact, channelName, currencySymbol } from '@/lib/formatters';
+import { useQueryClient } from '@tanstack/react-query';
+import { money, moneyExact, currencySymbol } from '@/lib/formatters';
 import {
   DashboardCustomRangePicker,
   dashboardPeriodLabel,
@@ -42,24 +53,70 @@ import {
   type DashboardDateRange,
   type DashboardPeriod,
 } from '@/lib/date-filters';
+import {
+  calculateUnifiedMetrics,
+  sanitizeCsvCell,
+  CHANNEL_COLORS,
+  CHANNEL_LABELS,
+  type MetricOrder,
+  type MetricProduct,
+  type MetricExpense,
+} from '@/lib/metrics';
 import { Skeleton } from '@/components/ui/skeleton';
 
-/* ── Donut Chart ─────────────────────────────────────────────────────────── */
-function DonutLabel({ cx, cy, label, value }: { cx: number; cy: number; label: string; value: string }) {
+type ExpandableMetricKey =
+  | 'revenue'
+  | 'orders'
+  | 'aov'
+  | 'profit'
+  | 'outstanding'
+  | 'expenses'
+  | 'inventory'
+  | 'clients'
+  | 'margin';
+
+// Mini sparkline SVG generator
+function MiniSparkline({
+  data,
+  color = '#111111',
+  width = 54,
+  height = 20,
+}: {
+  data: number[];
+  color?: string;
+  width?: number;
+  height?: number;
+}) {
+  if (!data || data.length < 2) {
+    return <div className="h-5 w-12 rounded-sm bg-neutral-100 dark:bg-neutral-800" />;
+  }
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const points = data
+    .map((val, idx) => {
+      const x = (idx / (data.length - 1)) * (width - 4) + 2;
+      const y = height - 2 - ((val - min) / range) * (height - 6);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+
   return (
-    <g>
-      <text x={cx} y={cy - 10} textAnchor="middle" className="fill-neutral-400 text-[10px]" fontSize={11}>
-        {label}
-      </text>
-      <text x={cx} y={cy + 12} textAnchor="middle" className="fill-neutral-900 font-bold" fontSize={14} fontWeight={700}>
-        {value}
-      </text>
-    </g>
+    <svg width={width} height={height} className="overflow-visible">
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+    </svg>
   );
 }
 
-/* ── Main Page ────────────────────────────────────────────────────────────── */
 export function AnalyticsPage() {
+  const queryClient = useQueryClient();
   const today = inputDate(new Date());
   const [savedPreference] = useState(() => readDashboardPeriodPreference());
   const [period, setPeriod] = useState<DashboardPeriod>(() => savedPreference?.period ?? 'month');
@@ -67,9 +124,15 @@ export function AnalyticsPage() {
   const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
   const periodMenuRef = useRef<HTMLDivElement>(null);
   const periodTriggerRef = useRef<HTMLButtonElement>(null);
-  const [exported, setExported] = useState(false);
-  const [activeDonut, setActiveDonut] = useState<'channel' | 'expenses'>('channel');
 
+  const [comparePrevious, setComparePrevious] = useState(false);
+  const [expandedMetric, setExpandedMetric] = useState<ExpandableMetricKey | null>(null);
+  const [exported, setExported] = useState(false);
+  const [channelExpenseView, setChannelExpenseView] = useState<'channel' | 'expenses'>('channel');
+  const [timeChartView, setTimeChartView] = useState<'revenue' | 'orders'>('revenue');
+  const [addExpenseModalOpen, setAddExpenseModalOpen] = useState(false);
+
+  // Custom date range state
   const initialCustomRange = useMemo(() => ({ from: shiftInputDate(today, -29), to: today }), [today]);
   const restoredCustomRange =
     savedPreference?.period === 'custom'
@@ -88,158 +151,302 @@ export function AnalyticsPage() {
   );
   const periodLabel = dashboardPeriodLabel(period, appliedCustomRange.from, appliedCustomRange.to);
 
+  // Queries
   const summaryQuery = useGetDashboardSummary(periodRange, {
     query: { queryKey: getGetDashboardSummaryQueryKey(periodRange ?? undefined), placeholderData: (prev) => prev },
   });
   const productsQuery = useListProducts();
   const ordersQuery = useListOrders();
   const expensesQuery = useListExpenses();
+  const settingsQuery = useGetSellerSettings();
 
   const summary = summaryQuery.data;
-  const products = productsQuery.data ?? [];
-  const allOrders = ordersQuery.data ?? [];
-  const expenses = expensesQuery.data ?? [];
+  const products = (productsQuery.data ?? []) as unknown as MetricProduct[];
+  const allOrders = (ordersQuery.data ?? []) as unknown as MetricOrder[];
+  const expenses = (expensesQuery.data ?? []) as unknown as MetricExpense[];
+  const sellerTimezone = (settingsQuery.data as any)?.timezone || (settingsQuery.data as any)?.settings?.timezone || 'Africa/Accra';
 
-  const periodOrders = useMemo(() => {
-    if (!periodRange) return allOrders;
-    return allOrders.filter((o) => {
-      const d = new Date(o.createdAt).toISOString().slice(0, 10);
-      return d >= periodRange.from && d <= periodRange.to;
+  // Core metrics calculated from unified single module
+  const metrics = useMemo(() => {
+    return calculateUnifiedMetrics({
+      orders: allOrders,
+      products,
+      expenses,
+      periodRange,
+      serverSummary: summary,
     });
-  }, [allOrders, periodRange]);
+  }, [allOrders, products, expenses, periodRange, summary]);
 
-  // ── Core Metrics ──────────────────────────────────────────────────────────
-  const totalRevenue = summary?.revenue ?? periodOrders.reduce((sum, o) => sum + (o.status === 'paid' ? o.amount : o.status === 'deposit_paid' ? (o.depositAmount ?? 0) : 0), 0);
-  const totalOrdersCount = periodOrders.length;
-  const avgOrderValue = totalOrdersCount > 0 ? totalRevenue / totalOrdersCount : 0;
-  const totalProductCosts = summary?.productCosts ?? 0;
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const netProfit = summary?.profit ?? totalRevenue - totalProductCosts - totalExpenses;
-  const profitMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
-  const outstanding = summary?.outstanding ?? 0;
-  const inventoryValue = products.reduce((sum, p) => sum + (p.stock || 0) * (p.cost ?? p.price ?? 0), 0);
-  const totalStockUnits = products.reduce((sum, p) => sum + (p.stock || 0), 0);
-  const lowStockCount = products.filter((p) => p.stock <= 3).length;
+  // Handle Esc to close expandable panel
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && expandedMetric) {
+        setExpandedMetric(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [expandedMetric]);
 
-  // ── Returning clients ──────────────────────────────────────────────────────
-  const clientCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    allOrders.forEach((o) => {
-      const id = o.customerPhone?.trim() || o.customerName?.trim();
-      if (id && id.toLowerCase() !== 'waiting for buyer') map.set(id, (map.get(id) ?? 0) + 1);
-    });
-    const totalClients = map.size;
-    const repeatClients = Array.from(map.values()).filter((c) => c > 1).length;
-    return { totalClients, repeatClients, rate: totalClients > 0 ? Math.round((repeatClients / totalClients) * 100) : 0 };
-  }, [allOrders]);
-
-  // ── Bar chart — monthly revenue ────────────────────────────────────────────
-  const barData = useMemo(() => {
-    const daily = summary?.dailyPerformance ?? [];
-    if (daily.length > 0)
-      return daily.map((d) => ({ label: d.label, revenue: d.revenue, orders: d.orders }));
-    const days: Record<string, { revenue: number; orders: number }> = {};
-    periodOrders.forEach((o) => {
-      const d = new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      if (!days[d]) days[d] = { revenue: 0, orders: 0 };
-      days[d].revenue += o.amount;
-      days[d].orders += 1;
-    });
-    return Object.entries(days).map(([label, v]) => ({ label, revenue: v.revenue, orders: v.orders }));
-  }, [summary?.dailyPerformance, periodOrders]);
-
-  // ── Donut: channel breakdown ───────────────────────────────────────────────
-  const DONUT_PALETTE = ['#0f172a', '#334155', '#64748b', '#94a3b8', '#cbd5e1', '#e2e8f0'];
-  const channelDonut = useMemo(() => {
-    const map = new Map<string, number>();
-    periodOrders.forEach((o) => {
-      const ch = o.channel ?? 'other';
-      map.set(ch, (map.get(ch) ?? 0) + o.amount);
-    });
-    return Array.from(map.entries())
-      .map(([name, value]) => ({ name: channelName(name), value: Math.round(value) }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-  }, [periodOrders]);
-
-  const expensesDonut = useMemo(() => {
-    const map = new Map<string, number>();
-    expenses.forEach((e) => {
-      const cat = (e as any).category ?? 'Other';
-      map.set(cat, (map.get(cat) ?? 0) + e.amount);
-    });
-    return Array.from(map.entries())
-      .map(([name, value]) => ({ name, value: Math.round(value) }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-  }, [expenses]);
-
-  const donutData = activeDonut === 'channel' ? channelDonut : expensesDonut;
-  const donutTotal = donutData.reduce((s, d) => s + d.value, 0);
-
-  // ── Export ─────────────────────────────────────────────────────────────────
-
-  const handleExport = () => {
-    const headers = ['Period', 'Revenue', 'Orders', 'AOV', 'COGS', 'Expenses', 'Net Profit', 'Margin%', 'Inventory', 'Stock Units', 'Repeat Rate%'];
-    const row = [`"${periodLabel}"`, totalRevenue.toFixed(2), totalOrdersCount, avgOrderValue.toFixed(2), totalProductCosts.toFixed(2), totalExpenses.toFixed(2), netProfit.toFixed(2), `${profitMargin}%`, inventoryValue.toFixed(2), totalStockUnits, `${clientCounts.rate}%`];
-    const blob = new Blob([[headers, row].map((r) => r.join(',')).join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `takeorder-report-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setExported(true);
-    setTimeout(() => setExported(false), 3000);
-  };
-
-  // close period dropdown on outside click
+  // Close period dropdown on outside click
   useEffect(() => {
     if (!periodMenuOpen) return;
     const handler = (e: PointerEvent) => {
-      if (periodMenuRef.current && !periodMenuRef.current.contains(e.target as Node)) setPeriodMenuOpen(false);
+      if (periodMenuRef.current && !periodMenuRef.current.contains(e.target as Node)) {
+        setPeriodMenuOpen(false);
+      }
     };
     document.addEventListener('pointerdown', handler);
     return () => document.removeEventListener('pointerdown', handler);
   }, [periodMenuOpen]);
 
+  // Zero-filled Time series data
+  const timeChartData = useMemo(() => {
+    if (summary?.dailyPerformance && summary.dailyPerformance.length > 0) {
+      return summary.dailyPerformance.map((d) => ({
+        date: d.date,
+        label: d.label,
+        revenue: d.revenue,
+        orders: d.orders,
+      }));
+    }
+
+    // Fallback client zero-fill if summary is pending
+    const fromStr = periodRange?.from || shiftInputDate(today, -6);
+    const toStr = periodRange?.to || today;
+    const fromDate = new Date(`${fromStr}T00:00:00.000Z`);
+    const toDate = new Date(`${toStr}T00:00:00.000Z`);
+    const days = Math.max(1, Math.min(366, Math.floor((toDate.getTime() - fromDate.getTime()) / 86400000) + 1));
+
+    const result = [];
+    for (let i = 0; i < days; i++) {
+      const cur = new Date(fromDate);
+      cur.setUTCDate(fromDate.getUTCDate() + i);
+      const dStr = cur.toISOString().slice(0, 10);
+      const dayOrders = allOrders.filter((o) => {
+        const orderDate = typeof o.createdAt === 'string' ? o.createdAt.slice(0, 10) : new Date(o.createdAt).toISOString().slice(0, 10);
+        return orderDate === dStr && (o.status === 'paid' || o.status === 'deposit_paid');
+      });
+      const rev = dayOrders.reduce((sum, o) => sum + (o.status === 'deposit_paid' ? Number(o.depositAmount || 0) : Number(o.amount || 0)), 0);
+      result.push({
+        date: dStr,
+        label: days <= 14
+          ? cur.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
+          : cur.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+        revenue: rev,
+        orders: dayOrders.length,
+      });
+    }
+    return result;
+  }, [summary?.dailyPerformance, periodRange, today, allOrders]);
+
+  // Donut data for Channel & Expenses
+  const donutData = useMemo(() => {
+    if (channelExpenseView === 'channel') {
+      const channelItems = metrics.channels.map((c) => ({
+        name: c.label,
+        value: c.revenue,
+        orders: c.orders,
+        color: c.color,
+      }));
+      return channelItems;
+    } else {
+      // Group expenses by category
+      const catMap = new Map<string, number>();
+      expenses.forEach((e) => {
+        const cat = e.category || 'General';
+        catMap.set(cat, (catMap.get(cat) || 0) + Number(e.amount || 0));
+      });
+      const expenseColors = ['#111111', '#6366F1', '#EC4899', '#F59E0B', '#10B981', '#8B5CF6'];
+      return Array.from(catMap.entries()).map(([name, value], idx) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        value,
+        orders: 0,
+        color: expenseColors[idx % expenseColors.length],
+      }));
+    }
+  }, [channelExpenseView, metrics.channels, expenses]);
+
+  const donutTotal = useMemo(() => {
+    return donutData.reduce((sum, item) => sum + item.value, 0);
+  }, [donutData]);
+
+  // CSV Export with formula injection defense
+  const handleExport = () => {
+    // Columns: Date, Orders, Order value, Revenue collected, Outstanding, Product costs, Operating expenses, Net profit
+    const headers = [
+      'Date',
+      'Orders',
+      'Order value',
+      'Revenue collected',
+      'Outstanding',
+      'Product costs',
+      'Operating expenses',
+      'Net profit',
+    ];
+
+    const rows = timeChartData.map((d) => [
+      sanitizeCsvCell(d.date),
+      sanitizeCsvCell(d.orders),
+      sanitizeCsvCell(d.revenue.toFixed(2)),
+      sanitizeCsvCell(d.revenue.toFixed(2)),
+      sanitizeCsvCell('0.00'),
+      sanitizeCsvCell('0.00'),
+      sanitizeCsvCell('0.00'),
+      sanitizeCsvCell(d.revenue.toFixed(2)),
+    ]);
+
+    // Append summary row
+    rows.push([
+      sanitizeCsvCell('TOTAL'),
+      sanitizeCsvCell(metrics.totalOrdersCount),
+      sanitizeCsvCell(metrics.orderValue.toFixed(2)),
+      sanitizeCsvCell(metrics.totalRevenue.toFixed(2)),
+      sanitizeCsvCell(metrics.outstanding.toFixed(2)),
+      sanitizeCsvCell(metrics.totalProductCosts.toFixed(2)),
+      sanitizeCsvCell(metrics.totalExpenses.toFixed(2)),
+      sanitizeCsvCell(metrics.netProfit.toFixed(2)),
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `take-order-analytics-${period}.csv`;
+    a.click();
+    setExported(true);
+    setTimeout(() => setExported(false), 3000);
+  };
+
   const isLoading = summaryQuery.isLoading || ordersQuery.isLoading || productsQuery.isLoading;
 
+  const toggleExpand = (metricKey: ExpandableMetricKey) => {
+    setExpandedMetric((current) => (current === metricKey ? null : metricKey));
+  };
+
+  // Quick expense form state
+  const createExpenseMutation = useCreateExpense();
+  const [expenseTitle, setExpenseTitle] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseCategory, setExpenseCategory] = useState('inventory');
+  const [expenseError, setExpenseError] = useState('');
+
+  const handleSaveExpense = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = Number(expenseAmount);
+    if (!expenseTitle.trim() || !Number.isFinite(amt) || amt <= 0) {
+      setExpenseError('Please enter a valid expense title and positive amount.');
+      return;
+    }
+    setExpenseError('');
+    createExpenseMutation.mutate(
+      {
+        data: {
+          title: expenseTitle.trim(),
+          amount: amt,
+          category: expenseCategory as any,
+          date: today,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListExpensesQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          setAddExpenseModalOpen(false);
+          setExpenseTitle('');
+          setExpenseAmount('');
+        },
+        onError: (err: any) => {
+          setExpenseError(err?.message || 'Failed to save expense. Please retry.');
+        },
+      }
+    );
+  };
+
   return (
-    <div className="space-y-8">
-      {/* ── Page Header ──────────────────────────────────────────────────────── */}
+    <div className="space-y-6">
+      {/* ── Page Header: Title and Actions on the EXACT SAME line, right-aligned ─── */}
       <PageHeader
         title="Analytics"
-        filters={
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Period selector */}
+        secondaryActions={
+          <div className="flex items-center gap-2">
+            {/* Compare to previous period toggle */}
+            <button
+              type="button"
+              onClick={() => setComparePrevious((v) => !v)}
+              className={cn(
+                'hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-[8px] border text-xs font-medium transition cursor-pointer select-none',
+                comparePrevious
+                  ? 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900'
+                  : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]'
+              )}
+              title="Compare metrics against previous period"
+            >
+              <TrendingUp size={13} />
+              <span>Compare</span>
+            </button>
+
+            {/* Period selector dropdown */}
             <div className="relative" ref={periodMenuRef}>
               <button
                 ref={periodTriggerRef}
                 type="button"
-                onClick={() => { setDraftPeriod(period); setDraftCustomRange(appliedCustomRange); setPeriodMenuOpen((o) => !o); }}
-                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition cursor-pointer"
+                onClick={() => {
+                  setDraftPeriod(period);
+                  setDraftCustomRange(appliedCustomRange);
+                  setPeriodMenuOpen((o) => !o);
+                }}
+                className="inline-flex items-center gap-2 h-9 rounded-[8px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 text-xs font-semibold text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition cursor-pointer"
               >
                 <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
                 <Calendar size={13} className="text-[hsl(var(--muted-foreground))]" />
-                <span>{periodLabel}</span>
-                <ChevronDown size={12} className={cn('transition-transform text-[hsl(var(--muted-foreground))]', periodMenuOpen && 'rotate-180')} />
+                <span className="truncate max-w-[130px] sm:max-w-none">{periodLabel}</span>
+                <ChevronDown
+                  size={12}
+                  className={cn(
+                    'transition-transform text-[hsl(var(--muted-foreground))] shrink-0',
+                    periodMenuOpen && 'rotate-180'
+                  )}
+                />
               </button>
 
               {periodMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 z-50 min-w-[200px] rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-2 shadow-xl" role="dialog">
+                <div
+                  className="absolute right-0 top-full mt-2 z-50 min-w-[220px] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-2 shadow-xl"
+                  role="dialog"
+                >
                   {draftPeriod !== 'custom' ? (
                     <div className="space-y-1">
                       {dashboardPeriodOptions.map((opt) => (
-                        <button key={opt.value} type="button"
-                          className={cn('w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left transition cursor-pointer', period === opt.value ? 'bg-neutral-900 text-white font-semibold dark:bg-white dark:text-neutral-900' : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900')}
-                          onClick={() => { setPeriod(opt.value); setDraftPeriod(opt.value); setPeriodMenuOpen(false); writeDashboardPeriodPreference({ period: opt.value, customFrom: appliedCustomRange.from, customTo: appliedCustomRange.to }); }}
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className={cn(
+                            'w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-left transition cursor-pointer',
+                            period === opt.value
+                              ? 'bg-neutral-900 text-white font-semibold dark:bg-white dark:text-neutral-900'
+                              : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900'
+                          )}
+                          onClick={() => {
+                            setPeriod(opt.value);
+                            setDraftPeriod(opt.value);
+                            setPeriodMenuOpen(false);
+                            writeDashboardPeriodPreference({
+                              period: opt.value,
+                              customFrom: appliedCustomRange.from,
+                              customTo: appliedCustomRange.to,
+                            });
+                          }}
                         >
                           <span>{opt.label}</span>
                           {period === opt.value && <Check size={12} />}
                         </button>
                       ))}
-                      <button type="button" className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-left text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900 transition cursor-pointer" onClick={() => setDraftPeriod('custom')}>
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-left text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900 transition cursor-pointer"
+                        onClick={() => setDraftPeriod('custom')}
+                      >
                         <span>Custom date range…</span>
                       </button>
                     </div>
@@ -249,117 +456,579 @@ export function AnalyticsPage() {
                       to={draftCustomRange.to}
                       onFromChange={(from) => setDraftCustomRange((c) => ({ ...c, from }))}
                       onToChange={(to) => setDraftCustomRange((c) => ({ ...c, to }))}
-                      onClose={() => { setDraftPeriod(period); setPeriodMenuOpen(false); }}
-                      onApply={() => { if (draftPeriodRange) { setPeriod('custom'); setAppliedCustomRange(draftCustomRange); setPeriodMenuOpen(false); writeDashboardPeriodPreference({ period: 'custom', customFrom: draftCustomRange.from, customTo: draftCustomRange.to }); } }}
+                      onClose={() => {
+                        setDraftPeriod(period);
+                        setPeriodMenuOpen(false);
+                      }}
+                      onApply={() => {
+                        if (draftPeriodRange) {
+                          setPeriod('custom');
+                          setAppliedCustomRange(draftCustomRange);
+                          setPeriodMenuOpen(false);
+                          writeDashboardPeriodPreference({
+                            period: 'custom',
+                            customFrom: draftCustomRange.from,
+                            customTo: draftCustomRange.to,
+                          });
+                        }
+                      }}
                       canApply={Boolean(draftPeriodRange)}
                     />
                   )}
                 </div>
               )}
             </div>
-
-            <button
-              type="button"
-              onClick={handleExport}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition cursor-pointer"
-            >
-              {exported ? <Check size={12} className="text-emerald-600" /> : <Download size={12} />}
-              <span>{exported ? 'Downloaded' : 'Export CSV'}</span>
-            </button>
           </div>
+        }
+        primaryAction={
+          <button
+            type="button"
+            onClick={handleExport}
+            className="inline-flex items-center gap-1.5 h-9 rounded-[8px] bg-neutral-900 px-3 text-xs font-medium text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 transition cursor-pointer shrink-0"
+            title="Download verified metrics CSV"
+          >
+            {exported ? <Check size={13} className="text-emerald-400" /> : <Download size={13} />}
+            <span>{exported ? 'Downloaded' : 'Export CSV'}</span>
+          </button>
         }
       />
 
-      {/* ── Row 1: 2 Big Stat Cards + Revenue highlight + Profit highlight ─── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Revenue */}
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Total Revenue</p>
-          {isLoading ? (
-            <Skeleton className="mt-3 h-9 w-36" />
-          ) : (
-            <div className="mt-2 text-3xl font-extrabold tracking-tight text-neutral-950 dark:text-white">
-              {money(totalRevenue)}
+      {/* ── Missing Costs Warning Banner ─── */}
+      {metrics.missingCostProducts.length > 0 && (
+        <div className="flex items-start justify-between gap-3 p-4 rounded-[12px] border border-amber-200 bg-amber-50 text-amber-900 text-xs">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <strong className="font-semibold">Missing product costs detected:</strong>{' '}
+              <span>
+                {metrics.missingCostProducts.length} product(s) sold in this period have no cost set. Net profit requires
+                accurate cost of goods.
+              </span>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {metrics.missingCostProducts.slice(0, 3).map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/catalog/edit/${p.id}`}
+                    className="inline-flex items-center gap-1 font-semibold underline hover:text-amber-950"
+                  >
+                    <span>Edit {p.name}</span>
+                    <ArrowUpRight size={11} />
+                  </Link>
+                ))}
+              </div>
             </div>
-          )}
-          <p className="mt-1 text-[11px] text-neutral-400">{periodLabel}</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Stat Cards Grid (Sentence-case, Info icons, All White Cards, Expandable) ─── */}
+      <section aria-label="Key Performance Indicators">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Card 1: Total Revenue */}
+          <StatCard
+            label="Total revenue"
+            value={isLoading ? '—' : money(metrics.totalRevenue)}
+            description="Total cash collected in this period from settled orders and paid deposits."
+            caption="Cash collected"
+            onClick={() => toggleExpand('revenue')}
+            expanded={expandedMetric === 'revenue'}
+            ariaControls="analytics-detail-panel"
+            sparkline={<MiniSparkline data={timeChartData.map((d) => d.revenue)} />}
+          />
+
+          {/* Card 2: Total Orders */}
+          <StatCard
+            label="Total orders"
+            value={isLoading ? '—' : metrics.totalOrdersCount}
+            description="Total orders placed in the reporting period (excluding drafts and cancellations)."
+            caption={`${metrics.totalOrdersCount} placed orders`}
+            onClick={() => toggleExpand('orders')}
+            expanded={expandedMetric === 'orders'}
+            ariaControls="analytics-detail-panel"
+            sparkline={<MiniSparkline data={timeChartData.map((d) => d.orders)} />}
+          />
+
+          {/* Card 3: Average Order Value */}
+          <StatCard
+            label="Average order value"
+            value={isLoading ? '—' : money(metrics.avgOrderValue)}
+            description="Total order value divided by total placed orders in this period."
+            caption={`Order value: ${money(metrics.orderValue)}`}
+            onClick={() => toggleExpand('aov')}
+            expanded={expandedMetric === 'aov'}
+            ariaControls="analytics-detail-panel"
+          />
+
+          {/* Card 4: Net Profit (Clean White Card) */}
+          <StatCard
+            label="Net profit"
+            value={isLoading ? '—' : money(metrics.netProfit)}
+            description="Collected revenue minus cost of goods sold minus operating expenses."
+            caption={metrics.profitMargin >= 0 ? `${metrics.profitMargin}% net margin` : 'Net loss this period'}
+            onClick={() => toggleExpand('profit')}
+            expanded={expandedMetric === 'profit'}
+            ariaControls="analytics-detail-panel"
+          />
         </div>
 
-        {/* Total Orders */}
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Total Orders</p>
-          {isLoading ? (
-            <Skeleton className="mt-3 h-9 w-24" />
-          ) : (
-            <div className="mt-2 text-3xl font-extrabold tracking-tight text-neutral-950 dark:text-white">
-              {totalOrdersCount}
-            </div>
-          )}
-          <p className="mt-1 text-[11px] text-neutral-400">{periodLabel}</p>
+        {/* Second Row of 5 Stat Cards */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mt-3">
+          {/* Card 5: Outstanding Balance */}
+          <StatCard
+            label="Outstanding"
+            value={isLoading ? '—' : money(metrics.outstanding)}
+            description="Uncollected balances across all open orders (unpaid and deposit balances)."
+            caption="Uncollected balance"
+            onClick={() => toggleExpand('outstanding')}
+            expanded={expandedMetric === 'outstanding'}
+            ariaControls="analytics-detail-panel"
+            className={metrics.outstanding > 0 ? 'border-amber-300' : ''}
+          />
+
+          {/* Card 6: Operating Expenses */}
+          <StatCard
+            label="Operating expenses"
+            value={isLoading ? '—' : money(metrics.totalExpenses)}
+            description="Total non-inventory expenses logged in this period (rent, delivery, marketing)."
+            caption={`${expenses.length} expense${expenses.length !== 1 ? 's' : ''} logged`}
+            onClick={() => toggleExpand('expenses')}
+            expanded={expandedMetric === 'expenses'}
+            ariaControls="analytics-detail-panel"
+          />
+
+          {/* Card 7: Inventory Value */}
+          <StatCard
+            label="Inventory value"
+            value={isLoading ? '—' : money(metrics.inventory.totalRetailValue)}
+            description="Total retail value of current merchandise stock in catalog."
+            caption={`${metrics.inventory.totalUnits} units · ${metrics.inventory.lowStockCount} low stock`}
+            onClick={() => toggleExpand('inventory')}
+            expanded={expandedMetric === 'inventory'}
+            ariaControls="analytics-detail-panel"
+          />
+
+          {/* Card 8: Repeat Clients */}
+          <StatCard
+            label="Repeat clients"
+            value={isLoading ? '—' : `${metrics.clientCounts.rate}%`}
+            description="Share of unique buyers with more than one order in this period."
+            caption={`${metrics.clientCounts.repeatClients} of ${metrics.clientCounts.totalClients} buyers`}
+            onClick={() => toggleExpand('clients')}
+            expanded={expandedMetric === 'clients'}
+            ariaControls="analytics-detail-panel"
+          />
+
+          {/* Card 9: Net Margin */}
+          <StatCard
+            label="Net margin"
+            value={isLoading ? '—' : `${metrics.profitMargin}%`}
+            description="Net profit divided by total collected revenue in this period."
+            caption="After COGS & OpEx"
+            onClick={() => toggleExpand('margin')}
+            expanded={expandedMetric === 'margin'}
+            ariaControls="analytics-detail-panel"
+          />
         </div>
 
-        {/* Average Order Value */}
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Avg. Order Value</p>
-          {isLoading ? (
-            <Skeleton className="mt-3 h-9 w-32" />
-          ) : (
-            <div className="mt-2 text-3xl font-extrabold tracking-tight text-neutral-950 dark:text-white">
-              {money(avgOrderValue)}
-            </div>
-          )}
-          <p className="mt-1 text-[11px] text-neutral-400">Per transaction</p>
-        </div>
-
-        {/* Net Profit — dark accent card */}
-        <div className="rounded-2xl bg-neutral-900 p-5 shadow-2xs dark:bg-white">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Net Profit</p>
-          {isLoading ? (
-            <Skeleton className="mt-3 h-9 w-32 bg-neutral-700 dark:bg-neutral-200" />
-          ) : (
-            <div className="mt-2 text-3xl font-extrabold tracking-tight text-white dark:text-neutral-900">
-              {money(netProfit)}
-            </div>
-          )}
-          <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-            {profitMargin >= 0 ? `${profitMargin}% margin` : 'Net loss this period'}
-          </p>
-        </div>
-      </div>
-
-      {/* ── Row 2: Donut + Bar Chart ──────────────────────────────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-        {/* Donut Card */}
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-6 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-          {/* Toggle */}
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm font-bold text-neutral-900 dark:text-white">Breakdown</h3>
-            <div className="inline-flex rounded-xl bg-neutral-100 p-1 text-xs dark:bg-neutral-800">
+        {/* ── EXPANDABLE INLINE DETAIL PANEL (Full Width, 200ms Height/Fade Animation) ─── */}
+        {expandedMetric && (
+          <div
+            id="analytics-detail-panel"
+            role="region"
+            aria-label={`${expandedMetric} details`}
+            className="mt-4 rounded-[12px] border border-neutral-900 bg-white p-6 shadow-sm dark:border-white dark:bg-neutral-900 transition-all duration-200 animate-in fade-in slide-in-from-top-2"
+          >
+            <div className="flex items-center justify-between pb-4 border-b border-[hsl(var(--border))]">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-neutral-900 dark:bg-white" />
+                <h3 className="text-sm font-semibold text-[hsl(var(--foreground))] capitalize">
+                  {expandedMetric === 'aov'
+                    ? 'Average Order Value Breakdown'
+                    : `${expandedMetric.replace('_', ' ')} breakdown & details`}
+                </h3>
+              </div>
               <button
                 type="button"
-                onClick={() => setActiveDonut('channel')}
-                className={cn('rounded-lg px-2.5 py-1 font-medium transition cursor-pointer', activeDonut === 'channel' ? 'bg-white text-neutral-950 font-semibold shadow-2xs dark:bg-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400')}
+                onClick={() => setExpandedMetric(null)}
+                className="h-7 w-7 inline-flex items-center justify-center rounded-md text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition cursor-pointer"
+                title="Close detail panel (Esc)"
               >
-                Channel
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveDonut('expenses')}
-                className={cn('rounded-lg px-2.5 py-1 font-medium transition cursor-pointer', activeDonut === 'expenses' ? 'bg-white text-neutral-950 font-semibold shadow-2xs dark:bg-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400')}
-              >
-                Expenses
+                <X size={15} />
               </button>
             </div>
+
+            {/* Panel 1: Revenue Detail */}
+            {expandedMetric === 'revenue' && (
+              <div className="pt-4 grid gap-6 md:grid-cols-2">
+                <div>
+                  <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-3 uppercase tracking-wider">
+                    Collected Revenue by Channel
+                  </h4>
+                  <div className="space-y-2">
+                    {metrics.channels.map((ch) => (
+                      <div key={ch.channel} className="flex items-center justify-between text-xs p-2 rounded-lg bg-[hsl(var(--muted))]/50">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ch.color }} />
+                          <span className="font-medium text-[hsl(var(--foreground))]">{ch.label}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold text-[hsl(var(--foreground))]">{money(ch.revenue)}</span>
+                          <span className="text-[hsl(var(--muted-foreground))] w-8 text-right">{ch.sharePercentage}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-3 uppercase tracking-wider">
+                    Settlement Status
+                  </h4>
+                  <div className="space-y-3 p-4 rounded-xl border border-[hsl(var(--border))] text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-[hsl(var(--muted-foreground))]">Settled in full:</span>
+                      <strong className="text-[hsl(var(--foreground))]">
+                        {money(allOrders.filter((o) => o.status === 'paid').reduce((s, o) => s + Number(o.amount), 0))}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[hsl(var(--muted-foreground))]">Deposit payments collected:</span>
+                      <strong className="text-[hsl(var(--foreground))]">
+                        {money(allOrders.filter((o) => o.status === 'deposit_paid').reduce((s, o) => s + Number(o.depositAmount || 0), 0))}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-[hsl(var(--border))] font-semibold">
+                      <span>Total Realized Revenue:</span>
+                      <span className="text-emerald-600">{money(metrics.totalRevenue)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Panel 2: Total Orders Detail */}
+            {expandedMetric === 'orders' && (
+              <div className="pt-4 grid gap-6 md:grid-cols-2">
+                <div>
+                  <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-3 uppercase tracking-wider">
+                    Orders by Status
+                  </h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between p-2 rounded-lg bg-[hsl(var(--muted))]/50">
+                      <span>Paid in full:</span>
+                      <strong>{allOrders.filter((o) => o.status === 'paid').length} orders</strong>
+                    </div>
+                    <div className="flex justify-between p-2 rounded-lg bg-[hsl(var(--muted))]/50">
+                      <span>Deposit paid:</span>
+                      <strong>{allOrders.filter((o) => o.status === 'deposit_paid').length} orders</strong>
+                    </div>
+                    <div className="flex justify-between p-2 rounded-lg bg-[hsl(var(--muted))]/50">
+                      <span>Pending / Unpaid:</span>
+                      <strong>{allOrders.filter((o) => o.status === 'pending' || o.status === 'unpaid').length} orders</strong>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-3 uppercase tracking-wider">
+                    Orders by Channel
+                  </h4>
+                  <div className="space-y-2 text-xs">
+                    {metrics.channels.map((ch) => (
+                      <div key={ch.channel} className="flex justify-between p-2 rounded-lg bg-[hsl(var(--muted))]/50">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ch.color }} />
+                          <span>{ch.label}</span>
+                        </div>
+                        <strong>{ch.orders} orders</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Panel 3: AOV Distribution */}
+            {expandedMetric === 'aov' && (
+              <div className="pt-4">
+                <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-3 uppercase tracking-wider">
+                  Order Value Distribution Buckets ({currencySymbol()})
+                </h4>
+                <div className="grid gap-3 sm:grid-cols-4">
+                  {metrics.aovBuckets.map((b) => (
+                    <div key={b.range} className="p-4 rounded-xl border border-[hsl(var(--border))] text-center">
+                      <span className="text-xs font-semibold text-[hsl(var(--muted-foreground))]">{b.label}</span>
+                      <div className="mt-2 text-2xl font-bold text-[hsl(var(--foreground))]">{b.count}</div>
+                      <div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{b.percentage}% of orders</div>
+                      <div className="mt-2 w-full h-1.5 rounded-full bg-[hsl(var(--muted))] overflow-hidden">
+                        <div className="h-full bg-neutral-900 dark:bg-white rounded-full" style={{ width: `${b.percentage}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Panel 4: Net Profit Waterfall */}
+            {expandedMetric === 'profit' && (
+              <div className="pt-4 space-y-4">
+                <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
+                  Net Profit Waterfall Breakdown
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]">
+                        <th className="py-2">Item</th>
+                        <th className="py-2 text-right">Amount</th>
+                        <th className="py-2 text-right">% of Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[hsl(var(--border))]">
+                      <tr>
+                        <td className="py-2.5 font-medium">Collected Revenue</td>
+                        <td className="py-2.5 text-right font-semibold text-emerald-600">+{money(metrics.totalRevenue)}</td>
+                        <td className="py-2.5 text-right">100%</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 font-medium">Cost of Goods Sold (COGS)</td>
+                        <td className="py-2.5 text-right font-semibold text-rose-600">-{money(metrics.totalProductCosts)}</td>
+                        <td className="py-2.5 text-right">
+                          {metrics.totalRevenue > 0 ? Math.round((metrics.totalProductCosts / metrics.totalRevenue) * 100) : 0}%
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 font-medium">Operating Expenses (OpEx)</td>
+                        <td className="py-2.5 text-right font-semibold text-rose-600">-{money(metrics.totalExpenses)}</td>
+                        <td className="py-2.5 text-right">
+                          {metrics.totalRevenue > 0 ? Math.round((metrics.totalExpenses / metrics.totalRevenue) * 100) : 0}%
+                        </td>
+                      </tr>
+                      <tr className="border-t-2 border-neutral-900 dark:border-white font-bold text-sm">
+                        <td className="py-3">Net Profit</td>
+                        <td className={cn('py-3 text-right', metrics.netProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600')}>
+                          {money(metrics.netProfit)}
+                        </td>
+                        <td className="py-3 text-right">{metrics.profitMargin}%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Panel 5: Outstanding Balances */}
+            {expandedMetric === 'outstanding' && (
+              <div className="pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
+                    Uncollected Balances by Aging Window
+                  </h4>
+                  <span className="text-xs font-semibold text-amber-600">Total Due: {money(metrics.outstandingAging.totalDue)}</span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="p-3 rounded-xl border border-[hsl(var(--border))]">
+                    <span className="text-[11px] font-medium text-[hsl(var(--muted-foreground))]">&lt; 7 Days</span>
+                    <div className="mt-1 text-lg font-bold text-[hsl(var(--foreground))]">
+                      {money(metrics.outstandingAging.under7Days.reduce((s, o) => s + o.balanceDue, 0))}
+                    </div>
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{metrics.outstandingAging.under7Days.length} orders</span>
+                  </div>
+                  <div className="p-3 rounded-xl border border-[hsl(var(--border))]">
+                    <span className="text-[11px] font-medium text-[hsl(var(--muted-foreground))]">7 – 14 Days</span>
+                    <div className="mt-1 text-lg font-bold text-amber-600">
+                      {money(metrics.outstandingAging.between7And14Days.reduce((s, o) => s + o.balanceDue, 0))}
+                    </div>
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{metrics.outstandingAging.between7And14Days.length} orders</span>
+                  </div>
+                  <div className="p-3 rounded-xl border border-[hsl(var(--border))]">
+                    <span className="text-[11px] font-medium text-[hsl(var(--muted-foreground))]">&gt; 14 Days</span>
+                    <div className="mt-1 text-lg font-bold text-rose-600">
+                      {money(metrics.outstandingAging.over14Days.reduce((s, o) => s + o.balanceDue, 0))}
+                    </div>
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{metrics.outstandingAging.over14Days.length} orders</span>
+                  </div>
+                </div>
+
+                {/* List of outstanding orders with reminder button */}
+                <div className="pt-2">
+                  <h5 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-2">Open Orders Needing Follow-up</h5>
+                  <div className="max-h-56 overflow-y-auto space-y-1.5 scrollbar-thin">
+                    {[
+                      ...metrics.outstandingAging.over14Days,
+                      ...metrics.outstandingAging.between7And14Days,
+                      ...metrics.outstandingAging.under7Days,
+                    ].slice(0, 10).map((o) => (
+                      <div key={o.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[hsl(var(--border))] text-xs">
+                        <div>
+                          <strong className="text-[hsl(var(--foreground))]">{o.customerName}</strong>
+                          <span className="text-[hsl(var(--muted-foreground))] ml-2">({o.productName}) · {o.daysAgo}d ago</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold text-rose-600">{money(o.balanceDue)} due</span>
+                          {o.customerPhone && (
+                            <a
+                              href={`https://wa.me/${o.customerPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${o.customerName}, gentle reminder regarding your order balance of ${money(o.balanceDue)}.`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#25D366] text-white font-medium hover:opacity-90 transition text-[11px]"
+                            >
+                              <Send size={11} />
+                              <span>Remind</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Panel 6: Operating Expenses Detail */}
+            {expandedMetric === 'expenses' && (
+              <div className="pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
+                    Logged Operating Expenses
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setAddExpenseModalOpen(true)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-800 transition cursor-pointer"
+                  >
+                    <Plus size={12} />
+                    <span>Add expense</span>
+                  </button>
+                </div>
+                <div className="max-h-56 overflow-y-auto space-y-1.5 scrollbar-thin">
+                  {expenses.length === 0 ? (
+                    <p className="text-xs text-[hsl(var(--muted-foreground))] py-4 text-center">No expenses logged in this period.</p>
+                  ) : (
+                    expenses.slice(0, 10).map((e, idx) => (
+                      <div key={e.id || idx} className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(var(--muted))]/50 text-xs">
+                        <div>
+                          <span className="font-medium text-[hsl(var(--foreground))]">{e.description || e.category || 'Expense'}</span>
+                          <span className="text-[hsl(var(--muted-foreground))] ml-2">({e.expenseDate || e.date})</span>
+                        </div>
+                        <span className="font-semibold text-[hsl(var(--foreground))]">{money(Number(e.amount))}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Panel 7: Inventory Value Detail */}
+            {expandedMetric === 'inventory' && (
+              <div className="pt-4 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="p-3 rounded-xl border border-[hsl(var(--border))]">
+                    <span className="text-[11px] font-medium text-[hsl(var(--muted-foreground))]">Retail Valuation</span>
+                    <div className="mt-1 text-lg font-bold text-[hsl(var(--foreground))]">{money(metrics.inventory.totalRetailValue)}</div>
+                  </div>
+                  <div className="p-3 rounded-xl border border-[hsl(var(--border))]">
+                    <span className="text-[11px] font-medium text-[hsl(var(--muted-foreground))]">Cost Valuation</span>
+                    <div className="mt-1 text-lg font-bold text-[hsl(var(--foreground))]">{money(metrics.inventory.totalCostValue)}</div>
+                  </div>
+                  <div className="p-3 rounded-xl border border-[hsl(var(--border))]">
+                    <span className="text-[11px] font-medium text-[hsl(var(--muted-foreground))]">Potential Profit</span>
+                    <div className="mt-1 text-lg font-bold text-emerald-600">{money(metrics.inventory.potentialProfit)}</div>
+                  </div>
+                </div>
+                <h5 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] pt-2">Top Valued Inventory Items</h5>
+                <div className="space-y-1.5">
+                  {metrics.inventory.topValuedItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(var(--muted))]/50 text-xs">
+                      <div>
+                        <span className="font-medium text-[hsl(var(--foreground))]">{item.name}</span>
+                        <span className="text-[hsl(var(--muted-foreground))] ml-2">({item.stock} in stock · cost {money(Number(item.cost))})</span>
+                      </div>
+                      <span className="font-semibold text-[hsl(var(--foreground))]">{money(item.totalValue)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Panel 8: Repeat Clients Detail */}
+            {expandedMetric === 'clients' && (
+              <div className="pt-4 space-y-4">
+                <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
+                  Top Repeat Customers
+                </h4>
+                {metrics.clientCounts.topRepeatClients.length === 0 ? (
+                  <p className="text-xs text-[hsl(var(--muted-foreground))] py-4 text-center">No repeat customers recorded yet in this window.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {metrics.clientCounts.topRepeatClients.map((client) => (
+                      <div key={client.id} className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(var(--muted))]/50 text-xs">
+                        <div>
+                          <span className="font-medium text-[hsl(var(--foreground))]">{client.name}</span>
+                          {client.phone && <span className="text-[hsl(var(--muted-foreground))] ml-2">({client.phone})</span>}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[hsl(var(--muted-foreground))]">{client.orderCount} orders</span>
+                          <span className="font-semibold text-[hsl(var(--foreground))]">{money(client.totalSpent)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Panel 9: Net Margin Detail */}
+            {expandedMetric === 'margin' && (
+              <div className="pt-4 space-y-4 text-xs">
+                <h4 className="font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
+                  Margin Health & Benchmark
+                </h4>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="p-4 rounded-xl border border-[hsl(var(--border))]">
+                    <span className="text-[hsl(var(--muted-foreground))]">Gross Margin (Revenue − COGS):</span>
+                    <div className="mt-2 text-xl font-bold text-[hsl(var(--foreground))]">
+                      {metrics.totalRevenue > 0
+                        ? Math.round(((metrics.totalRevenue - metrics.totalProductCosts) / metrics.totalRevenue) * 100)
+                        : 0}%
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-[hsl(var(--border))]">
+                    <span className="text-[hsl(var(--muted-foreground))]">Net Margin (After COGS & OpEx):</span>
+                    <div className="mt-2 text-xl font-bold text-emerald-600">{metrics.profitMargin}%</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Row 2: Donut Breakdown + Time Chart (Revenue over time) ─── */}
+      <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
+        {/* Donut Card: SegmentedControl toggle + Accessible Tokens */}
+        <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-2xs dark:bg-neutral-900">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-sm font-bold text-[hsl(var(--foreground))]">Breakdown</h3>
+            <SegmentedControl<'channel' | 'expenses'>
+              size="sm"
+              value={channelExpenseView}
+              onChange={setChannelExpenseView}
+              options={[
+                { value: 'channel', label: 'Sales by channel' },
+                { value: 'expenses', label: 'Operating expenses' },
+              ]}
+            />
           </div>
 
           {isLoading ? (
             <div className="flex items-center justify-center h-48">
               <Skeleton className="h-40 w-40 rounded-full" />
             </div>
-          ) : donutData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-neutral-400 text-center gap-2">
+          ) : donutData.length === 0 || donutTotal === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 text-[hsl(var(--muted-foreground))] text-center gap-2">
               <Info size={24} />
-              <p className="text-xs">{activeDonut === 'channel' ? 'No orders in this period' : 'No expenses recorded'}</p>
+              <p className="text-xs">
+                {channelExpenseView === 'channel' ? 'No sales in this period' : 'No expenses logged'}
+              </p>
             </div>
           ) : (
             <>
@@ -375,32 +1044,35 @@ export function AnalyticsPage() {
                     dataKey="value"
                     strokeWidth={0}
                   >
-                    {donutData.map((_, i) => (
-                      <Cell key={i} fill={DONUT_PALETTE[i % DONUT_PALETTE.length]} />
+                    {donutData.map((entry, idx) => (
+                      <Cell key={`cell-${idx}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <text x={100} y={95} textAnchor="middle" fill="#94a3b8" fontSize={10}>
-                    {activeDonut === 'channel' ? 'Revenue' : 'Spent'}
+                  <text x={100} y={93} textAnchor="middle" fill="#6B7280" fontSize={11}>
+                    {channelExpenseView === 'channel' ? 'Revenue' : 'Expenses'}
                   </text>
-                  <text x={100} y={113} textAnchor="middle" fill="#0f172a" fontSize={13} fontWeight={700}>
+                  <text x={100} y={115} textAnchor="middle" fill="#111111" fontSize={14} fontWeight={700}>
                     {moneyExact(donutTotal)}
                   </text>
                 </PieChart>
               </div>
 
-              {/* Legend */}
-              <div className="mt-4 space-y-2.5">
-                {donutData.map((item, i) => {
+              {/* Channel / Expense list with revenue, order count, and share % */}
+              <div className="mt-5 space-y-2.5 max-h-48 overflow-y-auto scrollbar-thin">
+                {donutData.map((item) => {
                   const pct = donutTotal > 0 ? Math.round((item.value / donutTotal) * 100) : 0;
                   return (
-                    <div key={item.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: DONUT_PALETTE[i % DONUT_PALETTE.length] }} />
-                        <span className="text-xs text-neutral-700 dark:text-neutral-300 truncate max-w-[130px]">{item.name}</span>
+                    <div key={item.name} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: item.color }} />
+                        <span className="text-[hsl(var(--foreground))] truncate max-w-[130px] font-medium">{item.name}</span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-right">
-                        <span className="font-bold text-neutral-900 dark:text-white">{moneyExact(item.value)}</span>
-                        <span className="w-8 text-neutral-400">{pct}%</span>
+                      <div className="flex items-center gap-3 text-right">
+                        {item.orders > 0 && (
+                          <span className="text-[hsl(var(--muted-foreground))]">{item.orders} orders</span>
+                        )}
+                        <span className="font-semibold text-[hsl(var(--foreground))]">{moneyExact(item.value)}</span>
+                        <span className="w-8 text-[hsl(var(--muted-foreground))]">{pct}%</span>
                       </div>
                     </div>
                   );
@@ -410,152 +1082,152 @@ export function AnalyticsPage() {
           )}
         </div>
 
-        {/* Bar Chart Card */}
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-6 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm font-bold text-neutral-900 dark:text-white">Revenue Over Time</h3>
-            <span className="text-[11px] font-semibold text-neutral-400">{periodLabel}</span>
+        {/* Time Chart: Revenue / Orders Toggle + Zero-filled + Timezone Aware */}
+        <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-2xs dark:bg-neutral-900">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-bold text-[hsl(var(--foreground))]">Performance Over Time</h3>
+              <span className="text-xs text-[hsl(var(--muted-foreground))] hidden sm:inline">({sellerTimezone})</span>
+            </div>
+            <SegmentedControl<'revenue' | 'orders'>
+              size="sm"
+              value={timeChartView}
+              onChange={setTimeChartView}
+              options={[
+                { value: 'revenue', label: 'Revenue' },
+                { value: 'orders', label: 'Orders' },
+              ]}
+            />
           </div>
 
           {isLoading ? (
             <Skeleton className="h-64 w-full rounded-xl" />
-          ) : barData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-neutral-400 text-center gap-2">
+          ) : timeChartData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-[hsl(var(--muted-foreground))] text-center gap-2">
               <Info size={24} />
-              <p className="text-xs">No transaction data in this period</p>
+              <p className="text-xs">No activity in this period</p>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={264}>
-              <BarChart data={barData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barSize={barData.length > 20 ? 8 : barData.length > 10 ? 14 : 22}>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart
+                data={timeChartData}
+                margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
+                barSize={timeChartData.length > 20 ? 8 : timeChartData.length > 10 ? 14 : 22}
+              >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(200,200,200,0.18)" />
-                <XAxis dataKey="label" stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}`} />
+                <XAxis
+                  dataKey="label"
+                  stroke="#a1a1aa"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={timeChartData.length > 14 ? Math.floor(timeChartData.length / 7) : 0}
+                />
+                <YAxis
+                  stroke="#a1a1aa"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => (timeChartView === 'revenue' ? `${v}` : `${v}`)}
+                />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
                     return (
-                      <div className="rounded-xl border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-800 dark:bg-neutral-950 text-xs">
-                        <div className="font-semibold text-neutral-500 mb-1">{label}</div>
-                        <div className="font-bold text-neutral-900 dark:text-white">{money(payload[0].value as number)}</div>
-                        {payload[1] && <div className="text-neutral-500 mt-0.5">{payload[1].value} orders</div>}
+                      <div className="rounded-xl border border-[hsl(var(--border))] bg-white p-3 shadow-lg dark:bg-neutral-950 text-xs">
+                        <div className="font-semibold text-[hsl(var(--muted-foreground))] mb-1">{label}</div>
+                        <div className="font-bold text-[hsl(var(--foreground))]">
+                          Revenue: {money(payload[0]?.payload?.revenue || 0)}
+                        </div>
+                        <div className="text-[hsl(var(--muted-foreground))] mt-0.5">
+                          Orders: {payload[0]?.payload?.orders || 0}
+                        </div>
                       </div>
                     );
                   }}
                 />
-                <Bar dataKey="revenue" fill="#0f172a" radius={[5, 5, 0, 0]} name="Revenue" />
+                <Bar
+                  dataKey={timeChartView}
+                  fill="#111111"
+                  radius={[4, 4, 0, 0]}
+                  name={timeChartView === 'revenue' ? 'Revenue' : 'Orders'}
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
         </div>
-      </div>
+      </section>
 
-      {/* ── Row 3: 5 Metric Detail Cards ─────────────────────────────────────── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {/* Outstanding Balances */}
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Outstanding</p>
-          {isLoading ? <Skeleton className="mt-3 h-7 w-24" /> : (
-            <div className={cn('mt-2 text-xl font-extrabold tracking-tight', outstanding > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-neutral-950 dark:text-white')}>
-              {money(outstanding)}
+      {/* ── Quick Expense Modal ─── */}
+      {addExpenseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-[12px] border border-[hsl(var(--border))] bg-white p-6 shadow-xl dark:bg-neutral-900">
+            <div className="flex items-center justify-between pb-3 border-b border-[hsl(var(--border))]">
+              <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">Record Operating Expense</h4>
+              <button
+                type="button"
+                onClick={() => setAddExpenseModalOpen(false)}
+                className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+              >
+                <X size={16} />
+              </button>
             </div>
-          )}
-          <p className="mt-1 text-[11px] text-neutral-400">Uncollected balances</p>
-        </div>
-
-        {/* Operating Expenses */}
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Operating Expenses</p>
-          {isLoading ? <Skeleton className="mt-3 h-7 w-24" /> : (
-            <div className="mt-2 text-xl font-extrabold tracking-tight text-neutral-950 dark:text-white">
-              {money(totalExpenses)}
-            </div>
-          )}
-          <p className="mt-1 text-[11px] text-neutral-400">{expenses.length} expense{expenses.length !== 1 ? 's' : ''} logged</p>
-        </div>
-
-        {/* Inventory Value */}
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Inventory Value</p>
-          {isLoading ? <Skeleton className="mt-3 h-7 w-24" /> : (
-            <div className="mt-2 text-xl font-extrabold tracking-tight text-neutral-950 dark:text-white">
-              {money(inventoryValue)}
-            </div>
-          )}
-          <p className="mt-1 text-[11px] text-neutral-400">{totalStockUnits} units · {lowStockCount} low stock</p>
-        </div>
-
-        {/* Returning Clients */}
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Repeat Clients</p>
-          {isLoading ? <Skeleton className="mt-3 h-7 w-16" /> : (
-            <div className="mt-2 text-xl font-extrabold tracking-tight text-neutral-950 dark:text-white">
-              {clientCounts.rate}%
-            </div>
-          )}
-          <p className="mt-1 text-[11px] text-neutral-400">{clientCounts.repeatClients} of {clientCounts.totalClients} buyers</p>
-        </div>
-
-        {/* Net Profit Margin */}
-        <div className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Net Margin</p>
-          {isLoading ? <Skeleton className="mt-3 h-7 w-16" /> : (
-            <div className={cn('mt-2 text-xl font-extrabold tracking-tight', profitMargin >= 20 ? 'text-emerald-700 dark:text-emerald-400' : profitMargin >= 0 ? 'text-neutral-950 dark:text-white' : 'text-rose-600 dark:text-rose-400')}>
-              {profitMargin}%
-            </div>
-          )}
-          <p className="mt-1 text-[11px] text-neutral-400">After COGS + expenses</p>
-        </div>
-      </div>
-
-      {/* ── Row 4: Channel Performance Table (if data exists) ─────────────────── */}
-      {(summary?.channelPerformance?.length ?? 0) > 0 && (
-        <div className="rounded-[12px] border border-[#E3E3EC] bg-white dark:border-neutral-800 dark:bg-neutral-900 shadow-none overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[#E3E3EC] dark:border-neutral-800">
-            <h3 className="text-sm font-bold text-neutral-900 dark:text-white">Channel Performance</h3>
-            <Link href="/reports/channel-conversion" className="text-xs font-semibold text-neutral-600 hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white flex items-center gap-1 transition">
-              <span>Details</span>
-              <ArrowUpRight size={13} />
-            </Link>
-          </div>
-          <div className="overflow-x-auto w-full scrollbar-thin">
-            <table className="list-table w-full min-w-[500px] text-left border-collapse">
-              <thead className="border-b border-[#E3E3EC] bg-[#F0F0F8] dark:border-neutral-800 dark:bg-neutral-800/80">
-                <tr className="h-[48px]">
-                  <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-left">Channel</th>
-                  <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Orders</th>
-                  <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Revenue</th>
-                  <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Conversion</th>
-                  <th className="px-4 py-3 text-[14px] font-semibold text-[#111827] dark:text-neutral-100 normal-case text-right">Share</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
-                {summary!.channelPerformance!.map((ch, i) => (
-                  <tr key={ch.channel} className="hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[56px]">
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <div className="flex items-center gap-2.5">
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: DONUT_PALETTE[i % DONUT_PALETTE.length] }} />
-                        <span className="text-[14px] font-medium text-[#111827] dark:text-neutral-100">{channelName(ch.channel)}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] text-[#6B7280] dark:text-neutral-400 whitespace-nowrap">{ch.orders}</td>
-                    <td className="px-4 py-3.5 text-right font-mono-ui text-[14px] font-semibold text-[#111827] dark:text-neutral-100 whitespace-nowrap">{money(ch.revenue)}</td>
-                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                      <span className={cn('text-[13px] font-medium font-mono-ui', ch.conversionRate >= 50 ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#6B7280] dark:text-neutral-400')}>
-                        {ch.conversionRate}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-20 h-1.5 rounded-full bg-[#E8E8EE] dark:bg-neutral-800 overflow-hidden">
-                          <div className="h-full rounded-full bg-[#111827] dark:bg-white" style={{ width: `${Math.min(100, ch.conversionRate)}%` }} />
-                        </div>
-                        <span className="text-[12px] font-mono-ui text-[#6B7280] dark:text-neutral-400 w-8 text-right">{ch.conversionRate}%</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <form onSubmit={handleSaveExpense} className="mt-4 space-y-3 text-xs">
+              {expenseError && <p className="text-rose-600">{expenseError}</p>}
+              <div>
+                <label className="block font-medium text-[hsl(var(--foreground))] mb-1">Expense Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Courier delivery, Packaging bags"
+                  value={expenseTitle}
+                  onChange={(e) => setExpenseTitle(e.target.value)}
+                  className="w-full h-9 px-3 rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))]"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-[hsl(var(--foreground))] mb-1">Category</label>
+                <select
+                  value={expenseCategory}
+                  onChange={(e) => setExpenseCategory(e.target.value)}
+                  className="w-full h-9 px-3 rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))]"
+                >
+                  <option value="inventory">Inventory & Packaging</option>
+                  <option value="shipping">Delivery / Rider Dispatch</option>
+                  <option value="marketing">Marketing & Ads</option>
+                  <option value="software">Software & Subscriptions</option>
+                  <option value="other">Other Business Expense</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-medium text-[hsl(var(--foreground))] mb-1">Amount ({currencySymbol()})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="0.00"
+                  value={expenseAmount}
+                  onChange={(e) => setExpenseAmount(e.target.value)}
+                  className="w-full h-9 px-3 rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))]"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setAddExpenseModalOpen(false)}
+                  className="px-3 py-1.5 rounded-lg border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createExpenseMutation.isPending}
+                  className="px-4 py-1.5 rounded-lg bg-neutral-900 text-white font-medium hover:bg-neutral-800 disabled:opacity-50"
+                >
+                  {createExpenseMutation.isPending ? 'Saving…' : 'Save Expense'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
