@@ -2,6 +2,7 @@ export type AnalyticsProduct = {
   id: number;
   name: string;
   category: string;
+  price?: string | number;
   cost: string | number | null;
   stock: number;
 };
@@ -22,6 +23,9 @@ export type AnalyticsOrder = {
 };
 
 export type AnalyticsExpense = {
+  id?: number;
+  title?: string;
+  category?: string;
   amount: string | number;
   expenseDate: string;
 };

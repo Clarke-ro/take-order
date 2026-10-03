@@ -93,6 +93,13 @@ export async function ensureDatabaseSchema(database: typeof db): Promise<void> {
         owner_user_id text NOT NULL UNIQUE,
         settings jsonb NOT NULL DEFAULT '{}'
       );
+
+      CREATE TABLE IF NOT EXISTS report_favorites (
+        id serial PRIMARY KEY,
+        owner_user_id text NOT NULL,
+        report_slug text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
     `);
 
     // 2. Ensure all columns exist on previously created tables (idempotent ALTER TABLE)
@@ -160,6 +167,11 @@ export async function ensureDatabaseSchema(database: typeof db): Promise<void> {
       ALTER TABLE seller_settings ADD COLUMN IF NOT EXISTS owner_user_id text;
       ALTER TABLE seller_settings ADD COLUMN IF NOT EXISTS settings jsonb DEFAULT '{}';
 
+      -- Report favorites column migrations
+      ALTER TABLE report_favorites ADD COLUMN IF NOT EXISTS owner_user_id text;
+      ALTER TABLE report_favorites ADD COLUMN IF NOT EXISTS report_slug text;
+      ALTER TABLE report_favorites ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
       -- Ensure indices exist
       CREATE INDEX IF NOT EXISTS products_owner_user_id_idx ON products(owner_user_id);
       CREATE INDEX IF NOT EXISTS orders_owner_user_id_idx ON orders(owner_user_id);
@@ -169,6 +181,8 @@ export async function ensureDatabaseSchema(database: typeof db): Promise<void> {
       CREATE INDEX IF NOT EXISTS order_items_product_id_idx ON order_items(product_id);
       CREATE INDEX IF NOT EXISTS expenses_owner_user_id_idx ON expenses(owner_user_id);
       CREATE INDEX IF NOT EXISTS expenses_expense_date_idx ON expenses(expense_date);
+      CREATE INDEX IF NOT EXISTS report_favorites_owner_user_id_idx ON report_favorites(owner_user_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS report_favorites_owner_slug_idx ON report_favorites(owner_user_id, report_slug);
     `);
 
     logger.info("Database schema tables and columns verified successfully.");
