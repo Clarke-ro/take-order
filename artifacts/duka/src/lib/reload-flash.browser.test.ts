@@ -474,6 +474,7 @@ async function runThrottledReloadTest() {
 
       await page.goto(`${baseUrl}/orders/999`);
       await page.waitForSelector('[data-route="/orders/:id"]', { timeout: 30_000 });
+      await page.waitForFunction(() => document.body.innerText.includes("Order not found"), { timeout: 30_000 });
 
       const observedRoutes: Array<{ time: number; route: string }> = await page.evaluate(
         () => (window as any).__OBSERVED_ROUTES__ || []
