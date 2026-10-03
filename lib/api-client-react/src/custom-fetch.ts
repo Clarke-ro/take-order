@@ -360,16 +360,28 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  let response = await fetch(input, { ...init, method, headers });
+
+  // On 401, attempt one token refresh and retry before considering it an error
+  if (response.status === 401 && _authTokenGetter) {
+    try {
+      const refreshedToken = await _authTokenGetter();
+      if (refreshedToken) {
+        const nextHeaders = new Headers(headers);
+        nextHeaders.set("authorization", `Bearer ${refreshedToken}`);
+        response = await fetch(input, { ...init, method, headers: nextHeaders });
+      }
+    } catch {
+      // If refresh fails, proceed to normal 401 handling
+    }
+  }
 
   if (!response.ok) {
     if (response.status === 401 && typeof window !== 'undefined') {
       const path = window.location.pathname;
       if (!path.includes('/sign-in') && !path.includes('/sign-up') && !path.includes('/o/')) {
-        localStorage.removeItem('duka-test-auth');
-        localStorage.removeItem('duka-test-user-id');
-        localStorage.removeItem('duka-auth-user');
-        window.location.href = '/sign-in';
+        // Dispatch an unauthorized event for declarative route handling instead of hard reload
+        window.dispatchEvent(new CustomEvent('duka:unauthorized'));
       }
     }
     const errorData = await parseErrorBody(response, method);

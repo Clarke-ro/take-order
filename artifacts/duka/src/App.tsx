@@ -1,4 +1,4 @@
-import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Redirect, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser, AuthenticateWithRedirectCallback } from '@clerk/react';
@@ -169,6 +169,19 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
     prevUserIdRef.current = effectiveUserId;
   }, [effectiveUserId]);
 
+  // Register auth token getter synchronously on render so initial queries don't fire without tokens
+  if (auth.isSignedIn && auth.getToken) {
+    setAuthTokenGetter(async () => {
+      try {
+        return await auth.getToken();
+      } catch {
+        return null;
+      }
+    });
+  } else if (isTestAuth && effectiveUserId) {
+    setAuthTokenGetter(() => `test-${effectiveUserId}`);
+  }
+
   useEffect(() => {
     if (auth.isSignedIn && auth.getToken) {
       setAuthTokenGetter(async () => {
@@ -205,9 +218,14 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
     window.location.href = '/sign-in';
   };
 
+  const hasTestAuthOverride = typeof window !== 'undefined' && (
+    '__DUKA_TEST_AUTH__' in window ||
+    localStorage.getItem('duka-test-auth') !== null
+  );
+
   const value = useMemo((): AuthContextValue => {
-    const isLoaded = Boolean(auth.isLoaded || isTestAuth);
-    const isSignedIn = Boolean(auth.isSignedIn || (isTestAuth && Boolean(testUserId)));
+    const isLoaded = Boolean(hasTestAuthOverride || auth.isLoaded);
+    const isSignedIn = Boolean(isTestAuth ? (Boolean(testUserId) || auth.isSignedIn) : auth.isSignedIn);
     const authState: AuthState = !isLoaded ? 'loading' : isSignedIn ? 'signed_in' : 'signed_out';
     return {
       isLoaded,
@@ -217,7 +235,7 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
       email: effectiveEmail,
       signOut,
     };
-  }, [auth.isLoaded, auth.isSignedIn, isTestAuth, testUserId, effectiveUserId, effectiveEmail]);
+  }, [hasTestAuthOverride, auth.isLoaded, auth.isSignedIn, isTestAuth, testUserId, effectiveUserId, effectiveEmail]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
@@ -704,9 +722,7 @@ export function Sidebar({
       {isMobile ? (
         <div className="flex h-[60px] items-center justify-between border-b border-[hsl(var(--sidebar-border))] px-4">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[hsl(var(--primary))] text-white text-[11px] font-bold shadow-xs">
-              T
-            </div>
+            <img src={brandAssets.icon} alt="Take Order" className="h-7 w-7 rounded-[6px] object-contain shadow-xs shrink-0" />
             <span className="truncate text-[13.5px] font-semibold text-[hsl(var(--foreground))]">Take Order App</span>
           </div>
           {onMobileClose && (
@@ -729,9 +745,7 @@ export function Sidebar({
             title="Expand sidebar"
             className="group relative flex h-10 w-10 items-center justify-center rounded-xl hover:bg-[hsl(var(--sidebar-accent))] transition-colors cursor-pointer"
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-[6px] bg-[hsl(var(--primary))] text-white text-[11px] font-bold transition-all duration-200 group-hover:scale-0 group-hover:opacity-0">
-              T
-            </div>
+            <img src={brandAssets.icon} alt="Take Order" className="h-7 w-7 rounded-[6px] object-contain shadow-xs shrink-0 transition-all duration-200 group-hover:scale-0 group-hover:opacity-0" />
             <PanelLeftOpen
               size={18}
               className="absolute text-[hsl(var(--sidebar-foreground))] transition-all duration-200 scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100"
@@ -746,9 +760,7 @@ export function Sidebar({
             aria-label="Dashboard"
             className="flex items-center gap-2.5 min-w-0 flex-1 hover:bg-[hsl(var(--sidebar-accent))] rounded-[8px] px-2 py-1.5 -mx-2 transition-colors"
           >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[hsl(var(--primary))] text-white text-[11px] font-bold shadow-xs">
-              T
-            </div>
+            <img src={brandAssets.icon} alt="Take Order" className="h-7 w-7 rounded-[6px] object-contain shadow-xs shrink-0" />
             <span className="truncate text-[13.5px] font-semibold text-[hsl(var(--foreground))]">Take Order App</span>
             <ChevronDown size={13} className="shrink-0 text-[hsl(var(--muted-foreground))] ml-auto" />
           </Link>
@@ -964,7 +976,22 @@ export function Sidebar({
   );
 }
 
+const ShellContext = createContext<boolean>(false);
+
 function Shell({ children }: { children: ReactNode }) {
+  const isInsideShell = useContext(ShellContext);
+  if (isInsideShell) {
+    return <>{children}</>;
+  }
+
+  return (
+    <ShellContext.Provider value={true}>
+      <ShellBase>{children}</ShellBase>
+    </ShellContext.Provider>
+  );
+}
+
+function ShellBase({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('takeorder-sidebar-collapsed') === 'true';
@@ -2283,6 +2310,7 @@ function FallbackSignInForm() {
       </div>
 
       <div className="text-center mb-3.5">
+        <img src={brandAssets.icon} alt="Take Order" className="h-10 w-10 mx-auto mb-3 rounded-xl object-contain shadow-xs" />
         <h1 className="text-[24px] sm:text-[26px] font-bold tracking-tight text-neutral-900">
           Take Order for sellers
         </h1>
@@ -2521,6 +2549,7 @@ function FallbackSignUpForm() {
       </div>
 
       <div className="text-center mb-3.5">
+        <img src={brandAssets.icon} alt="Take Order" className="h-10 w-10 mx-auto mb-3 rounded-xl object-contain shadow-xs" />
         <h1 className="text-[24px] sm:text-[26px] font-bold tracking-tight text-neutral-900">
           Take Order for sellers
         </h1>
@@ -2660,50 +2689,46 @@ function FallbackSignUpForm() {
 }
 
 function SignInPage() {
-  const [, setLocation] = useLocation();
   const { authState, isLoaded, isSignedIn } = useAppAuth();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
   const target = getSafeRedirectUrl(typeof window !== 'undefined' ? window.location.search : '', '/dashboard');
 
-  useEffect(() => {
-    if (isLoaded && effectiveSignedIn && authState !== 'loading') {
-      setLocation(target);
-    }
-  }, [isLoaded, effectiveSignedIn, authState, setLocation, target]);
+  if (isLoaded && effectiveSignedIn && authState !== 'loading') {
+    return <Redirect to={target} replace />;
+  }
 
   return (
-    <AuthSplitLayout>
-      {clerkPubKey ? (
-        <div className="w-full flex flex-col items-center">
-          <SignIn
-            routing="path"
-            path={`${basePath}/sign-in`}
-            signUpUrl={`${basePath}/sign-up`}
-            fallbackRedirectUrl={target}
-            forceRedirectUrl={target}
-            appearance={clerkAppearance}
-          />
-        </div>
-      ) : (
-        <FallbackSignInForm />
-      )}
-    </AuthSplitLayout>
+    <div data-route="/sign-in">
+      <AuthSplitLayout>
+        {clerkPubKey ? (
+          <div className="w-full flex flex-col items-center">
+            <SignIn
+              routing="path"
+              path={`${basePath}/sign-in`}
+              signUpUrl={`${basePath}/sign-up`}
+              fallbackRedirectUrl={target}
+              forceRedirectUrl={target}
+              appearance={clerkAppearance}
+            />
+          </div>
+        ) : (
+          <FallbackSignInForm />
+        )}
+      </AuthSplitLayout>
+    </div>
   );
 }
 
 function SignUpPage() {
-  const [, setLocation] = useLocation();
   const { authState, isLoaded, isSignedIn } = useAppAuth();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
   const target = getSafeRedirectUrl(typeof window !== 'undefined' ? window.location.search : '', '/onboarding');
 
-  useEffect(() => {
-    if (isLoaded && effectiveSignedIn && authState !== 'loading') {
-      setLocation(target);
-    }
-  }, [isLoaded, effectiveSignedIn, authState, setLocation, target]);
+  if (isLoaded && effectiveSignedIn && authState !== 'loading') {
+    return <Redirect to={target} replace />;
+  }
 
   useEffect(() => {
     const cleanInputs = () => {
@@ -2726,27 +2751,227 @@ function SignUpPage() {
   }, []);
 
   return (
-    <AuthSplitLayout>
-      {clerkPubKey ? (
-        <div className="w-full flex flex-col items-center">
-          <SignUp
-            routing="path"
-            path={`${basePath}/sign-up`}
-            signInUrl={`${basePath}/sign-in`}
-            fallbackRedirectUrl={target}
-            forceRedirectUrl={target}
-            appearance={clerkAppearance}
-          />
+    <div data-route="/sign-up">
+      <AuthSplitLayout>
+        {clerkPubKey ? (
+          <div className="w-full flex flex-col items-center">
+            <SignUp
+              routing="path"
+              path={`${basePath}/sign-up`}
+              signInUrl={`${basePath}/sign-in`}
+              fallbackRedirectUrl={target}
+              forceRedirectUrl={target}
+              appearance={clerkAppearance}
+            />
+          </div>
+        ) : (
+          <FallbackSignUpForm />
+        )}
+      </AuthSplitLayout>
+    </div>
+  );
+}
+
+function AppPageSkeleton({ location }: { location: string }) {
+  if (location.startsWith('/orders/') && location !== '/orders') {
+    return (
+      <div data-route="loading-skeleton" className="space-y-6 animate-pulse" aria-label="Loading order details">
+        <div className="flex items-center gap-2 mb-4">
+          <Skeleton className="h-4 w-28" />
         </div>
-      ) : (
-        <FallbackSignUpForm />
-      )}
-    </AuthSplitLayout>
+        <div className="flex justify-between items-center mb-6">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 space-y-4">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+          <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 space-y-4">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (location.startsWith('/orders')) {
+    return (
+      <div data-route="loading-skeleton" className="space-y-6 animate-pulse" aria-label="Loading orders">
+        <div className="flex justify-between items-center mb-6">
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+        <div className="flex gap-3 mb-6">
+          <Skeleton className="h-10 flex-1 rounded-lg" />
+          <Skeleton className="h-10 w-28 rounded-lg" />
+        </div>
+        <Card className="p-6 space-y-4 rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+          <Skeleton className="h-10 w-full rounded-md" />
+          <Skeleton className="h-14 w-full rounded-md" />
+          <Skeleton className="h-14 w-full rounded-md" />
+          <Skeleton className="h-14 w-full rounded-md" />
+        </Card>
+      </div>
+    );
+  }
+
+  if (location.startsWith('/catalog')) {
+    return (
+      <div data-route="loading-skeleton" className="space-y-6 animate-pulse" aria-label="Loading catalog">
+        <div className="flex justify-between items-center mb-6">
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+        <div className="flex gap-3 mb-6">
+          <Skeleton className="h-10 flex-1 rounded-lg" />
+          <Skeleton className="h-10 w-36 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <Card key={i} className="p-4 space-y-3 rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+              <Skeleton className="aspect-square w-full rounded-[10px]" />
+              <Skeleton className="h-4 w-3/4 rounded-md" />
+              <Skeleton className="h-4 w-1/2 rounded-md" />
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (location.startsWith('/settings')) {
+    return (
+      <div data-route="loading-skeleton" className="space-y-6 animate-pulse" aria-label="Loading settings">
+        <div className="mb-6">
+          <Skeleton className="h-8 w-36 mb-4" />
+          <Skeleton className="h-10 w-full max-w-md rounded-lg" />
+        </div>
+        <Card className="p-6 space-y-6 rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+          <Skeleton className="h-6 w-44" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+        </Card>
+      </div>
+    );
+  }
+
+  if (location.startsWith('/analytics') || location.startsWith('/reports')) {
+    return (
+      <div data-route="loading-skeleton" className="space-y-6 animate-pulse" aria-label="Loading analytics">
+        <div className="flex justify-between items-center mb-6">
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-3 mb-6">
+          <Card className="p-6 h-[120px] flex flex-col justify-between"><Skeleton className="h-4 w-24" /><Skeleton className="h-8 w-32" /></Card>
+          <Card className="p-6 h-[120px] flex flex-col justify-between"><Skeleton className="h-4 w-24" /><Skeleton className="h-8 w-32" /></Card>
+          <Card className="p-6 h-[120px] flex flex-col justify-between"><Skeleton className="h-4 w-24" /><Skeleton className="h-8 w-32" /></Card>
+        </div>
+        <Card className="p-6 h-[280px] rounded-[12px]"><Skeleton className="h-full w-full" /></Card>
+      </div>
+    );
+  }
+
+  if (location.startsWith('/clients')) {
+    return (
+      <div data-route="loading-skeleton" className="space-y-6 animate-pulse" aria-label="Loading clients">
+        <div className="flex justify-between items-center mb-6">
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+        <div className="flex gap-3 mb-6">
+          <Skeleton className="h-10 flex-1 rounded-lg" />
+        </div>
+        <Card className="p-6 space-y-4 rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+          <Skeleton className="h-10 w-full rounded-md" />
+          <Skeleton className="h-14 w-full rounded-md" />
+          <Skeleton className="h-14 w-full rounded-md" />
+        </Card>
+      </div>
+    );
+  }
+
+  if (location.startsWith('/expenses')) {
+    return (
+      <div data-route="loading-skeleton" className="space-y-6 animate-pulse" aria-label="Loading expenses">
+        <div className="flex justify-between items-center mb-6">
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+        <div className="flex gap-3 mb-6">
+          <Skeleton className="h-10 flex-1 rounded-lg" />
+          <Skeleton className="h-10 w-36 rounded-lg" />
+        </div>
+        <Card className="p-6 space-y-4 rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+          <Skeleton className="h-10 w-full rounded-md" />
+          <Skeleton className="h-14 w-full rounded-md" />
+          <Skeleton className="h-14 w-full rounded-md" />
+        </Card>
+      </div>
+    );
+  }
+
+  if (location.startsWith('/take-order')) {
+    return (
+      <div data-route="loading-skeleton" className="space-y-6 animate-pulse" aria-label="Loading take order">
+        <div className="flex justify-between items-center mb-6">
+          <Skeleton className="h-8 w-44" />
+        </div>
+        <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+          <Card className="p-6 space-y-4 rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-32 w-full rounded-lg" />
+          </Card>
+          <Card className="p-6 space-y-4 rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+            <Skeleton className="h-8 w-32 rounded-lg" />
+            <Skeleton className="h-24 w-full rounded-lg" />
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Default Dashboard Overview skeleton
+  return (
+    <div data-route="loading-skeleton" className="space-y-6 animate-pulse" aria-label="Loading dashboard">
+      <div className="flex justify-between items-center mb-6">
+        <Skeleton className="h-8 w-36" />
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-28 rounded-lg" />
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-3 mb-6">
+        <Card className="p-6 h-[120px] flex flex-col justify-between rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-8 w-32" />
+        </Card>
+        <Card className="p-6 h-[120px] flex flex-col justify-between rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-8 w-32" />
+        </Card>
+        <Card className="p-6 h-[120px] flex flex-col justify-between rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-8 w-32" />
+        </Card>
+      </div>
+      <Card className="p-6 h-[300px] rounded-[12px] border border-[hsl(var(--card-border))] bg-white">
+        <Skeleton className="h-6 w-44 mb-4" />
+        <Skeleton className="h-[220px] w-full rounded-lg" />
+      </Card>
+    </div>
   );
 }
 
 function SellerRoute({ children }: { children: ReactNode }) {
-  const [location, setLocation] = useLocation();
+  const [location] = useLocation();
   const { authState, isLoaded, isSignedIn, userId } = useAppAuth();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
@@ -2756,7 +2981,6 @@ function SellerRoute({ children }: { children: ReactNode }) {
       queryKey: getGetSellerSettingsQueryKey(),
     },
   });
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const syncPending = async () => {
@@ -2780,67 +3004,43 @@ function SellerRoute({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('online', syncPending);
   }, []);
 
-  useEffect(() => {
-    // 1. While auth is loading or resolving session, DO NOT REDIRECT
-    if (!isTestAuth && (authState === 'loading' || !isLoaded)) {
-      return;
-    }
+  // 1. Definitively signed out -> declarative replace redirect to /sign-in
+  if (!isTestAuth && (authState === 'signed_out' || (isLoaded && !effectiveSignedIn))) {
+    const redirectParam = location && location !== '/' && !location.startsWith('/sign-in') && !location.startsWith('/sign-up')
+      ? `?redirect=${encodeURIComponent(location)}`
+      : '';
+    return <Redirect to={`/sign-in${redirectParam}`} replace />;
+  }
 
-    // 2. Only redirect once definitively resolved to unauthenticated
-    if (!effectiveSignedIn || authState === 'signed_out') {
-      const redirectParam = location && location !== '/' && !location.startsWith('/sign-in') && !location.startsWith('/sign-up')
-        ? `?redirect=${encodeURIComponent(location)}`
-        : '';
-      setLocation(`/sign-in${redirectParam}`);
-      return;
-    }
+  // 2. Auth or settings profile still resolving -> render stable AppShell with matching page skeleton
+  const authLoading = (!isTestAuth && (authState === 'loading' || !isLoaded));
+  const settingsLoading = Boolean(clerkPubKey && effectiveSignedIn && (settingsQuery.isLoading || settingsQuery.isPending) && !settingsQuery.data);
 
-    // 3. Do not redirect while seller profile query is resolving on initial load or refresh
-    if (clerkPubKey && (settingsQuery.isLoading || settingsQuery.isPending) && !settingsQuery.data) {
-      return;
-    }
+  if (authLoading || settingsLoading) {
+    return (
+      <Shell>
+        <AppPageSkeleton location={location} />
+      </Shell>
+    );
+  }
 
-    const completed = readOnboardingComplete(userId);
-    const localProfile = readSellerProfile(userId);
-    const hasBusinessProfile = Boolean(settingsQuery.data?.businessName?.trim() || localProfile?.businessName?.trim());
+  // 3. Facts resolved: verify seller onboarding status
+  const completed = readOnboardingComplete(userId);
+  const localProfile = readSellerProfile(userId);
+  const hasBusinessProfile = Boolean(settingsQuery.data?.businessName?.trim() || localProfile?.businessName?.trim());
 
-    if (hasBusinessProfile && !completed) {
-      finishOnboarding(userId);
-    }
+  if (hasBusinessProfile && !completed) {
+    finishOnboarding(userId);
+  }
 
-    // Only redirect to /onboarding if query succeeded and user definitely has no business setup
-    if (settingsQuery.isSuccess && !completed && !hasBusinessProfile) {
-      setLocation('/onboarding');
-      return;
-    }
-    setReady(true);
-  }, [authState, isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.isLoading, settingsQuery.isPending, settingsQuery.isSuccess, settingsQuery.data?.businessName, setLocation, location]);
+  // If seller definitively has no business setup, declarative redirect to onboarding
+  if (!completed && !hasBusinessProfile) {
+    return <Redirect to="/onboarding" replace />;
+  }
 
   setActiveCurrency(settingsQuery.data?.currency ?? 'GHS');
 
-  if (!clerkPubKey && !isTestAuth) {
-    const redirectParam = location && location !== '/' ? `?redirect=${encodeURIComponent(location)}` : '';
-    return <Redirect to={`/sign-in${redirectParam}`} />;
-  }
-
-  // Render stable loading skeleton while restoring session or fetching initial seller settings
-  if ((authState === 'loading' || !isLoaded || !effectiveSignedIn || !ready) && !isTestAuth) {
-    // If definitively unauthenticated, perform safe redirect
-    if (authState === 'signed_out') {
-      const redirectParam = location && location !== '/' ? `?redirect=${encodeURIComponent(location)}` : '';
-      return <Redirect to={`/sign-in${redirectParam}`} />;
-    }
-    return (
-      <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6">
-        <div className="w-full max-w-[320px]">
-          <Skeleton className="mx-auto h-10 w-10 rounded-[14px]" />
-          <Skeleton className="mx-auto mt-6 h-8 w-48" />
-          <Skeleton className="mx-auto mt-3 h-3 w-60" />
-        </div>
-      </div>
-    );
-  }
-  return <>{children}</>;
+  return <Shell>{children}</Shell>;
 }
 
 function ProtectedRoute({ page: Page }: { page: React.ComponentType }) {
@@ -2848,6 +3048,22 @@ function ProtectedRoute({ page: Page }: { page: React.ComponentType }) {
 }
 
 function HomeRoute() {
+  const { authState, isLoaded, isSignedIn } = useAppAuth();
+  const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
+  const effectiveSignedIn = isSignedIn || isTestAuth;
+
+  if (!isTestAuth && (authState === 'loading' || !isLoaded)) {
+    return (
+      <Shell>
+        <AppPageSkeleton location="/dashboard" />
+      </Shell>
+    );
+  }
+
+  if (effectiveSignedIn) {
+    return <Redirect to="/dashboard" replace />;
+  }
+
   return <LandingPage />;
 }
 
@@ -2855,7 +3071,6 @@ function OnboardingRoute() {
   const { authState, isLoaded, isSignedIn, userId } = useAppAuth();
   const isTestAuth = typeof window !== 'undefined' && (Boolean((window as any).__DUKA_TEST_AUTH__) || localStorage.getItem('duka-test-auth') === 'true');
   const effectiveSignedIn = isSignedIn || isTestAuth;
-  const [, setLocation] = useLocation();
   const settingsQuery = useGetSellerSettings({
     query: {
       enabled: Boolean(clerkPubKey && isLoaded && effectiveSignedIn),
@@ -2863,27 +3078,9 @@ function OnboardingRoute() {
     },
   });
 
-  useEffect(() => {
-    if (!isTestAuth && (authState === 'loading' || !isLoaded)) return;
-    if (!effectiveSignedIn || authState === 'signed_out') {
-      setLocation('/sign-in?redirect=/onboarding');
-      return;
-    }
-    if (clerkPubKey && (settingsQuery.isLoading || settingsQuery.isPending) && !settingsQuery.data) return;
-    const completed = readOnboardingComplete(userId);
-    const localProfile = readSellerProfile(userId);
-    const hasBusinessProfile = Boolean(settingsQuery.data?.businessName?.trim() || localProfile?.businessName?.trim());
-    if (completed || hasBusinessProfile) {
-      if (hasBusinessProfile && !completed) {
-        finishOnboarding(userId);
-      }
-      setLocation('/dashboard');
-    }
-  }, [authState, isLoaded, effectiveSignedIn, isTestAuth, userId, settingsQuery.isLoading, settingsQuery.isPending, settingsQuery.data?.businessName, setLocation]);
-
   if (!isTestAuth && (authState === 'loading' || !isLoaded)) {
     return (
-      <div className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6">
+      <div data-route="loading-skeleton" className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6">
         <div className="w-full max-w-[320px]">
           <Skeleton className="mx-auto h-10 w-10 rounded-[14px]" />
           <Skeleton className="mx-auto mt-6 h-8 w-48" />
@@ -2892,8 +3089,39 @@ function OnboardingRoute() {
       </div>
     );
   }
-  if (!effectiveSignedIn || authState === 'signed_out') return <Redirect to="/sign-in?redirect=/onboarding" />;
-  return <Onboarding />;
+
+  if (!effectiveSignedIn || authState === 'signed_out') {
+    return <Redirect to="/sign-in?redirect=/onboarding" replace />;
+  }
+
+  if (clerkPubKey && (settingsQuery.isLoading || settingsQuery.isPending) && !settingsQuery.data) {
+    return (
+      <div data-route="loading-skeleton" className="onboarding-shell flex min-h-[100dvh] items-center justify-center p-6">
+        <div className="w-full max-w-[320px]">
+          <Skeleton className="mx-auto h-10 w-10 rounded-[14px]" />
+          <Skeleton className="mx-auto mt-6 h-8 w-48" />
+          <Skeleton className="mx-auto mt-3 h-3 w-60" />
+        </div>
+      </div>
+    );
+  }
+
+  const completed = readOnboardingComplete(userId);
+  const localProfile = readSellerProfile(userId);
+  const hasBusinessProfile = Boolean(settingsQuery.data?.businessName?.trim() || localProfile?.businessName?.trim());
+
+  if (completed || hasBusinessProfile) {
+    if (hasBusinessProfile && !completed) {
+      finishOnboarding(userId);
+    }
+    return <Redirect to="/dashboard" replace />;
+  }
+
+  return (
+    <div data-route="/onboarding">
+      <Onboarding />
+    </div>
+  );
 }
 
 function FirstRunChecklist({
@@ -3208,7 +3436,7 @@ export function Overview() {
   }, [periodMenuOpen, period, appliedCustomRange]);
   return (
     <Shell>
-      <div data-testid="dashboard-analytics" data-analytics-state={analyticsState}>
+      <div data-testid="dashboard-analytics" data-route="/dashboard" data-analytics-state={analyticsState}>
         <AnalyticsStateMarker state={analyticsState} />
 
         {/* ── Page Header (Page title + Period filter + Take an order on the same line) ────── */}
@@ -4051,7 +4279,7 @@ function ChannelPerformance({ channels, loading = false }: { channels: ChannelPe
 
 export function ChannelConversionInsight() {
   const { userId } = useAppAuth();
-  const { isPro } = useEntitlement(userId);
+  const { isPro, isLoading: entitlementLoading } = useEntitlement(userId);
   const { openPaywall } = usePaywall();
   const summaryQuery = useGetDashboardSummary(undefined, {
     query: {
@@ -4070,7 +4298,20 @@ export function ChannelConversionInsight() {
   const summaryRefreshing = summaryQuery.isFetching && !summaryQuery.isLoading && Boolean(summaryQuery.data);
 
   return <Shell>
-    {!isPro ? (
+    {entitlementLoading ? (
+      <div className="space-y-8 sm:space-y-10" aria-label="Loading channel conversion">
+        <PageHeading title="Channel conversion" />
+        <div className="reports-metric-grid">
+          {[1, 2, 3, 4].map((item) => (
+            <Card key={item} className="h-[176px] p-6 sm:p-7 flex flex-col justify-between">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-28" />
+              <Skeleton className="h-4 w-36" />
+            </Card>
+          ))}
+        </div>
+      </div>
+    ) : !isPro ? (
       <ProUpgradeFeatureCard
         pageTitle="Channel conversion"
         title="Track channel conversion"
@@ -5534,11 +5775,12 @@ function Expenses() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [actionError, setActionError] = useState('');
-  const expenses = useMemo(() => (query.data ?? []).filter((expense) => {
+  const expensesList = Array.isArray(query.data) ? query.data : [];
+  const expenses = useMemo(() => expensesList.filter((expense) => {
     const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
     return matchesCategory && `${expense.title} ${expense.note ?? ''} ${expense.category}`.toLowerCase().includes(search.trim().toLowerCase());
-  }), [query.data, search, categoryFilter]);
-  const total = (query.data ?? []).reduce((sum, expense) => sum + expense.amount, 0);
+  }), [expensesList, search, categoryFilter]);
+  const total = expensesList.reduce((sum, expense) => sum + expense.amount, 0);
   const visibleTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const remove = (expense: Expense) => {
     if (window.confirm(`Delete ${expense.title}?`)) {
@@ -5553,6 +5795,7 @@ function Expenses() {
     }
   };
   return <Shell>
+    <div data-route="/expenses">
     <PageHeader
       title="Expenses"
       primaryAction={
@@ -5657,6 +5900,7 @@ function Expenses() {
       </>
     )}
     {modal && <ExpenseModal expense={modal === 'new' ? undefined : modal} onClose={() => setModal(null)} />}
+    </div>
   </Shell>;
 }
 
@@ -5693,27 +5937,30 @@ function CatalogEditorRoute() {
   const query = useListProducts();
   const [, setLocation] = useLocation();
   const product = params.id ? (query.data ?? []).find((item) => item.id === Number(params.id)) : undefined;
+  const routeMarker = params.id ? '/catalog/edit/:id' : '/catalog/new';
 
   if (params.id && query.isLoading) {
     return (
       <Shell>
-        <PageHeader
-          breadcrumbs={
-            <button
-              type="button"
-              onClick={() => setLocation('/catalog')}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer"
-            >
-              <ArrowLeft size={13} />
-              <span>Back to catalog</span>
-            </button>
-          }
-          title="Edit item"
-        />
-        <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="mt-4 h-10 w-full" />
-          <Skeleton className="mt-4 h-32 w-full" />
+        <div data-route={routeMarker}>
+          <PageHeader
+            breadcrumbs={
+              <button
+                type="button"
+                onClick={() => setLocation('/catalog')}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer"
+              >
+                <ArrowLeft size={13} />
+                <span>Back to catalog</span>
+              </button>
+            }
+            title="Edit item"
+          />
+          <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="mt-4 h-10 w-full" />
+            <Skeleton className="mt-4 h-32 w-full" />
+          </div>
         </div>
       </Shell>
     );
@@ -5722,25 +5969,33 @@ function CatalogEditorRoute() {
   if (params.id && !product) {
     return (
       <Shell>
-        <PageHeader
-          breadcrumbs={
-            <button
-              type="button"
-              onClick={() => setLocation('/catalog')}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer"
-            >
-              <ArrowLeft size={13} />
-              <span>Back to catalog</span>
-            </button>
-          }
-          title="Edit item"
-        />
-        <ErrorState retry={() => query.refetch()} />
+        <div data-route={routeMarker}>
+          <PageHeader
+            breadcrumbs={
+              <button
+                type="button"
+                onClick={() => setLocation('/catalog')}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer"
+              >
+                <ArrowLeft size={13} />
+                <span>Back to catalog</span>
+              </button>
+            }
+            title="Edit item"
+          />
+          <ErrorState retry={() => query.refetch()} />
+        </div>
       </Shell>
     );
   }
 
-  return <Shell><ProductModal product={product} fullPage onClose={() => setLocation('/catalog')} /></Shell>;
+  return (
+    <Shell>
+      <div data-route={routeMarker}>
+        <ProductModal product={product} fullPage onClose={() => setLocation('/catalog')} />
+      </div>
+    </Shell>
+  );
 }
 
 function CatalogGridCard({ product, animationDelay, onEdit, onDelete, deleteDisabled }: {
@@ -5982,6 +6237,7 @@ function Catalog() {
 
    useEffect(() => { writeCatalogView(view); }, [view]);
    return <Shell>
+      <div data-route="/catalog">
       <PageHeader
         title="Catalog"
         primaryAction={
@@ -6107,6 +6363,7 @@ function Catalog() {
           </div>
         </>
       )}
+      </div>
     </Shell>;
 }
 
@@ -6533,7 +6790,8 @@ function Orders() {
   ], [update.isPending]);
 
   return <Shell>
-    <PageHeader
+    <div data-route="/orders">
+      <PageHeader
       title="Orders"
       primaryAction={
         <Link href="/take-order" data-testid="link-take-order-orders">
@@ -6620,6 +6878,7 @@ function Orders() {
         />
       </>
     )}
+    </div>
   </Shell>;
 }
 
@@ -6753,6 +7012,7 @@ function Clients() {
   })), [clientFilters, clientFilter]);
 
   return <Shell>
+    <div data-route="/clients">
     <PageHeader
       title="Clients"
       search={clients.length > 0 ? {
@@ -6864,6 +7124,7 @@ function Clients() {
          </Card>
        </section>
     </>}
+    </div>
   </Shell>;
 }
 
@@ -7743,7 +8004,7 @@ function MultiItemTakeOrderModern() {
 
     return (
       <Shell>
-        <div className="max-w-[620px] mx-auto py-8">
+        <div data-route="/take-order" className="max-w-[620px] mx-auto py-8">
           <div className="rounded-[16px] border border-[hsl(var(--card-border))] bg-white p-6 sm:p-8 shadow-sm dark:bg-neutral-900 text-center">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 mb-4">
               <Check size={28} strokeWidth={2.5} />
@@ -7836,6 +8097,7 @@ function MultiItemTakeOrderModern() {
   const isLinkNearLimit = entitlements.tier === 'free' && (entitlements.usage.activeLinkCount / FREE_ACTIVE_LINK_LIMIT) >= 0.8;
 
   return <Shell>
+    <div data-route="/take-order">
     <PageHeader
       title={
         <div className="flex items-center gap-2.5">
@@ -8296,6 +8558,7 @@ function MultiItemTakeOrderModern() {
         reason={upgradeDialogReason || 'link_limit'}
         tier={entitlements.tier}
       />
+    </div>
     </div>
   </Shell>;
 }
@@ -8797,7 +9060,6 @@ function SettingsPage() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const { userId, email, signOut } = useAppAuth();
-  const clerk = useClerk();
   const entitlements = useEntitlements(userId);
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [searchQuery, setSearchQuery] = useState('');
@@ -8831,7 +9093,7 @@ function SettingsPage() {
       sellerName: settingsQuery.data.sellerName || local?.sellerName || '',
       businessName: settingsQuery.data.businessName || local?.businessName || '',
       description: settingsQuery.data.description || local?.description || '',
-      channels: settingsQuery.data.channels.length ? settingsQuery.data.channels : local?.channels || [],
+      channels: settingsQuery.data.channels?.length ? settingsQuery.data.channels : local?.channels || [],
       logoDataUrl: settingsQuery.data.logoDataUrl || local?.logoDataUrl || null,
       organizationPhone: local?.whatsappPhone || settingsQuery.data.organizationPhone || '',
       organizationAddress: local?.pickupAddress || settingsQuery.data.organizationAddress || '',
@@ -9106,7 +9368,8 @@ function SettingsPage() {
 
   return (
     <Shell>
-      <PageHeader
+      <div data-route="/settings">
+        <PageHeader
         title="Settings"
         tabs={
           <div className="overflow-x-auto pb-1">
@@ -9782,8 +10045,9 @@ function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          if (clerk && clerk.openUserProfile) {
-                            clerk.openUserProfile();
+                          const clerkInst = typeof window !== 'undefined' ? (window as any).Clerk : null;
+                          if (clerkInst && clerkInst.openUserProfile) {
+                            clerkInst.openUserProfile();
                           } else {
                             alert('Password reset instructions have been sent to your email.');
                           }
@@ -9999,7 +10263,6 @@ function SettingsPage() {
                     setShowLogoutConfirm(false);
                     try {
                       if (signOut) await signOut();
-                      else if (clerk?.signOut) await clerk.signOut();
                     } catch {}
                     setLocation('/sign-in');
                   }}
@@ -10011,6 +10274,7 @@ function SettingsPage() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </Shell>
   );
@@ -10297,6 +10561,7 @@ function OrderDetail() {
   if (!validOrderId) {
     return (
       <Shell>
+        <div data-route="/orders/:id">
         <PageHeader
           breadcrumbs={
             <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer" data-testid="link-back-orders">
@@ -10309,12 +10574,14 @@ function OrderDetail() {
         <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
           <EmptyState card={false} icon={PackageSearch} title="Order not found" description="That order number is not valid." action={<Button variant="outline" onClick={() => setLocation('/orders')} data-testid="button-return-orders">View all orders</Button>} />
         </div>
+        </div>
       </Shell>
     );
   }
   if (query.isLoading) {
     return (
       <Shell>
+        <div data-route="/orders/:id">
         <PageHeader
           breadcrumbs={
             <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer" data-testid="link-back-orders">
@@ -10337,12 +10604,14 @@ function OrderDetail() {
             <Skeleton className="h-16 w-full" />
           </div>
         </div>
+        </div>
       </Shell>
     );
   }
   if (query.isError) {
     return (
       <Shell>
+        <div data-route="/orders/:id">
         <PageHeader
           breadcrumbs={
             <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer" data-testid="link-back-orders">
@@ -10355,12 +10624,14 @@ function OrderDetail() {
         <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
           <ErrorState retry={() => query.refetch()} />
         </div>
+        </div>
       </Shell>
     );
   }
   if (!order) {
     return (
       <Shell>
+        <div data-route="/orders/:id">
         <PageHeader
           breadcrumbs={
             <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer" data-testid="link-back-orders">
@@ -10373,12 +10644,13 @@ function OrderDetail() {
         <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
           <EmptyState card={false} icon={PackageSearch} title="Order not found" description="This order may have been removed, or the link is no longer valid." action={<Button variant="outline" onClick={() => setLocation('/orders')} data-testid="button-return-orders">View all orders</Button>} />
         </div>
+        </div>
       </Shell>
     );
   }
 
   return <Shell>
-    <div className="order-detail-page" data-testid={`page-order-detail-${order.id}`}>
+    <div className="order-detail-page" data-route="/orders/:id" data-testid={`page-order-detail-${order.id}`}>
       <PageHeader
         breadcrumbs={
           <Link
@@ -10872,7 +11144,9 @@ function ConnectRoute() {
 function AnalyticsRoute() {
   return (
     <Shell>
-      <AnalyticsPage />
+      <div data-route="/analytics">
+        <AnalyticsPage />
+      </div>
     </Shell>
   );
 }
@@ -10909,52 +11183,78 @@ function ReportInsightRoute() {
   );
 }
 
+const ProtectedOverview = () => <ProtectedRoute page={Overview} />;
+const ProtectedCatalogNew = () => <ProtectedRoute page={CatalogEditorRoute} />;
+const ProtectedCatalogEdit = () => <ProtectedRoute page={CatalogEditorRoute} />;
+const ProtectedCatalog = () => <ProtectedRoute page={Catalog} />;
+const ProtectedOrderDetail = () => <ProtectedRoute page={OrderDetail} />;
+const ProtectedOrders = () => <ProtectedRoute page={Orders} />;
+const ProtectedChannelConversion = () => <ProtectedRoute page={ChannelConversionInsight} />;
+const ProtectedAnalytics = () => <ProtectedRoute page={AnalyticsRoute} />;
+const ProtectedReportInsight = () => <ProtectedRoute page={ReportInsightRoute} />;
+const ProtectedClientDetail = () => <ProtectedRoute page={ClientDetailRoute} />;
+const ProtectedClients = () => <ProtectedRoute page={Clients} />;
+const ProtectedExpenses = () => <ProtectedRoute page={Expenses} />;
+const ProtectedTakeOrder = () => <ProtectedRoute page={MultiItemTakeOrderModern} />;
+const ProtectedSettings = () => <ProtectedRoute page={SettingsPage} />;
+const ProtectedConnect = () => <SellerRoute><ConnectRoute /></SellerRoute>;
+
+const SsoCallbackRoute = () => <AuthenticateWithRedirectCallback />;
+
+const RedirectToSignIn = () => <Redirect to="/sign-in" replace />;
+const RedirectToDashboard = () => <Redirect to="/dashboard" replace />;
+const RedirectToBilling = () => <Redirect to="/account/billing" replace />;
+const RedirectToSubscribe = () => <Redirect to="/subscribe" replace />;
+const RedirectToTerms = () => <Redirect to="/terms" replace />;
+const RedirectToPrivacy = () => <Redirect to="/privacy" replace />;
+const RedirectToRefund = () => <Redirect to="/refund-policy" replace />;
+
 function Router() {
   const [location] = useLocation();
   return <ErrorBoundary resetKey={location}><Switch>
-    <Route path="/auth" component={() => <Redirect to="/sign-in" />} />
-    <Route path="/sso-callback" component={() => <AuthenticateWithRedirectCallback />} />
+    <Route path="/auth" component={RedirectToSignIn} />
+    <Route path="/sso-callback" component={SsoCallbackRoute} />
     <Route path="/sign-in/*?" component={SignInPage} />
     <Route path="/sign-up/*?" component={SignUpPage} />
     <Route path="/onboarding" component={OnboardingRoute} />
-    <Route path="/dashboard" component={() => <ProtectedRoute page={Overview} />} />
-    <Route path="/overview" component={() => <Redirect to="/dashboard" />} />
-    <Route path="/app" component={() => <Redirect to="/dashboard" />} />
-    <Route path="/workspace" component={() => <Redirect to="/dashboard" />} />
+    <Route path="/dashboard" component={ProtectedOverview} />
+    <Route path="/overview" component={RedirectToDashboard} />
+    <Route path="/app" component={RedirectToDashboard} />
+    <Route path="/workspace" component={RedirectToDashboard} />
     <Route path="/" component={HomeRoute} />
-    <Route path="/catalog/new" component={() => <ProtectedRoute page={CatalogEditorRoute} />} />
-    <Route path="/catalog/edit/:id" component={() => <ProtectedRoute page={CatalogEditorRoute} />} />
-    <Route path="/catalog" component={() => <ProtectedRoute page={Catalog} />} />
-    <Route path="/orders/:id" component={() => <ProtectedRoute page={OrderDetail} />} />
-    <Route path="/orders" component={() => <ProtectedRoute page={Orders} />} />
-    <Route path="/reports/channel-conversion" component={() => <ProtectedRoute page={ChannelConversionInsight} />} />
-    <Route path="/analytics/reports/:slug" component={() => <ProtectedRoute page={ReportInsightRoute} />} />
-    <Route path="/reports/:slug" component={() => <ProtectedRoute page={ReportInsightRoute} />} />
-    <Route path="/analytics" component={() => <ProtectedRoute page={AnalyticsRoute} />} />
-    <Route path="/reports" component={() => <ProtectedRoute page={AnalyticsRoute} />} />
-    <Route path="/clients/:key" component={() => <ProtectedRoute page={ClientDetailRoute} />} />
-    <Route path="/clients" component={() => <ProtectedRoute page={Clients} />} />
-    <Route path="/expenses" component={() => <ProtectedRoute page={Expenses} />} />
-    <Route path="/take-order" component={() => <ProtectedRoute page={MultiItemTakeOrderModern} />} />
+    <Route path="/catalog/new" component={ProtectedCatalogNew} />
+    <Route path="/catalog/edit/:id" component={ProtectedCatalogEdit} />
+    <Route path="/catalog" component={ProtectedCatalog} />
+    <Route path="/orders/:id" component={ProtectedOrderDetail} />
+    <Route path="/orders" component={ProtectedOrders} />
+    <Route path="/reports/channel-conversion" component={ProtectedChannelConversion} />
+    <Route path="/analytics/reports/:slug" component={ProtectedReportInsight} />
+    <Route path="/reports/:slug" component={ProtectedReportInsight} />
+    <Route path="/analytics" component={ProtectedAnalytics} />
+    <Route path="/reports" component={ProtectedAnalytics} />
+    <Route path="/clients/:key" component={ProtectedClientDetail} />
+    <Route path="/clients" component={ProtectedClients} />
+    <Route path="/expenses" component={ProtectedExpenses} />
+    <Route path="/take-order" component={ProtectedTakeOrder} />
     <Route path="/subscribe" component={SubscribePage} />
     <Route path="/account/billing" component={BillingPage} />
-    <Route path="/billing" component={() => <Redirect to="/account/billing" />} />
-    <Route path="/subscription" component={() => <Redirect to="/subscribe" />} />
-    <Route path="/paywall" component={() => <Redirect to="/subscribe" />} />
-    <Route path="/pricing" component={() => <Redirect to="/subscribe" />} />
-    <Route path="/settings/billing" component={() => <Redirect to="/account/billing" />} />
-    <Route path="/settings/subscription" component={() => <Redirect to="/account/billing" />} />
-    <Route path="/settings/pro" component={() => <Redirect to="/account/billing" />} />
-    <Route path="/settings" component={() => <ProtectedRoute page={SettingsPage} />} />
-    <Route path="/connect" component={() => <SellerRoute><ConnectRoute /></SellerRoute>} />
-    <Route path="/integrations" component={() => <SellerRoute><ConnectRoute /></SellerRoute>} />
+    <Route path="/billing" component={RedirectToBilling} />
+    <Route path="/subscription" component={RedirectToSubscribe} />
+    <Route path="/paywall" component={RedirectToSubscribe} />
+    <Route path="/pricing" component={RedirectToSubscribe} />
+    <Route path="/settings/billing" component={RedirectToBilling} />
+    <Route path="/settings/subscription" component={RedirectToBilling} />
+    <Route path="/settings/pro" component={RedirectToBilling} />
+    <Route path="/settings" component={ProtectedSettings} />
+    <Route path="/connect" component={ProtectedConnect} />
+    <Route path="/integrations" component={ProtectedConnect} />
     <Route path="/terms" component={TermsPage} />
-    <Route path="/terms-of-service" component={() => <Redirect to="/terms" />} />
+    <Route path="/terms-of-service" component={RedirectToTerms} />
     <Route path="/privacy" component={PrivacyPage} />
-    <Route path="/privacy-policy" component={() => <Redirect to="/privacy" />} />
+    <Route path="/privacy-policy" component={RedirectToPrivacy} />
     <Route path="/refund-policy" component={RefundPolicyPage} />
-    <Route path="/refunds" component={() => <Redirect to="/refund-policy" />} />
-    <Route path="/cancellation-policy" component={() => <Redirect to="/refund-policy" />} />
+    <Route path="/refunds" component={RedirectToRefund} />
+    <Route path="/cancellation-policy" component={RedirectToRefund} />
     <Route path="/o/:token" component={PublicOrderPage} />
     <Route component={NotFound} />
   </Switch></ErrorBoundary>;
