@@ -1211,17 +1211,12 @@ function AppleIcon({ className = 'h-5 w-5' }: { className?: string }) {
 
 function AuthShowcaseCard() {
   return (
-    <div className="relative w-full h-full overflow-hidden flex items-center justify-center bg-neutral-900 select-none">
+    <div className="relative w-full h-full overflow-hidden flex items-center justify-center bg-white select-none">
       <img
         src="/illustrations/takemarket1_3.jpg"
         alt="Take Order Showcase"
         className="w-full h-full object-cover object-center select-none pointer-events-none"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center text-white pointer-events-none drop-shadow-md">
-        <div className="text-3xl font-black tracking-tight lowercase">take order</div>
-        <div className="text-sm font-medium tracking-wide opacity-90 mt-0.5">for sellers</div>
-      </div>
     </div>
   );
 }
@@ -1645,35 +1640,6 @@ export function Onboarding() {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-first-name">
-                First name
-              </label>
-              <input
-                autoFocus
-                id="onboarding-first-name"
-                data-testid="input-onboarding-first-name"
-                value={profile.firstName ?? ''}
-                onChange={(e) => update('firstName', e.target.value)}
-                placeholder="First name"
-                className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-last-name">
-                Last name
-              </label>
-              <input
-                id="onboarding-last-name"
-                data-testid="input-onboarding-last-name"
-                value={profile.lastName ?? ''}
-                onChange={(e) => update('lastName', e.target.value)}
-                placeholder="Last name"
-                className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
-              />
-            </div>
-
-            <div>
               <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-phone">
                 Mobile number
               </label>
@@ -1682,6 +1648,7 @@ export function Onboarding() {
                   {countryDialPrefixMap[profile.country ?? 'Ghana'] || '+233'}
                 </div>
                 <input
+                  autoFocus
                   id="onboarding-phone"
                   data-testid="input-onboarding-phone"
                   type="tel"
@@ -1749,11 +1716,9 @@ export function Onboarding() {
             <button
               type="button"
               onClick={() => {
-                const full = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
-                if (full) update('sellerName', full);
                 changeStep(1);
               }}
-              disabled={!(profile.firstName?.trim() && profile.lastName?.trim() && (profile.phone?.trim() || profile.whatsappPhone?.trim())) || !agreedTerms}
+              disabled={!(profile.phone?.trim() || profile.whatsappPhone?.trim()) || !agreedTerms}
               className="w-full h-12 mt-4 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
               data-testid="button-onboarding-step0-continue"
             >
@@ -2503,25 +2468,6 @@ function FallbackSignUpForm() {
           <p className="text-xs text-neutral-500 mt-1.5">
             We'll send you a verification code.
           </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="signup-name-fallback">
-            Store name <span className="text-neutral-400 font-normal">(optional)</span>
-          </label>
-          <div className="relative flex items-center">
-            <input
-              id="signup-name-fallback"
-              type="text"
-              value={businessName}
-              onChange={(e) => {
-                setBusinessName(e.target.value);
-                writeDraftAuth({ signUpFullName: e.target.value });
-              }}
-              placeholder="e.g. Sunday Edit or Kicks Vault"
-              className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
-            />
-          </div>
         </div>
 
         <div>
