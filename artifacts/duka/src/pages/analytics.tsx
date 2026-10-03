@@ -39,7 +39,8 @@ import {
   useCreateExpense,
   getListExpensesQueryKey,
 } from '@/lib/api-hooks';
-import { useQueryClient } from '@tanstack/react-query';
+import { customFetch } from '@workspace/api-client-react';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { money, moneyExact, currencySymbol } from '@/lib/formatters';
 import {
   DashboardCustomRangePicker,
@@ -63,6 +64,9 @@ import {
   type MetricExpense,
 } from '@/lib/metrics';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ExploreReportsSection } from '@/components/explore-reports-section';
+import { GeneralPerformanceCharts } from '@/components/general-performance-charts';
+import { ComparisonAnalyticsSection, type PeriodComparisonData } from '@/components/comparison-analytics-section';
 
 type ExpandableMetricKey =
   | 'revenue'
@@ -125,7 +129,7 @@ export function AnalyticsPage() {
   const periodMenuRef = useRef<HTMLDivElement>(null);
   const periodTriggerRef = useRef<HTMLButtonElement>(null);
 
-  const [comparePrevious, setComparePrevious] = useState(false);
+  const [comparePrevious, setComparePrevious] = useState(true);
   const [expandedMetric, setExpandedMetric] = useState<ExpandableMetricKey | null>(null);
   const [exported, setExported] = useState(false);
   const [channelExpenseView, setChannelExpenseView] = useState<'channel' | 'expenses'>('channel');
@@ -159,6 +163,17 @@ export function AnalyticsPage() {
   const ordersQuery = useListOrders();
   const expensesQuery = useListExpenses();
   const settingsQuery = useGetSellerSettings();
+
+  const comparisonQuery = useQuery({
+    queryKey: ['analytics-comparison', periodRange?.from, periodRange?.to],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (periodRange?.from) params.set('from', periodRange.from);
+      if (periodRange?.to) params.set('to', periodRange.to);
+      return await customFetch<PeriodComparisonData>(`/api/analytics/comparison?${params.toString()}`);
+    },
+    enabled: comparePrevious,
+  });
 
   const summary = summaryQuery.data;
   const products = (productsQuery.data ?? []) as unknown as MetricProduct[];
@@ -1002,161 +1017,60 @@ export function AnalyticsPage() {
         )}
       </section>
 
-      {/* ── Row 2: Donut Breakdown + Time Chart (Revenue over time) ─── */}
-      <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
-        {/* Donut Card: SegmentedControl toggle + Accessible Tokens */}
-        <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-2xs dark:bg-neutral-900">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-sm font-bold text-[hsl(var(--foreground))]">Breakdown</h3>
-            <SegmentedControl<'channel' | 'expenses'>
-              size="sm"
-              value={channelExpenseView}
-              onChange={setChannelExpenseView}
-              options={[
-                { value: 'channel', label: 'Channel' },
-                { value: 'expenses', label: 'Expenses' },
-              ]}
-            />
+      {/* ── Section 3: Explore Analytics (Reports Catalog) ─── */}
+      <ExploreReportsSection />
+
+      {/* ── Section 4: General Performance Insights (Charts Grid) ─── */}
+      <GeneralPerformanceCharts
+        orders={allOrders}
+        products={products}
+        expenses={expenses}
+        timeChartData={timeChartData}
+        sellerTimezone={sellerTimezone}
+        donutData={donutData}
+        donutTotal={donutTotal}
+        channelExpenseView={channelExpenseView}
+        onChannelExpenseViewChange={setChannelExpenseView}
+        isLoading={isLoading}
+      />
+
+      {/* ── Section 5: Comparison Analytics ("what is working and how we compare") ─── */}
+      {comparePrevious ? (
+        comparisonQuery.data ? (
+          <ComparisonAnalyticsSection
+            data={comparisonQuery.data}
+            isLoading={comparisonQuery.isLoading}
+          />
+        ) : comparisonQuery.isLoading ? (
+          <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8 dark:bg-neutral-900 flex flex-col items-center justify-center space-y-3">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-72" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mt-4">
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+            </div>
           </div>
-
-          {isLoading ? (
-            <div className="flex items-center justify-center h-48">
-              <Skeleton className="h-40 w-40 rounded-full" />
-            </div>
-          ) : donutData.length === 0 || donutTotal === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-[hsl(var(--muted-foreground))] text-center gap-2">
-              <Info size={24} />
-              <p className="text-xs">
-                {channelExpenseView === 'channel' ? 'No sales in this period' : 'No expenses logged'}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-center">
-                <PieChart width={200} height={200}>
-                  <Pie
-                    data={donutData}
-                    cx={100}
-                    cy={100}
-                    innerRadius={58}
-                    outerRadius={88}
-                    paddingAngle={3}
-                    dataKey="value"
-                    strokeWidth={0}
-                  >
-                    {donutData.map((entry, idx) => (
-                      <Cell key={`cell-${idx}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <text x={100} y={93} textAnchor="middle" fill="#6B7280" fontSize={11}>
-                    {channelExpenseView === 'channel' ? 'Revenue' : 'Expenses'}
-                  </text>
-                  <text x={100} y={115} textAnchor="middle" fill="#111111" fontSize={14} fontWeight={700}>
-                    {moneyExact(donutTotal)}
-                  </text>
-                </PieChart>
-              </div>
-
-              {/* Channel / Expense list with revenue, order count, and share % */}
-              <div className="mt-5 space-y-2.5 max-h-48 overflow-y-auto scrollbar-thin">
-                {donutData.map((item) => {
-                  const pct = donutTotal > 0 ? Math.round((item.value / donutTotal) * 100) : 0;
-                  return (
-                    <div key={item.name} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: item.color }} />
-                        <span className="text-[hsl(var(--foreground))] truncate max-w-[130px] font-medium">{item.name}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-right">
-                        {item.orders > 0 && (
-                          <span className="text-[hsl(var(--muted-foreground))]">{item.orders} order{item.orders === 1 ? '' : 's'}</span>
-                        )}
-                        <span className="font-semibold text-[hsl(var(--foreground))]">{moneyExact(item.value)}</span>
-                        <span className="w-8 text-[hsl(var(--muted-foreground))]">{pct}%</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Time Chart: Revenue / Orders Toggle + Zero-filled + Timezone Aware */}
-        <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-2xs dark:bg-neutral-900">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <h3 className="text-sm font-bold text-[hsl(var(--foreground))]">Performance Over Time</h3>
-              <span className="text-xs text-[hsl(var(--muted-foreground))] hidden sm:inline">({sellerTimezone})</span>
-            </div>
-            <SegmentedControl<'revenue' | 'orders'>
-              size="sm"
-              value={timeChartView}
-              onChange={setTimeChartView}
-              options={[
-                { value: 'revenue', label: 'Revenue' },
-                { value: 'orders', label: 'Orders' },
-              ]}
-            />
+        ) : null
+      ) : (
+        <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-6 shadow-2xs dark:bg-neutral-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-[hsl(var(--foreground))]">Period Comparison Analytics</h3>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Compare your revenue, orders, AOV, profit, and customer retention trends against the previous period.
+            </p>
           </div>
-
-          {isLoading ? (
-            <Skeleton className="h-64 w-full rounded-xl" />
-          ) : timeChartData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-[hsl(var(--muted-foreground))] text-center gap-2">
-              <Info size={24} />
-              <p className="text-xs">No activity in this period</p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart
-                data={timeChartData}
-                margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
-                barSize={timeChartData.length > 20 ? 8 : timeChartData.length > 10 ? 14 : 22}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(200,200,200,0.18)" />
-                <XAxis
-                  dataKey="label"
-                  stroke="#a1a1aa"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                  interval={timeChartData.length > 14 ? Math.floor(timeChartData.length / 7) : 0}
-                />
-                <YAxis
-                  stroke="#a1a1aa"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => (timeChartView === 'revenue' ? `${v}` : `${v}`)}
-                />
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload?.length) return null;
-                    return (
-                      <div className="rounded-xl border border-[hsl(var(--border))] bg-white p-3 shadow-lg dark:bg-neutral-950 text-xs">
-                        <div className="font-semibold text-[hsl(var(--muted-foreground))] mb-1">{label}</div>
-                        <div className="font-bold text-[hsl(var(--foreground))]">
-                          Revenue: {money(payload[0]?.payload?.revenue || 0)}
-                        </div>
-                        <div className="text-[hsl(var(--muted-foreground))] mt-0.5">
-                          Orders: {payload[0]?.payload?.orders || 0}
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-                <Bar
-                  dataKey={timeChartView}
-                  fill="#111111"
-                  radius={[4, 4, 0, 0]}
-                  name={timeChartView === 'revenue' ? 'Revenue' : 'Orders'}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+          <button
+            type="button"
+            onClick={() => setComparePrevious(true)}
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-[8px] bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition cursor-pointer dark:bg-white dark:text-neutral-900"
+          >
+            <TrendingUp size={13} />
+            <span>Enable Comparison</span>
+          </button>
         </div>
-      </section>
+      )}
 
       {/* ── Quick Expense Modal ─── */}
       {addExpenseModalOpen && (

@@ -9,7 +9,7 @@ import {
   type ReportConfig,
   type ReportCategory,
 } from "@/lib/report-catalog";
-import { useSubscription } from "@/hooks/use-subscription";
+import { useSubscription } from "@/lib/subscription";
 
 export const HUB_STATE_STORAGE_KEY = "takeorder_analytics_hub_state";
 
