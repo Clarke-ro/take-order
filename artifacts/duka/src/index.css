@@ -4723,6 +4723,12 @@ button[data-testid^="button-filter-"]:focus-visible {
 /* ==============================================================================
    AUTH & SPLIT-SCREEN SHOWCASE (FIXED, NON-SCROLLABLE DESKTOP)
    ============================================================================== */
+body:has(.auth-split-wrapper),
+html:has(.auth-split-wrapper) {
+  overflow: hidden;
+  height: 100%;
+}
+
 .auth-split-wrapper {
   display: flex;
   height: 100dvh;
@@ -4730,6 +4736,14 @@ button[data-testid^="button-filter-"]:focus-visible {
   width: 100%;
   background-color: #ffffff;
   overflow: hidden;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.auth-split-wrapper::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .auth-split-left {
@@ -4740,32 +4754,48 @@ button[data-testid^="button-filter-"]:focus-visible {
   width: 100%;
   height: 100dvh;
   max-height: 100dvh;
-  padding: 1.5rem 1.5rem;
+  padding: 1rem 1.5rem;
   background-color: #ffffff;
   overflow-y: auto;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.auth-split-left::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .auth-split-left.is-onboarding {
   justify-content: center;
   overflow-y: auto;
   background-color: #ffffff;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.auth-split-left.is-onboarding::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 @media (min-width: 640px) {
   .auth-split-left {
-    padding: 2rem 2.5rem;
+    padding: 1.25rem 2rem;
   }
 }
 
 @media (min-width: 1024px) {
   .auth-split-left {
     width: 50%;
-    padding: 2rem 3.5rem;
+    padding: 1.25rem 2.5rem;
     overflow-y: auto;
   }
   .auth-split-left.is-onboarding {
     width: 50%;
-    padding: 2rem 3.5rem;
+    padding: 1.25rem 2.5rem;
     overflow-y: auto;
   }
 }
@@ -4773,11 +4803,11 @@ button[data-testid^="button-filter-"]:focus-visible {
 @media (min-width: 1280px) {
   .auth-split-left {
     width: 48%;
-    padding: 2.5rem 4.5rem;
+    padding: 1.5rem 3.5rem;
   }
   .auth-split-left.is-onboarding {
     width: 48%;
-    padding: 2.5rem 4.5rem;
+    padding: 1.5rem 3.5rem;
   }
 }
 
@@ -4948,4 +4978,25 @@ button[data-testid^="button-filter-"]:focus-visible {
 [data-field="last_name"] {
   display: none !important;
 }
+
+/* Remove scroll bar on Clerk signup and signin forms */
+.cl-signUp-root,
+.cl-signIn-root,
+.cl-card,
+.cl-cardBox,
+.cl-rootBox {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.cl-signUp-root::-webkit-scrollbar,
+.cl-signIn-root::-webkit-scrollbar,
+.cl-card::-webkit-scrollbar,
+.cl-cardBox::-webkit-scrollbar,
+.cl-rootBox::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 

@@ -1441,7 +1441,7 @@ function AuthSplitLayout({
   return (
     <div className="auth-split-wrapper">
       <div className="auth-split-left">
-        <div className="w-full max-w-[420px] mx-auto my-auto py-6 flex flex-col justify-center">
+        <div className="w-full max-w-[420px] mx-auto my-auto py-2 flex flex-col justify-center">
           {children}
         </div>
       </div>
@@ -1657,7 +1657,7 @@ export function Onboarding() {
       <AuthSplitLayout showcase={<AuthShowcaseCard />}>
         <div className="w-full">
           {/* Top back button */}
-          <div className="w-full flex items-center justify-start mb-6">
+          <div className="w-full flex items-center justify-start mb-3">
             <button
               type="button"
               onClick={() => setLocation('/sign-in')}
@@ -1668,26 +1668,26 @@ export function Onboarding() {
             </button>
           </div>
 
-          <div className="text-center mb-6">
-            <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight text-neutral-900">
+          <div className="text-center mb-3.5">
+            <h1 className="text-[24px] sm:text-[26px] font-bold tracking-tight text-neutral-900">
               Continue signing up
             </h1>
-            <p className="mt-1.5 text-sm text-neutral-500">
+            <p className="mt-1 text-sm text-neutral-500">
               We need a couple more details from you
             </p>
           </div>
 
           {!isOnline && (
-            <div className="mb-4 flex items-center gap-2 px-3.5 py-2.5 rounded-[10px] bg-amber-50 border border-amber-200 text-xs font-medium text-amber-900" role="status">
+            <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-[10px] bg-amber-50 border border-amber-200 text-xs font-medium text-amber-900" role="status">
               <WifiOff size={15} className="shrink-0 text-amber-600" />
               <span>Working offline. All your entries are safely saved on this device.</span>
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-first-name">
+                <label className="block text-sm font-semibold text-neutral-900 mb-1" htmlFor="onboarding-first-name">
                   First name
                 </label>
                 <input
@@ -1698,11 +1698,11 @@ export function Onboarding() {
                   value={profile.firstName ?? ''}
                   onChange={(e) => update('firstName', e.target.value)}
                   placeholder="Ama"
-                  className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+                  className="w-full h-11 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-last-name">
+                <label className="block text-sm font-semibold text-neutral-900 mb-1" htmlFor="onboarding-last-name">
                   Last name
                 </label>
                 <input
@@ -1712,17 +1712,17 @@ export function Onboarding() {
                   value={profile.lastName ?? ''}
                   onChange={(e) => update('lastName', e.target.value)}
                   placeholder="Mensah"
-                  className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+                  className="w-full h-11 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-phone">
+              <label className="block text-sm font-semibold text-neutral-900 mb-1" htmlFor="onboarding-phone">
                 Mobile number
               </label>
               <div className="flex gap-2">
-                <div className="w-[84px] shrink-0 h-12 rounded-xl border border-neutral-300 bg-neutral-50 flex items-center justify-center text-sm font-semibold text-neutral-700">
+                <div className="w-[84px] shrink-0 h-11 rounded-xl border border-neutral-300 bg-neutral-50 flex items-center justify-center text-sm font-semibold text-neutral-700">
                   {countryDialPrefixMap[profile.country ?? 'Ghana'] || '+233'}
                 </div>
                 <input
@@ -1735,13 +1735,13 @@ export function Onboarding() {
                     update('whatsappPhone', e.target.value);
                   }}
                   placeholder="24 123 4567"
-                  className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+                  className="w-full h-11 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-country">
+              <label className="block text-sm font-semibold text-neutral-900 mb-1" htmlFor="onboarding-country">
                 Country
               </label>
               <select
@@ -1749,7 +1749,7 @@ export function Onboarding() {
                 data-testid="select-onboarding-country"
                 value={profile.country ?? 'Ghana'}
                 onChange={(e) => handleCountryChange(e.target.value)}
-                className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition cursor-pointer"
+                className="w-full h-11 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition cursor-pointer"
               >
                 <option value="Ghana">🇬🇭 Ghana (GHS)</option>
                 <option value="Nigeria">🇳🇬 Nigeria (NGN)</option>
@@ -1762,25 +1762,25 @@ export function Onboarding() {
               </select>
             </div>
 
-            <div className="space-y-3 pt-2">
-              <label className="flex items-start gap-3 cursor-pointer text-xs text-neutral-600 leading-normal">
+            <div className="space-y-2.5 pt-1">
+              <label className="flex items-start gap-2.5 cursor-pointer text-xs text-neutral-600 leading-normal">
                 <input
                   type="checkbox"
                   checked={agreedOutreach}
                   onChange={(e) => setAgreedOutreach(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
                 />
                 <span>
                   I agree to receive outreach texts about onboarding from Take Order. Message frequency varies and message & data rates may apply. Reply STOP to unsubscribe or HELP for help.
                 </span>
               </label>
 
-              <label className="flex items-start gap-3 cursor-pointer text-xs text-neutral-600 leading-normal">
+              <label className="flex items-start gap-2.5 cursor-pointer text-xs text-neutral-600 leading-normal">
                 <input
                   type="checkbox"
                   checked={agreedTerms}
                   onChange={(e) => setAgreedTerms(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
                 />
                 <span>
                   I agree to the{' '}
@@ -1794,7 +1794,7 @@ export function Onboarding() {
               type="button"
               onClick={handleStep0Continue}
               disabled={!(profile.firstName?.trim() && profile.lastName?.trim() && (profile.phone?.trim() || profile.whatsappPhone?.trim())) || !agreedTerms || isSubmittingStep0}
-              className="w-full h-12 mt-4 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed gap-2"
+              className="w-full h-11 mt-3 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed gap-2"
               data-testid="button-onboarding-step0-continue"
             >
               {isSubmittingStep0 ? (
@@ -2161,19 +2161,19 @@ const clerkAppearance = {
     borderRadius: '0.75rem',
   },
   elements: {
-    rootBox: 'w-full flex justify-center',
-    cardBox: 'w-full flex justify-center !shadow-none !border-0 !bg-transparent !p-0',
-    card: '!w-full max-w-[420px] !rounded-none !border-0 !bg-transparent !p-0 !shadow-none',
-    headerTitle: '!text-[26px] sm:!text-[28px] !font-bold !tracking-tight !text-[#111827] !text-center',
-    headerSubtitle: '!mt-1.5 !text-[14px] !text-[#6B7280] !text-center',
-    socialButtonsBlockButton: '!w-full !h-12 !rounded-full !border !border-neutral-300 !bg-white hover:!bg-neutral-50 !text-neutral-900 !text-sm !font-semibold transition-all !shadow-2xs !cursor-pointer flex items-center justify-center gap-3',
+    rootBox: 'w-full flex justify-center scrollbar-none',
+    cardBox: 'w-full flex justify-center !shadow-none !border-0 !bg-transparent !p-0 scrollbar-none',
+    card: '!w-full max-w-[420px] !rounded-none !border-0 !bg-transparent !p-0 !shadow-none scrollbar-none',
+    headerTitle: '!text-[24px] sm:!text-[26px] !font-bold !tracking-tight !text-[#111827] !text-center',
+    headerSubtitle: '!mt-1 !text-[13.5px] !text-[#6B7280] !text-center',
+    socialButtonsBlockButton: '!w-full !h-11 !rounded-full !border !border-neutral-300 !bg-white hover:!bg-neutral-50 !text-neutral-900 !text-sm !font-semibold transition-all !shadow-2xs !cursor-pointer flex items-center justify-center gap-3',
     socialButtonsBlockButtonText: '!text-neutral-900 !font-semibold !text-sm',
     socialButtonsProviderIcon: '!h-4.5 !w-4.5',
-    dividerRow: '!my-5 !flex !items-center !justify-center',
+    dividerRow: '!my-3.5 !flex !items-center !justify-center',
     dividerLine: '!border-neutral-200',
     dividerText: '!text-neutral-400 !text-xs !font-semibold !uppercase !tracking-wider !bg-white !px-3',
     formFieldLabel: '!text-sm !font-semibold !text-neutral-900 !mb-1.5',
-    formFieldInput: '!w-full !h-12 !rounded-xl !border !border-neutral-300 !bg-white !text-sm !text-neutral-900 placeholder:!text-neutral-400 focus:!border-neutral-900 focus:!ring-1 focus:!ring-neutral-900 transition-all',
+    formFieldInput: '!w-full !h-11 !rounded-xl !border !border-neutral-300 !bg-white !text-sm !text-neutral-900 placeholder:!text-neutral-400 focus:!border-neutral-900 focus:!ring-1 focus:!ring-neutral-900 transition-all',
     formFieldRow__firstName: '!hidden',
     formFieldRow__lastName: '!hidden',
     formFieldRow__first_name: '!hidden',
@@ -2182,8 +2182,8 @@ const clerkAppearance = {
     formField__lastName: '!hidden',
     formField__first_name: '!hidden',
     formField__last_name: '!hidden',
-    formButtonPrimary: '!w-full !h-12 !rounded-full !bg-[#111111] hover:!bg-[#262626] !text-white !text-sm !font-semibold transition-all !shadow-xs !cursor-pointer flex items-center justify-center !mt-4 active:scale-[0.99]',
-    footer: '!shadow-none !border-0 !bg-transparent !rounded-none !mt-6 !pt-4 !border-t !border-neutral-200 text-center',
+    formButtonPrimary: '!w-full !h-11 !rounded-full !bg-[#111111] hover:!bg-[#262626] !text-white !text-sm !font-semibold transition-all !shadow-xs !cursor-pointer flex items-center justify-center !mt-3 active:scale-[0.99]',
+    footer: '!shadow-none !border-0 !bg-transparent !rounded-none !mt-4 !pt-3 !border-t !border-neutral-200 text-center',
     footerAction: '!text-sm !text-neutral-500',
     footerActionText: '!text-sm !text-neutral-500',
     footerActionLink: '!font-semibold !text-neutral-900 hover:!underline !text-sm',
@@ -2191,7 +2191,7 @@ const clerkAppearance = {
     identityPreview: '!rounded-xl !border !border-neutral-200 !p-3.5 !bg-neutral-50',
     identityPreviewText: '!text-sm !font-medium !text-neutral-900',
     identityPreviewEditButton: '!text-xs !text-[#6366F1] hover:underline',
-    otpCodeFieldInput: '!h-12 !rounded-xl !border !border-neutral-300 !bg-neutral-50 !text-lg !font-mono text-center focus:!border-neutral-900 focus:!bg-white',
+    otpCodeFieldInput: '!h-11 !rounded-xl !border !border-neutral-300 !bg-neutral-50 !text-lg !font-mono text-center focus:!border-neutral-900 focus:!bg-white',
     formFieldAction: '!text-xs !text-neutral-500 hover:!text-neutral-900 !font-medium',
     logoBox: 'hidden',
     logoImage: 'hidden',
@@ -2272,7 +2272,7 @@ function FallbackSignInForm() {
   return (
     <div className="w-full">
       {/* Top back button */}
-      <div className="w-full flex items-center justify-start mb-6">
+      <div className="w-full flex items-center justify-start mb-3">
         <Link
           href="/"
           className="inline-flex items-center text-neutral-600 hover:text-neutral-900 transition-colors cursor-pointer"
@@ -2282,24 +2282,24 @@ function FallbackSignInForm() {
         </Link>
       </div>
 
-      <div className="text-center mb-6">
-        <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight text-neutral-900">
+      <div className="text-center mb-3.5">
+        <h1 className="text-[24px] sm:text-[26px] font-bold tracking-tight text-neutral-900">
           Take Order for sellers
         </h1>
-        <p className="mt-1.5 text-sm text-neutral-500">
+        <p className="mt-1 text-sm text-neutral-500">
           Create an account or log in to manage your business
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-2.5 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mb-3 p-2 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
-          <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="signin-email-fallback">
+          <label className="block text-sm font-semibold text-neutral-900 mb-1" htmlFor="signin-email-fallback">
             Email
           </label>
           <div className="relative flex items-center">
@@ -2314,16 +2314,16 @@ function FallbackSignInForm() {
               }}
               placeholder="Your email"
               autoComplete="email"
-              className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+              className="w-full h-11 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
             />
           </div>
-          <p className="text-xs text-neutral-500 mt-1.5">
+          <p className="text-xs text-neutral-500 mt-1">
             We'll send you a verification code.
           </p>
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center justify-between mb-1">
             <label className="block text-sm font-semibold text-neutral-900" htmlFor="signin-password-fallback">
               Password
             </label>
@@ -2343,7 +2343,7 @@ function FallbackSignInForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               autoComplete="current-password"
-              className="w-full h-12 pl-3.5 pr-10 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+              className="w-full h-11 pl-3.5 pr-10 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
             />
             <button
               type="button"
@@ -2358,15 +2358,15 @@ function FallbackSignInForm() {
 
         <button
           type="submit"
-          className="w-full h-12 mt-2 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs active:scale-[0.99]"
-          data-testid="button-auth-login"
+          className="w-full h-11 mt-1 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs active:scale-[0.99]"
+          data-testid="button-auth-signin"
         >
           Continue
         </button>
       </form>
 
       {/* OR Divider */}
-      <div className="relative my-6 flex items-center justify-center">
+      <div className="relative my-3.5 flex items-center justify-center">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-neutral-200" />
         </div>
@@ -2376,20 +2376,20 @@ function FallbackSignInForm() {
       </div>
 
       {/* 3 Pill buttons */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         <button
           type="button"
           onClick={handleMobileAuth}
-          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
+          className="w-full h-11 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
         >
-          <Smartphone size={18} className="text-neutral-700 absolute left-5" />
+          <Smartphone size={17} className="text-neutral-700 absolute left-5" />
           <span>Continue with mobile</span>
         </button>
 
         <button
           type="button"
           onClick={handleGoogleAuth}
-          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
+          className="w-full h-11 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
         >
           <GoogleIcon className="h-4.5 w-4.5 absolute left-5" />
           <span>Continue with Google</span>
@@ -2398,7 +2398,7 @@ function FallbackSignInForm() {
         <button
           type="button"
           onClick={handleAppleAuth}
-          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
+          className="w-full h-11 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
         >
           <AppleIcon className="h-4.5 w-4.5 text-neutral-900 absolute left-5" />
           <span>Continue with Apple</span>
@@ -2406,15 +2406,15 @@ function FallbackSignInForm() {
       </div>
 
       {/* Buyer tracking prompt */}
-      <div className="mt-7 text-center">
-        <p className="text-sm font-semibold text-neutral-900">Are you a customer looking to track an order?</p>
-        <Link href="/track" className="text-sm font-semibold text-[#6366F1] hover:underline mt-1 inline-block">
+      <div className="mt-3.5 text-center">
+        <p className="text-xs font-semibold text-neutral-900">Are you a customer looking to track an order?</p>
+        <Link href="/track" className="text-xs font-semibold text-[#6366F1] hover:underline mt-0.5 inline-block">
           Go to Take Order for buyers
         </Link>
       </div>
 
       {/* Switch to sign-up */}
-      <div className="mt-4 text-center text-sm text-neutral-500">
+      <div className="mt-2.5 text-center text-xs text-neutral-500">
         Don't have an account?{' '}
         <Link href="/sign-up" className="font-semibold text-neutral-900 hover:underline" data-testid="link-auth-sign-up">
           Sign up
@@ -2422,7 +2422,7 @@ function FallbackSignInForm() {
       </div>
 
       {/* reCAPTCHA footer */}
-      <div className="mt-6 text-center text-[11px] text-neutral-400 leading-relaxed">
+      <div className="mt-3 text-center text-[10.5px] text-neutral-400 leading-relaxed">
         <p>This site is protected by reCAPTCHA</p>
         <p>Google Privacy Policy and Terms of Service apply</p>
       </div>
@@ -2510,7 +2510,7 @@ function FallbackSignUpForm() {
   return (
     <div className="w-full">
       {/* Top back button */}
-      <div className="w-full flex items-center justify-start mb-6">
+      <div className="w-full flex items-center justify-start mb-3">
         <Link
           href="/"
           className="inline-flex items-center text-neutral-600 hover:text-neutral-900 transition-colors cursor-pointer"
@@ -2520,24 +2520,24 @@ function FallbackSignUpForm() {
         </Link>
       </div>
 
-      <div className="text-center mb-6">
-        <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight text-neutral-900">
+      <div className="text-center mb-3.5">
+        <h1 className="text-[24px] sm:text-[26px] font-bold tracking-tight text-neutral-900">
           Take Order for sellers
         </h1>
-        <p className="mt-1.5 text-sm text-neutral-500">
+        <p className="mt-1 text-sm text-neutral-500">
           Create an account or log in to manage your business
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-2.5 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mb-3 p-2 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
-          <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="signup-email-fallback">
+          <label className="block text-sm font-semibold text-neutral-900 mb-1" htmlFor="signup-email-fallback">
             Email
           </label>
           <div className="relative flex items-center">
@@ -2552,16 +2552,16 @@ function FallbackSignUpForm() {
               }}
               placeholder="Your email"
               autoComplete="email"
-              className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+              className="w-full h-11 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
             />
           </div>
-          <p className="text-xs text-neutral-500 mt-1.5">
+          <p className="text-xs text-neutral-500 mt-1">
             We'll send you a verification code.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="signup-password-fallback">
+          <label className="block text-sm font-semibold text-neutral-900 mb-1" htmlFor="signup-password-fallback">
             Password
           </label>
           <div className="relative flex items-center">
@@ -2572,7 +2572,7 @@ function FallbackSignUpForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
               autoComplete="new-password"
-              className="w-full h-12 pl-3.5 pr-10 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+              className="w-full h-11 pl-3.5 pr-10 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
             />
             <button
               type="button"
@@ -2587,7 +2587,7 @@ function FallbackSignUpForm() {
 
         <button
           type="submit"
-          className="w-full h-12 mt-2 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs active:scale-[0.99]"
+          className="w-full h-11 mt-1 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs active:scale-[0.99]"
           data-testid="button-auth-signup"
         >
           Continue
@@ -2595,7 +2595,7 @@ function FallbackSignUpForm() {
       </form>
 
       {/* OR Divider */}
-      <div className="relative my-6 flex items-center justify-center">
+      <div className="relative my-3.5 flex items-center justify-center">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-neutral-200" />
         </div>
@@ -2605,20 +2605,20 @@ function FallbackSignUpForm() {
       </div>
 
       {/* 3 Pill buttons */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         <button
           type="button"
           onClick={handleMobileAuth}
-          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
+          className="w-full h-11 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
         >
-          <Smartphone size={18} className="text-neutral-700 absolute left-5" />
+          <Smartphone size={17} className="text-neutral-700 absolute left-5" />
           <span>Continue with mobile</span>
         </button>
 
         <button
           type="button"
           onClick={handleGoogleAuth}
-          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
+          className="w-full h-11 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
         >
           <GoogleIcon className="h-4.5 w-4.5 absolute left-5" />
           <span>Continue with Google</span>
@@ -2627,7 +2627,7 @@ function FallbackSignUpForm() {
         <button
           type="button"
           onClick={handleAppleAuth}
-          className="w-full h-12 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
+          className="w-full h-11 rounded-full border border-neutral-300 hover:bg-neutral-50 text-neutral-900 font-semibold text-sm flex items-center justify-center gap-3 transition cursor-pointer relative shadow-2xs"
         >
           <AppleIcon className="h-4.5 w-4.5 text-neutral-900 absolute left-5" />
           <span>Continue with Apple</span>
@@ -2635,15 +2635,15 @@ function FallbackSignUpForm() {
       </div>
 
       {/* Buyer tracking link */}
-      <div className="mt-7 text-center">
-        <p className="text-sm font-semibold text-neutral-900">Are you a customer looking to track an order?</p>
-        <Link href="/track" className="text-sm font-semibold text-[#6366F1] hover:underline mt-1 inline-block">
+      <div className="mt-3.5 text-center">
+        <p className="text-xs font-semibold text-neutral-900">Are you a customer looking to track an order?</p>
+        <Link href="/track" className="text-xs font-semibold text-[#6366F1] hover:underline mt-0.5 inline-block">
           Go to Take Order for buyers
         </Link>
       </div>
 
       {/* Switch between sign-up and sign-in */}
-      <div className="mt-4 text-center text-sm text-neutral-500">
+      <div className="mt-2.5 text-center text-xs text-neutral-500">
         Already have an account?{' '}
         <Link href="/sign-in" className="font-semibold text-neutral-900 hover:underline" data-testid="link-auth-sign-in">
           Log in
@@ -2651,7 +2651,7 @@ function FallbackSignUpForm() {
       </div>
 
       {/* reCAPTCHA footer */}
-      <div className="mt-6 text-center text-[11px] text-neutral-400 leading-relaxed">
+      <div className="mt-3 text-center text-[10.5px] text-neutral-400 leading-relaxed">
         <p>This site is protected by reCAPTCHA</p>
         <p>Google Privacy Policy and Terms of Service apply</p>
       </div>
