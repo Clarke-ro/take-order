@@ -4912,3 +4912,40 @@ button[data-testid^="button-filter-"]:focus-visible {
     transform: translateY(0) scale(1);
   }
 }
+
+/* Hide First Name and Last Name on Clerk sign-up component to save space */
+.cl-signUp-root .cl-formFieldRow__firstName,
+.cl-signUp-root .cl-formFieldRow__lastName,
+.cl-signUp-root .cl-formFieldRow__first_name,
+.cl-signUp-root .cl-formFieldRow__last_name,
+.cl-signUp-root .cl-formField__firstName,
+.cl-signUp-root .cl-formField__lastName,
+.cl-signUp-root .cl-formField__first_name,
+.cl-signUp-root .cl-formField__last_name,
+.cl-signUp-root .cl-formFieldRow:has(input[name="firstName"]),
+.cl-signUp-root .cl-formFieldRow:has(input[name="lastName"]),
+.cl-signUp-root .cl-formFieldRow:has(input[name="first_name"]),
+.cl-signUp-root .cl-formFieldRow:has(input[name="last_name"]),
+.cl-signUp-root .cl-formField:has(input[name="firstName"]),
+.cl-signUp-root .cl-formField:has(input[name="lastName"]),
+.cl-signUp-root .cl-formField:has(input[name="first_name"]),
+.cl-signUp-root .cl-formField:has(input[name="last_name"]),
+.cl-signUp-root div:has(> input[name="firstName"]),
+.cl-signUp-root div:has(> input[name="lastName"]),
+.cl-signUp-root div:has(> div > input[name="firstName"]),
+.cl-signUp-root div:has(> div > input[name="lastName"]),
+.cl-signUp-root [data-field="firstName"],
+.cl-signUp-root [data-field="lastName"],
+.cl-signUp-root [data-field="first_name"],
+.cl-signUp-root [data-field="last_name"],
+.cl-formFieldRow__firstName,
+.cl-formFieldRow__lastName,
+.cl-formField__firstName,
+.cl-formField__lastName,
+[data-field="firstName"],
+[data-field="lastName"],
+[data-field="first_name"],
+[data-field="last_name"] {
+  display: none !important;
+}
+

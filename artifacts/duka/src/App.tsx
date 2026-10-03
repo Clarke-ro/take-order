@@ -1502,6 +1502,7 @@ const teamSizeOptions = [
 export function Onboarding() {
   const [, setLocation] = useLocation();
   const { userId } = useAppAuth();
+  const { user } = useUser();
   const isOnline = useIsOnline();
   const [step, setStep] = useState(() => Math.min(readOnboardingStep(userId), 4));
   const [profile, setProfile] = useState<SellerProfile>(() => readSellerProfile(userId));
@@ -1509,8 +1510,31 @@ export function Onboarding() {
   const [offlineSavedNotice, setOfflineSavedNotice] = useState(false);
   const [agreedOutreach, setAgreedOutreach] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(true);
+  const [isSubmittingStep0, setIsSubmittingStep0] = useState(false);
   const settingsQuery = useGetSellerSettings();
   const saveOnboardingSettingsMutation = useUpdateSellerSettings();
+
+  useEffect(() => {
+    if (user && (!profile.firstName || !profile.lastName)) {
+      setProfile((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        if (!next.firstName && user.firstName) {
+          next.firstName = user.firstName;
+          changed = true;
+        }
+        if (!next.lastName && user.lastName) {
+          next.lastName = user.lastName;
+          changed = true;
+        }
+        if (changed) {
+          writeSellerProfile(next, userId);
+          return next;
+        }
+        return prev;
+      });
+    }
+  }, [user, userId, profile.firstName, profile.lastName]);
 
   useEffect(() => {
     writeSellerProfile(profile, userId);
@@ -1605,6 +1629,28 @@ export function Onboarding() {
     });
   };
 
+  const handleStep0Continue = async () => {
+    setIsSubmittingStep0(true);
+    const firstName = profile.firstName?.trim() || '';
+    const lastName = profile.lastName?.trim() || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    if (fullName) {
+      update('sellerName', fullName);
+    }
+    if (user && (firstName || lastName)) {
+      try {
+        await user.update({
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+        });
+      } catch (err) {
+        console.warn('Could not sync user profile to Clerk:', err);
+      }
+    }
+    setIsSubmittingStep0(false);
+    changeStep(1);
+  };
+
   // STEP 0: Finish signing up / User details - SPLIT LAYOUT WITH RIGHT IMAGE PANEL
   if (step === 0) {
     return (
@@ -1639,6 +1685,38 @@ export function Onboarding() {
           )}
 
           <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-first-name">
+                  First name
+                </label>
+                <input
+                  autoFocus
+                  id="onboarding-first-name"
+                  data-testid="input-onboarding-first-name"
+                  type="text"
+                  value={profile.firstName ?? ''}
+                  onChange={(e) => update('firstName', e.target.value)}
+                  placeholder="Ama"
+                  className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-last-name">
+                  Last name
+                </label>
+                <input
+                  id="onboarding-last-name"
+                  data-testid="input-onboarding-last-name"
+                  type="text"
+                  value={profile.lastName ?? ''}
+                  onChange={(e) => update('lastName', e.target.value)}
+                  placeholder="Mensah"
+                  className="w-full h-12 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 transition"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-semibold text-neutral-900 mb-1.5" htmlFor="onboarding-phone">
                 Mobile number
@@ -1648,7 +1726,6 @@ export function Onboarding() {
                   {countryDialPrefixMap[profile.country ?? 'Ghana'] || '+233'}
                 </div>
                 <input
-                  autoFocus
                   id="onboarding-phone"
                   data-testid="input-onboarding-phone"
                   type="tel"
@@ -1715,14 +1792,19 @@ export function Onboarding() {
 
             <button
               type="button"
-              onClick={() => {
-                changeStep(1);
-              }}
-              disabled={!(profile.phone?.trim() || profile.whatsappPhone?.trim()) || !agreedTerms}
-              className="w-full h-12 mt-4 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={handleStep0Continue}
+              disabled={!(profile.firstName?.trim() && profile.lastName?.trim() && (profile.phone?.trim() || profile.whatsappPhone?.trim())) || !agreedTerms || isSubmittingStep0}
+              className="w-full h-12 mt-4 rounded-full bg-[#111111] hover:bg-[#262626] text-white font-semibold text-sm transition-colors flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed gap-2"
               data-testid="button-onboarding-step0-continue"
             >
-              Continue
+              {isSubmittingStep0 ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                'Continue'
+              )}
             </button>
           </div>
         </div>
@@ -2092,6 +2174,14 @@ const clerkAppearance = {
     dividerText: '!text-neutral-400 !text-xs !font-semibold !uppercase !tracking-wider !bg-white !px-3',
     formFieldLabel: '!text-sm !font-semibold !text-neutral-900 !mb-1.5',
     formFieldInput: '!w-full !h-12 !rounded-xl !border !border-neutral-300 !bg-white !text-sm !text-neutral-900 placeholder:!text-neutral-400 focus:!border-neutral-900 focus:!ring-1 focus:!ring-neutral-900 transition-all',
+    formFieldRow__firstName: '!hidden',
+    formFieldRow__lastName: '!hidden',
+    formFieldRow__first_name: '!hidden',
+    formFieldRow__last_name: '!hidden',
+    formField__firstName: '!hidden',
+    formField__lastName: '!hidden',
+    formField__first_name: '!hidden',
+    formField__last_name: '!hidden',
     formButtonPrimary: '!w-full !h-12 !rounded-full !bg-[#111111] hover:!bg-[#262626] !text-white !text-sm !font-semibold transition-all !shadow-xs !cursor-pointer flex items-center justify-center !mt-4 active:scale-[0.99]',
     footer: '!shadow-none !border-0 !bg-transparent !rounded-none !mt-6 !pt-4 !border-t !border-neutral-200 text-center',
     footerAction: '!text-sm !text-neutral-500',
@@ -2614,6 +2704,26 @@ function SignUpPage() {
       setLocation(target);
     }
   }, [isLoaded, effectiveSignedIn, authState, setLocation, target]);
+
+  useEffect(() => {
+    const cleanInputs = () => {
+      const inputs = document.querySelectorAll<HTMLInputElement>(
+        '.cl-signUp-root input[name="firstName"], .cl-signUp-root input[name="lastName"], .cl-signUp-root input[name="first_name"], .cl-signUp-root input[name="last_name"]'
+      );
+      inputs.forEach((input) => {
+        if (input.hasAttribute('required')) {
+          input.removeAttribute('required');
+        }
+        if (!input.value) {
+          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+          nativeInputValueSetter?.call(input, 'Store');
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      });
+    };
+    const interval = setInterval(cleanInputs, 200);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <AuthSplitLayout>
