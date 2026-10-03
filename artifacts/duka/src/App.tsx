@@ -10609,6 +10609,35 @@ function OrderDetail() {
     );
   }
   if (query.isError) {
+    const isNotFoundError = Boolean(
+      (query.error as any)?.status === 404 ||
+      (query.error as any)?.statusCode === 404 ||
+      (query.error as any)?.response?.status === 404 ||
+      (query.error as any)?.message?.includes('404') ||
+      (query.error as any)?.message?.toLowerCase().includes('not found')
+    );
+
+    if (isNotFoundError) {
+      return (
+        <Shell>
+          <div data-route="/orders/:id">
+            <PageHeader
+              breadcrumbs={
+                <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer" data-testid="link-back-orders">
+                  <ArrowLeft size={13} />
+                  <span>Back to orders</span>
+                </Link>
+              }
+              title="Order not found"
+            />
+            <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
+              <EmptyState card={false} icon={PackageSearch} title="Order not found" description="This order may belong to another seller or does not exist." action={<Button variant="outline" onClick={() => setLocation('/orders')} data-testid="button-return-orders">View all orders</Button>} />
+            </div>
+          </div>
+        </Shell>
+      );
+    }
+
     return (
       <Shell>
         <div data-route="/orders/:id">
