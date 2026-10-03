@@ -1013,8 +1013,8 @@ export function AnalyticsPage() {
               value={channelExpenseView}
               onChange={setChannelExpenseView}
               options={[
-                { value: 'channel', label: 'Sales by channel' },
-                { value: 'expenses', label: 'Operating expenses' },
+                { value: 'channel', label: 'Channel' },
+                { value: 'expenses', label: 'Expenses' },
               ]}
             />
           </div>
@@ -1069,7 +1069,7 @@ export function AnalyticsPage() {
                       </div>
                       <div className="flex items-center gap-3 text-right">
                         {item.orders > 0 && (
-                          <span className="text-[hsl(var(--muted-foreground))]">{item.orders} orders</span>
+                          <span className="text-[hsl(var(--muted-foreground))]">{item.orders} order{item.orders === 1 ? '' : 's'}</span>
                         )}
                         <span className="font-semibold text-[hsl(var(--foreground))]">{moneyExact(item.value)}</span>
                         <span className="w-8 text-[hsl(var(--muted-foreground))]">{pct}%</span>
