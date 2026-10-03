@@ -4,13 +4,14 @@ import {
   computeFairComparisonRange,
   computePeriodComparison,
   generateReportDetailData,
+  type ReportAnalyticsOrder,
 } from "./report-analytics.js";
 import {
   canAccessReport,
   REPORT_CATALOG,
   getReportConfig,
 } from "@workspace/api-zod";
-import type { AnalyticsOrder, AnalyticsProduct, AnalyticsExpense } from "./dashboard-analytics.js";
+import type { AnalyticsProduct, AnalyticsExpense } from "./dashboard-analytics.js";
 
 const fixedNow = new Date("2026-10-03T12:00:00.000Z");
 const tz = "Africa/Accra";
@@ -21,7 +22,7 @@ const mockProducts: AnalyticsProduct[] = [
   { id: 3, name: "Lip Gloss", category: "Cosmetics", cost: "10.00", stock: 0 },
 ];
 
-const mockOrders: AnalyticsOrder[] = [
+const mockOrders: ReportAnalyticsOrder[] = [
   // Current Period Orders (Oct 1 - Oct 3, 2026)
   {
     id: 101,

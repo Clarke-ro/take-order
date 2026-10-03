@@ -6,6 +6,14 @@ import {
 } from "./dashboard-analytics";
 import { type ReportConfig, getReportConfig } from "@workspace/api-zod";
 
+export type ReportAnalyticsOrder = AnalyticsOrder & {
+  id?: number;
+  itemCount?: number;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  fulfillment?: string | null;
+};
+
 export interface PeriodComparisonResult {
   currentRange: { from: string; to: string; label: string };
   previousRange: { from: string; to: string; label: string; isFairMtd: boolean };
@@ -122,7 +130,7 @@ export function calculateDelta(current: number, previous: number): {
 
 export function computePeriodComparison(
   products: AnalyticsProduct[],
-  orders: AnalyticsOrder[],
+  orders: ReportAnalyticsOrder[],
   expenses: AnalyticsExpense[],
   fromStr: string,
   toStr: string,
@@ -540,7 +548,7 @@ export interface ReportDetailResponse {
 export function generateReportDetailData(params: {
   slug: string;
   products: AnalyticsProduct[];
-  orders: AnalyticsOrder[];
+  orders: ReportAnalyticsOrder[];
   expenses: AnalyticsExpense[];
   from: string;
   to: string;
