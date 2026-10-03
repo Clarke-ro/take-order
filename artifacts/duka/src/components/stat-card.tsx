@@ -68,9 +68,12 @@ export function StatCard({
       )}
     >
       {/* Label row + info icon + optional expand chevron */}
-      <div className="flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[13px] font-medium text-[hsl(var(--muted-foreground))] leading-none truncate">
+      <div className="flex items-center justify-between gap-1.5 min-h-[20px]">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <span
+            title={label}
+            className="text-[13px] font-medium text-[hsl(var(--muted-foreground))] leading-snug whitespace-normal break-words"
+          >
             {label}
           </span>
           {description && (
@@ -87,8 +90,8 @@ export function StatCard({
           <ChevronDown
             size={14}
             className={cn(
-              'text-[hsl(var(--muted-foreground))] transition-transform duration-200 shrink-0',
-              expanded && 'rotate-180 text-neutral-900 dark:text-white'
+              'text-[hsl(var(--muted-foreground))]/70 transition-transform duration-200 shrink-0 ml-1',
+              expanded && 'rotate-180 text-neutral-800 dark:text-neutral-200'
             )}
           />
         )}
@@ -97,7 +100,7 @@ export function StatCard({
       {/* Big value row + sparkline */}
       <div className="mt-3 flex items-end justify-between gap-2">
         <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-[28px] sm:text-[32px] leading-none font-semibold tracking-tight text-[hsl(var(--foreground))]">
+          <span className="text-[28px] leading-tight font-semibold tracking-tight text-neutral-800 dark:text-neutral-200">
             {value}
           </span>
           {suffix && (
@@ -111,7 +114,7 @@ export function StatCard({
 
       {/* Caption & optional badge */}
       {(caption || subtitle || badge) && (
-        <div className="mt-2.5 flex items-center justify-between gap-2 pt-1 border-t border-[hsl(var(--border))]/40 text-[11px] text-[hsl(var(--muted-foreground))]">
+        <div className="mt-2.5 flex items-center justify-between gap-2 pt-1 border-t border-[hsl(var(--border))]/40 text-[12px] sm:text-[13px] text-[hsl(var(--muted-foreground))]">
           <span className="truncate">{caption || subtitle}</span>
           {badge && <span className="shrink-0">{badge}</span>}
         </div>
