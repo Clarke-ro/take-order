@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'wouter';
 import { Zap, Crown, ArrowRight } from 'lucide-react';
 import { useSubscription, type NormalizedSubscription } from '@/lib/subscription';
+import { useAppAuth } from '@/lib/auth-context';
 
 export interface SidebarProCardProps {
   subscription?: NormalizedSubscription;
@@ -12,8 +13,15 @@ export function SidebarProCard({
   subscription: propSubscription,
   collapsed = false,
 }: SidebarProCardProps) {
-  const hookSubscription = useSubscription();
+  const { userId } = useAppAuth();
+  const hookSubscription = useSubscription(userId);
   const sub = propSubscription || hookSubscription;
+
+  // While subscription status is loading, don't show any upgrade promo
+  // to avoid flashing "Start 7-day free trial" to paying users during refresh.
+  if (sub.isLoading) {
+    return null;
+  }
 
   // Hidden for Pro+ users
   if (sub.isProPlus) {

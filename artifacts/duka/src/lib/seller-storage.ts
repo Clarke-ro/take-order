@@ -77,12 +77,27 @@ export const readSellerProfile = (
   userId?: string | null,
   storage: Pick<Storage, 'getItem'> | null = getStorage()
 ): SellerProfile => {
+  if (!storage) return { ...defaultSellerProfile };
   const cleanId = (userId || activeSellerUserId)?.trim();
-  if (!cleanId || !storage) return { ...defaultSellerProfile };
-  try {
+  let value: string | null = null;
+  if (cleanId) {
     const key = getScopedKey('profile', cleanId);
-    const value = storage.getItem(key);
-    if (!value) return { ...defaultSellerProfile };
+    value = storage.getItem(key);
+  }
+  if (!value && typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const keys = Object.keys(window.localStorage);
+      const scopedKey = keys.find((k) => k.startsWith('takeorder:') && k.endsWith(':profile') && !k.includes(':anonymous:'))
+        || keys.find((k) => k.startsWith('takeorder:') && k.endsWith(':profile'));
+      if (scopedKey) {
+        value = window.localStorage.getItem(scopedKey);
+      } else {
+        value = window.localStorage.getItem('duka-seller-profile');
+      }
+    } catch {}
+  }
+  if (!value) return { ...defaultSellerProfile };
+  try {
     const parsed = JSON.parse(value) as Partial<SellerProfile>;
     return {
       ...defaultSellerProfile,

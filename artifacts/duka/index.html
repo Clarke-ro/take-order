@@ -19,6 +19,40 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+      // Decide what the very first (pre-JavaScript) frame should look like for THIS url,
+      // so a full page reload never paints a different page's layout.
+      //   app    -> seller app shell skeleton (signed-in hint + seller route or "/")
+      //   public -> plain white frame (sign-in/up, onboarding, signed-out landing)
+      //   plain  -> plain page-background frame (everything else, incl. signed-out deep links)
+      (function () {
+        var d = document.documentElement;
+        var p = location.pathname.replace(/\/+$/, '') || '/';
+        var signedIn = false;
+        try {
+          signedIn = /(?:^|;\s*)__client_uat(?:_[^=]*)?=([1-9]\d*)/.test(document.cookie) ||
+            localStorage.getItem('duka-test-auth') === 'true';
+        } catch (e) {}
+        var sellerRoute = /^\/(dashboard|overview|app|workspace|catalog|orders|reports|analytics|clients|expenses|take-order|settings|connect|integrations)(\/|$)/.test(p);
+        var authRoute = /^\/(sign-in|sign-up|sso-callback|onboarding)(\/|$)/.test(p);
+        var boot = 'plain';
+        if ((sellerRoute || p === '/') && signedIn) boot = 'app';
+        else if (authRoute || p === '/') boot = 'public';
+        d.setAttribute('data-boot', boot);
+        try {
+          if (localStorage.getItem('takeorder-sidebar-collapsed') === 'true') d.setAttribute('data-sidebar', 'collapsed');
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      html:not([data-boot="app"]) #static-shell-skeleton { display: none !important; }
+      html[data-boot="public"] { background-color: #ffffff; }
+      @media (min-width: 768px) {
+        html[data-sidebar="collapsed"] #static-sidebar { width: 72px !important; padding: 16px 12px !important; }
+        html[data-sidebar="collapsed"] #static-sidebar .static-brand-text { display: none; }
+        html[data-sidebar="collapsed"] #static-main { margin-left: 72px !important; }
+      }
+    </style>
   </head>
   <body style="background-color: #f6f6fa; margin: 0; padding: 0;">
     <div id="root">
@@ -27,7 +61,6 @@
           @media (min-width: 768px) {
             #static-sidebar { display: flex !important; width: 272px !important; }
             #static-main { margin-left: 272px !important; }
-            #static-topbar { left: 272px !important; display: flex !important; }
           }
           @keyframes static-pulse {
             0%, 100% { opacity: 1; }
@@ -43,7 +76,7 @@
         <aside id="static-sidebar" style="display: none; position: fixed; top: 0; left: 0; bottom: 0; width: 272px; background: #ffffff; border-right: 1px solid #e5e6ee; flex-direction: column; padding: 16px; box-sizing: border-box; z-index: 30;">
           <div style="display: flex; align-items: center; gap: 10px; padding-bottom: 20px; border-bottom: 1px solid #f0f0f5;">
             <div class="static-skel" style="width: 28px; height: 28px; border-radius: 6px;"></div>
-            <div class="static-skel" style="width: 120px; height: 16px;"></div>
+            <div class="static-skel static-brand-text" style="width: 120px; height: 16px;"></div>
           </div>
           <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
             <div class="static-skel" style="width: 100%; height: 36px; border-radius: 8px;"></div>
@@ -53,23 +86,22 @@
             <div class="static-skel" style="width: 100%; height: 36px; border-radius: 8px;"></div>
           </div>
         </aside>
-        <!-- Static Main Area -->
+        <!-- Static Main Area matching ShellBase and Overview geometry -->
         <div id="static-main" style="flex: 1; min-height: 100vh; display: flex; flex-direction: column; width: 100%;">
-          <header id="static-topbar" style="display: none; height: 60px; position: fixed; top: 0; right: 0; left: 0; background: #f6f6fa; border-bottom: 1px solid #e5e6ee; align-items: center; justify-content: space-between; padding: 0 32px; box-sizing: border-box; z-index: 20;">
-            <div class="static-skel" style="width: 240px; height: 34px; border-radius: 8px;"></div>
-            <div class="static-skel" style="width: 130px; height: 32px; border-radius: 8px;"></div>
-          </header>
-          <main style="padding: 88px 32px 32px 32px; max-width: 1024px; box-sizing: border-box; width: 100%;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-              <div class="static-skel" style="width: 180px; height: 32px;"></div>
-              <div class="static-skel" style="width: 120px; height: 36px; border-radius: 8px;"></div>
+          <main style="padding: 32px; max-width: 1120px; box-sizing: border-box; width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; min-height: 44px;">
+              <div class="static-skel" style="width: 160px; height: 32px; border-radius: 8px;"></div>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <div class="static-skel" style="width: 90px; height: 34px; border-radius: 9999px;"></div>
+                <div class="static-skel" style="width: 116px; height: 36px; border-radius: 8px;"></div>
+              </div>
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 24px;">
-              <div class="static-skel" style="height: 110px; border-radius: 12px;"></div>
-              <div class="static-skel" style="height: 110px; border-radius: 12px;"></div>
-              <div class="static-skel" style="height: 110px; border-radius: 12px;"></div>
+              <div class="static-skel" style="height: 108px; border-radius: 12px;"></div>
+              <div class="static-skel" style="height: 108px; border-radius: 12px;"></div>
+              <div class="static-skel" style="height: 108px; border-radius: 12px;"></div>
             </div>
-            <div class="static-skel" style="height: 300px; border-radius: 12px; width: 100%;"></div>
+            <div class="static-skel" style="height: 280px; border-radius: 12px; width: 100%;"></div>
           </main>
         </div>
       </div>
