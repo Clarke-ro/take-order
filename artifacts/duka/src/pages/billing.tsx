@@ -46,7 +46,18 @@ export function BillingPage() {
   const sub = useSubscription(effectiveUserId);
 
   if (isLoaded && !isSignedIn && !isTestAuth && !localStorage.getItem('duka-test-user-id') && !userId) {
-    return <Redirect to="/sign-in" />;
+    return <Redirect to="/sign-in?redirect=%2Faccount%2Fbilling" replace />;
+  }
+
+  if (!isTestAuth && !isLoaded) {
+    return (
+      <div data-route="loading-skeleton" className="min-h-screen bg-[hsl(var(--background))] p-8">
+        <div className="max-w-3xl mx-auto space-y-6 animate-pulse">
+          <div className="h-8 w-48 bg-neutral-200 dark:bg-neutral-800 rounded-lg" />
+          <div className="h-40 w-full bg-neutral-200 dark:bg-neutral-800 rounded-xl" />
+        </div>
+      </div>
+    );
   }
 
   const [restoring, setRestoring] = useState(false);
@@ -99,7 +110,7 @@ export function BillingPage() {
   const isLoading = sub.isLoading || rcLoading;
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))] font-sans antialiased">
+    <div data-route="/account/billing" className="min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))] font-sans antialiased">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm border-b border-[hsl(var(--border))]">
         <div className="w-full max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
