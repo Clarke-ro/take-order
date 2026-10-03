@@ -692,6 +692,7 @@ export function Sidebar({
   const [location] = useLocation();
   const { userId, signOut } = useAppAuth();
   const seller = readSellerProfile(userId);
+  const businessName = seller?.businessName?.trim() || 'Take Order App';
   const entitlements = useEntitlements(userId);
   const { isPro, isProPlus, isTrial } = entitlements;
   const { openPaywall } = usePaywall();
@@ -723,7 +724,7 @@ export function Sidebar({
         <div className="flex h-[60px] items-center justify-between border-b border-[hsl(var(--sidebar-border))] px-4">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <img src={brandAssets.icon} alt="Take Order" className="h-7 w-7 rounded-[6px] object-contain shadow-xs shrink-0" />
-            <span className="truncate text-[13.5px] font-semibold text-[hsl(var(--foreground))]">Take Order App</span>
+            <span className="truncate text-[13.5px] font-semibold text-[hsl(var(--foreground))]">{businessName}</span>
           </div>
           {onMobileClose && (
             <button
@@ -761,7 +762,7 @@ export function Sidebar({
             className="flex items-center gap-2.5 min-w-0 flex-1 hover:bg-[hsl(var(--sidebar-accent))] rounded-[8px] px-2 py-1.5 -mx-2 transition-colors"
           >
             <img src={brandAssets.icon} alt="Take Order" className="h-7 w-7 rounded-[6px] object-contain shadow-xs shrink-0" />
-            <span className="truncate text-[13.5px] font-semibold text-[hsl(var(--foreground))]">Take Order App</span>
+            <span className="truncate text-[13.5px] font-semibold text-[hsl(var(--foreground))]">{businessName}</span>
             <ChevronDown size={13} className="shrink-0 text-[hsl(var(--muted-foreground))] ml-auto" />
           </Link>
           <button
@@ -3629,16 +3630,19 @@ export function Overview() {
                   <StatCard
                     label="Total Sales"
                     value={money(summary?.revenue ?? 0)}
+                    loading={summaryQuery.isLoading}
                     description="Total revenue collected from settled orders in this period"
                   />
                   <StatCard
                     label="Total Orders"
-                    value={ordersQuery.isLoading ? '—' : periodOrders.length}
+                    value={periodOrders.length}
+                    loading={ordersQuery.isLoading}
                     description="Number of orders placed in this period"
                   />
                   <StatCard
                     label="Outstanding Balance"
                     value={money(summary?.outstanding ?? 0)}
+                    loading={summaryQuery.isLoading}
                     description="Uncollected balances from unpaid and deposit orders"
                     suffix={summary?.outstanding && summary.outstanding > 0 ? `${waitingPayments} unpaid` : undefined}
                   />
@@ -3672,7 +3676,79 @@ export function Overview() {
 }
 
 function OverviewSkeleton() {
-  return <div className="space-y-8 sm:space-y-10" aria-label="Loading overview"><div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((i) => <Card key={i} className="h-[176px] p-6 sm:p-7 flex flex-col justify-between"><Skeleton className="h-4 w-20" /><Skeleton className="h-10 w-32" /><Skeleton className="h-4 w-36" /></Card>)}</div><div className="grid gap-6 sm:gap-8 xl:grid-cols-[1.7fr_.8fr]"><Card className="h-[390px] p-6"><Skeleton className="h-4 w-36" /><Skeleton className="mt-3 h-3 w-52" /><Skeleton className="mt-8 h-[260px] w-full" /></Card><Card className="h-[390px] p-6"><Skeleton className="h-4 w-28" /><Skeleton className="mt-6 h-16 w-full" /><Skeleton className="mt-3 h-16 w-full" /><Skeleton className="mt-3 h-16 w-full" /></Card></div></div>;
+  return (
+    <div className="space-y-6" aria-label="Loading overview">
+      {/* ── Period label row placeholder ── */}
+      <div className="flex justify-end mb-4">
+        <div className="h-4 w-28 rounded bg-[hsl(var(--muted))] animate-pulse" />
+      </div>
+
+      {/* ── 3 SaaS stat cards matching exact grid and height ── */}
+      <div className="grid gap-5 sm:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="flex flex-col justify-between rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-5 min-h-[108px]"
+          >
+            <div className="flex items-center gap-1.5">
+              <div className="h-3.5 w-20 rounded bg-[hsl(var(--muted))] animate-pulse" />
+            </div>
+            <div className="mt-3">
+              <div className="h-8 w-24 rounded bg-[hsl(var(--muted))] animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Recent Updates Tabs card skeleton ── */}
+      <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-5">
+        <div className="flex items-center justify-between pb-4 border-b border-[hsl(var(--border))]/60">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-20 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+            <div className="h-7 w-20 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+            <div className="h-7 w-20 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+          </div>
+          <div className="h-4 w-16 rounded bg-[hsl(var(--muted))] animate-pulse" />
+        </div>
+        <div className="py-4 space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+                <div className="space-y-1.5">
+                  <div className="h-3.5 w-32 rounded bg-[hsl(var(--muted))] animate-pulse" />
+                  <div className="h-3 w-20 rounded bg-[hsl(var(--muted))] animate-pulse" />
+                </div>
+              </div>
+              <div className="h-4 w-16 rounded bg-[hsl(var(--muted))] animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Recent Transactions skeleton ── */}
+      <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="h-4 w-36 rounded bg-[hsl(var(--muted))] animate-pulse" />
+          <div className="h-4 w-16 rounded bg-[hsl(var(--muted))] animate-pulse" />
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center justify-between py-2 border-b border-[hsl(var(--border))]/40 last:border-b-0">
+              <div className="flex items-center gap-3">
+                <div className="h-7 w-7 rounded-full bg-[hsl(var(--muted))] animate-pulse" />
+                <div className="space-y-1.5">
+                  <div className="h-3.5 w-28 rounded bg-[hsl(var(--muted))] animate-pulse" />
+                  <div className="h-3 w-16 rounded bg-[hsl(var(--muted))] animate-pulse" />
+                </div>
+              </div>
+              <div className="h-4 w-14 rounded bg-[hsl(var(--muted))] animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Reports() {
@@ -10609,6 +10685,35 @@ function OrderDetail() {
     );
   }
   if (query.isError) {
+    const isNotFoundError = Boolean(
+      (query.error as any)?.status === 404 ||
+      (query.error as any)?.statusCode === 404 ||
+      (query.error as any)?.response?.status === 404 ||
+      (query.error as any)?.message?.includes('404') ||
+      (query.error as any)?.message?.toLowerCase().includes('not found')
+    );
+
+    if (isNotFoundError) {
+      return (
+        <Shell>
+          <div data-route="/orders/:id">
+            <PageHeader
+              breadcrumbs={
+                <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition cursor-pointer" data-testid="link-back-orders">
+                  <ArrowLeft size={13} />
+                  <span>Back to orders</span>
+                </Link>
+              }
+              title="Order not found"
+            />
+            <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white p-8">
+              <EmptyState card={false} icon={PackageSearch} title="Order not found" description="This order may belong to another seller or does not exist." action={<Button variant="outline" onClick={() => setLocation('/orders')} data-testid="button-return-orders">View all orders</Button>} />
+            </div>
+          </div>
+        </Shell>
+      );
+    }
+
     return (
       <Shell>
         <div data-route="/orders/:id">

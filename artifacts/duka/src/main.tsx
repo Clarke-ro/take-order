@@ -1,4 +1,3 @@
-import './lib/startup-instrumentation';
 import { createRoot } from 'react-dom/client';
 import { setBaseUrl } from '@workspace/api-client-react';
 

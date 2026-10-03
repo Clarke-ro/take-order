@@ -83,9 +83,19 @@ const defaultEntitlements: EntitlementsState = {
 };
 
 function getCachedEntitlements(userId?: string | null): Omit<EntitlementsState, 'isLoading' | 'error' | 'refresh'> {
-  if (!userId || typeof window === 'undefined') return defaultEntitlements;
+  if (typeof window === 'undefined') return defaultEntitlements;
   try {
-    const raw = sessionStorage.getItem(`duka_entitlements_${userId}`) || localStorage.getItem(`duka_entitlements_${userId}`);
+    let raw: string | null = null;
+    if (userId) {
+      raw = sessionStorage.getItem(`duka_entitlements_${userId}`) || localStorage.getItem(`duka_entitlements_${userId}`);
+    }
+    if (!raw) {
+      const foundKey = Object.keys(sessionStorage).find(k => k.startsWith('duka_entitlements_')) ||
+                       Object.keys(localStorage).find(k => k.startsWith('duka_entitlements_'));
+      if (foundKey) {
+        raw = sessionStorage.getItem(foundKey) || localStorage.getItem(foundKey);
+      }
+    }
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed.tier === 'string') {
@@ -100,17 +110,29 @@ function getCachedEntitlements(userId?: string | null): Omit<EntitlementsState, 
 }
 
 function persistCachedEntitlements(userId: string | null | undefined, state: Omit<EntitlementsState, 'isLoading' | 'error' | 'refresh'>): void {
-  if (!userId || typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return;
   try {
     const serialized = JSON.stringify(state);
-    sessionStorage.setItem(`duka_entitlements_${userId}`, serialized);
-    localStorage.setItem(`duka_entitlements_${userId}`, serialized);
+    if (userId) {
+      sessionStorage.setItem(`duka_entitlements_${userId}`, serialized);
+      localStorage.setItem(`duka_entitlements_${userId}`, serialized);
+    }
+    sessionStorage.setItem('duka_entitlements_latest', serialized);
+    localStorage.setItem('duka_entitlements_latest', serialized);
   } catch {}
 }
 
 export function useEntitlements(userId?: string | null): EntitlementsState {
   const [serverState, setServerState] = useState<Omit<EntitlementsState, 'isLoading' | 'error' | 'refresh'>>(() => getCachedEntitlements(userId));
-  const hasCached = typeof window !== 'undefined' && Boolean(userId && (sessionStorage.getItem(`duka_entitlements_${userId}`) || localStorage.getItem(`duka_entitlements_${userId}`)));
+  const hasCached =
+    typeof window !== 'undefined' &&
+    Boolean(
+      (userId && (sessionStorage.getItem(`duka_entitlements_${userId}`) || localStorage.getItem(`duka_entitlements_${userId}`))) ||
+      sessionStorage.getItem('duka_entitlements_latest') ||
+      localStorage.getItem('duka_entitlements_latest') ||
+      Object.keys(sessionStorage).some(k => k.startsWith('duka_entitlements_')) ||
+      Object.keys(localStorage).some(k => k.startsWith('duka_entitlements_'))
+    );
   const [isLoading, setIsLoading] = useState<boolean>(!hasCached);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();

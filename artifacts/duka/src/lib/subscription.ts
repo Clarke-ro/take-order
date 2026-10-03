@@ -84,9 +84,19 @@ const defaultSubscription: Omit<NormalizedSubscription, 'isLoading' | 'error' | 
 };
 
 function getCachedSubscription(userId?: string | null): Omit<NormalizedSubscription, 'isLoading' | 'error' | 'refresh' | 'startTrial'> {
-  if (!userId || typeof window === 'undefined') return defaultSubscription;
+  if (typeof window === 'undefined') return defaultSubscription;
   try {
-    const raw = sessionStorage.getItem(`takeorder_sub_${userId}`) || localStorage.getItem(`takeorder_sub_${userId}`);
+    let raw: string | null = null;
+    if (userId) {
+      raw = sessionStorage.getItem(`takeorder_sub_${userId}`) || localStorage.getItem(`takeorder_sub_${userId}`);
+    }
+    if (!raw) {
+      const foundKey = Object.keys(sessionStorage).find(k => k.startsWith('takeorder_sub_')) ||
+                       Object.keys(localStorage).find(k => k.startsWith('takeorder_sub_'));
+      if (foundKey) {
+        raw = sessionStorage.getItem(foundKey) || localStorage.getItem(foundKey);
+      }
+    }
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed.plan === 'string') {
@@ -101,11 +111,15 @@ function getCachedSubscription(userId?: string | null): Omit<NormalizedSubscript
 }
 
 function persistCachedSubscription(userId: string | null | undefined, state: Omit<NormalizedSubscription, 'isLoading' | 'error' | 'refresh' | 'startTrial'>): void {
-  if (!userId || typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return;
   try {
     const serialized = JSON.stringify(state);
-    sessionStorage.setItem(`takeorder_sub_${userId}`, serialized);
-    localStorage.setItem(`takeorder_sub_${userId}`, serialized);
+    if (userId) {
+      sessionStorage.setItem(`takeorder_sub_${userId}`, serialized);
+      localStorage.setItem(`takeorder_sub_${userId}`, serialized);
+    }
+    sessionStorage.setItem('takeorder_sub_latest', serialized);
+    localStorage.setItem('takeorder_sub_latest', serialized);
   } catch {}
 }
 
@@ -115,7 +129,13 @@ export function useSubscription(userId?: string | null): NormalizedSubscription 
   );
   const hasCached =
     typeof window !== 'undefined' &&
-    Boolean(userId && (sessionStorage.getItem(`takeorder_sub_${userId}`) || localStorage.getItem(`takeorder_sub_${userId}`)));
+    Boolean(
+      (userId && (sessionStorage.getItem(`takeorder_sub_${userId}`) || localStorage.getItem(`takeorder_sub_${userId}`))) ||
+      sessionStorage.getItem('takeorder_sub_latest') ||
+      localStorage.getItem('takeorder_sub_latest') ||
+      Object.keys(sessionStorage).some(k => k.startsWith('takeorder_sub_')) ||
+      Object.keys(localStorage).some(k => k.startsWith('takeorder_sub_'))
+    );
   const [isLoading, setIsLoading] = useState<boolean>(!hasCached);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();

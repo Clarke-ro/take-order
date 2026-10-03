@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 export interface StatCardProps {
   label: string;
   value: string | number;
+  loading?: boolean;
   suffix?: string;       // muted text beside value, e.g. "0% of orders"
   description?: string;  // shown on the info icon tooltip
   caption?: string;      // short caption below value
@@ -28,6 +29,7 @@ export interface StatCardProps {
 export function StatCard({
   label,
   value,
+  loading = false,
   suffix,
   description,
   caption,
@@ -99,17 +101,21 @@ export function StatCard({
 
       {/* Big value row + sparkline */}
       <div className="mt-3 flex items-end justify-between gap-2">
-        <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-[28px] leading-tight font-semibold tracking-tight text-neutral-800 dark:text-neutral-200">
-            {value}
-          </span>
-          {suffix && (
-            <span className="text-[12px] font-normal text-[hsl(var(--muted-foreground))] leading-none">
-              {suffix}
+        {loading ? (
+          <div className="h-[32px] w-24 rounded-[6px] bg-[hsl(var(--muted))] animate-pulse my-0.5" />
+        ) : (
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-[28px] leading-tight font-semibold tracking-tight text-neutral-800 dark:text-neutral-200">
+              {value}
             </span>
-          )}
-        </div>
-        {sparkline && <div className="shrink-0">{sparkline}</div>}
+            {suffix && (
+              <span className="text-[12px] font-normal text-[hsl(var(--muted-foreground))] leading-none">
+                {suffix}
+              </span>
+            )}
+          </div>
+        )}
+        {sparkline && !loading && <div className="shrink-0">{sparkline}</div>}
       </div>
 
       {/* Caption & optional badge */}
