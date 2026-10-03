@@ -10877,6 +10877,38 @@ function AnalyticsRoute() {
   );
 }
 
+const ReportInsightPage = React.lazy(() => import('@/pages/report-insight'));
+
+function ReportInsightRoute() {
+  return (
+    <Shell>
+      <React.Suspense
+        fallback={
+          <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-8 w-20 rounded-full" />
+              <Skeleton className="h-4 w-36" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-96" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Skeleton className="h-28 rounded-[12px]" />
+              <Skeleton className="h-28 rounded-[12px]" />
+              <Skeleton className="h-28 rounded-[12px]" />
+              <Skeleton className="h-28 rounded-[12px]" />
+            </div>
+            <Skeleton className="h-80 rounded-[12px]" />
+          </div>
+        }
+      >
+        <ReportInsightPage />
+      </React.Suspense>
+    </Shell>
+  );
+}
+
 function Router() {
   const [location] = useLocation();
   return <ErrorBoundary resetKey={location}><Switch>
@@ -10896,6 +10928,8 @@ function Router() {
     <Route path="/orders/:id" component={() => <ProtectedRoute page={OrderDetail} />} />
     <Route path="/orders" component={() => <ProtectedRoute page={Orders} />} />
     <Route path="/reports/channel-conversion" component={() => <ProtectedRoute page={ChannelConversionInsight} />} />
+    <Route path="/analytics/reports/:slug" component={() => <ProtectedRoute page={ReportInsightRoute} />} />
+    <Route path="/reports/:slug" component={() => <ProtectedRoute page={ReportInsightRoute} />} />
     <Route path="/analytics" component={() => <ProtectedRoute page={AnalyticsRoute} />} />
     <Route path="/reports" component={() => <ProtectedRoute page={AnalyticsRoute} />} />
     <Route path="/clients/:key" component={() => <ProtectedRoute page={ClientDetailRoute} />} />

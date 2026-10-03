@@ -128,13 +128,17 @@ export function computePeriodComparison(
   toStr: string,
   compareFromStr: string,
   compareToStr: string,
-  now = new Date(),
+  now: Date | string = new Date(),
   timezone: string = "UTC",
   isFairMtd = false
 ): PeriodComparisonResult {
+  const effectiveNow = now instanceof Date ? now : new Date();
+  const effectiveTimezone = typeof now === "string" ? now : timezone;
+  const effectiveIsFairMtd = typeof timezone === "boolean" ? timezone : isFairMtd;
+
   const productMap = new Map(products.map((p) => [p.id, p]));
 
-  const orderDate = (o: AnalyticsOrder) => getLocalDateString(o.createdAt, timezone);
+  const orderDate = (o: AnalyticsOrder) => getLocalDateString(o.createdAt, effectiveTimezone);
   const isOrderPlaced = (o: AnalyticsOrder) => o.status !== "reserved" && o.status !== "cancelled";
   const isOrderPaid = (o: AnalyticsOrder) => o.status === "paid" || o.status === "deposit_paid";
   const getOrderRev = (o: AnalyticsOrder) =>
@@ -383,7 +387,7 @@ export function computePeriodComparison(
       const tot = Number(o.amount);
       const col = o.status === "deposit_paid" ? Number(o.depositAmount || 0) : 0;
       const due = Math.max(0, tot - col);
-      const d = Math.max(0, Math.floor((now.getTime() - new Date(o.createdAt).getTime()) / 86400000));
+      const d = Math.max(0, Math.floor((effectiveNow.getTime() - new Date(o.createdAt).getTime()) / 86400000));
       return {
         id: o.id || 0,
         customerName: o.customerName || "Customer",
