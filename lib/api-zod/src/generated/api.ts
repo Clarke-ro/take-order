@@ -24,11 +24,11 @@ export const HealthCheckResponse = zod.object({
 
 
 
-export const listProductsResponseImageUrlMax = 20000000;
+export const listProductsResponseImageUrlMax = 4000000;
 
 
 export const listProductsResponseImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
-export const listProductsResponseImageUrlsItemMax = 20000000;
+export const listProductsResponseImageUrlsItemMax = 4000000;
 
 
 export const listProductsResponseImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -76,11 +76,11 @@ export const createProductBodyStockMin = 0;
 
 
 
-export const createProductBodyImageUrlMax = 20000000;
+export const createProductBodyImageUrlMax = 4000000;
 
 
 export const createProductBodyImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
-export const createProductBodyImageUrlsItemMax = 20000000;
+export const createProductBodyImageUrlsItemMax = 4000000;
 
 
 export const createProductBodyImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -113,11 +113,11 @@ export const CreateProductBody = zod.object({
 
 
 
-export const createProductResponseImageUrlMax = 20000000;
+export const createProductResponseImageUrlMax = 4000000;
 
 
 export const createProductResponseImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
-export const createProductResponseImageUrlsItemMax = 20000000;
+export const createProductResponseImageUrlsItemMax = 4000000;
 
 
 export const createProductResponseImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -168,11 +168,11 @@ export const updateProductBodyStockMin = 0;
 
 
 
-export const updateProductBodyImageUrlMax = 20000000;
+export const updateProductBodyImageUrlMax = 4000000;
 
 
 export const updateProductBodyImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
-export const updateProductBodyImageUrlsItemMax = 20000000;
+export const updateProductBodyImageUrlsItemMax = 4000000;
 
 
 export const updateProductBodyImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -205,11 +205,11 @@ export const UpdateProductBody = zod.object({
 
 
 
-export const updateProductResponseImageUrlMax = 20000000;
+export const updateProductResponseImageUrlMax = 4000000;
 
 
 export const updateProductResponseImageUrlRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
-export const updateProductResponseImageUrlsItemMax = 20000000;
+export const updateProductResponseImageUrlsItemMax = 4000000;
 
 
 export const updateProductResponseImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -253,6 +253,8 @@ export const DeleteProductResponse = zod.void()
 /**
  * @summary List seller orders
  */
+export const listOrdersResponseHalfPaymentPercentMax = 99;
+
 
 
 
@@ -280,6 +282,12 @@ export const ListOrdersResponseItem = zod.object({
   "engagementSource": zod.union([zod.literal('connected_account'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
+  "allowReservation": zod.boolean().nullish(),
+  "allowHalfPayment": zod.boolean().nullish(),
+  "halfPaymentPercent": zod.number().int().min(1).max(listOrdersResponseHalfPaymentPercentMax).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "percentUsed": zod.number().int().nullish(),
+  "amountDueNow": zod.number().nullish(),
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
@@ -303,6 +311,8 @@ export const createOrderBodyDeliveryFeeMin = 0;
 
 export const createOrderBodyDepositAmountMin = 0;
 
+export const createOrderBodyHalfPaymentPercentMax = 99;
+
 
 
 export const CreateOrderBody = zod.object({
@@ -320,8 +330,13 @@ export const CreateOrderBody = zod.object({
   "customerName": zod.string().optional(),
   "customerPhone": zod.string().optional(),
   "deliveryAddress": zod.string().optional(),
-  "buyerDetails": zod.string().optional()
+  "buyerDetails": zod.string().optional(),
+  "allowReservation": zod.boolean().nullish(),
+  "allowHalfPayment": zod.boolean().nullish(),
+  "halfPaymentPercent": zod.number().int().min(1).max(createOrderBodyHalfPaymentPercentMax).nullish()
 })
+
+export const createOrderResponseHalfPaymentPercentMax = 99;
 
 
 
@@ -350,6 +365,12 @@ export const CreateOrderResponse = zod.object({
   "engagementSource": zod.union([zod.literal('connected_account'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
+  "allowReservation": zod.boolean().nullish(),
+  "allowHalfPayment": zod.boolean().nullish(),
+  "halfPaymentPercent": zod.number().int().min(1).max(createOrderResponseHalfPaymentPercentMax).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "percentUsed": zod.number().int().nullish(),
+  "amountDueNow": zod.number().nullish(),
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
@@ -365,6 +386,8 @@ export const CreateOrderResponse = zod.object({
 export const GetOrderParams = zod.object({
   "id": zod.coerce.number().int()
 })
+
+export const getOrderResponseHalfPaymentPercentMax = 99;
 
 
 
@@ -393,6 +416,12 @@ export const GetOrderResponse = zod.object({
   "engagementSource": zod.union([zod.literal('connected_account'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
+  "allowReservation": zod.boolean().nullish(),
+  "allowHalfPayment": zod.boolean().nullish(),
+  "halfPaymentPercent": zod.number().int().min(1).max(getOrderResponseHalfPaymentPercentMax).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "percentUsed": zod.number().int().nullish(),
+  "amountDueNow": zod.number().nullish(),
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
@@ -413,6 +442,8 @@ export const UpdateOrderBody = zod.object({
   "status": zod.enum(['reserved', 'deposit_paid', 'paid']).optional(),
   "fulfillment": zod.enum(['pending', 'shipped', 'delivered']).optional()
 })
+
+export const updateOrderResponseHalfPaymentPercentMax = 99;
 
 
 
@@ -441,6 +472,12 @@ export const UpdateOrderResponse = zod.object({
   "engagementSource": zod.union([zod.literal('connected_account'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
+  "allowReservation": zod.boolean().nullish(),
+  "allowHalfPayment": zod.boolean().nullish(),
+  "halfPaymentPercent": zod.number().int().min(1).max(updateOrderResponseHalfPaymentPercentMax).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "percentUsed": zod.number().int().nullish(),
+  "amountDueNow": zod.number().nullish(),
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),
@@ -461,7 +498,7 @@ export const GetPublicOrderParams = zod.object({
 
 
 
-export const getPublicOrderResponseItemsItemImageUrlsItemMax = 20000000;
+export const getPublicOrderResponseItemsItemImageUrlsItemMax = 4000000;
 
 
 export const getPublicOrderResponseItemsItemImageUrlsItemRegExp = new RegExp('^(https?:\\/\\/|data:image\\/(png|jpeg|webp|gif);base64,)');
@@ -479,10 +516,19 @@ export const GetPublicOrderResponse = zod.object({
   "depositAmount": zod.number().nullish(),
   "paymentMode": zod.enum(['full', 'deposit', 'reserve']),
   "status": zod.enum(['reserved', 'deposit_paid', 'paid']),
+  "allowReservation": zod.boolean().nullish(),
+  "allowHalfPayment": zod.boolean().nullish(),
+  "halfPaymentPercent": zod.number().int().nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "isOrderReceived": zod.boolean().optional(),
+  "savedCustomer": zod.object({
+  "name": zod.string().optional(),
+  "phoneMasked": zod.string().optional()
+}).optional(),
   "businessName": zod.string(),
   "businessDescription": zod.string(),
   "logoDataUrl": zod.string().nullable(),
-  "currency": zod.enum(['AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY', 'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP', 'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HTG', 'HUF', 'IDR', 'ILS', 'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR', 'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR', 'LRD', 'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MRU', 'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG', 'SEK', 'SGD', 'SHP', 'SLE', 'SOS', 'SRD', 'SSP', 'STN', 'SYP', 'SZL', 'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWL']),
+  "currency": zod.enum(['AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY', 'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP', 'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HTG', 'HUF', 'IDR', 'ILS', 'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR', 'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR', 'LRD', 'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MMK', 'MNT', 'MOP', 'MRU', 'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG', 'SEK', 'SGD', 'SHP', 'SLE', 'SOS', 'SRD', 'SSP', 'STN', 'SYP', 'SZL', 'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWL']),
   "deliveryDefault": zod.enum(['pickup', 'delivery', 'both']),
   "checkoutAskForDetails": zod.boolean(),
   "checkoutAllowReferenceImages": zod.boolean(),
@@ -515,17 +561,15 @@ export const SubmitPublicOrderParams = zod.object({
   "token": zod.coerce.string()
 })
 
-
-export const submitPublicOrderBodyCustomerPhoneMin = 5;
-
 export const submitPublicOrderBodyItemDetailsItemItemIndexMin = 0;
 
 
 
 
 export const SubmitPublicOrderBody = zod.object({
-  "customerName": zod.string().min(1),
-  "customerPhone": zod.string().min(submitPublicOrderBodyCustomerPhoneMin),
+  "customerName": zod.string().optional(),
+  "customerPhone": zod.string().optional(),
+  "useSavedCustomer": zod.boolean().optional(),
   "buyerDetails": zod.string().optional(),
   "deliveryMethod": zod.enum(['pickup', 'delivery']).optional(),
   "deliveryAddress": zod.string().optional(),
@@ -537,8 +581,11 @@ export const SubmitPublicOrderBody = zod.object({
   "details": zod.string().optional(),
   "referenceImage": zod.string().optional()
 })).optional(),
-  "paymentAction": zod.enum(['pay', 'reserve']).optional()
+  "paymentAction": zod.enum(['pay', 'reserve']).optional(),
+  "chosenMode": zod.enum(['full', 'half', 'reserve']).optional()
 })
+
+export const submitPublicOrderResponseHalfPaymentPercentMax = 99;
 
 
 
@@ -567,6 +614,12 @@ export const SubmitPublicOrderResponse = zod.object({
   "engagementSource": zod.union([zod.literal('connected_account'),zod.literal(null)]).nullable().describe('Source used for the recorded engagement values. Null means no engagement has been recorded.'),
   "referenceImage": zod.string().nullish(),
   "buyerDetails": zod.string().nullish(),
+  "allowReservation": zod.boolean().nullish(),
+  "allowHalfPayment": zod.boolean().nullish(),
+  "halfPaymentPercent": zod.number().int().min(1).max(submitPublicOrderResponseHalfPaymentPercentMax).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "percentUsed": zod.number().int().nullish(),
+  "amountDueNow": zod.number().nullish(),
   "items": zod.array(zod.object({
   "productId": zod.number().int(),
   "productName": zod.string(),

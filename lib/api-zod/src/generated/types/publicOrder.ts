@@ -5,11 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PublicOrderChosenMode } from './publicOrderChosenMode';
 import type { PublicOrderCurrency } from './publicOrderCurrency';
 import type { PublicOrderDeliveryDefault } from './publicOrderDeliveryDefault';
 import type { PublicOrderDeliveryMethod } from './publicOrderDeliveryMethod';
 import type { PublicOrderItem } from './publicOrderItem';
 import type { PublicOrderPaymentMode } from './publicOrderPaymentMode';
+import type { PublicOrderSavedCustomer } from './publicOrderSavedCustomer';
 import type { PublicOrderStatus } from './publicOrderStatus';
 
 export interface PublicOrder {
@@ -24,6 +26,16 @@ export interface PublicOrder {
   depositAmount?: number | null;
   paymentMode: PublicOrderPaymentMode;
   status: PublicOrderStatus;
+  /** @nullable */
+  allowReservation?: boolean | null;
+  /** @nullable */
+  allowHalfPayment?: boolean | null;
+  /** @nullable */
+  halfPaymentPercent?: number | null;
+  /** @nullable */
+  chosenMode?: PublicOrderChosenMode;
+  isOrderReceived?: boolean;
+  savedCustomer?: PublicOrderSavedCustomer;
   businessName: string;
   businessDescription: string;
   /** @nullable */
