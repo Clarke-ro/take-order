@@ -16,4 +16,5 @@ export const PublicOrderChosenMode = {
   full: 'full',
   half: 'half',
   reserve: 'reserve',
+  reservation: 'reservation',
 } as const;

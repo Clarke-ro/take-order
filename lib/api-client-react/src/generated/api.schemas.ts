@@ -386,12 +386,20 @@ export const PublicOrderChosenMode = {
   full: 'full',
   half: 'half',
   reserve: 'reserve',
+  reservation: 'reservation',
 } as const;
 
+/**
+ * @nullable
+ */
 export type PublicOrderSavedCustomer = {
-  name?: string;
-  phoneMasked?: string;
-};
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  phoneMasked?: string | null;
+  /** @nullable */
+  phone?: string | null;
+} | null;
 
 export type PublicOrderCurrency = typeof PublicOrderCurrency[keyof typeof PublicOrderCurrency];
 
@@ -615,9 +623,11 @@ export interface PublicOrder {
   /** @nullable */
   chosenMode?: PublicOrderChosenMode;
   isOrderReceived?: boolean;
+  /** @nullable */
   savedCustomer?: PublicOrderSavedCustomer;
   businessName: string;
-  businessDescription: string;
+  /** @nullable */
+  businessDescription: string | null;
   /** @nullable */
   logoDataUrl: string | null;
   currency: PublicOrderCurrency;

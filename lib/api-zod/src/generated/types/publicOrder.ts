@@ -35,9 +35,11 @@ export interface PublicOrder {
   /** @nullable */
   chosenMode?: PublicOrderChosenMode;
   isOrderReceived?: boolean;
+  /** @nullable */
   savedCustomer?: PublicOrderSavedCustomer;
   businessName: string;
-  businessDescription: string;
+  /** @nullable */
+  businessDescription: string | null;
   /** @nullable */
   logoDataUrl: string | null;
   currency: PublicOrderCurrency;

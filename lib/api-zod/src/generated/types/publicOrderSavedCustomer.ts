@@ -6,7 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * @nullable
+ */
 export type PublicOrderSavedCustomer = {
-  name?: string;
-  phoneMasked?: string;
-};
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  phoneMasked?: string | null;
+  /** @nullable */
+  phone?: string | null;
+} | null;

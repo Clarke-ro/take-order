@@ -519,14 +519,15 @@ export const GetPublicOrderResponse = zod.object({
   "allowReservation": zod.boolean().nullish(),
   "allowHalfPayment": zod.boolean().nullish(),
   "halfPaymentPercent": zod.number().int().nullish(),
-  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal('reservation'),zod.literal(null)]).nullish(),
   "isOrderReceived": zod.boolean().optional(),
   "savedCustomer": zod.object({
-  "name": zod.string().optional(),
-  "phoneMasked": zod.string().optional()
-}).optional(),
+  "name": zod.string().nullish(),
+  "phoneMasked": zod.string().nullish(),
+  "phone": zod.string().nullish()
+}).nullish(),
   "businessName": zod.string(),
-  "businessDescription": zod.string(),
+  "businessDescription": zod.string().nullable(),
   "logoDataUrl": zod.string().nullable(),
   "currency": zod.enum(['AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY', 'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP', 'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HTG', 'HUF', 'IDR', 'ILS', 'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR', 'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR', 'LRD', 'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MMK', 'MNT', 'MOP', 'MRU', 'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG', 'SEK', 'SGD', 'SHP', 'SLE', 'SOS', 'SRD', 'SSP', 'STN', 'SYP', 'SZL', 'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWL']),
   "deliveryDefault": zod.enum(['pickup', 'delivery', 'both']),

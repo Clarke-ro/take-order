@@ -8,7 +8,7 @@ import {
   CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, Crown, Download, ExternalLink, Eye, EyeOff, FileText, Globe2, Info, LayoutDashboard, LayoutGrid, Link2, List, Loader2, Mail, Menu, Minus, MoreHorizontal,
   ImagePlus, MessageSquare, Package, PackageSearch, PackageX, Pencil, Percent, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
   Trash2, TrendingUp, Truck, UserRound, Users, UsersRound, WalletCards, Workflow, Wrench, X,
-  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound, Bell, Zap, Settings, QrCode, Send,
+  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Monitor, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound, Bell, Zap, Settings, QrCode, Send,
   Shirt, Scissors, Coffee, Heart
 } from 'lucide-react';
 import { SiFacebook, SiInstagram, SiSnapchat, SiTiktok, SiWhatsapp, SiX } from 'react-icons/si';
@@ -710,12 +710,57 @@ export function Sidebar({
   const { isPro, isProPlus, isTrial } = entitlements;
   const { openPaywall } = usePaywall();
   const ordersQuery = useListOrders();
-  const pendingOrdersCount = (ordersQuery.data ?? []).filter((o) => o.fulfillment === 'pending').length;
+
+  const [lastViewedAt, setLastViewedAt] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('takeorder_orders_last_viewed_at');
+      return stored ? parseInt(stored, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  useEffect(() => {
+    if (location === '/orders') {
+      const now = Date.now();
+      try {
+        localStorage.setItem('takeorder_orders_last_viewed_at', String(now));
+      } catch {}
+      setLastViewedAt(now);
+    }
+  }, [location, ordersQuery.data]);
+
+  useEffect(() => {
+    const handleViewed = () => {
+      try {
+        const stored = localStorage.getItem('takeorder_orders_last_viewed_at');
+        if (stored) setLastViewedAt(parseInt(stored, 10));
+      } catch {}
+    };
+    window.addEventListener('takeorder_orders_viewed', handleViewed);
+    window.addEventListener('storage', handleViewed);
+    return () => {
+      window.removeEventListener('takeorder_orders_viewed', handleViewed);
+      window.removeEventListener('storage', handleViewed);
+    };
+  }, []);
+
+  const unreadOrdersCount = useMemo(() => {
+    if (location === '/orders') return 0;
+    const orders = ordersQuery.data ?? [];
+    if (!orders.length) return 0;
+    if (!lastViewedAt) return orders.filter((o) => o.fulfillment === 'pending').length;
+    return orders.filter((o) => {
+      if (o.fulfillment !== 'pending') return false;
+      const orderTime = o.createdAt ? new Date(o.createdAt).getTime() : 0;
+      return orderTime > lastViewedAt;
+    }).length;
+  }, [location, ordersQuery.data, lastViewedAt]);
 
   const links = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/catalog', label: 'Catalog', icon: Boxes },
-    { href: '/orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrdersCount > 0 ? pendingOrdersCount : null },
+    { href: '/orders', label: 'Orders', icon: ShoppingBag, badge: unreadOrdersCount > 0 ? unreadOrdersCount : null },
     { href: '/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/clients', label: 'Clients', icon: Users },
     { href: '/expenses', label: 'Expenses', icon: Receipt },
@@ -6730,6 +6775,12 @@ function Orders() {
     const f = p.get('filter') || p.get('fulfillment') || p.get('status');
     if (f) setActiveFilter(f);
   }, [location]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('takeorder_orders_last_viewed_at', String(Date.now()));
+      window.dispatchEvent(new Event('takeorder_orders_viewed'));
+    } catch {}
+  }, [query.data]);
   const allOrders = query.data ?? [];
   const orders = useMemo(() => allOrders.filter((order) => {
     let matchesFilter = true;
@@ -7908,6 +7959,7 @@ function BuyerLinkPreviewCard({
   deposit,
   customerName,
   customerPhone,
+  device = 'desktop',
 }: {
   businessName: string;
   description?: string;
@@ -7924,16 +7976,23 @@ function BuyerLinkPreviewCard({
   deposit: number;
   customerName: string;
   customerPhone: string;
+  device?: 'desktop' | 'mobile';
 }) {
   return (
     <div
       data-testid="buyer-link-preview-card"
-      className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 p-6 shadow-xs overflow-y-auto max-h-[calc(100vh-120px)] w-full"
+      className={cn(
+        "rounded-[12px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 shadow-xs overflow-y-auto w-full",
+        device === 'mobile' ? "p-4 sm:p-6 max-h-[calc(100vh-120px)] max-w-[420px] mx-auto" : "p-6 sm:p-8"
+      )}
     >
       <div
         aria-hidden="true"
         inert={true as any}
-        className="w-[390px] max-w-full mx-auto select-none pointer-events-none buyer-link-preview-container"
+        className={cn(
+          "select-none pointer-events-none buyer-link-preview-container",
+          device === 'mobile' ? "is-mobile" : "is-desktop"
+        )}
       >
         <BuyerOrderSurface
           businessName={businessName}
@@ -7974,6 +8033,197 @@ function BuyerLinkPreviewCard({
   );
 }
 
+function BuyerCheckoutPreviewStep2({
+  businessName,
+  description,
+  logoDataUrl,
+  previewItems,
+  total,
+  deliveryFeeAmount,
+  allowReservation,
+  allowHalfPayment,
+  halfPaymentPercent,
+  deposit,
+  customerName,
+  customerPhone,
+  deliveryAddress,
+}: {
+  businessName: string;
+  description?: string;
+  logoDataUrl?: string | null;
+  previewItems: BuyerOrderItem[];
+  total: number;
+  deliveryFeeAmount: number;
+  allowReservation: boolean;
+  allowHalfPayment: boolean;
+  halfPaymentPercent: number;
+  deposit: number;
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress?: string;
+}) {
+  const buyerTotal = total + (deliveryFeeAmount || 0);
+  const totalPesewas = Math.round(buyerTotal * 100);
+  const calcAmounts = calculatePaymentAmounts(totalPesewas, halfPaymentPercent || 50);
+
+  return (
+    <div
+      data-testid="buyer-checkout-preview-step2"
+      className="rounded-[16px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 p-5 shadow-xs overflow-y-auto max-h-[calc(100vh-120px)] w-full"
+    >
+      {/* Top Header Label */}
+      <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[hsl(var(--border))]">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[hsl(var(--foreground))]">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 font-bold">
+            <Eye size={12} />
+          </span>
+          <span>Buyer Checkout Preview</span>
+        </div>
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Live updates
+        </span>
+      </div>
+
+      {/* Seller Identity Lockup */}
+      <div className="flex items-center gap-3 p-3 rounded-[12px] bg-neutral-50 dark:bg-neutral-800/40 border border-[hsl(var(--border))] mb-4">
+        <SellerLogo businessName={businessName} logoDataUrl={logoDataUrl ?? undefined} className="h-9 w-9 rounded-full shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-bold truncate text-[hsl(var(--foreground))]">{businessName}</div>
+          <div className="text-[11px] text-[hsl(var(--muted-foreground))] truncate">
+            {description?.trim() || 'Instant checkout via Take Order'}
+          </div>
+        </div>
+      </div>
+
+      {/* Customer Info Preview Card */}
+      <div className="space-y-1.5 mb-4">
+        <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+          <span>Customer details</span>
+          {customerName.trim() && <span className="text-emerald-600 lowercase font-medium">prefilled</span>}
+        </div>
+        {customerName.trim() ? (
+          <div className="p-3 rounded-[10px] border border-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/10 space-y-1">
+            <div className="text-[13px] font-semibold text-[hsl(var(--foreground))]">
+              {customerName.trim()}
+            </div>
+            {customerPhone.trim() && (
+              <div className="text-xs text-[hsl(var(--muted-foreground))] font-mono">
+                {maskPhone(customerPhone.trim())}
+              </div>
+            )}
+            {deliveryAddress?.trim() && (
+              <div className="text-[11.5px] text-[hsl(var(--muted-foreground))] pt-0.5 truncate">
+                📍 {deliveryAddress.trim()}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] bg-neutral-50/50 dark:bg-neutral-900/30 text-xs text-[hsl(var(--muted-foreground))]">
+            <span className="block font-medium text-[hsl(var(--foreground))]">Buyer fills at checkout</span>
+            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Full name and phone number requested</span>
+          </div>
+        )}
+      </div>
+
+      {/* Delivery Method Choice Preview */}
+      <div className="space-y-1.5 mb-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+          Delivery option
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="p-2.5 rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50/60 dark:bg-neutral-800/40">
+            <div className="font-semibold text-[hsl(var(--foreground))]">Pick up</div>
+            <div className="text-[11px] text-[hsl(var(--muted-foreground))]">Free</div>
+          </div>
+          <div className={cn('p-2.5 rounded-[10px] border transition-colors', deliveryFeeAmount > 0 ? 'border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/5' : 'border-[hsl(var(--border))] bg-neutral-50/60 dark:bg-neutral-800/40')}>
+            <div className="font-semibold text-[hsl(var(--foreground))]">Delivery</div>
+            <div className="text-[11px] font-medium text-[hsl(var(--foreground))]">
+              {deliveryFeeAmount > 0 ? moneyExact(deliveryFeeAmount) : 'Free'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Options Preview */}
+      <div className="space-y-1.5 mb-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+          Payment options enabled for buyer
+        </div>
+        <div className="space-y-2">
+          {/* Full payment option */}
+          <div className="flex items-center justify-between p-2.5 rounded-[10px] border border-[hsl(var(--border))] bg-white dark:bg-neutral-900 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="font-semibold text-[hsl(var(--foreground))]">Pay in full</span>
+            </div>
+            <span className="font-bold text-[hsl(var(--foreground))]">{moneyExact(buyerTotal)}</span>
+          </div>
+
+          {/* Half payment option if enabled */}
+          {allowHalfPayment && (
+            <div className="p-2.5 rounded-[10px] border border-blue-500/30 bg-blue-50/30 dark:bg-blue-950/20 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                  <span className="font-semibold text-[hsl(var(--foreground))]">Pay deposit ({halfPaymentPercent}%)</span>
+                </div>
+                <span className="font-bold text-blue-700 dark:text-blue-300">{moneyExact(calcAmounts.dueNowAmount)}</span>
+              </div>
+              <div className="text-[11px] text-[hsl(var(--muted-foreground))] pl-4 flex items-center justify-between">
+                <span>Balance on delivery:</span>
+                <strong className="text-[hsl(var(--foreground))]">{moneyExact(calcAmounts.balanceAmount)}</strong>
+              </div>
+            </div>
+          )}
+
+          {/* Reservation option if enabled */}
+          {allowReservation && (
+            <div className="flex items-center justify-between p-2.5 rounded-[10px] border border-amber-500/30 bg-amber-50/30 dark:bg-amber-950/20 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                <span className="font-semibold text-[hsl(var(--foreground))]">Reservation</span>
+              </div>
+              <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">Pay on pickup/delivery</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Order Total Breakdown */}
+      <div className="pt-3 border-t border-[hsl(var(--border))] space-y-2 text-xs">
+        <div className="flex items-center justify-between text-[hsl(var(--muted-foreground))]">
+          <span>Items ({previewItems.length})</span>
+          <span className="font-mono-ui font-medium text-[hsl(var(--foreground))]">{moneyExact(total)}</span>
+        </div>
+        <div className="flex items-center justify-between text-[hsl(var(--muted-foreground))]">
+          <span>Delivery</span>
+          <span className="font-mono-ui font-medium text-[hsl(var(--foreground))]">{deliveryFeeAmount > 0 ? moneyExact(deliveryFeeAmount) : 'GH₵ 0.00'}</span>
+        </div>
+        <div className="flex items-center justify-between font-bold text-sm text-[hsl(var(--foreground))] pt-1 border-t border-dashed border-[hsl(var(--border))]">
+          <span>Total</span>
+          <span className="font-mono-ui text-base">{moneyExact(buyerTotal)}</span>
+        </div>
+
+        {/* Action Button Preview */}
+        <div className="pt-2">
+          <div className="w-full h-10 rounded-[10px] bg-[hsl(var(--primary))] text-white flex items-center justify-center font-semibold text-xs shadow-xs">
+            {allowReservation
+              ? `Pay ${moneyExact(buyerTotal)} or Reserve`
+              : allowHalfPayment
+                ? `Pay ${moneyExact(calcAmounts.dueNowAmount)} deposit`
+                : `Pay ${moneyExact(buyerTotal)}`}
+          </div>
+          <div className="text-[10px] text-center text-[hsl(var(--muted-foreground))] mt-2 flex items-center justify-center gap-1.5">
+            <Lock size={10} />
+            <span>Secure mobile money & card payment</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MultiItemTakeOrderModern() {
   const { userId } = useAppAuth();
   const entitlements = useEntitlements(userId);
@@ -8003,6 +8253,7 @@ function MultiItemTakeOrderModern() {
   const [created, setCreated] = useState<Order | null>(null);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   useEffect(() => {
@@ -8849,22 +9100,20 @@ function MultiItemTakeOrderModern() {
 
                   {/* Desktop Sticky Preview Column */}
                   <div className="hidden lg:block sticky top-6 self-start w-[410px] shrink-0">
-                    <BuyerLinkPreviewCard
+                    <BuyerCheckoutPreviewStep2
                       businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
                       description={seller?.description}
                       logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
                       previewItems={previewItems}
-                      previewIndex={previewIndex}
-                      onActiveIndexChange={setPreviewIndex}
                       total={total}
                       deliveryFeeAmount={deliveryFeeAmount}
-                      legacyPaymentMode={legacyPaymentMode}
                       allowReservation={allowReservation}
                       allowHalfPayment={allowHalfPayment}
                       halfPaymentPercent={halfPaymentPercent}
                       deposit={deposit}
                       customerName={customerName}
                       customerPhone={customerPhone}
+                      deliveryAddress={deliveryAddress}
                     />
                   </div>
                 </div>
@@ -8873,25 +9122,23 @@ function MultiItemTakeOrderModern() {
                 <Sheet open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
                   <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-t-[20px] bg-white dark:bg-neutral-900 border-t border-[hsl(var(--border))]">
                     <SheetHeader className="sr-only">
-                      <SheetTitle>Buyer link preview</SheetTitle>
+                      <SheetTitle>Buyer checkout preview</SheetTitle>
                     </SheetHeader>
                     <div className="py-2">
-                      <BuyerLinkPreviewCard
+                      <BuyerCheckoutPreviewStep2
                         businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
                         description={seller?.description}
                         logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
                         previewItems={previewItems}
-                        previewIndex={previewIndex}
-                        onActiveIndexChange={setPreviewIndex}
                         total={total}
                         deliveryFeeAmount={deliveryFeeAmount}
-                        legacyPaymentMode={legacyPaymentMode}
                         allowReservation={allowReservation}
                         allowHalfPayment={allowHalfPayment}
                         halfPaymentPercent={halfPaymentPercent}
                         deposit={deposit}
                         customerName={customerName}
                         customerPhone={customerPhone}
+                        deliveryAddress={deliveryAddress}
                       />
                     </div>
                   </SheetContent>
@@ -8900,16 +9147,61 @@ function MultiItemTakeOrderModern() {
             )}
 
             {step === 3 && (
-              <div className="take-order-preview-stage">
+              <div className="take-order-preview-stage max-w-[1180px] mx-auto">
                 <div className="take-order-section sr-only"><h2>Review checkout.</h2></div>
                 {feedback && (
-                  <div className="max-w-[420px] mx-auto mb-4">
+                  <div className="max-w-[1180px] mx-auto mb-4">
                     <TakeOrderFeedback message={feedback} />
                   </div>
                 )}
 
-                <div className="max-w-[420px] mx-auto">
+                {/* Device Switcher & Info Bar */}
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-[hsl(var(--border))] bg-white dark:bg-neutral-900 shadow-xs">
+                  <div className="flex items-center gap-2.5 text-xs text-[hsl(var(--muted-foreground))]">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 font-bold">
+                      <Eye size={14} />
+                    </span>
+                    <span>
+                      <strong className="font-semibold text-[hsl(var(--foreground))]">Interactive Buyer Checkout Preview:</strong> Test selecting item variants, delivery options, or payment modes.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="inline-flex items-center p-0.5 rounded-lg bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewDevice('desktop')}
+                        data-testid="button-preview-device-desktop"
+                        className={cn(
+                          'flex items-center gap-1.5 px-3 py-1 rounded-[6px] font-medium transition cursor-pointer',
+                          previewDevice === 'desktop'
+                            ? 'bg-white dark:bg-neutral-800 text-[hsl(var(--foreground))] shadow-xs font-semibold'
+                            : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
+                        )}
+                      >
+                        <Monitor size={13} />
+                        Desktop
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewDevice('mobile')}
+                        data-testid="button-preview-device-mobile"
+                        className={cn(
+                          'flex items-center gap-1.5 px-3 py-1 rounded-[6px] font-medium transition cursor-pointer',
+                          previewDevice === 'mobile'
+                            ? 'bg-white dark:bg-neutral-800 text-[hsl(var(--foreground))] shadow-xs font-semibold'
+                            : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
+                        )}
+                      >
+                        <Smartphone size={13} />
+                        Mobile
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={cn(previewDevice === 'mobile' ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1180px] mx-auto')}>
                   <BuyerLinkPreviewCard
+                    device={previewDevice}
                     businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
                     description={seller?.description}
                     logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}

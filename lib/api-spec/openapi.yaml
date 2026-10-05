@@ -535,15 +535,16 @@ components:
         allowReservation: { type: ["boolean", "null"] }
         allowHalfPayment: { type: ["boolean", "null"] }
         halfPaymentPercent: { type: ["integer", "null"] }
-        chosenMode: { type: ["string", "null"], enum: [full, half, reserve, null] }
+        chosenMode: { type: ["string", "null"], enum: [full, half, reserve, reservation, null] }
         isOrderReceived: { type: boolean }
         savedCustomer:
-          type: object
+          type: ["object", "null"]
           properties:
-            name: { type: string }
-            phoneMasked: { type: string }
+            name: { type: ["string", "null"] }
+            phoneMasked: { type: ["string", "null"] }
+            phone: { type: ["string", "null"] }
         businessName: { type: string }
-        businessDescription: { type: string }
+        businessDescription: { type: ["string", "null"] }
         logoDataUrl: { type: ["string", "null"] }
         currency: { type: string, enum: [AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BYN, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ERN, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HTG, HUF, IDR, ILS, INR, IQD, IRR, ISK, JMD, JOD, JPY, KES, KGS, KHR, KMF, KPW, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LSL, LYD, MAD, MDL, MGA, MMK, MNT, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, STN, SYP, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VES, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL] }
         deliveryDefault: { type: string, enum: [pickup, delivery, both] }

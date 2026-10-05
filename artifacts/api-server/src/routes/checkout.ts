@@ -74,17 +74,18 @@ export function publicOrderResponse(
     allowReservation: order.allowReservation ?? null,
     allowHalfPayment: order.allowHalfPayment ?? null,
     halfPaymentPercent: order.halfPaymentPercent ?? null,
-    chosenMode: (order.chosenMode as any) ?? null,
+    chosenMode: (order.chosenMode === "reservation" ? "reserve" : order.chosenMode as any) ?? null,
     percentUsed: order.percentUsed ?? null,
     amountDueNow: toNumber(order.amountDueNow),
     isOrderReceived: isReceived,
     savedCustomer: hasSavedCustomer ? {
-      name: order.customerName,
+      name: order.customerName || null,
+      phoneMasked: maskPhone(order.customerPhone) || null,
       phone: maskPhone(order.customerPhone) || null,
     } : null,
     status: order.status,
     businessName: sellerSettings.businessName || "The Sunday Edit",
-    businessDescription: sellerSettings.description,
+    businessDescription: sellerSettings.description ?? "",
     logoDataUrl: sellerSettings.logoDataUrl,
     currency: sellerSettings.currency,
     deliveryDefault: sellerSettings.deliveryDefault,
@@ -184,7 +185,14 @@ export function createCheckoutRouter(database: typeof db): IRouter {
     const updatedOrder = { ...order, linkOpens: updatedOpens };
     const items = await publicItemsForOrder(database, updatedOrder);
     const sellerSettings = await readSellerSettings(database, updatedOrder.ownerUserId ?? "");
-    res.json(GetPublicOrderResponse.parse(publicOrderResponse(updatedOrder, sellerSettings, items)));
+    const responsePayload = publicOrderResponse(updatedOrder, sellerSettings, items);
+    const parsed = GetPublicOrderResponse.safeParse(responsePayload);
+    if (!parsed.success) {
+      logger.warn({ issues: parsed.error.issues, token: params.data.token }, "Public order schema warning, serving payload directly");
+      res.json(responsePayload);
+      return;
+    }
+    res.json(parsed.data);
   });
 
   router.post("/public/orders/:token", async (req, res): Promise<void> => {
@@ -313,6 +321,7 @@ export function createCheckoutRouter(database: typeof db): IRouter {
       .filter(Boolean)
       .join("\n");
     const firstReferenceImage = itemDetails.find((detail) => detail.referenceImage?.trim())?.referenceImage?.trim();
+    const submittedReferenceImage = parsed.data.referenceImage;
     const runTransaction = typeof (database as any).transaction === "function"
       ? (cb: (tx: any) => Promise<any>) => (database as any).transaction(cb)
       : (cb: (tx: any) => Promise<any>) => cb(database);
@@ -332,7 +341,7 @@ export function createCheckoutRouter(database: typeof db): IRouter {
             deliveryMethod,
             deliveryAddress: deliveryMethod === "delivery" ? deliveryAddress : null,
             buyerDetails: combinedOrderDetails || null,
-            referenceImage: parsed.data.referenceImage ?? firstReferenceImage ?? null,
+            referenceImage: submittedReferenceImage ?? firstReferenceImage ?? null,
             status: nextStatus,
             ...(saleProductCost === undefined ? {} : { productCost: saleProductCost }),
           })
@@ -376,7 +385,9 @@ export function createCheckoutRouter(database: typeof db): IRouter {
         return [updatedOrder, txItems];
       });
 
-      res.json(SubmitPublicOrderResponse.parse(orderResponse(order, items)));
+      const responsePayload = orderResponse(order, items);
+      const parsed = SubmitPublicOrderResponse.safeParse(responsePayload);
+      res.json(parsed.success ? parsed.data : responsePayload);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to submit order";
       res.status(400).json({ error: message });
