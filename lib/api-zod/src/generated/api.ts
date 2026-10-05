@@ -285,7 +285,7 @@ export const ListOrdersResponseItem = zod.object({
   "allowReservation": zod.boolean().nullish(),
   "allowHalfPayment": zod.boolean().nullish(),
   "halfPaymentPercent": zod.number().int().min(1).max(listOrdersResponseHalfPaymentPercentMax).nullish(),
-  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal('reservation'),zod.literal(null)]).nullish(),
   "percentUsed": zod.number().int().nullish(),
   "amountDueNow": zod.number().nullish(),
   "items": zod.array(zod.object({
@@ -368,7 +368,7 @@ export const CreateOrderResponse = zod.object({
   "allowReservation": zod.boolean().nullish(),
   "allowHalfPayment": zod.boolean().nullish(),
   "halfPaymentPercent": zod.number().int().min(1).max(createOrderResponseHalfPaymentPercentMax).nullish(),
-  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal('reservation'),zod.literal(null)]).nullish(),
   "percentUsed": zod.number().int().nullish(),
   "amountDueNow": zod.number().nullish(),
   "items": zod.array(zod.object({
@@ -419,7 +419,7 @@ export const GetOrderResponse = zod.object({
   "allowReservation": zod.boolean().nullish(),
   "allowHalfPayment": zod.boolean().nullish(),
   "halfPaymentPercent": zod.number().int().min(1).max(getOrderResponseHalfPaymentPercentMax).nullish(),
-  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal('reservation'),zod.literal(null)]).nullish(),
   "percentUsed": zod.number().int().nullish(),
   "amountDueNow": zod.number().nullish(),
   "items": zod.array(zod.object({
@@ -475,7 +475,7 @@ export const UpdateOrderResponse = zod.object({
   "allowReservation": zod.boolean().nullish(),
   "allowHalfPayment": zod.boolean().nullish(),
   "halfPaymentPercent": zod.number().int().min(1).max(updateOrderResponseHalfPaymentPercentMax).nullish(),
-  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal('reservation'),zod.literal(null)]).nullish(),
   "percentUsed": zod.number().int().nullish(),
   "amountDueNow": zod.number().nullish(),
   "items": zod.array(zod.object({
@@ -583,7 +583,7 @@ export const SubmitPublicOrderBody = zod.object({
   "referenceImage": zod.string().optional()
 })).optional(),
   "paymentAction": zod.enum(['pay', 'reserve']).optional(),
-  "chosenMode": zod.enum(['full', 'half', 'reserve']).optional()
+  "chosenMode": zod.enum(['full', 'half', 'reserve', 'reservation']).optional()
 })
 
 export const submitPublicOrderResponseHalfPaymentPercentMax = 99;
@@ -618,7 +618,7 @@ export const SubmitPublicOrderResponse = zod.object({
   "allowReservation": zod.boolean().nullish(),
   "allowHalfPayment": zod.boolean().nullish(),
   "halfPaymentPercent": zod.number().int().min(1).max(submitPublicOrderResponseHalfPaymentPercentMax).nullish(),
-  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal(null)]).nullish(),
+  "chosenMode": zod.union([zod.literal('full'),zod.literal('half'),zod.literal('reserve'),zod.literal('reservation'),zod.literal(null)]).nullish(),
   "percentUsed": zod.number().int().nullish(),
   "amountDueNow": zod.number().nullish(),
   "items": zod.array(zod.object({

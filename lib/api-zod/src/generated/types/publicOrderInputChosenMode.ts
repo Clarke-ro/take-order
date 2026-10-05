@@ -13,4 +13,5 @@ export const PublicOrderInputChosenMode = {
   full: 'full',
   half: 'half',
   reserve: 'reserve',
+  reservation: 'reservation',
 } as const;
