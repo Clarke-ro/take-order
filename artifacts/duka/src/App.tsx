@@ -35,6 +35,8 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { StatCard } from '@/components/stat-card';
 import { SidebarProCard } from '@/components/sidebar-pro-card';
 import { RecentUpdatesTabs } from '@/components/recent-updates-tabs';
+import { useAttentionSummary, useMarkCardSeen } from '@/lib/attention-hooks';
+import { formatCustomerName, AWAITING_LABEL } from '@/lib/formatters';
 import { PageHeader, MobileNavContext } from '@/components/page-header';
 import { DataTable, type DataTableColumn } from '@/components/data-table';
 import { SegmentedControl } from '@/components/segmented-control';
@@ -710,57 +712,21 @@ export function Sidebar({
   const { isPro, isProPlus, isTrial } = entitlements;
   const { openPaywall } = usePaywall();
   const ordersQuery = useListOrders();
-
-  const [lastViewedAt, setLastViewedAt] = useState<number>(() => {
-    try {
-      const stored = localStorage.getItem('takeorder_orders_last_viewed_at');
-      return stored ? parseInt(stored, 10) : 0;
-    } catch {
-      return 0;
-    }
-  });
+  const attentionQuery = useAttentionSummary();
+  const unseenNewOrders = attentionQuery.data?.sidebarOrders?.newCount ?? 0;
 
   useEffect(() => {
     if (location === '/orders') {
-      const now = Date.now();
       try {
-        localStorage.setItem('takeorder_orders_last_viewed_at', String(now));
+        localStorage.setItem('takeorder_orders_last_viewed_at', String(Date.now()));
       } catch {}
-      setLastViewedAt(now);
     }
-  }, [location, ordersQuery.data]);
-
-  useEffect(() => {
-    const handleViewed = () => {
-      try {
-        const stored = localStorage.getItem('takeorder_orders_last_viewed_at');
-        if (stored) setLastViewedAt(parseInt(stored, 10));
-      } catch {}
-    };
-    window.addEventListener('takeorder_orders_viewed', handleViewed);
-    window.addEventListener('storage', handleViewed);
-    return () => {
-      window.removeEventListener('takeorder_orders_viewed', handleViewed);
-      window.removeEventListener('storage', handleViewed);
-    };
-  }, []);
-
-  const unreadOrdersCount = useMemo(() => {
-    if (location === '/orders') return 0;
-    const orders = ordersQuery.data ?? [];
-    if (!orders.length) return 0;
-    if (!lastViewedAt) return orders.filter((o) => o.fulfillment === 'pending').length;
-    return orders.filter((o) => {
-      if (o.fulfillment !== 'pending') return false;
-      const orderTime = o.createdAt ? new Date(o.createdAt).getTime() : 0;
-      return orderTime > lastViewedAt;
-    }).length;
-  }, [location, ordersQuery.data, lastViewedAt]);
+  }, [location]);
 
   const links = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/catalog', label: 'Catalog', icon: Boxes },
-    { href: '/orders', label: 'Orders', icon: ShoppingBag, badge: unreadOrdersCount > 0 ? unreadOrdersCount : null },
+    { href: '/orders', label: 'Orders', icon: ShoppingBag, badge: unseenNewOrders > 0 ? unseenNewOrders : null },
     { href: '/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/clients', label: 'Clients', icon: Users },
     { href: '/expenses', label: 'Expenses', icon: Receipt },
@@ -880,7 +846,12 @@ export function Sidebar({
                 <div className="flex items-center justify-between flex-1 min-w-0">
                   <span className="truncate">{label}</span>
                   {badge != null && (
-                    <NotificationBadge count={badge} ariaLabel={`${badge} pending orders`} />
+                    <span
+                      data-testid={`sidebar-badge-${label.toLowerCase().replaceAll(' ', '-')}`}
+                      className="inline-flex shrink-0"
+                    >
+                      <NotificationBadge count={badge} ariaLabel={`${badge} new orders`} />
+                    </span>
                   )}
                   {dot && badge == null && (
                     <NotificationDot ariaLabel="New" />
@@ -1225,7 +1196,7 @@ const paymentTone = (status: Order['status'], order?: Order): 'neutral' | 'gold'
   if (status === 'paid') return 'mint';
   if (status === 'deposit_paid') return 'gold';
   if (status === 'reserved') {
-    if (order && (order.chosenMode === 'reservation' || (!order.chosenMode && !isAwaitingBuyer(order.customerName)))) {
+    if (order && ((order.chosenMode as string) === 'reservation' || order.chosenMode === 'reserve' || (!order.chosenMode && !isAwaitingBuyer(order.customerName)))) {
       return 'reserved';
     }
     return 'neutral';
@@ -1240,7 +1211,7 @@ const paymentLabel = (order: Order) => {
     return pct ? `Deposit (${pct}%)` : 'Deposit paid';
   }
   if (order.status === 'reserved') {
-    if (order.chosenMode === 'reservation' || (!order.chosenMode && !isAwaitingBuyer(order.customerName))) {
+    if ((order.chosenMode as string) === 'reservation' || order.chosenMode === 'reserve' || (!order.chosenMode && !isAwaitingBuyer(order.customerName))) {
       return 'Reserved';
     }
     return 'Awaiting buyer';
@@ -4612,7 +4583,8 @@ function RecentTransactions() {
             </thead>
             <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
               {orders.map((order) => {
-                const isAwaiting = !order.customerPhone && isAwaitingBuyer(order.customerName);
+                const name = formatCustomerName(order.customerName);
+                const isAwaiting = name === AWAITING_LABEL;
                 return (
                   <tr key={order.id} className="transaction-row hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[56px]" data-testid={`row-transaction-${order.id}`}>
                     <td className="px-4 py-3.5 whitespace-nowrap" data-testid={`text-transaction-order-id-${order.id}`}>
@@ -4621,8 +4593,8 @@ function RecentTransactions() {
                       </Link>
                     </td>
                     <td className="px-4 py-3.5 min-w-0">
-                      <div className={cn("text-[14px] truncate whitespace-nowrap", isAwaiting ? "italic text-[#9CA3AF] font-normal" : "font-medium text-[#111827] dark:text-neutral-100")} title={isAwaiting ? 'Awaiting buyer' : order.customerName}>
-                        {isAwaiting ? 'Awaiting' : order.customerName}
+                      <div className={cn("text-[14px] truncate whitespace-nowrap", isAwaiting ? "italic text-[#9CA3AF] font-normal" : "font-medium text-[#111827] dark:text-neutral-100")} title={isAwaiting ? AWAITING_LABEL : order.customerName}>
+                        {name}
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
@@ -4685,7 +4657,8 @@ function RecentTransactionsSkeleton() {
 }
 
 function OrderRow({ order, compact = false }: { order: Order; compact?: boolean }) {
-  return <div className={cn('flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between', compact && 'py-3.5')} data-testid={`row-order-${order.id}`}><div className="flex items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] font-mono-ui text-xs font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-[15px] font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{order.productName} · <ChannelInline value={order.channel} /></div></div></div><div className="flex items-center gap-4 pl-12 sm:pl-0"><div className="text-right"><div className="font-mono-ui text-sm font-semibold">{moneyExact(order.amount)}</div><div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</div></div><StatusPill tone={paymentTone(order.status)}>{order.status.replace('_', ' ')}</StatusPill></div></div>;
+  const customerName = formatCustomerName(order.customerName);
+  return <div className={cn('flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between', compact && 'py-3.5')} data-testid={`row-order-${order.id}`}><div className="flex items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[hsl(var(--muted))] font-mono-ui text-xs font-bold">{initials(customerName || order.productName)}</div><div><div className="text-[15px] font-semibold">{customerName}</div><div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{order.productName} · <ChannelInline value={order.channel} /></div></div></div><div className="flex items-center gap-4 pl-12 sm:pl-0"><div className="text-right"><div className="font-mono-ui text-sm font-semibold">{moneyExact(order.amount)}</div><div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{dateShort(order.createdAt)}</div></div><StatusPill tone={paymentTone(order.status)}>{order.status.replace('_', ' ')}</StatusPill></div></div>;
 }
 
 export type ProductPreferenceDraft = { label: string; options: string };
@@ -6112,6 +6085,14 @@ function CatalogEditorRoute() {
   const [, setLocation] = useLocation();
   const product = params.id ? (query.data ?? []).find((item) => item.id === Number(params.id)) : undefined;
   const routeMarker = params.id ? '/catalog/edit/:id' : '/catalog/new';
+  const markSeen = useMarkCardSeen();
+
+  useEffect(() => {
+    if (product) {
+      if ((product.stock ?? 0) < 5) markSeen.mutate('low_stock');
+      if (product.cost == null || product.cost === 0) markSeen.mutate('missing_costs');
+    }
+  }, [product?.id]);
 
   if (params.id && query.isLoading) {
     return (
@@ -6370,6 +6351,15 @@ function Catalog() {
     }
     return false;
   });
+  const markSeen = useMarkCardSeen();
+  useEffect(() => {
+    if (stockFilter === 'low') {
+      markSeen.mutate('low_stock');
+    }
+    if (missingCostsOnly) {
+      markSeen.mutate('missing_costs');
+    }
+  }, [stockFilter, missingCostsOnly]);
   const [view, setView] = useState<CatalogView>(readCatalogView);
   const [actionError, setActionError] = useState('');
   const allProducts = query.data ?? [];
@@ -6590,7 +6580,42 @@ function LegacyOrders() {
   const orders = useMemo(() => (query.data ?? []).filter((order) => (filter === 'all' || order.status === filter || order.fulfillment === filter) && `${order.customerName} ${order.productName} ${order.token}`.toLowerCase().includes(search.toLowerCase())), [query.data, filter, search]);
   const updateOrder = (order: Order, data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => update.mutate({ id: order.id, data }, { onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() }); invalidateDashboardSummary(queryClient); } });
   const copyLink = async (token: string) => { await navigator.clipboard?.writeText(buildPublicOrderLink(token)); };
-  return <Shell><PageHeading title="Orders" action={<Link href="/take-order"><Button><Plus size={16} />Take an order</Button></Link>} /><div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="relative max-w-[360px] flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={16} /><input data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" style={{ paddingLeft: '2.75rem' }} className="field-input text-sm whitespace-nowrap overflow-hidden text-ellipsis" /></div><div className="flex flex-wrap gap-2">{['all', 'reserved', 'deposit_paid', 'paid', 'shipped'].map((value) => <button key={value} onClick={() => setFilter(value)} aria-pressed={filter === value} data-testid={`button-filter-${value}`} className={cn('soft-focus rounded-full px-3.5 py-2 text-xs font-semibold capitalize transition-colors', filter === value ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] ring-2 ring-[hsl(var(--primary))] ring-offset-2 ring-offset-[hsl(var(--background))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{value.replace('_', ' ')}</button>)}</div></div>{query.isLoading ? <Card className="space-y-5 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></Card> : query.isError ? <ErrorState retry={() => query.refetch()} /> : orders.length ? <Card className="overflow-hidden"><div className="hidden grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] gap-4 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-6 py-3 text-xs font-semibold uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))] md:grid"><span>Buyer</span><span>Payment</span><span>Fulfillment</span><span>Placed</span><span /></div>{orders.map((order) => <div key={order.id} className="grid gap-3 border-b border-[hsl(var(--border))] px-5 py-4 last:border-0 md:grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] md:items-center md:gap-4 md:px-6" data-testid={`row-orders-order-${order.id}`}><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-xs font-bold">{initials(order.customerName || order.productName)}</div><div><div className="text-[15px] font-semibold">{order.customerName || 'Buyer pending'}</div><div className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{order.productName} · {channelName(order.channel)}</div></div></div><div className="flex items-center justify-between md:block"><span className="text-xs uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Payment</span><button data-testid={`button-payment-${order.id}`} onClick={() => updateOrder(order, { status: order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved' })}><StatusPill tone={paymentTone(order.status)}>{order.status.replace('_', ' ')}</StatusPill></button></div><div className="flex items-center justify-between md:block"><span className="text-xs uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Delivery</span><FulfillmentPickerCell order={order} disabled={update.isPending} onUpdateFulfillment={(targetOrder, fulfillment) => updateOrder(targetOrder, { fulfillment })} /></div><div className="hidden font-mono-ui text-xs text-[hsl(var(--muted-foreground))] md:block">{dateShort(order.createdAt)}<div className="mt-1 text-sm font-bold text-[hsl(var(--foreground))]">{moneyExact(order.amount)}</div></div><div className="flex justify-end gap-1"><button type="button" onClick={() => copyLink(order.token)} aria-label="Copy buyer link" data-testid={`button-copy-link-${order.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" title="Copy buyer link"><Copy aria-hidden="true" size={15} /></button><Link href={`/o/${order.token}`} data-testid={`link-open-order-${order.id}`} aria-label="Open buyer preview" className="rounded-lg p-2 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"><ExternalLink aria-hidden="true" size={15} /></Link></div></div>)}</Card> : <EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} />}</Shell>;
+  return <Shell><PageHeading title="Orders" action={<Link href="/take-order"><Button><Plus size={16} />Take an order</Button></Link>} /><div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="relative max-w-[360px] flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" size={16} /><input data-testid="input-search-orders" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders" style={{ paddingLeft: '2.75rem' }} className="field-input text-sm whitespace-nowrap overflow-hidden text-ellipsis" /></div><div className="flex flex-wrap gap-2">{['all', 'reserved', 'deposit_paid', 'paid', 'shipped'].map((value) => <button key={value} onClick={() => setFilter(value)} aria-pressed={filter === value} data-testid={`button-filter-${value}`} className={cn('soft-focus rounded-full px-3.5 py-2 text-xs font-semibold capitalize transition-colors', filter === value ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] ring-2 ring-[hsl(var(--primary))] ring-offset-2 ring-offset-[hsl(var(--background))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{value.replace('_', ' ')}</button>)}</div></div>{query.isLoading ? <Card className="space-y-5 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></Card> : query.isError ? <ErrorState retry={() => query.refetch()} /> : orders.length ? <Card className="overflow-hidden"><div className="hidden grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] gap-4 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-6 py-3 text-xs font-semibold uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))] md:grid"><span>Buyer</span><span>Payment</span><span>Fulfillment</span><span>Placed</span><span /></div>{orders.map((order) => {
+  const customerName = formatCustomerName(order.customerName);
+  return (
+    <div key={order.id} className="grid gap-3 border-b border-[hsl(var(--border))] px-5 py-4 last:border-0 md:grid-cols-[1.45fr_.85fr_.7fr_.7fr_auto] md:items-center md:gap-4 md:px-6" data-testid={`row-orders-order-${order.id}`}>
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[hsl(var(--muted))] font-mono-ui text-xs font-bold">{initials(customerName || order.productName)}</div>
+        <div>
+          <div className="text-[15px] font-semibold">{customerName}</div>
+          <div className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{order.productName} · {channelName(order.channel)}</div>
+        </div>
+      </div>
+      <div className="flex items-center justify-between md:block">
+        <span className="text-xs uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Payment</span>
+        <button data-testid={`button-payment-${order.id}`} onClick={() => updateOrder(order, { status: order.status === 'reserved' ? 'deposit_paid' : order.status === 'deposit_paid' ? 'paid' : 'reserved' })}>
+          <StatusPill tone={paymentTone(order.status)}>{order.status.replace('_', ' ')}</StatusPill>
+        </button>
+      </div>
+      <div className="flex items-center justify-between md:block">
+        <span className="text-xs uppercase tracking-wider text-[hsl(var(--muted-foreground))] md:hidden">Delivery</span>
+        <FulfillmentPickerCell order={order} disabled={update.isPending} onUpdateFulfillment={(targetOrder, fulfillment) => updateOrder(targetOrder, { fulfillment })} />
+      </div>
+      <div className="hidden font-mono-ui text-xs text-[hsl(var(--muted-foreground))] md:block">
+        {dateShort(order.createdAt)}
+        <div className="mt-1 text-sm font-bold text-[hsl(var(--foreground))]">{moneyExact(order.amount)}</div>
+      </div>
+      <div className="flex justify-end gap-1">
+        <button type="button" onClick={() => copyLink(order.token)} aria-label="Copy buyer link" data-testid={`button-copy-link-${order.id}`} className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" title="Copy buyer link">
+          <Copy aria-hidden="true" size={15} />
+        </button>
+        <Link href={`/o/${order.token}`} data-testid={`link-open-order-${order.id}`} aria-label="Open buyer preview" className="rounded-lg p-2 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]">
+          <ExternalLink aria-hidden="true" size={15} />
+        </Link>
+      </div>
+    </div>
+  );
+})}</Card> : <EmptyState icon={ShoppingBag} title={search || filter !== 'all' ? 'No orders match' : 'Your order list is quiet'} description={search || filter !== 'all' ? 'Try another filter or search.' : 'When buyers use your links, their orders will show up here.'} />}</Shell>;
 }
 
 export const FULFILLMENT_OPTIONS = [
@@ -6758,10 +6783,11 @@ function Orders() {
   const query = useListOrders();
   const update = useUpdateOrder();
   const queryClient = useQueryClient();
+  const markSeen = useMarkCardSeen();
   const [activeFilter, setActiveFilter] = useState(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
-      const f = p.get('filter') || p.get('fulfillment') || p.get('status');
+      const f = p.get('filter') || p.get('fulfillment') || p.get('status') || (p.get('payment') === 'open' ? 'unpaid' : null);
       if (f) return f;
     }
     return 'all';
@@ -6772,8 +6798,16 @@ function Orders() {
     const p = new URLSearchParams(window.location.search);
     const c = p.get('customer');
     if (c !== null) setSearch(c);
-    const f = p.get('filter') || p.get('fulfillment') || p.get('status');
+    const f = p.get('filter') || p.get('fulfillment') || p.get('status') || (p.get('payment') === 'open' ? 'unpaid' : null);
     if (f) setActiveFilter(f);
+    // Opening Orders page clears unseen orders and orders_to_ship indicators
+    markSeen.mutate('orders');
+    if (p.get('payment') === 'open' || p.get('filter') === 'unpaid' || p.get('status') === 'reserved') {
+      markSeen.mutate('unpaid_orders');
+    }
+    if (p.get('filter') === 'to_ship' || p.get('fulfillment') === 'pending') {
+      markSeen.mutate('orders_to_ship');
+    }
   }, [location]);
   useEffect(() => {
     try {
@@ -6795,7 +6829,7 @@ function Orders() {
     } else if (activeFilter === 'deposit_paid' || activeFilter === 'deposit') {
       matchesFilter = order.status === 'deposit_paid';
     } else if (activeFilter === 'reserved') {
-      matchesFilter = order.status === 'reserved' && (order.chosenMode === 'reservation' || (!order.chosenMode && !isAwaitingBuyer(order.customerName)));
+      matchesFilter = order.status === 'reserved' && (((order.chosenMode as string) === 'reservation' || order.chosenMode === 'reserve') || (!order.chosenMode && !isAwaitingBuyer(order.customerName)));
     } else if (activeFilter === 'unpaid') {
       matchesFilter = order.status !== 'paid';
     }
@@ -6815,7 +6849,7 @@ function Orders() {
     { value: 'to_ship', label: 'To ship', count: allOrders.filter((o) => o.fulfillment === 'pending').length },
     { value: 'paid', label: 'Paid', count: allOrders.filter((o) => o.status === 'paid').length },
     { value: 'deposit_paid', label: 'Deposit', count: allOrders.filter((o) => o.status === 'deposit_paid').length },
-    { value: 'reserved', label: 'Reserved', count: allOrders.filter((o) => o.status === 'reserved' && (o.chosenMode === 'reservation' || (!o.chosenMode && !isAwaitingBuyer(o.customerName)))).length },
+    { value: 'reserved', label: 'Reserved', count: allOrders.filter((o) => o.status === 'reserved' && (((o.chosenMode as string) === 'reservation' || o.chosenMode === 'reserve') || (!o.chosenMode && !isAwaitingBuyer(o.customerName)))).length },
     { value: 'shipped', label: 'Shipped', count: allOrders.filter((o) => o.fulfillment === 'shipped').length },
     { value: 'delivered', label: 'Delivered', count: allOrders.filter((o) => o.fulfillment === 'delivered').length },
   ], [allOrders]);
@@ -6872,13 +6906,14 @@ function Orders() {
       id: 'customer',
       header: 'Customer',
       cell: (order) => {
-        const isAwaiting = !order.customerPhone && isAwaitingBuyer(order.customerName);
+        const name = formatCustomerName(order.customerName);
+        const isAwaiting = name === AWAITING_LABEL;
         return (
           <span
             className={cn('text-[14px] whitespace-nowrap', isAwaiting ? 'italic text-[#9CA3AF] font-normal' : 'font-medium text-[#111827] dark:text-neutral-100')}
-            title={isAwaiting ? 'Awaiting buyer' : order.customerName}
+            title={isAwaiting ? AWAITING_LABEL : order.customerName}
           >
-            {isAwaiting ? 'Awaiting' : order.customerName}
+            {name}
           </span>
         );
       },
@@ -8325,7 +8360,8 @@ function MultiItemTakeOrderModern() {
 
   if (created) {
     const buyerPhone = (created.customerPhone || '').replace(/[^0-9]/g, '');
-    const whatsappMsg = `Hi ${created.customerName && created.customerName !== 'Waiting for buyer' ? created.customerName : 'there'}! Here is your order link for ${moneyExact(total)}: ${link}`;
+    const formattedName = formatCustomerName(created.customerName);
+    const whatsappMsg = `Hi ${formattedName !== AWAITING_LABEL ? formattedName : 'there'}! Here is your order link for ${moneyExact(total)}: ${link}`;
     const whatsappUrl = buyerPhone
       ? `https://wa.me/${buyerPhone}?text=${encodeURIComponent(whatsappMsg)}`
       : `https://wa.me/?text=${encodeURIComponent(whatsappMsg)}`;
@@ -8634,7 +8670,6 @@ function MultiItemTakeOrderModern() {
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
                         onClick={() => setMobilePreviewOpen(true)}
                         className="inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold"
                         data-testid="button-open-mobile-preview"
@@ -9440,7 +9475,7 @@ function PublicOrderPage() {
         referenceImage: item.image || undefined,
       })),
       paymentAction,
-      chosenMode,
+      chosenMode: ((chosenMode === 'reservation' ? 'reserve' : chosenMode) as PublicOrderInput['chosenMode']),
     };
     submit.mutate({ token, data }, {
       onSuccess: () => { invalidateDashboardSummary(queryClient); setSubmitted(true); },
@@ -9449,7 +9484,7 @@ function PublicOrderPage() {
   };
   if (query.isLoading) return <div className="min-h-[100dvh] bg-[hsl(var(--background))] p-6"><div className="mx-auto max-w-[480px]"><BrandLockup className="mx-auto mt-14 justify-center" /><Skeleton className="mx-auto mt-8 h-8 w-52" /><Skeleton className="mt-4 h-4 w-full" /><Skeleton className="mt-10 h-64 w-full" /></div></div>;
   if (query.isError || !order) return <div className="flex min-h-[100dvh] items-center justify-center p-6"><div className="text-center"><BrandLockup className="justify-center" /><div className="mt-10 font-display text-2xl font-bold">This link is no longer available.</div><p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">Ask the seller for a fresh order link.</p></div></div>;
-  if (submitted || order?.isOrderReceived) return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] p-6"><div className="w-full max-w-[480px] text-center page-in"><BrandLockup className="justify-center" /><div className="mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white"><Check size={30} /></div><h1 className="mt-7 font-display text-4xl font-bold tracking-[-.05em]">Order received</h1><p className="mx-auto mt-4 max-w-[350px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{order?.chosenMode === 'reservation' || chosenMode === 'reservation' ? 'Your reservation has been received by the seller. They’ll be in touch with the next step.' : 'Your order and payment details have been received by the seller. They’ll be in touch with the next step.'}</p><div className="mt-8 font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Order reference · {token.slice(0, 8)}</div></div></div>;
+  if (submitted || order?.isOrderReceived) return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] p-6"><div className="w-full max-w-[480px] text-center page-in"><BrandLockup className="justify-center" /><div className="mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white"><Check size={30} /></div><h1 className="mt-7 font-display text-4xl font-bold tracking-[-.05em]">Order received</h1><p className="mx-auto mt-4 max-w-[350px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{(order?.chosenMode as any) === 'reservation' || chosenMode === 'reservation' ? 'Your reservation has been received by the seller. They’ll be in touch with the next step.' : 'Your order and payment details have been received by the seller. They’ll be in touch with the next step.'}</p><div className="mt-8 font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Order reference · {token.slice(0, 8)}</div></div></div>;
   const orderSubtotal = itemForms.length === order.items.length
     ? order.items.reduce((sum, item, index) => sum + item.amount * (itemForms[index]?.quantity ?? item.quantity ?? 1), 0)
     : order.subtotal ?? order.items.reduce((sum, item) => sum + item.amount * (item.quantity ?? 1), 0);
@@ -9478,7 +9513,7 @@ function PublicOrderPage() {
     });
   };
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8"><div className="mx-auto max-w-[1180px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} customLayout={true}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} allowReservation={order.allowReservation} allowHalfPayment={order.allowHalfPayment} halfPaymentPercent={order.halfPaymentPercent} chosenMode={chosenMode} onChosenModeChange={setChosenMode} savedCustomer={order.savedCustomer} isEditingCustomer={isEditingCustomer} onEditCustomer={handleEditCustomer} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} form={form} itemForm={currentItemForm} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => { setSubmitError(''); setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item)); }} onNextItem={handleNextItem} onPrevItem={handlePrevItem} onBack={handlePrevItem} onReferenceImageChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setSubmitError(''); changeItem('imagePreview', URL.createObjectURL(file)); changeItem('image', file.name); const uploadedUrl = await uploadReferenceImage(file); changeItem('image', uploadedUrl); }} onError={setSubmitError} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] flex flex-wrap items-center justify-center gap-2"><span>Powered by Take Order · made for small businesses</span><span>·</span><Link href="/terms" target="_blank" className="hover:underline">Terms</Link><span>·</span><Link href="/privacy" target="_blank" className="hover:underline">Privacy</Link><span>·</span><Link href="/refund-policy" target="_blank" className="hover:underline">Refund Policy</Link></div></div></div>;
+  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8"><div className="mx-auto max-w-[1180px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription || undefined} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} customLayout={true}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} allowReservation={order.allowReservation} allowHalfPayment={order.allowHalfPayment} halfPaymentPercent={order.halfPaymentPercent} chosenMode={chosenMode} onChosenModeChange={setChosenMode} savedCustomer={order.savedCustomer?.name ? { name: order.savedCustomer.name, phone: order.savedCustomer.phone ?? undefined } : null} isEditingCustomer={isEditingCustomer} onEditCustomer={handleEditCustomer} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} form={form} itemForm={currentItemForm} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => { setSubmitError(''); setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item)); }} onNextItem={handleNextItem} onPrevItem={handlePrevItem} onBack={handlePrevItem} onReferenceImageChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setSubmitError(''); changeItem('imagePreview', URL.createObjectURL(file)); changeItem('image', file.name); const uploadedUrl = await uploadReferenceImage(file); changeItem('image', uploadedUrl); }} onError={setSubmitError} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] flex flex-wrap items-center justify-center gap-2"><span>Powered by Take Order · made for small businesses</span><span>·</span><Link href="/terms" target="_blank" className="hover:underline">Terms</Link><span>·</span><Link href="/privacy" target="_blank" className="hover:underline">Privacy</Link><span>·</span><Link href="/refund-policy" target="_blank" className="hover:underline">Refund Policy</Link></div></div></div>;
 }
 
 export function Connect() {
@@ -10860,7 +10895,7 @@ export function OrderReceiptModal({ order, onClose }: { order: Order; onClose: (
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <span className="block text-xs text-[hsl(var(--muted-foreground))]">Customer</span>
-              <strong className="text-[15px] font-semibold text-[hsl(var(--foreground))]">{order.customerName || 'Customer'}</strong>
+              <strong className="text-[15px] font-semibold text-[hsl(var(--foreground))]">{formatCustomerName(order.customerName)}</strong>
               {order.customerPhone && <div className="text-xs text-[hsl(var(--muted-foreground))]">{order.customerPhone}</div>}
             </div>
             <div>
@@ -10965,6 +11000,18 @@ function OrderDetail() {
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [actionError, setActionError] = useState('');
   const order = validOrderId ? query.data : undefined;
+  const markSeen = useMarkCardSeen();
+
+  useEffect(() => {
+    if (order) {
+      if (order.fulfillment === 'pending') {
+        markSeen.mutate('orders_to_ship');
+      }
+      if (order.status !== 'paid') {
+        markSeen.mutate('unpaid_orders');
+      }
+    }
+  }, [order?.id, order?.fulfillment, order?.status]);
 
   const collected = getOrderCollectedAmount(order);
   const outstanding = getOrderOutstandingAmount(order);
@@ -11317,7 +11364,7 @@ function OrderDetail() {
       <div className="flex flex-wrap items-center gap-2 text-xs text-[#6B7280] mb-6 -mt-2">
         <span>Placed on {dateShort(order.createdAt)}</span>
         <span className="text-[#D1D5DB]">·</span>
-        <span className="font-medium text-[#111827]">{order.customerName || 'Awaiting buyer'}</span>
+        <span className="font-medium text-[#111827]">{formatCustomerName(order.customerName)}</span>
         <span className="text-[#D1D5DB]">·</span>
         <span>{order.items.length} {order.items.length === 1 ? 'item' : 'items'} via {channelName(order.channel)}</span>
       </div>
@@ -11473,9 +11520,9 @@ function OrderDetail() {
             <div className="order-card-heading">
               <div>
                 <div className="order-card-kicker">Customer</div>
-                <h2>{order.customerName || 'Buyer pending'}</h2>
+                <h2>{formatCustomerName(order.customerName)}</h2>
               </div>
-              <div className="customer-avatar">{initials(order.customerName || 'Buyer')}</div>
+              <div className="customer-avatar">{initials(formatCustomerName(order.customerName) || 'Buyer')}</div>
             </div>
             <div className="customer-contact-list">
               <div>
@@ -12106,7 +12153,7 @@ export function BuyerOrderForm({
       {allowReferenceImages && <div><span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span><label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{form.image ? form.image : 'Attach an image'}</label><input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />{form.imagePreview && <img src={form.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>}
       <Button type="submit" disabled={submitPending} className="w-full py-3.5" data-testid="button-submit-public-order">
         {submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}
-        {paymentMode === 'reserve' ? 'Reserve order' : paymentMode === 'deposit' ? `Make payment · ${moneyExact(payableDeposit)}` : `Make payment · ${moneyExact(amount)}`} <ArrowUpRight aria-hidden="true" size={15} />
+        {paymentMode === 'reserve' ? 'Reserve order' : paymentMode === 'deposit' ? `Make payment · ${moneyExact(depositAmount ?? 0)}` : `Make payment · ${moneyExact(amount)}`} <ArrowUpRight aria-hidden="true" size={15} />
       </Button>
       <div className="text-center text-[11px] text-neutral-400 pt-1 leading-normal">
         By placing your order, you agree to Take Order's{' '}

@@ -6,6 +6,7 @@ import { createOrdersRouter, orderResponse } from "./orders";
 import { createCheckoutRouter, publicOrderResponse, publicItemsForOrder } from "./checkout";
 import { createAnalyticsRouter } from "./analytics";
 import { createEntitlementsRouter } from "./entitlements";
+import { createAttentionRouter } from "./attention";
 
 export {
   isReusableCatalogProduct,
@@ -25,6 +26,7 @@ export {
  * - Checkout: public buyer order links and checkout submission
  * - Analytics: dashboard summaries and CSV export
  * - Entitlements: seller quotas and plan limits
+ * - Attention: dashboard indicators and seen tracking
  */
 export function createTakeOrderRouter(database: typeof db, requireSellerAuth: RequestHandler): IRouter {
   const router: IRouter = Router();
@@ -35,6 +37,7 @@ export function createTakeOrderRouter(database: typeof db, requireSellerAuth: Re
   router.use(createCheckoutRouter(database));
   router.use(createAnalyticsRouter(database, requireSellerAuth));
   router.use(createEntitlementsRouter(database, requireSellerAuth));
+  router.use(createAttentionRouter(database, requireSellerAuth));
 
   return router;
 }

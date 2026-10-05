@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { currencyForCode, currencyForLanguage, storeCurrencyOptions } from './currency';
+import { currencyForCode, currencyForLanguage, formatCompactMoney, formatMoney, storeCurrencyOptions } from './currency';
 
 test('uses the language region without consulting timezone', () => {
   const currency = currencyForLanguage('en-GH');
@@ -28,4 +28,20 @@ test('resolves an explicit store currency independently of browser location', ()
   assert.equal(currencyForCode('ngn').locale, 'en-NG');
   assert.equal(currencyForCode('not-a-currency').currency, 'GHS');
   assert.ok(storeCurrencyOptions.some((option) => option.currency === 'GHS'));
+});
+
+test('formatMoney safely formats null, undefined, zero, and NaN without producing NaN', () => {
+  for (const input of [null, undefined, 0, NaN, Number.NaN]) {
+    const formatted = formatMoney(input as number);
+    assert.ok(!formatted.includes('NaN'), `formatMoney(${input}) produced NaN: "${formatted}"`);
+    assert.match(formatted, /0/);
+  }
+});
+
+test('formatCompactMoney safely formats null, undefined, zero, and NaN without producing NaN', () => {
+  for (const input of [null, undefined, 0, NaN, Number.NaN]) {
+    const formatted = formatCompactMoney(input as number);
+    assert.ok(!formatted.includes('NaN'), `formatCompactMoney(${input}) produced NaN: "${formatted}"`);
+    assert.match(formatted, /0/);
+  }
 });

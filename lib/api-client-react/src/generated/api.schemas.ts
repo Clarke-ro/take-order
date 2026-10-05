@@ -193,6 +193,7 @@ export const OrderChosenMode = {
   full: 'full',
   half: 'half',
   reserve: 'reserve',
+  reservation: 'reservation',
 } as const;
 
 export interface OrderLineItem {
@@ -671,6 +672,7 @@ export const PublicOrderInputChosenMode = {
   full: 'full',
   half: 'half',
   reserve: 'reserve',
+  reservation: 'reservation',
 } as const;
 
 export interface PublicOrderInput {

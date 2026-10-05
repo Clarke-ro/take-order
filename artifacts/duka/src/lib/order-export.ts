@@ -80,7 +80,7 @@ export function generateOrdersCsv(orders: Order[], currencySymbolStr = 'GH₵'):
 
     const paymentModeName = order.chosenMode === 'half'
       ? 'Half payment'
-      : order.chosenMode === 'reservation'
+      : (order.chosenMode as string) === 'reservation' || order.chosenMode === 'reserve'
         ? 'Reservation'
         : order.chosenMode === 'full'
           ? 'Full payment'

@@ -1,4 +1,5 @@
 import type { Order } from '@workspace/api-client-react';
+import { formatCustomerName } from './formatters';
 
 export function cleanPhoneForWhatsApp(phone: string): string {
   return phone.replace(/[^\d]/g, '');
@@ -143,7 +144,7 @@ export function buildRiderDispatchSlip(options: {
   slip += `*Date:* ${new Date(order.createdAt).toLocaleDateString()}\n\n`;
 
   slip += `👤 *RECIPIENT (CUSTOMER)*\n`;
-  slip += `*Name:* ${order.customerName || 'Customer'}\n`;
+  slip += `*Name:* ${formatCustomerName(order.customerName)}\n`;
   slip += `*Phone:* ${order.customerPhone || 'Not provided'}\n`;
   slip += `*Address:* ${order.deliveryAddress || 'Pickup / Address pending'}\n\n`;
 
@@ -180,7 +181,7 @@ export function buildTextReceipt(options: {
   let receipt = `🧾 *OFFICIAL RECEIPT*\n`;
   receipt += `*${shopName || 'Take Order'}* ${sellerHandle ? `(${sellerHandle})` : ''}\n`;
   receipt += `Order #${String(order.id).padStart(7, '0')} · ${new Date(order.createdAt).toLocaleDateString()}\n`;
-  receipt += `Customer: ${order.customerName || 'Customer'}\n`;
+  receipt += `Customer: ${formatCustomerName(order.customerName)}\n`;
   receipt += `─────────────────────────\n`;
 
   order.items.forEach((item) => {

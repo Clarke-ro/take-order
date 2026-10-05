@@ -470,7 +470,7 @@ components:
         allowReservation: { type: ["boolean", "null"] }
         allowHalfPayment: { type: ["boolean", "null"] }
         halfPaymentPercent: { type: ["integer", "null"], minimum: 1, maximum: 99 }
-        chosenMode: { type: ["string", "null"], enum: [full, half, reserve, null] }
+        chosenMode: { type: ["string", "null"], enum: [full, half, reserve, reservation, null] }
         percentUsed: { type: ["integer", "null"] }
         amountDueNow: { type: ["number", "null"] }
         items:
@@ -605,7 +605,7 @@ components:
           items:
             $ref: "#/components/schemas/PublicOrderItemDetails"
         paymentAction: { type: string, enum: [pay, reserve] }
-        chosenMode: { type: string, enum: [full, half, reserve] }
+        chosenMode: { type: string, enum: [full, half, reserve, reservation] }
     DashboardSummary:
       type: object
       required: [revenue, productCosts, estimatedProductCosts, operatingExpenses, expenses, profit, cashBalance, orders, snapshotOrders, legacyOrders, legacyRevenue, outstanding, bestSeller, shares, likes, channelPerformance, dailyPerformance, productPerformance, insights]

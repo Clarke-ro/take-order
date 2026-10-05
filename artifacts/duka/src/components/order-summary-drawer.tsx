@@ -7,7 +7,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { moneyExact, channelName } from '@/lib/formatters';
-import { getOrderCollectedAmount, getOrderOutstandingAmount } from '@workspace/api-zod';
+import { getOrderCollectedAmount, getOrderOutstandingAmount, type Order } from '@workspace/api-zod';
 import { DollarSign, ShoppingBag, CheckCircle, Clock, Truck, CircleDollarSign } from 'lucide-react';
 
 export interface OrderSummaryDrawerProps {

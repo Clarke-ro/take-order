@@ -1,4 +1,4 @@
-import { formatCompactMoney, formatMoney, currencyForCode, currentCurrency } from '@/lib/currency';
+import { formatCompactMoney, formatMoney, currencyForCode, currentCurrency } from './currency';
 import type { Order } from '@workspace/api-client-react';
 
 export const money = (value: number | null | undefined) => formatCompactMoney(value);
@@ -48,4 +48,22 @@ export const paymentLabel = (order: Order) =>
         ? 'Reserved'
         : 'Awaiting payment';
 
-export { openWhatsApp } from '@/lib/social-messaging';
+export const AWAITING_LABEL = 'Awaiting';
+
+export const formatCustomerName = (name?: string | null): string => {
+  if (!name || typeof name !== 'string') return AWAITING_LABEL;
+  const trimmed = name.trim();
+  const lower = trimmed.toLowerCase();
+  if (
+    !trimmed ||
+    lower === 'waiting for buyer' ||
+    lower === 'buyer pending' ||
+    lower === 'awaiting buyer' ||
+    lower === 'customer'
+  ) {
+    return AWAITING_LABEL;
+  }
+  return trimmed;
+};
+
+export { openWhatsApp } from './social-messaging';

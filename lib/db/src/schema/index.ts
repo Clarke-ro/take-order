@@ -23,3 +23,4 @@ export * from "./order-items";
 export * from "./expenses";
 export * from "./seller-settings";
 export * from "./report-favorites";
+export * from "./seller-card-seen";
