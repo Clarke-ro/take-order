@@ -54,6 +54,7 @@ import {
   type PaymentModeChoice,
 } from '@workspace/api-zod';
 import { Switch as UiSwitch } from '@/components/ui/switch';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { AnalyticsPage } from '@/pages/analytics';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
@@ -7873,6 +7874,88 @@ function TakeOrderBuyerPreviewForm({
   );
 }
 
+function BuyerLinkPreviewCard({
+  businessName,
+  description,
+  logoDataUrl,
+  previewItems,
+  previewIndex,
+  onActiveIndexChange,
+  total,
+  deliveryFeeAmount,
+  legacyPaymentMode,
+  allowReservation,
+  allowHalfPayment,
+  halfPaymentPercent,
+  deposit,
+  customerName,
+  customerPhone,
+}: {
+  businessName: string;
+  description?: string;
+  logoDataUrl?: string;
+  previewItems: BuyerOrderItem[];
+  previewIndex: number;
+  onActiveIndexChange: (index: number) => void;
+  total: number;
+  deliveryFeeAmount: number;
+  legacyPaymentMode: 'full' | 'deposit' | 'reserve';
+  allowReservation: boolean;
+  allowHalfPayment: boolean;
+  halfPaymentPercent: number;
+  deposit: number;
+  customerName: string;
+  customerPhone: string;
+}) {
+  return (
+    <div
+      data-testid="buyer-link-preview-card"
+      className="rounded-[12px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 p-6 shadow-xs overflow-y-auto max-h-[calc(100vh-120px)] w-full"
+    >
+      <div
+        aria-hidden="true"
+        inert={true as any}
+        className="w-[390px] max-w-full mx-auto select-none pointer-events-none buyer-link-preview-container"
+      >
+        <BuyerOrderSurface
+          businessName={businessName}
+          description={description}
+          logoDataUrl={logoDataUrl}
+          productName={previewItems[previewIndex]?.productName}
+          amount={total}
+          totalAmount={total + deliveryFeeAmount}
+          paymentMode={legacyPaymentMode}
+          depositAmount={allowHalfPayment ? deposit : null}
+          variants={previewItems[previewIndex]?.variants ?? []}
+          items={previewItems}
+          previewImages={previewItems.map((p) => p.imageUrl || p.imageUrls?.[0] || '')}
+          activeIndex={previewIndex}
+          onActiveIndexChange={onActiveIndexChange}
+          customLayout={true}
+        >
+          {(activeItem) => (
+            <TakeOrderBuyerPreviewForm
+              item={activeItem}
+              items={previewItems}
+              paymentMode={legacyPaymentMode}
+              allowReservation={allowReservation}
+              allowHalfPayment={allowHalfPayment}
+              halfPaymentPercent={halfPaymentPercent}
+              subtotal={total}
+              deposit={deposit}
+              deliveryFee={deliveryFeeAmount}
+              itemIndex={previewIndex}
+              onActiveIndexChange={onActiveIndexChange}
+              customerName={customerName}
+              customerPhone={customerPhone}
+            />
+          )}
+        </BuyerOrderSurface>
+      </div>
+    </div>
+  );
+}
+
 function MultiItemTakeOrderModern() {
   const { userId } = useAppAuth();
   const entitlements = useEntitlements(userId);
@@ -7903,6 +7986,7 @@ function MultiItemTakeOrderModern() {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   useEffect(() => {
     if (!settingsQuery.data) return;
     if (settingsQuery.data.deliveryFee != null) {
@@ -8464,21 +8548,22 @@ function MultiItemTakeOrderModern() {
             {step === 2 && (
               <div className="take-order-checkout-wrapper">
                 <div className="take-order-section sr-only"><h2>Review the client's checkout.</h2></div>
-                <div className="take-order-checkout-stage">
-                  <div className="take-order-step2-summary take-order-payment-checkout-card">
-                    <TakeOrderCheckoutSummary
-                      items={items}
-                      total={total}
-                      paymentMode={legacyPaymentMode}
-                      allowReservation={allowReservation}
-                      allowHalfPayment={allowHalfPayment}
-                      halfPaymentPercent={halfPaymentPercent}
-                      deposit={deposit}
-                      deliveryFee={Number(deliveryFee) || 0}
-                    />
-                  </div>
-
-                  <div className="take-order-checkout-main">
+                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_410px] items-start">
+                  <div className="take-order-checkout-main min-w-0">
+                    <div className="lg:hidden flex items-center justify-between mb-4 pb-2 border-b border-[hsl(var(--border))]">
+                      <span className="text-xs text-[hsl(var(--muted-foreground))]">Step 2: Configure order</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMobilePreviewOpen(true)}
+                        className="inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold"
+                        data-testid="button-open-mobile-preview"
+                      >
+                        <Eye size={14} />
+                        Preview buyer page
+                      </Button>
+                    </div>
                     {!showCustomerSection ? (
                       <button
                         type="button"
@@ -8743,7 +8828,56 @@ function MultiItemTakeOrderModern() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Desktop Sticky Preview Column */}
+                  <div className="hidden lg:block sticky top-6 self-start w-[410px] shrink-0">
+                    <BuyerLinkPreviewCard
+                      businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
+                      description={seller?.description}
+                      logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
+                      previewItems={previewItems}
+                      previewIndex={previewIndex}
+                      onActiveIndexChange={setPreviewIndex}
+                      total={total}
+                      deliveryFeeAmount={deliveryFeeAmount}
+                      legacyPaymentMode={legacyPaymentMode}
+                      allowReservation={allowReservation}
+                      allowHalfPayment={allowHalfPayment}
+                      halfPaymentPercent={halfPaymentPercent}
+                      deposit={deposit}
+                      customerName={customerName}
+                      customerPhone={customerPhone}
+                    />
+                  </div>
                 </div>
+
+                {/* Mobile Preview Sheet */}
+                <Sheet open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
+                  <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-t-[20px] bg-white dark:bg-neutral-900 border-t border-[hsl(var(--border))]">
+                    <SheetHeader className="sr-only">
+                      <SheetTitle>Buyer link preview</SheetTitle>
+                    </SheetHeader>
+                    <div className="py-2">
+                      <BuyerLinkPreviewCard
+                        businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
+                        description={seller?.description}
+                        logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
+                        previewItems={previewItems}
+                        previewIndex={previewIndex}
+                        onActiveIndexChange={setPreviewIndex}
+                        total={total}
+                        deliveryFeeAmount={deliveryFeeAmount}
+                        legacyPaymentMode={legacyPaymentMode}
+                        allowReservation={allowReservation}
+                        allowHalfPayment={allowHalfPayment}
+                        halfPaymentPercent={halfPaymentPercent}
+                        deposit={deposit}
+                        customerName={customerName}
+                        customerPhone={customerPhone}
+                      />
+                    </div>
+                  </SheetContent>
+                </Sheet>
               </div>
             )}
 
@@ -8751,63 +8885,49 @@ function MultiItemTakeOrderModern() {
               <div className="take-order-preview-stage">
                 <div className="take-order-section sr-only"><h2>Review checkout.</h2></div>
                 {feedback && (
-                  <div className="max-w-[1180px] mx-auto mb-4">
+                  <div className="max-w-[420px] mx-auto mb-4">
                     <TakeOrderFeedback message={feedback} />
                   </div>
                 )}
 
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-border bg-card/80 backdrop-blur-sm shadow-xs">
-                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 font-bold">
-                      <Eye size={14} />
-                    </span>
-                    <span>
-                      <strong className="font-semibold text-foreground">Interactive Buyer Checkout Preview:</strong> Try selecting options, entering details, or switching between pickup and delivery.
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-muted text-foreground">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Live Link Preview
-                    </span>
-                  </div>
-                </div>
-
-                <div className="take-order-buyer-preview-wrapper">
-                  <BuyerOrderSurface
+                <div className="max-w-[420px] mx-auto">
+                  <BuyerLinkPreviewCard
                     businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
                     description={seller?.description}
                     logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
-                    productName={previewItems[previewIndex]?.productName}
-                    amount={total}
-                    totalAmount={total + deliveryFeeAmount}
-                    paymentMode={legacyPaymentMode}
-                    depositAmount={allowHalfPayment ? deposit : null}
-                    variants={previewItems[previewIndex]?.variants ?? []}
-                    items={previewItems}
-                    previewImages={previewItems.map((p) => p.imageUrl || p.imageUrls?.[0] || '')}
-                    activeIndex={previewIndex}
+                    previewItems={previewItems}
+                    previewIndex={previewIndex}
                     onActiveIndexChange={setPreviewIndex}
-                    customLayout={true}
-                  >
-                    {(activeItem) => (
-                      <TakeOrderBuyerPreviewForm
-                        item={activeItem}
-                        items={previewItems}
-                        paymentMode={legacyPaymentMode}
-                        allowReservation={allowReservation}
-                        allowHalfPayment={allowHalfPayment}
-                        halfPaymentPercent={halfPaymentPercent}
-                        subtotal={total}
-                        deposit={deposit}
-                        deliveryFee={deliveryFeeAmount}
-                        itemIndex={previewIndex}
-                        onActiveIndexChange={setPreviewIndex}
-                        customerName={customerName}
-                        customerPhone={customerPhone}
-                      />
-                    )}
-                  </BuyerOrderSurface>
+                    total={total}
+                    deliveryFeeAmount={deliveryFeeAmount}
+                    legacyPaymentMode={legacyPaymentMode}
+                    allowReservation={allowReservation}
+                    allowHalfPayment={allowHalfPayment}
+                    halfPaymentPercent={halfPaymentPercent}
+                    deposit={deposit}
+                    customerName={customerName}
+                    customerPhone={customerPhone}
+                  />
+
+                  <div className="mt-6 flex items-center justify-between gap-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => setStep(2)}
+                    >
+                      <ArrowLeft size={15} /> Back
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={!canContinue || busy}
+                      data-testid="button-create-order-link"
+                      className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white font-medium rounded-[8px] h-10 px-5 gap-1.5 inline-flex items-center text-[13px]"
+                    >
+                      {busy && <Loader2 className="animate-spin" size={14} />}
+                      Create buyer link <ArrowUpRight size={14} />
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
