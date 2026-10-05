@@ -5174,3 +5174,37 @@ html:has(.auth-split-wrapper) {
   box-shadow: 0 0 0 2px hsl(var(--sidebar, 0 0% 4%));
 }
 
+/* ==========================================================================
+   Buyer Order Link Layout Switching
+   ========================================================================== */
+.buyer-page-layout-root.is-auto .buyer-layout-desktop {
+  display: none;
+}
+.buyer-page-layout-root.is-auto .buyer-layout-mobile {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .buyer-page-layout-root.is-auto .buyer-layout-desktop {
+    display: block;
+  }
+  .buyer-page-layout-root.is-auto .buyer-layout-mobile {
+    display: none;
+  }
+}
+
+.buyer-page-layout-root.is-mobile .buyer-layout-desktop {
+  display: none !important;
+}
+.buyer-page-layout-root.is-mobile .buyer-layout-mobile {
+  display: block !important;
+}
+
+.buyer-page-layout-root.is-desktop .buyer-layout-desktop {
+  display: block !important;
+}
+.buyer-page-layout-root.is-desktop .buyer-layout-mobile {
+  display: none !important;
+}
+
+
