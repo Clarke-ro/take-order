@@ -1,3 +1,5 @@
+import { getOrderCollectedAmount, getOrderOutstandingAmount } from "@workspace/api-zod";
+
 export type AnalyticsProduct = {
   id: number;
   name: string;
@@ -14,6 +16,8 @@ export type AnalyticsOrder = {
   amount: string | number;
   productCost?: string | number | null;
   depositAmount: string | number | null;
+  amountDueNow?: string | number | null;
+  chosenMode?: string | null;
   status: string;
   createdAt: Date;
   linkOpens: number;
@@ -106,10 +110,7 @@ const channelLabels: Record<string, string> = {
 const isPaidOrder = (order: AnalyticsOrder) =>
   order.status === "paid" || order.status === "deposit_paid";
 
-const orderRevenue = (order: AnalyticsOrder) =>
-  order.status === "deposit_paid"
-    ? Number(order.depositAmount ?? 0)
-    : Number(order.amount);
+const orderRevenue = (order: AnalyticsOrder) => getOrderCollectedAmount(order);
 
 const productCost = (product: AnalyticsProduct | undefined) =>
   product?.cost == null ? 0 : Number(product.cost);
@@ -199,12 +200,7 @@ export function calculateDashboardSummary(
   const openOrders = scopedOrders.filter(
     (order) => order.status === "deposit_paid" || order.status === "pending" || order.status === "unpaid",
   );
-  const outstanding = openOrders.reduce((sum, order) => {
-    if (order.status === "deposit_paid") {
-      return sum + Math.max(0, Number(order.amount) - Number(order.depositAmount ?? 0));
-    }
-    return sum + Number(order.amount);
-  }, 0);
+  const outstanding = openOrders.reduce((sum, order) => sum + getOrderOutstandingAmount(order), 0);
   const bestSeller = paidOrders.reduce<{ name: string; count: number }>(
     (best, order) => {
       const count = paidOrders.filter(

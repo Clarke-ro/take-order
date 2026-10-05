@@ -14,7 +14,28 @@ import { createApp } from "../app.js";
 import { isReusableCatalogProduct, preferencesForProduct } from "./take-order.js";
 
 type SeedProduct = Omit<typeof productsTable.$inferSelect, "ownerUserId" | "sku" | "description" | "compareAtPrice" | "imageUrls"> & Partial<Pick<typeof productsTable.$inferSelect, "ownerUserId" | "sku" | "description" | "compareAtPrice" | "imageUrls">>;
-type SeedOrder = Omit<typeof ordersTable.$inferSelect, "ownerUserId"> & Partial<Pick<typeof ordersTable.$inferSelect, "ownerUserId">>;
+type SeedOrder = Omit<
+  typeof ordersTable.$inferSelect,
+  | "ownerUserId"
+  | "allowReservation"
+  | "allowHalfPayment"
+  | "halfPaymentPercent"
+  | "chosenMode"
+  | "percentUsed"
+  | "amountDueNow"
+> &
+  Partial<
+    Pick<
+      typeof ordersTable.$inferSelect,
+      | "ownerUserId"
+      | "allowReservation"
+      | "allowHalfPayment"
+      | "halfPaymentPercent"
+      | "chosenMode"
+      | "percentUsed"
+      | "amountDueNow"
+    >
+  >;
 type SeedExpense = Omit<typeof expensesTable.$inferSelect, "ownerUserId"> & Partial<Pick<typeof expensesTable.$inferSelect, "ownerUserId">>;
 type Seed = {
   products: SeedProduct[];

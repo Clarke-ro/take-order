@@ -7,7 +7,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { moneyExact, channelName } from '@/lib/formatters';
-import type { Order } from '@workspace/api-client-react';
+import { getOrderCollectedAmount, getOrderOutstandingAmount, type Order } from '@workspace/api-zod';
 import { DollarSign, ShoppingBag, CheckCircle, Clock, Truck, CircleDollarSign } from 'lucide-react';
 
 export interface OrderSummaryDrawerProps {
@@ -46,16 +46,8 @@ export function OrderSummaryDrawer({
   const activeLabel = filterLabel ?? activeFilterLabel ?? 'All';
   const totalOrders = orders.length;
   const totalOrderValue = orders.reduce((sum, o) => sum + (o.amount || 0), 0);
-  const totalCollected = orders.reduce((sum, o) => {
-    const col =
-      o.status === 'paid'
-        ? o.amount
-        : o.status === 'deposit_paid'
-        ? (o.depositAmount ?? 0)
-        : 0;
-    return sum + col;
-  }, 0);
-  const outstandingBalance = Math.max(0, totalOrderValue - totalCollected);
+  const totalCollected = orders.reduce((sum, o) => sum + getOrderCollectedAmount(o), 0);
+  const outstandingBalance = orders.reduce((sum, o) => sum + getOrderOutstandingAmount(o), 0);
 
   // Fulfillment counts
   const toShipCount = orders.filter((o) => o.fulfillment === 'pending').length;

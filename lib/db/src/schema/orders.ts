@@ -1,5 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
-import { index, integer, numeric, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, numeric, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 
 export const ordersTable = pgTable(
@@ -29,6 +29,12 @@ export const ordersTable = pgTable(
     engagementSource: text("engagement_source"),
     referenceImage: text("reference_image"),
     buyerDetails: text("buyer_details"),
+    allowReservation: boolean("allow_reservation"),
+    allowHalfPayment: boolean("allow_half_payment"),
+    halfPaymentPercent: integer("half_payment_percent"),
+    chosenMode: text("chosen_mode"),
+    percentUsed: integer("percent_used"),
+    amountDueNow: numeric("amount_due_now", { precision: 12, scale: 2 }),
   },
   (table) => [
     index("orders_owner_user_id_idx").on(table.ownerUserId),

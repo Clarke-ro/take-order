@@ -183,6 +183,18 @@ export const OrderEngagementSource = {
   connected_account: 'connected_account',
 } as const;
 
+/**
+ * @nullable
+ */
+export type OrderChosenMode = typeof OrderChosenMode[keyof typeof OrderChosenMode] | null;
+
+
+export const OrderChosenMode = {
+  full: 'full',
+  half: 'half',
+  reserve: 'reserve',
+} as const;
+
 export interface OrderLineItem {
   productId: number;
   productName: string;
@@ -234,6 +246,22 @@ export interface Order {
   referenceImage?: string | null;
   /** @nullable */
   buyerDetails?: string | null;
+  /** @nullable */
+  allowReservation?: boolean | null;
+  /** @nullable */
+  allowHalfPayment?: boolean | null;
+  /**
+     * @minimum 1
+     * @maximum 99
+     * @nullable
+     */
+  halfPaymentPercent?: number | null;
+  /** @nullable */
+  chosenMode?: OrderChosenMode;
+  /** @nullable */
+  percentUsed?: number | null;
+  /** @nullable */
+  amountDueNow?: number | null;
   items: OrderLineItem[];
 }
 
@@ -284,6 +312,16 @@ export interface OrderInput {
   customerPhone?: string;
   deliveryAddress?: string;
   buyerDetails?: string;
+  /** @nullable */
+  allowReservation?: boolean | null;
+  /** @nullable */
+  allowHalfPayment?: boolean | null;
+  /**
+     * @minimum 1
+     * @maximum 99
+     * @nullable
+     */
+  halfPaymentPercent?: number | null;
 }
 
 export type OrderUpdateStatus = typeof OrderUpdateStatus[keyof typeof OrderUpdateStatus];
@@ -337,6 +375,31 @@ export const PublicOrderStatus = {
   deposit_paid: 'deposit_paid',
   paid: 'paid',
 } as const;
+
+/**
+ * @nullable
+ */
+export type PublicOrderChosenMode = typeof PublicOrderChosenMode[keyof typeof PublicOrderChosenMode] | null;
+
+
+export const PublicOrderChosenMode = {
+  full: 'full',
+  half: 'half',
+  reserve: 'reserve',
+  reservation: 'reservation',
+} as const;
+
+/**
+ * @nullable
+ */
+export type PublicOrderSavedCustomer = {
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  phoneMasked?: string | null;
+  /** @nullable */
+  phone?: string | null;
+} | null;
 
 export type PublicOrderCurrency = typeof PublicOrderCurrency[keyof typeof PublicOrderCurrency];
 
@@ -426,7 +489,6 @@ export const PublicOrderCurrency = {
   MAD: 'MAD',
   MDL: 'MDL',
   MGA: 'MGA',
-  MKD: 'MKD',
   MMK: 'MMK',
   MNT: 'MNT',
   MOP: 'MOP',
@@ -552,8 +614,20 @@ export interface PublicOrder {
   depositAmount?: number | null;
   paymentMode: PublicOrderPaymentMode;
   status: PublicOrderStatus;
+  /** @nullable */
+  allowReservation?: boolean | null;
+  /** @nullable */
+  allowHalfPayment?: boolean | null;
+  /** @nullable */
+  halfPaymentPercent?: number | null;
+  /** @nullable */
+  chosenMode?: PublicOrderChosenMode;
+  isOrderReceived?: boolean;
+  /** @nullable */
+  savedCustomer?: PublicOrderSavedCustomer;
   businessName: string;
-  businessDescription: string;
+  /** @nullable */
+  businessDescription: string | null;
   /** @nullable */
   logoDataUrl: string | null;
   currency: PublicOrderCurrency;
@@ -590,17 +664,26 @@ export const PublicOrderInputPaymentAction = {
   reserve: 'reserve',
 } as const;
 
+export type PublicOrderInputChosenMode = typeof PublicOrderInputChosenMode[keyof typeof PublicOrderInputChosenMode];
+
+
+export const PublicOrderInputChosenMode = {
+  full: 'full',
+  half: 'half',
+  reserve: 'reserve',
+} as const;
+
 export interface PublicOrderInput {
-  /** @minLength 1 */
-  customerName: string;
-  /** @minLength 5 */
-  customerPhone: string;
+  customerName?: string;
+  customerPhone?: string;
+  useSavedCustomer?: boolean;
   buyerDetails?: string;
   deliveryMethod?: PublicOrderInputDeliveryMethod;
   deliveryAddress?: string;
   referenceImage?: string;
   itemDetails?: PublicOrderItemDetails[];
   paymentAction?: PublicOrderInputPaymentAction;
+  chosenMode?: PublicOrderInputChosenMode;
 }
 
 export interface ChannelPerformance {
@@ -653,6 +736,10 @@ export interface ProductPerformance {
 
 export interface DashboardSummary {
   revenue: number;
+  /** Total value of orders placed in the reporting window. */
+  orderValue?: number;
+  /** Average order value across placed orders in the reporting window. */
+  averageOrderValue?: number;
   productCosts: number;
   /** Current catalog-cost estimates included for legacy sales without a captured sale-time cost. */
   estimatedProductCosts: number;

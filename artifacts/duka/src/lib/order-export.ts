@@ -1,4 +1,5 @@
 import type { Order } from '@workspace/api-client-react';
+import { getOrderCollectedAmount, getOrderOutstandingAmount, isAwaitingBuyer } from '@workspace/api-zod';
 
 /**
  * Escape formula injection characters for CSV cells (=, +, -, @)
@@ -57,6 +58,8 @@ export function generateOrdersCsv(orders: Order[], currencySymbolStr = 'GH₵'):
     `Order value (${currencySymbolStr})`,
     `Collected (${currencySymbolStr})`,
     `Outstanding (${currencySymbolStr})`,
+    'Payment mode',
+    'Payment percent',
     'Payment status',
     'Fulfillment status',
     'Date placed',
@@ -65,24 +68,30 @@ export function generateOrdersCsv(orders: Order[], currencySymbolStr = 'GH₵'):
   const rows = orders.map((order) => {
     const isAwaiting =
       !order.customerPhone &&
-      (!order.customerName ||
-        order.customerName.toLowerCase() === 'waiting for buyer' ||
-        order.customerName.toLowerCase() === 'buyer pending');
+      (!order.customerName || isAwaitingBuyer(order.customerName) || order.customerName.toLowerCase() === 'buyer pending');
 
     const customer = isAwaiting ? 'Awaiting' : (order.customerName || 'Awaiting');
     const item = order.productName || '';
     const deliveryMethod = order.deliveryMethod === 'delivery' ? 'Delivery' : order.deliveryMethod === 'pickup' ? 'Pickup' : 'Standard';
     const trafficChannel = channelDisplayName(order.channel);
     const orderValue = Number(order.amount || 0).toFixed(2);
-    const collectedVal =
-      order.status === 'paid'
-        ? order.amount
-        : order.status === 'deposit_paid'
-        ? (order.depositAmount ?? 0)
-        : 0;
-    const collected = Number(collectedVal || 0).toFixed(2);
-    const outstandingVal = Math.max(0, (order.amount || 0) - collectedVal);
-    const outstanding = Number(outstandingVal || 0).toFixed(2);
+    const collected = getOrderCollectedAmount(order).toFixed(2);
+    const outstanding = getOrderOutstandingAmount(order).toFixed(2);
+
+    const paymentModeName = order.chosenMode === 'half'
+      ? 'Half payment'
+      : (order.chosenMode as string) === 'reservation' || order.chosenMode === 'reserve'
+        ? 'Reservation'
+        : order.chosenMode === 'full'
+          ? 'Full payment'
+          : order.status === 'deposit_paid'
+            ? 'Deposit'
+            : order.paymentMode === 'reserve'
+              ? 'Reservation'
+              : 'Full payment';
+
+    const percentVal = order.percentUsed ?? (order.chosenMode === 'half' || order.status === 'deposit_paid' ? (order.halfPaymentPercent ?? 50) : null);
+    const paymentPercentStr = percentVal != null ? `${percentVal}%` : '';
 
     const paymentStatus =
       order.status === 'paid'
@@ -113,6 +122,8 @@ export function generateOrdersCsv(orders: Order[], currencySymbolStr = 'GH₵'):
       sanitizeCsvCell(orderValue),
       sanitizeCsvCell(collected),
       sanitizeCsvCell(outstanding),
+      sanitizeCsvCell(paymentModeName),
+      sanitizeCsvCell(paymentPercentStr),
       sanitizeCsvCell(paymentStatus),
       sanitizeCsvCell(fulfillmentStatus),
       sanitizeCsvCell(datePlaced),

@@ -13,6 +13,11 @@ import {
   SubmitPublicOrderBody,
   SubmitPublicOrderParams,
   SubmitPublicOrderResponse,
+  calculatePaymentAmounts,
+  getAllowedModesForLink,
+  isAwaitingBuyer,
+  maskPhone,
+  type PaymentModeChoice,
 } from "@workspace/api-zod";
 import { readSellerSettings } from "./settings";
 import { preferencesForProduct } from "./products";
@@ -51,6 +56,12 @@ export function publicOrderResponse(
     available: boolean;
   }>,
 ) {
+  const isReceived = Boolean(
+    order.chosenMode !== null ||
+    (order.status !== "reserved" && !isAwaitingBuyer(order.customerName))
+  );
+  const hasSavedCustomer = Boolean(order.customerName && !isAwaitingBuyer(order.customerName));
+
   return {
     token: order.token,
     productName: order.productName,
@@ -60,9 +71,21 @@ export function publicOrderResponse(
     deliveryMethod: order.deliveryMethod ?? null,
     depositAmount: toNumber(order.depositAmount),
     paymentMode: order.paymentMode,
+    allowReservation: order.allowReservation ?? null,
+    allowHalfPayment: order.allowHalfPayment ?? null,
+    halfPaymentPercent: order.halfPaymentPercent ?? null,
+    chosenMode: (order.chosenMode === "reservation" ? "reserve" : order.chosenMode as any) ?? null,
+    percentUsed: order.percentUsed ?? null,
+    amountDueNow: toNumber(order.amountDueNow),
+    isOrderReceived: isReceived,
+    savedCustomer: hasSavedCustomer ? {
+      name: order.customerName || null,
+      phoneMasked: maskPhone(order.customerPhone) || null,
+      phone: maskPhone(order.customerPhone) || null,
+    } : null,
     status: order.status,
     businessName: sellerSettings.businessName || "The Sunday Edit",
-    businessDescription: sellerSettings.description,
+    businessDescription: sellerSettings.description ?? "",
     logoDataUrl: sellerSettings.logoDataUrl,
     currency: sellerSettings.currency,
     deliveryDefault: sellerSettings.deliveryDefault,
@@ -138,6 +161,8 @@ export function createCheckoutRouter(database: typeof db): IRouter {
   const router: IRouter = Router();
 
   router.get("/public/orders/:token", async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
     const params = GetPublicOrderParams.safeParse(req.params);
     if (!params.success) {
       res.status(400).json({ error: params.error.message });
@@ -160,10 +185,19 @@ export function createCheckoutRouter(database: typeof db): IRouter {
     const updatedOrder = { ...order, linkOpens: updatedOpens };
     const items = await publicItemsForOrder(database, updatedOrder);
     const sellerSettings = await readSellerSettings(database, updatedOrder.ownerUserId ?? "");
-    res.json(GetPublicOrderResponse.parse(publicOrderResponse(updatedOrder, sellerSettings, items)));
+    const responsePayload = publicOrderResponse(updatedOrder, sellerSettings, items);
+    const parsed = GetPublicOrderResponse.safeParse(responsePayload);
+    if (!parsed.success) {
+      logger.warn({ issues: parsed.error.issues, token: params.data.token }, "Public order schema warning, serving payload directly");
+      res.json(responsePayload);
+      return;
+    }
+    res.json(parsed.data);
   });
 
   router.post("/public/orders/:token", async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
     const params = SubmitPublicOrderParams.safeParse(req.params);
     const parsed = SubmitPublicOrderBody.safeParse(req.body);
     if (!params.success) {
@@ -179,19 +213,48 @@ export function createCheckoutRouter(database: typeof db): IRouter {
       res.status(404).json({ error: "Order link not found" });
       return;
     }
-    const shouldReserve = parsed.data.paymentAction === "reserve" || existing.paymentMode === "reserve";
+
+    if (existing.chosenMode !== null || (existing.status !== "reserved" && !isAwaitingBuyer(existing.customerName))) {
+      res.status(400).json({ error: "This order has already been received." });
+      return;
+    }
+
+    let chosenMode: PaymentModeChoice = "full";
+    if (parsed.data.chosenMode) {
+      chosenMode = parsed.data.chosenMode as PaymentModeChoice;
+    } else if (parsed.data.paymentAction === "reserve") {
+      chosenMode = "reservation";
+    } else if ((parsed.data.paymentAction as string) === "deposit") {
+      chosenMode = "half";
+    } else if (existing.paymentMode === "reserve") {
+      chosenMode = "reservation";
+    }
+
+    const allowedModes = getAllowedModesForLink(existing);
+    if (!allowedModes.has(chosenMode)) {
+      res.status(400).json({ error: "Selected payment mode is not allowed for this order" });
+      return;
+    }
+
+    const hasSavedCustomer = Boolean(existing.customerName && !isAwaitingBuyer(existing.customerName));
+    let customerName = parsed.data.customerName?.trim();
+    let customerPhone = parsed.data.customerPhone?.trim() || null;
+    if (parsed.data.useSavedCustomer && hasSavedCustomer) {
+      customerName = existing.customerName;
+      customerPhone = existing.customerPhone;
+    }
+    if (!customerName) {
+      res.status(400).json({ error: "Customer name is required" });
+      return;
+    }
+
     const deliveryMethod = parsed.data.deliveryMethod ?? "pickup";
     const deliveryAddress = parsed.data.deliveryAddress?.trim() || null;
     if (deliveryMethod === "delivery" && !deliveryAddress) {
       res.status(400).json({ error: "A delivery address is required when delivery is selected" });
       return;
     }
-    const nextStatus = shouldReserve
-      ? "reserved"
-      : existing.paymentMode === "deposit"
-        ? "deposit_paid"
-        : "paid";
-    const saleProductCost = await productCostForSale(database, existing, nextStatus);
+
     const itemDetails = parsed.data.itemDetails ?? [];
     const itemDetailsByIndex = new Map(itemDetails.map((detail) => [detail.itemIndex, detail]));
     const storedItems = await database
@@ -223,6 +286,30 @@ export function createCheckoutRouter(database: typeof db): IRouter {
       ? storedItems.reduce((total, item, index) => total + Number(item.amount) * requestedQuantities[index]!, 0)
       : Number(existing.amount) - (existing.deliveryMethod === "delivery" ? deliveryFee : 0);
     const finalAmount = baseAmount + (deliveryMethod === "delivery" ? deliveryFee : 0);
+
+    const totalPesewas = Math.round(finalAmount * 100);
+    let nextStatus: "reserved" | "deposit_paid" | "paid";
+    let percentUsed: number | null = null;
+    let amountDueNowVal: number = finalAmount;
+
+    if (chosenMode === "reservation") {
+      nextStatus = "reserved";
+      percentUsed = null;
+      amountDueNowVal = 0;
+    } else if (chosenMode === "half") {
+      nextStatus = "deposit_paid";
+      const pct = existing.halfPaymentPercent ?? 50;
+      percentUsed = pct;
+      const calc = calculatePaymentAmounts(totalPesewas, pct);
+      amountDueNowVal = calc.dueNowAmount;
+    } else {
+      nextStatus = "paid";
+      percentUsed = null;
+      amountDueNowVal = finalAmount;
+    }
+
+    const saleProductCost = await productCostForSale(database, existing, nextStatus);
+
     const combinedBuyerDetails = itemDetails
       .filter((detail) => detail.details?.trim() || detail.variant?.trim())
       .map((detail) => {
@@ -234,6 +321,7 @@ export function createCheckoutRouter(database: typeof db): IRouter {
       .filter(Boolean)
       .join("\n");
     const firstReferenceImage = itemDetails.find((detail) => detail.referenceImage?.trim())?.referenceImage?.trim();
+    const submittedReferenceImage = parsed.data.referenceImage;
     const runTransaction = typeof (database as any).transaction === "function"
       ? (cb: (tx: any) => Promise<any>) => (database as any).transaction(cb)
       : (cb: (tx: any) => Promise<any>) => cb(database);
@@ -243,13 +331,17 @@ export function createCheckoutRouter(database: typeof db): IRouter {
         const [updatedOrder] = await tx
           .update(ordersTable)
           .set({
-            customerName: parsed.data.customerName,
-            customerPhone: parsed.data.customerPhone,
+            customerName,
+            customerPhone,
             amount: finalAmount.toFixed(2),
+            amountDueNow: amountDueNowVal.toFixed(2),
+            chosenMode,
+            percentUsed,
+            depositAmount: chosenMode === "half" ? amountDueNowVal.toFixed(2) : (existing.depositAmount ?? null),
             deliveryMethod,
             deliveryAddress: deliveryMethod === "delivery" ? deliveryAddress : null,
             buyerDetails: combinedOrderDetails || null,
-            referenceImage: parsed.data.referenceImage ?? firstReferenceImage ?? null,
+            referenceImage: submittedReferenceImage ?? firstReferenceImage ?? null,
             status: nextStatus,
             ...(saleProductCost === undefined ? {} : { productCost: saleProductCost }),
           })
@@ -293,7 +385,9 @@ export function createCheckoutRouter(database: typeof db): IRouter {
         return [updatedOrder, txItems];
       });
 
-      res.json(SubmitPublicOrderResponse.parse(orderResponse(order, items)));
+      const responsePayload = orderResponse(order, items);
+      const parsed = SubmitPublicOrderResponse.safeParse(responsePayload);
+      res.json(parsed.success ? parsed.data : responsePayload);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to submit order";
       res.status(400).json({ error: message });

@@ -8,7 +8,7 @@ import {
   CheckCircle2, CircleDollarSign, Clipboard, Copy, CreditCard, Crown, Download, ExternalLink, Eye, EyeOff, FileText, Globe2, Info, LayoutDashboard, LayoutGrid, Link2, List, Loader2, Mail, Menu, Minus, MoreHorizontal,
   ImagePlus, MessageSquare, Package, PackageSearch, PackageX, Pencil, Percent, Plus, Receipt, ReceiptText, RefreshCw, Search, SearchCheck, Settings2, ShoppingBag, SlidersHorizontal, Sparkles, Store,
   Trash2, TrendingUp, Truck, UserRound, Users, UsersRound, WalletCards, Workflow, Wrench, X,
-  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound, Bell, Zap, Settings, QrCode, Send,
+  Lock, ShieldCheck, Signal, Wifi, WifiOff, Save, Smartphone, Monitor, Building2, PanelLeftClose, PanelLeftOpen, LogOut, KeyRound, Bell, Zap, Settings, QrCode, Send,
   Shirt, Scissors, Coffee, Heart
 } from 'lucide-react';
 import { SiFacebook, SiInstagram, SiSnapchat, SiTiktok, SiWhatsapp, SiX } from 'react-icons/si';
@@ -45,6 +45,19 @@ import { generateOrdersCsv, downloadCsvFile, sanitizeCsvCell } from '@/lib/order
 import { getSafeRedirectUrl } from '@/lib/redirect';
 import { ClientDetailPage } from '@/pages/client-detail';
 import { IntegrationsComingSoonPage } from '@/pages/integrations';
+import {
+  WAITING_FOR_BUYER,
+  isAwaitingBuyer,
+  getOrderCollectedAmount,
+  getOrderOutstandingAmount,
+  calculatePaymentAmounts,
+  getAllowedModesForLink,
+  maskPhone,
+  type PaymentModeChoice,
+} from '@workspace/api-zod';
+import { Switch as UiSwitch } from '@/components/ui/switch';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { NotificationBadge, NotificationDot } from '@/components/notification-badge';
 import { AnalyticsPage } from '@/pages/analytics';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
@@ -702,10 +715,18 @@ export function Sidebar({
   const attentionQuery = useAttentionSummary();
   const unseenNewOrders = attentionQuery.data?.sidebarOrders?.newCount ?? 0;
 
+  useEffect(() => {
+    if (location === '/orders') {
+      try {
+        localStorage.setItem('takeorder_orders_last_viewed_at', String(Date.now()));
+      } catch {}
+    }
+  }, [location]);
+
   const links = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/catalog', label: 'Catalog', icon: Boxes },
-    { href: '/orders', label: 'Orders', icon: ShoppingBag, badge: unseenNewOrders > 0 ? String(unseenNewOrders) : null },
+    { href: '/orders', label: 'Orders', icon: ShoppingBag, badge: unseenNewOrders > 0 ? unseenNewOrders : null },
     { href: '/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/clients', label: 'Clients', icon: Users },
     { href: '/expenses', label: 'Expenses', icon: Receipt },
@@ -792,7 +813,7 @@ export function Sidebar({
               aria-current={isActive ? 'page' : undefined}
               title={collapsed ? label : undefined}
               className={cn(
-                'group flex items-center transition-colors rounded-[8px] text-[13.5px]',
+                'group relative flex items-center transition-colors rounded-[8px] text-[13.5px]',
                 collapsed
                   ? 'h-10 w-10 mx-auto justify-center mb-1'
                   : 'gap-2.5 px-3 py-2 mb-0.5',
@@ -807,19 +828,33 @@ export function Sidebar({
                 strokeWidth={isActive ? 2 : 1.7}
                 className="shrink-0"
               />
+              {collapsed && (
+                <>
+                  {badge != null && (
+                    <span className="absolute top-1.5 right-1.5">
+                      <NotificationDot ariaLabel={`${badge} pending orders`} />
+                    </span>
+                  )}
+                  {dot && badge == null && (
+                    <span className="absolute top-2 right-2">
+                      <NotificationDot ariaLabel="New" />
+                    </span>
+                  )}
+                </>
+              )}
               {!collapsed && (
                 <div className="flex items-center justify-between flex-1 min-w-0">
                   <span className="truncate">{label}</span>
-                  {badge && (
+                  {badge != null && (
                     <span
                       data-testid={`sidebar-badge-${label.toLowerCase().replaceAll(' ', '-')}`}
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--notification)] text-white shrink-0"
+                      className="inline-flex shrink-0"
                     >
-                      {badge}
+                      <NotificationBadge count={badge} ariaLabel={`${badge} new orders`} />
                     </span>
                   )}
-                  {dot && !badge && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] shrink-0" />
+                  {dot && badge == null && (
+                    <NotificationDot ariaLabel="New" />
                   )}
                   {!entitlements.isLoading && entitlements.tier === 'free' && (href === '/analytics' || href === '/reports') && (
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[hsl(var(--primary))] text-white shadow-2xs shrink-0">
@@ -1157,9 +1192,32 @@ function StatusPill({ children, tone = 'neutral' }: { children: ReactNode; tone?
   </span>;
 }
 
-const paymentTone = (status: Order['status']): 'neutral' | 'gold' | 'mint' | 'reserved' =>
-  status === 'paid' ? 'mint' : status === 'deposit_paid' ? 'gold' : status === 'reserved' ? 'reserved' : 'neutral';
-const paymentLabel = (order: Order) => order.status === 'deposit_paid' ? 'Deposit paid' : order.status === 'paid' ? 'Paid in full' : 'Awaiting payment';
+const paymentTone = (status: Order['status'], order?: Order): 'neutral' | 'gold' | 'mint' | 'reserved' => {
+  if (status === 'paid') return 'mint';
+  if (status === 'deposit_paid') return 'gold';
+  if (status === 'reserved') {
+    if (order && ((order.chosenMode as string) === 'reservation' || order.chosenMode === 'reserve' || (!order.chosenMode && !isAwaitingBuyer(order.customerName)))) {
+      return 'reserved';
+    }
+    return 'neutral';
+  }
+  return 'neutral';
+};
+
+const paymentLabel = (order: Order) => {
+  if (order.status === 'paid') return 'Paid in full';
+  if (order.status === 'deposit_paid') {
+    const pct = order.percentUsed ?? (order.chosenMode === 'half' ? (order.halfPaymentPercent ?? 50) : null);
+    return pct ? `Deposit (${pct}%)` : 'Deposit paid';
+  }
+  if (order.status === 'reserved') {
+    if ((order.chosenMode as string) === 'reservation' || order.chosenMode === 'reserve' || (!order.chosenMode && !isAwaitingBuyer(order.customerName))) {
+      return 'Reserved';
+    }
+    return 'Awaiting buyer';
+  }
+  return 'Awaiting payment';
+};
 const fulfillmentLabel = (value: Order['fulfillment']) => value === 'pending' ? 'To ship' : value[0].toUpperCase() + value.slice(1);
 type MetricTrend = { direction: 'up' | 'down'; percentage: number | null; tone?: 'positive' | 'negative' | 'neutral' };
 type MetricIndicator = { direction: 'up' | 'down' | 'neutral'; percentage: number; tone?: 'positive' | 'negative' | 'neutral' };
@@ -3959,9 +4017,9 @@ function Reports() {
               <StatCard
                 label="Average Order Value"
                 value={money(avgOrderValue)}
-                icon={<Percent size={17} className="text-purple-700" />}
-                iconBg="bg-purple-100 text-purple-700"
-                sparklineTone="purple"
+                icon={<Percent size={17} className="text-indigo-700" />}
+                iconBg="bg-indigo-50 text-indigo-700"
+                sparklineTone="indigo"
               />
               <StatCard
                 label="Collection Rate"
@@ -3977,7 +4035,7 @@ function Reports() {
           <section aria-labelledby="analytics-catalog-title" className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-purple-600">Catalog Performance</div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">Catalog Performance</div>
                 <h2 id="analytics-catalog-title" className="text-lg font-bold text-slate-950">Inventory & Catalog Valuation</h2>
               </div>
               <Link href="/catalog" className="text-xs font-semibold text-slate-600 hover:text-slate-950 inline-flex items-center gap-1">
@@ -3988,9 +4046,9 @@ function Reports() {
               <StatCard
                 label="Catalog Value"
                 value={money(inventoryValue)}
-                icon={<Boxes size={17} className="text-purple-700" />}
-                iconBg="bg-purple-100 text-purple-700"
-                sparklineTone="purple"
+                icon={<Boxes size={17} className="text-indigo-700" />}
+                iconBg="bg-indigo-50 text-indigo-700"
+                sparklineTone="indigo"
               />
               <StatCard
                 label="Active Products"
@@ -4226,8 +4284,13 @@ function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, produ
       <div className="border-b border-slate-100 dark:border-slate-800 px-5 py-5 sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+            <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-700">
               <Bell size={13} />
+              {(unfulfilledCount > 0 || alerts.length > 0) && (
+                <span className="absolute -top-0.5 -right-0.5">
+                  <NotificationDot ariaLabel="New updates" />
+                </span>
+              )}
             </span>
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Activity Center</div>
           </div>
@@ -6746,6 +6809,12 @@ function Orders() {
       markSeen.mutate('orders_to_ship');
     }
   }, [location]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('takeorder_orders_last_viewed_at', String(Date.now()));
+      window.dispatchEvent(new Event('takeorder_orders_viewed'));
+    } catch {}
+  }, [query.data]);
   const allOrders = query.data ?? [];
   const orders = useMemo(() => allOrders.filter((order) => {
     let matchesFilter = true;
@@ -6760,14 +6829,14 @@ function Orders() {
     } else if (activeFilter === 'deposit_paid' || activeFilter === 'deposit') {
       matchesFilter = order.status === 'deposit_paid';
     } else if (activeFilter === 'reserved') {
-      matchesFilter = order.status === 'reserved';
+      matchesFilter = order.status === 'reserved' && (((order.chosenMode as string) === 'reservation' || order.chosenMode === 'reserve') || (!order.chosenMode && !isAwaitingBuyer(order.customerName)));
     } else if (activeFilter === 'unpaid') {
       matchesFilter = order.status !== 'paid';
     }
     const haystack = `${order.customerName} ${order.productName} ${order.token} ${order.customerPhone ?? ''}`.toLowerCase();
     return matchesFilter && haystack.includes(search.trim().toLowerCase());
   }), [allOrders, activeFilter, search]);
-  const collectedFor = (order: Order) => order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0;
+  const collectedFor = (order: Order) => getOrderCollectedAmount(order);
   const updateOrder = (order: Order, data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => {
     setMutationError('');
     update.mutate({ id: order.id, data }, {
@@ -6780,7 +6849,7 @@ function Orders() {
     { value: 'to_ship', label: 'To ship', count: allOrders.filter((o) => o.fulfillment === 'pending').length },
     { value: 'paid', label: 'Paid', count: allOrders.filter((o) => o.status === 'paid').length },
     { value: 'deposit_paid', label: 'Deposit', count: allOrders.filter((o) => o.status === 'deposit_paid').length },
-    { value: 'reserved', label: 'Reserved', count: allOrders.filter((o) => o.status === 'reserved').length },
+    { value: 'reserved', label: 'Reserved', count: allOrders.filter((o) => o.status === 'reserved' && (((o.chosenMode as string) === 'reservation' || o.chosenMode === 'reserve') || (!o.chosenMode && !isAwaitingBuyer(o.customerName)))).length },
     { value: 'shipped', label: 'Shipped', count: allOrders.filter((o) => o.fulfillment === 'shipped').length },
     { value: 'delivered', label: 'Delivered', count: allOrders.filter((o) => o.fulfillment === 'delivered').length },
   ], [allOrders]);
@@ -6904,7 +6973,7 @@ function Orders() {
             updateOrder(order, { status });
           }}
         >
-          <StatusPill tone={order.status === 'paid' ? 'mint' : order.status === 'deposit_paid' ? 'gold' : 'neutral'}>
+          <StatusPill tone={paymentTone(order.status, order)}>
             {paymentLabel(order)}
           </StatusPill>
         </button>
@@ -7086,7 +7155,7 @@ function Clients() {
     (query.data ?? []).forEach((order) => {
       const phone = order.customerPhone?.trim() ?? '';
       const name = order.customerName?.trim() ?? '';
-      const isPlaceholder = !name || name.toLowerCase() === 'waiting for buyer' || name.toLowerCase() === 'buyer pending' || name.toLowerCase() === 'awaiting buyer';
+      const isPlaceholder = !name || isAwaitingBuyer(name) || name.toLowerCase() === 'buyer pending' || name.toLowerCase() === 'awaiting buyer';
       if (!phone && isPlaceholder) {
         // Exclude uncompleted/no-identity orders from the Clients directory entirely!
         return;
@@ -7094,13 +7163,14 @@ function Clients() {
       const identity = phone || name;
       if (!identity) return;
       const key = `${phone ? 'phone' : 'name'}:${identity.toLowerCase()}`;
-      const collected = order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0;
+      const collected = getOrderCollectedAmount(order);
+      const outstanding = getOrderOutstandingAmount(order);
       const existing = grouped.get(key);
       if (existing) {
         existing.orders.push(order);
         existing.orderCount += 1;
         existing.collected += collected;
-        existing.outstanding += Math.max(0, order.amount - collected);
+        existing.outstanding += outstanding;
         if (new Date(order.createdAt).getTime() > new Date(existing.latestPurchase).getTime()) {
           existing.latestPurchase = order.createdAt;
           if (name) existing.displayName = name;
@@ -7114,7 +7184,7 @@ function Clients() {
           orders: [order],
           orderCount: 1,
           collected,
-          outstanding: Math.max(0, order.amount - collected),
+          outstanding,
           latestPurchase: order.createdAt,
         });
       }
@@ -7572,14 +7642,39 @@ function TakeOrderCustomOrderPanel({ items, total, canContinue, busy, onRemove, 
   </aside>;
 }
 
-function TakeOrderCheckoutSummary({ items, total, paymentMode, deposit, deliveryFee = 0 }: { items: DraftOrderItem[]; total: number; paymentMode: 'full' | 'deposit' | 'reserve' | null; deposit: number; deliveryFee?: number }) {
-  const paymentLabel = paymentMode === 'deposit'
-    ? `Deposit · ${moneyExact(deposit)}`
-    : paymentMode === 'reserve'
-      ? 'Make Reservation · Pay on delivery'
-      : paymentMode === 'full'
-        ? 'Full Payment'
-        : 'Select payment option';
+function TakeOrderCheckoutSummary({
+  items,
+  total,
+  paymentMode,
+  allowReservation,
+  allowHalfPayment,
+  halfPaymentPercent,
+  deposit,
+  deliveryFee = 0,
+}: {
+  items: DraftOrderItem[];
+  total: number;
+  paymentMode?: 'full' | 'deposit' | 'reserve' | null;
+  allowReservation?: boolean;
+  allowHalfPayment?: boolean;
+  halfPaymentPercent?: number;
+  deposit: number;
+  deliveryFee?: number;
+}) {
+  const modes: string[] = ['Full payment'];
+  if (allowHalfPayment) {
+    modes.push(`Deposit (${halfPaymentPercent ?? 50}%)`);
+  }
+  if (allowReservation) {
+    modes.push('Reservation');
+  }
+  const paymentLabel = allowReservation || allowHalfPayment
+    ? modes.join(', ')
+    : paymentMode === 'deposit'
+      ? `Deposit · ${moneyExact(deposit)}`
+      : paymentMode === 'reserve'
+        ? 'Make Reservation · Pay on delivery'
+        : 'Full Payment';
   const effectiveTotal = total + (deliveryFee || 0);
   return <aside className="take-order-checkout-summary">
     <div className="take-order-checkout-summary-body">
@@ -7721,21 +7816,37 @@ function TakeOrderBuyerPreviewForm({
   item,
   items,
   paymentMode,
+  allowReservation,
+  allowHalfPayment,
+  halfPaymentPercent,
   subtotal,
   deposit,
   deliveryFee = 0,
   itemIndex = 0,
   onActiveIndexChange,
+  customerName,
+  customerPhone,
 }: {
   item: BuyerOrderItem;
   items: BuyerOrderItem[];
-  paymentMode: 'full' | 'deposit' | 'reserve' | null;
+  paymentMode?: 'full' | 'deposit' | 'reserve' | null;
+  allowReservation?: boolean | null;
+  allowHalfPayment?: boolean | null;
+  halfPaymentPercent?: number | null;
   subtotal: number;
   deposit: number;
   deliveryFee?: number;
   itemIndex?: number;
   onActiveIndexChange?: (index: number) => void;
+  customerName?: string;
+  customerPhone?: string;
 }) {
+  const savedCustomer = customerName?.trim()
+    ? {
+        name: customerName.trim(),
+        phone: customerPhone?.trim() ? maskPhone(customerPhone.trim()) : null,
+      }
+    : null;
   const [form, setForm] = useState<BuyerOrderFormValues>({
     name: '',
     phone: '',
@@ -7775,7 +7886,7 @@ function TakeOrderBuyerPreviewForm({
         </div>
         <h3 className="text-xl font-bold text-neutral-900">Preview: Order Submitted</h3>
         <p className="text-sm text-neutral-500 max-w-sm mx-auto leading-relaxed">
-          {paymentMode === 'reserve'
+          {allowReservation || paymentMode === 'reserve'
             ? 'When a buyer reserves, you’ll get an instant notification to confirm fulfillment.'
             : 'When a buyer completes checkout, payment is collected and logged directly in your Orders list.'}
         </p>
@@ -7793,8 +7904,12 @@ function TakeOrderBuyerPreviewForm({
   return (
     <BuyerOrderForm
       paymentMode={paymentMode}
+      allowReservation={allowReservation}
+      allowHalfPayment={allowHalfPayment}
+      halfPaymentPercent={halfPaymentPercent}
+      savedCustomer={savedCustomer}
       amount={currentTotal}
-      depositAmount={paymentMode === 'deposit' ? deposit : null}
+      depositAmount={allowHalfPayment || paymentMode === 'deposit' ? deposit : null}
       deliveryFee={deliveryFee}
       askForDetails={true}
       allowReferenceImages={true}
@@ -7863,6 +7978,287 @@ function TakeOrderBuyerPreviewForm({
   );
 }
 
+function BuyerLinkPreviewCard({
+  businessName,
+  description,
+  logoDataUrl,
+  previewItems,
+  previewIndex,
+  onActiveIndexChange,
+  total,
+  deliveryFeeAmount,
+  legacyPaymentMode,
+  allowReservation,
+  allowHalfPayment,
+  halfPaymentPercent,
+  deposit,
+  customerName,
+  customerPhone,
+  device = 'desktop',
+}: {
+  businessName: string;
+  description?: string;
+  logoDataUrl?: string;
+  previewItems: BuyerOrderItem[];
+  previewIndex: number;
+  onActiveIndexChange: (index: number) => void;
+  total: number;
+  deliveryFeeAmount: number;
+  legacyPaymentMode: 'full' | 'deposit' | 'reserve';
+  allowReservation: boolean;
+  allowHalfPayment: boolean;
+  halfPaymentPercent: number;
+  deposit: number;
+  customerName: string;
+  customerPhone: string;
+  device?: 'desktop' | 'mobile';
+}) {
+  return (
+    <div
+      data-testid="buyer-link-preview-card"
+      className={cn(
+        "rounded-[12px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 shadow-xs overflow-y-auto w-full",
+        device === 'mobile' ? "p-4 sm:p-6 max-h-[calc(100vh-120px)] max-w-[420px] mx-auto" : "p-6 sm:p-8"
+      )}
+    >
+      <div
+        aria-hidden="true"
+        inert={true as any}
+        className={cn(
+          "select-none pointer-events-none buyer-link-preview-container",
+          device === 'mobile' ? "is-mobile" : "is-desktop"
+        )}
+      >
+        <BuyerOrderSurface
+          businessName={businessName}
+          description={description}
+          logoDataUrl={logoDataUrl}
+          productName={previewItems[previewIndex]?.productName}
+          amount={total}
+          totalAmount={total + deliveryFeeAmount}
+          paymentMode={legacyPaymentMode}
+          depositAmount={allowHalfPayment ? deposit : null}
+          variants={previewItems[previewIndex]?.variants ?? []}
+          items={previewItems}
+          previewImages={previewItems.map((p) => p.imageUrl || p.imageUrls?.[0] || '')}
+          activeIndex={previewIndex}
+          onActiveIndexChange={onActiveIndexChange}
+          customLayout={true}
+        >
+          {(activeItem) => (
+            <TakeOrderBuyerPreviewForm
+              item={activeItem}
+              items={previewItems}
+              paymentMode={legacyPaymentMode}
+              allowReservation={allowReservation}
+              allowHalfPayment={allowHalfPayment}
+              halfPaymentPercent={halfPaymentPercent}
+              subtotal={total}
+              deposit={deposit}
+              deliveryFee={deliveryFeeAmount}
+              itemIndex={previewIndex}
+              onActiveIndexChange={onActiveIndexChange}
+              customerName={customerName}
+              customerPhone={customerPhone}
+            />
+          )}
+        </BuyerOrderSurface>
+      </div>
+    </div>
+  );
+}
+
+function BuyerCheckoutPreviewStep2({
+  businessName,
+  description,
+  logoDataUrl,
+  previewItems,
+  total,
+  deliveryFeeAmount,
+  allowReservation,
+  allowHalfPayment,
+  halfPaymentPercent,
+  deposit,
+  customerName,
+  customerPhone,
+  deliveryAddress,
+}: {
+  businessName: string;
+  description?: string;
+  logoDataUrl?: string | null;
+  previewItems: BuyerOrderItem[];
+  total: number;
+  deliveryFeeAmount: number;
+  allowReservation: boolean;
+  allowHalfPayment: boolean;
+  halfPaymentPercent: number;
+  deposit: number;
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress?: string;
+}) {
+  const buyerTotal = total + (deliveryFeeAmount || 0);
+  const totalPesewas = Math.round(buyerTotal * 100);
+  const calcAmounts = calculatePaymentAmounts(totalPesewas, halfPaymentPercent || 50);
+
+  return (
+    <div
+      data-testid="buyer-checkout-preview-step2"
+      className="rounded-[16px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 p-5 shadow-xs overflow-y-auto max-h-[calc(100vh-120px)] w-full"
+    >
+      {/* Top Header Label */}
+      <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[hsl(var(--border))]">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[hsl(var(--foreground))]">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 font-bold">
+            <Eye size={12} />
+          </span>
+          <span>Buyer Checkout Preview</span>
+        </div>
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Live updates
+        </span>
+      </div>
+
+      {/* Seller Identity Lockup */}
+      <div className="flex items-center gap-3 p-3 rounded-[12px] bg-neutral-50 dark:bg-neutral-800/40 border border-[hsl(var(--border))] mb-4">
+        <SellerLogo businessName={businessName} logoDataUrl={logoDataUrl ?? undefined} className="h-9 w-9 rounded-full shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-bold truncate text-[hsl(var(--foreground))]">{businessName}</div>
+          <div className="text-[11px] text-[hsl(var(--muted-foreground))] truncate">
+            {description?.trim() || 'Instant checkout via Take Order'}
+          </div>
+        </div>
+      </div>
+
+      {/* Customer Info Preview Card */}
+      <div className="space-y-1.5 mb-4">
+        <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+          <span>Customer details</span>
+          {customerName.trim() && <span className="text-emerald-600 lowercase font-medium">prefilled</span>}
+        </div>
+        {customerName.trim() ? (
+          <div className="p-3 rounded-[10px] border border-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/10 space-y-1">
+            <div className="text-[13px] font-semibold text-[hsl(var(--foreground))]">
+              {customerName.trim()}
+            </div>
+            {customerPhone.trim() && (
+              <div className="text-xs text-[hsl(var(--muted-foreground))] font-mono">
+                {maskPhone(customerPhone.trim())}
+              </div>
+            )}
+            {deliveryAddress?.trim() && (
+              <div className="text-[11.5px] text-[hsl(var(--muted-foreground))] pt-0.5 truncate">
+                📍 {deliveryAddress.trim()}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] bg-neutral-50/50 dark:bg-neutral-900/30 text-xs text-[hsl(var(--muted-foreground))]">
+            <span className="block font-medium text-[hsl(var(--foreground))]">Buyer fills at checkout</span>
+            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Full name and phone number requested</span>
+          </div>
+        )}
+      </div>
+
+      {/* Delivery Method Choice Preview */}
+      <div className="space-y-1.5 mb-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+          Delivery option
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="p-2.5 rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50/60 dark:bg-neutral-800/40">
+            <div className="font-semibold text-[hsl(var(--foreground))]">Pick up</div>
+            <div className="text-[11px] text-[hsl(var(--muted-foreground))]">Free</div>
+          </div>
+          <div className={cn('p-2.5 rounded-[10px] border transition-colors', deliveryFeeAmount > 0 ? 'border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/5' : 'border-[hsl(var(--border))] bg-neutral-50/60 dark:bg-neutral-800/40')}>
+            <div className="font-semibold text-[hsl(var(--foreground))]">Delivery</div>
+            <div className="text-[11px] font-medium text-[hsl(var(--foreground))]">
+              {deliveryFeeAmount > 0 ? moneyExact(deliveryFeeAmount) : 'Free'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Options Preview */}
+      <div className="space-y-1.5 mb-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+          Payment options enabled for buyer
+        </div>
+        <div className="space-y-2">
+          {/* Full payment option */}
+          <div className="flex items-center justify-between p-2.5 rounded-[10px] border border-[hsl(var(--border))] bg-white dark:bg-neutral-900 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="font-semibold text-[hsl(var(--foreground))]">Pay in full</span>
+            </div>
+            <span className="font-bold text-[hsl(var(--foreground))]">{moneyExact(buyerTotal)}</span>
+          </div>
+
+          {/* Half payment option if enabled */}
+          {allowHalfPayment && (
+            <div className="p-2.5 rounded-[10px] border border-blue-500/30 bg-blue-50/30 dark:bg-blue-950/20 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                  <span className="font-semibold text-[hsl(var(--foreground))]">Pay deposit ({halfPaymentPercent}%)</span>
+                </div>
+                <span className="font-bold text-blue-700 dark:text-blue-300">{moneyExact(calcAmounts.dueNowAmount)}</span>
+              </div>
+              <div className="text-[11px] text-[hsl(var(--muted-foreground))] pl-4 flex items-center justify-between">
+                <span>Balance on delivery:</span>
+                <strong className="text-[hsl(var(--foreground))]">{moneyExact(calcAmounts.balanceAmount)}</strong>
+              </div>
+            </div>
+          )}
+
+          {/* Reservation option if enabled */}
+          {allowReservation && (
+            <div className="flex items-center justify-between p-2.5 rounded-[10px] border border-amber-500/30 bg-amber-50/30 dark:bg-amber-950/20 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                <span className="font-semibold text-[hsl(var(--foreground))]">Reservation</span>
+              </div>
+              <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">Pay on pickup/delivery</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Order Total Breakdown */}
+      <div className="pt-3 border-t border-[hsl(var(--border))] space-y-2 text-xs">
+        <div className="flex items-center justify-between text-[hsl(var(--muted-foreground))]">
+          <span>Items ({previewItems.length})</span>
+          <span className="font-mono-ui font-medium text-[hsl(var(--foreground))]">{moneyExact(total)}</span>
+        </div>
+        <div className="flex items-center justify-between text-[hsl(var(--muted-foreground))]">
+          <span>Delivery</span>
+          <span className="font-mono-ui font-medium text-[hsl(var(--foreground))]">{deliveryFeeAmount > 0 ? moneyExact(deliveryFeeAmount) : 'GH₵ 0.00'}</span>
+        </div>
+        <div className="flex items-center justify-between font-bold text-sm text-[hsl(var(--foreground))] pt-1 border-t border-dashed border-[hsl(var(--border))]">
+          <span>Total</span>
+          <span className="font-mono-ui text-base">{moneyExact(buyerTotal)}</span>
+        </div>
+
+        {/* Action Button Preview */}
+        <div className="pt-2">
+          <div className="w-full h-10 rounded-[10px] bg-[hsl(var(--primary))] text-white flex items-center justify-center font-semibold text-xs shadow-xs">
+            {allowReservation
+              ? `Pay ${moneyExact(buyerTotal)} or Reserve`
+              : allowHalfPayment
+                ? `Pay ${moneyExact(calcAmounts.dueNowAmount)} deposit`
+                : `Pay ${moneyExact(buyerTotal)}`}
+          </div>
+          <div className="text-[10px] text-center text-[hsl(var(--muted-foreground))] mt-2 flex items-center justify-center gap-1.5">
+            <Lock size={10} />
+            <span>Secure mobile money & card payment</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MultiItemTakeOrderModern() {
   const { userId } = useAppAuth();
   const entitlements = useEntitlements(userId);
@@ -7877,11 +8273,14 @@ function MultiItemTakeOrderModern() {
   const [nextKey, setNextKey] = useState(1);
   const [itemSource, setItemSource] = useState<TakeOrderItemSource | null>(null);
   const [customDraft, setCustomDraft] = useState<{ name: string; amount: string; preferences: ProductPreferenceDraft[] }>({ name: '', amount: '', preferences: [] });
-  const [paymentMode, setPaymentMode] = useState<'full' | 'deposit' | 'reserve' | null>(null);
-  const [depositAmount, setDepositAmount] = useState('');
+  const [allowReservation, setAllowReservation] = useState(false);
+  const [allowHalfPayment, setAllowHalfPayment] = useState(false);
+  const [halfPaymentPercent, setHalfPaymentPercent] = useState<number>(50);
+  const [customPercent, setCustomPercent] = useState<string>('');
   const [deliveryFee, setDeliveryFee] = useState('0');
   const [channel, setChannel] = useState<OrderInput['channel'] | ''>('');
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [showCustomerSection, setShowCustomerSection] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -7889,7 +8288,9 @@ function MultiItemTakeOrderModern() {
   const [created, setCreated] = useState<Order | null>(null);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   useEffect(() => {
     if (!settingsQuery.data) return;
     if (settingsQuery.data.deliveryFee != null) {
@@ -7941,13 +8342,17 @@ function MultiItemTakeOrderModern() {
     });
   }, [items]);
   const busy = createOrder.isPending || createProduct.isPending;
-  const deposit = Number(depositAmount);
-  const validDeposit = paymentMode !== 'deposit' || (Number.isFinite(deposit) && deposit > 0 && deposit <= total);
   const deliveryFeeAmount = Number(deliveryFee);
   const validDeliveryFee = Number.isFinite(deliveryFeeAmount) && deliveryFeeAmount >= 0;
-   const canContinue = step === 1
-     ? items.length > 0 && items.every((item) => item.amount > 0)
-     : total > 0 && paymentMode !== null && validDeposit && validDeliveryFee && Boolean(channel);
+  const validHalfPercent = !allowHalfPayment || (Number.isInteger(halfPaymentPercent) && halfPaymentPercent >= 1 && halfPaymentPercent <= 99);
+  const validCustomerPhone = !customerPhone.trim() || customerPhone.trim().replace(/\D/g, '').length >= 5;
+  const canContinue = step === 1
+    ? items.length > 0 && items.every((item) => item.amount > 0)
+    : total > 0 && validDeliveryFee && Boolean(channel) && validHalfPercent && validCustomerPhone;
+  const deposit = allowHalfPayment
+    ? calculatePaymentAmounts(Math.round(total * 100), halfPaymentPercent).dueNowAmount
+    : 0;
+  const legacyPaymentMode: 'full' | 'deposit' | 'reserve' = allowReservation ? 'reserve' : allowHalfPayment ? 'deposit' : 'full';
   const showPreview = step === 3;
   const goToStep = (nextStep: TakeOrderStep) => {
     if (nextStep === 1) {
@@ -8034,8 +8439,11 @@ function MultiItemTakeOrderModern() {
     }
     const data: OrderInput = {
       items: items.map((item, index) => ({ productId: productIds[index]!, amount: item.amount })),
-      paymentMode: paymentMode ?? 'full',
-      depositAmount: paymentMode === 'deposit' ? deposit : null,
+      paymentMode: legacyPaymentMode,
+      allowReservation,
+      allowHalfPayment,
+      halfPaymentPercent: allowHalfPayment ? halfPaymentPercent : null,
+      depositAmount: allowHalfPayment ? deposit : null,
       deliveryFee: deliveryFeeAmount,
       channel: channel as OrderInput['channel'],
       customerName: customerName.trim() || undefined,
@@ -8082,12 +8490,8 @@ function MultiItemTakeOrderModern() {
       setFeedback(items.length ? `Every item needs a price greater than ${currencySymbol()}0.00.` : 'Add at least one item to continue.');
       return;
     }
-    if (step === 2 && !paymentMode) {
-      setFeedback('Choose how the buyer should pay before continuing.');
-      return;
-    }
-    if (step === 2 && !validDeposit) {
-      setFeedback(`The deposit must be greater than ${currencySymbol()}0.00 and no more than the order total.`);
+    if (step === 2 && allowHalfPayment && (!Number.isInteger(halfPaymentPercent) || halfPaymentPercent < 1 || halfPaymentPercent > 99)) {
+      setFeedback('Choose a half payment percentage between 1% and 99%.');
       return;
     }
     if (step === 2 && !validDeliveryFee) {
@@ -8131,12 +8535,15 @@ function MultiItemTakeOrderModern() {
     setItemSource(null);
     setCustomDraft({ name: '', amount: '', preferences: [] });
     setCatalogSearch('');
+    setShowCustomerSection(false);
     setCustomerName('');
     setCustomerPhone('');
     setDeliveryAddress('');
     setOrderNotes('');
-    setPaymentMode(null);
-    setDepositAmount('');
+    setAllowReservation(false);
+    setAllowHalfPayment(false);
+    setHalfPaymentPercent(50);
+    setCustomPercent('');
     setDeliveryFee('0');
     setChannel('');
   };
@@ -8446,140 +8853,245 @@ function MultiItemTakeOrderModern() {
             {step === 2 && (
               <div className="take-order-checkout-wrapper">
                 <div className="take-order-section sr-only"><h2>Review the client's checkout.</h2></div>
-                <div className="take-order-checkout-stage">
-                  <div className="take-order-step2-summary take-order-payment-checkout-card">
-                    <TakeOrderCheckoutSummary items={items} total={total} paymentMode={paymentMode} deposit={deposit} deliveryFee={Number(deliveryFee) || 0} />
-                  </div>
-
-                  <div className="take-order-checkout-main">
-                    <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-5 shadow-xs mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-[14px] font-semibold text-[hsl(var(--foreground))]">Customer Details</div>
-                        <span className="text-[12px] text-[hsl(var(--muted-foreground))]">Optional</span>
-                      </div>
-                      <p className="text-[12.5px] text-[hsl(var(--muted-foreground))] mb-3.5">
-                        Pre-fill customer details from your chat, or leave blank to let the buyer fill them at checkout.
-                      </p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div>
-                          <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-customer-name">
-                            Customer Name
-                          </label>
-                          <input
-                            id="input-customer-name"
-                            data-testid="input-customer-name"
-                            type="text"
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            placeholder="e.g. Sarah Mensah"
-                            className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-customer-phone">
-                            Phone / WhatsApp
-                          </label>
-                          <input
-                            id="input-customer-phone"
-                            data-testid="input-customer-phone"
-                            type="tel"
-                            value={customerPhone}
-                            onChange={(e) => setCustomerPhone(e.target.value)}
-                            placeholder="e.g. +233 24 123 4567"
-                            className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-delivery-address">
-                            Delivery Address
-                          </label>
-                          <input
-                            id="input-delivery-address"
-                            data-testid="input-delivery-address"
-                            type="text"
-                            value={deliveryAddress}
-                            onChange={(e) => setDeliveryAddress(e.target.value)}
-                            placeholder="e.g. House 14, East Legon, Accra"
-                            className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
-                          />
-                        </div>
-                      </div>
+                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_410px] items-start">
+                  <div className="take-order-checkout-main min-w-0">
+                    <div className="lg:hidden flex items-center justify-between mb-4 pb-2 border-b border-[hsl(var(--border))]">
+                      <span className="text-xs text-[hsl(var(--muted-foreground))]">Step 2: Configure order</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setMobilePreviewOpen(true)}
+                        className="inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold"
+                        data-testid="button-open-mobile-preview"
+                      >
+                        <Eye size={14} />
+                        Preview buyer page
+                      </Button>
                     </div>
-
-                    <div className="take-order-payment-config-card">
-                      <div className="take-order-field-group">
-                        <div className="field-label text-base font-semibold mb-2.5">How should they pay?</div>
-                        <div className="take-order-payment-options">
-                          {[
-                            { value: 'full', title: 'Full Payment', note: 'Pay full total upfront' },
-                            { value: 'deposit', title: 'Pay a Deposit', note: 'Part-payment upfront' },
-                            { value: 'reserve', title: 'Make Reservation', note: 'Pay on delivery' },
-                          ].map((opt) => (
-                            <button
-                              type="button"
-                              key={opt.value}
-                              onClick={() => { setPaymentMode(opt.value as 'full' | 'deposit' | 'reserve'); setFeedback(null); }}
-                              data-testid={`button-payment-mode-${opt.value}`}
-                              className={cn('take-order-payment-option', paymentMode === opt.value && 'is-selected')}
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <span className={cn('take-order-radio', paymentMode === opt.value && 'is-selected')}>
-                                  {paymentMode === opt.value && <span />}
-                                </span>
-                              </div>
-                              <span>
-                                <strong className="text-[13px] font-semibold">{opt.title}</strong>
-                                <small className="text-[11px] text-neutral-500 leading-tight block mt-0.5">{opt.note}</small>
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {paymentMode === 'deposit' && (
-                        <div className="take-order-deposit-field">
-                          <label className="field-label font-semibold" htmlFor="input-order-deposit">
-                            Deposit amount <span className="font-normal text-neutral-500">against {moneyExact(total)}</span>
-                          </label>
-                          <div className="take-order-deposit-presets" aria-label="Common deposit percentages">
-                            {[25, 50, 75].map((percentage) => {
-                              const presetAmount = (total * percentage / 100).toFixed(2);
-                              const isSelected = Math.abs(Number(depositAmount) - Number(presetAmount)) < 0.005;
-                              return (
-                                <button
-                                  type="button"
-                                  key={percentage}
-                                  className={cn('take-order-deposit-preset', isSelected && 'is-selected')}
-                                  onClick={() => { setDepositAmount(presetAmount); setFeedback(null); }}
-                                  data-testid={`button-deposit-preset-${percentage}`}
-                                  aria-pressed={isSelected}
-                                >
-                                  <strong>{percentage}%</strong>
-                                  <span>{moneyExact(total * percentage / 100)}</span>
-                                </button>
-                              );
-                            })}
+                    {!showCustomerSection ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCustomerSection(true);
+                          setFeedback(null);
+                        }}
+                        data-testid="button-add-customer"
+                        className="w-full flex items-center justify-between px-4 py-3 rounded-[12px] border border-dashed border-[hsl(var(--border))] hover:border-[hsl(var(--primary))]/50 bg-neutral-50/50 hover:bg-neutral-50 dark:bg-neutral-900/20 text-left transition-colors mb-4 group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-200/80 group-hover:bg-[hsl(var(--primary))]/10 text-neutral-600 group-hover:text-[hsl(var(--primary))] transition-colors">
+                            <Plus size={14} />
                           </div>
-                          <div className="take-order-input-group mt-3">
-                            <span className="take-order-input-prefix">{currencySymbol()}</span>
+                          <span className="text-[13.5px] font-medium text-[hsl(var(--foreground))]">Add customer</span>
+                          <span className="text-[12px] text-[hsl(var(--muted-foreground))]">(optional)</span>
+                        </div>
+                      </button>
+                    ) : (
+                      <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-5 shadow-xs mb-4" data-testid="section-customer-details">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="text-[14px] font-semibold text-[hsl(var(--foreground))]">Customer Details</div>
+                            <span className="text-[12px] text-[hsl(var(--muted-foreground))]">(optional)</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowCustomerSection(false);
+                              setCustomerName('');
+                              setCustomerPhone('');
+                              setDeliveryAddress('');
+                              setFeedback(null);
+                            }}
+                            aria-label="Remove customer"
+                            title="Remove customer"
+                            data-testid="button-remove-customer"
+                            className="flex h-6 w-6 items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-[hsl(var(--foreground))] transition-colors cursor-pointer"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                        <p className="text-[12.5px] text-[hsl(var(--muted-foreground))] mb-3.5">
+                          Pre-fill customer details from your chat, or leave blank to let the buyer fill them at checkout.
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-customer-name">
+                              Customer Name
+                            </label>
                             <input
-                              id="input-order-deposit"
-                              data-testid="input-order-deposit"
-                              required
-                              type="number"
-                              min="0.01"
-                              max={total}
-                              step=".01"
-                              value={depositAmount}
-                              onFocus={(e) => e.target.select()}
-                              onChange={(event) => { setDepositAmount(event.target.value); setFeedback(null); }}
-                              className={cn('take-order-input-field', depositAmount && !validDeposit && 'is-invalid')}
-                              placeholder="0.00"
+                              id="input-customer-name"
+                              data-testid="input-customer-name"
+                              type="text"
+                              value={customerName}
+                              onChange={(e) => setCustomerName(e.target.value)}
+                              placeholder="e.g. Sarah Mensah"
+                              className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
                             />
                           </div>
-                          {depositAmount && !validDeposit && <p className="take-order-field-error">Use an amount between {currencySymbol()}0.01 and {moneyExact(total)}.</p>}
+                          <div>
+                            <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-customer-phone">
+                              Phone / WhatsApp
+                            </label>
+                            <input
+                              id="input-customer-phone"
+                              data-testid="input-customer-phone"
+                              type="tel"
+                              value={customerPhone}
+                              onChange={(e) => setCustomerPhone(e.target.value)}
+                              placeholder="e.g. +233 24 123 4567"
+                              className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-delivery-address">
+                              Delivery Address
+                            </label>
+                            <input
+                              id="input-delivery-address"
+                              data-testid="input-delivery-address"
+                              type="text"
+                              value={deliveryAddress}
+                              onChange={(e) => setDeliveryAddress(e.target.value)}
+                              placeholder="e.g. House 14, East Legon, Accra"
+                              className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                            />
+                          </div>
                         </div>
-                      )}
+                      </div>
+                    )}
+
+                    <div className="take-order-payment-config-card rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-5 shadow-xs mb-4">
+                      <div className="take-order-field-group">
+                        <div className="field-label text-base font-semibold mb-1">Allow payment modes</div>
+                        <p className="text-[12.5px] text-[hsl(var(--muted-foreground))] mb-4">
+                          Orders are full payment by default. Toggle additional options for your buyer.
+                        </p>
+
+                        <div className="space-y-3">
+                          {/* Row 1: Reservation */}
+                          <div className="rounded-[10px] border border-[hsl(var(--border))] p-3.5 bg-neutral-50/50 dark:bg-neutral-800/30">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <label htmlFor="switch-allow-reservation" className="text-[13px] font-semibold text-[hsl(var(--foreground))] cursor-pointer">
+                                  Reservation
+                                </label>
+                                <p className="text-[11.5px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                                  Allow buyer to reserve and pay on delivery or collection
+                                </p>
+                              </div>
+                              <UiSwitch
+                                id="switch-allow-reservation"
+                                role="switch"
+                                aria-label="Reservation"
+                                checked={allowReservation}
+                                onCheckedChange={(checked) => {
+                                  setAllowReservation(checked);
+                                  setFeedback(null);
+                                }}
+                                data-testid="switch-allow-reservation"
+                              />
+                            </div>
+                            {allowReservation && (
+                              <div className="mt-2.5 pt-2.5 border-t border-[hsl(var(--border))] text-xs text-neutral-600 dark:text-neutral-400">
+                                Buyers can reserve this order upfront without immediate payment. You will confirm the reservation before fulfillment.
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Row 2: Half payment */}
+                          <div className="rounded-[10px] border border-[hsl(var(--border))] p-3.5 bg-neutral-50/50 dark:bg-neutral-800/30">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <label htmlFor="switch-allow-half-payment" className="text-[13px] font-semibold text-[hsl(var(--foreground))] cursor-pointer">
+                                  Half payment
+                                </label>
+                                <p className="text-[11.5px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                                  Allow buyer to pay a percentage now and the balance later
+                                </p>
+                              </div>
+                              <UiSwitch
+                                id="switch-allow-half-payment"
+                                role="switch"
+                                aria-label="Half payment"
+                                checked={allowHalfPayment}
+                                onCheckedChange={(checked) => {
+                                  setAllowHalfPayment(checked);
+                                  setFeedback(null);
+                                }}
+                                data-testid="switch-allow-half-payment"
+                              />
+                            </div>
+
+                            {allowHalfPayment && (
+                              <div className="mt-3 pt-3 border-t border-[hsl(var(--border))] space-y-2.5">
+                                <label className="block text-[12px] font-medium text-[hsl(var(--foreground))]">
+                                  Deposit percentage
+                                </label>
+                                <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Deposit percentage selector">
+                                  {[25, 50, 75].map((percentage) => {
+                                    const isSelected = halfPaymentPercent === percentage && !customPercent;
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={percentage}
+                                        className={cn(
+                                          'px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer',
+                                          isSelected
+                                            ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-white shadow-xs'
+                                            : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]'
+                                        )}
+                                        onClick={() => {
+                                          setHalfPaymentPercent(percentage);
+                                          setCustomPercent('');
+                                          setFeedback(null);
+                                        }}
+                                        data-testid={`button-percent-chip-${percentage}`}
+                                        aria-pressed={isSelected}
+                                      >
+                                        {percentage}%
+                                      </button>
+                                    );
+                                  })}
+
+                                  {/* Custom percentage input with % suffix */}
+                                  <div className="relative inline-flex items-center">
+                                    <input
+                                      id="input-custom-percent"
+                                      data-testid="input-custom-percent"
+                                      type="text"
+                                      inputMode="numeric"
+                                      placeholder="Custom"
+                                      value={customPercent}
+                                      onChange={(e) => {
+                                        const clean = e.target.value.replace(/[^0-9]/g, '');
+                                        setCustomPercent(clean);
+                                        setFeedback(null);
+                                        if (clean) {
+                                          const parsed = parseInt(clean, 10);
+                                          if (parsed >= 1 && parsed <= 99) {
+                                            setHalfPaymentPercent(parsed);
+                                          }
+                                        }
+                                      }}
+                                      className={cn(
+                                        'h-8 w-20 px-2.5 pr-6 rounded-full border text-xs text-center font-medium bg-[hsl(var(--card))] text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition',
+                                        customPercent ? 'border-[hsl(var(--primary))] ring-1 ring-[hsl(var(--primary))] font-semibold' : 'border-[hsl(var(--border))]'
+                                      )}
+                                      aria-label="Custom percentage"
+                                    />
+                                    <span className="absolute right-2.5 text-xs text-[hsl(var(--muted-foreground))] pointer-events-none">%</span>
+                                  </div>
+                                </div>
+
+                                <div className="text-[11.5px] text-[hsl(var(--muted-foreground))] flex items-center justify-between pt-1">
+                                  <span>Deposit: <strong className="text-[hsl(var(--foreground))]">{moneyExact(calculatePaymentAmounts(Math.round(total * 100), halfPaymentPercent).dueNowAmount)}</strong></span>
+                                  <span>Balance: <strong className="text-[hsl(var(--foreground))]">{moneyExact(calculatePaymentAmounts(Math.round(total * 100), halfPaymentPercent).balanceAmount)}</strong></span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
 
                       <div className="take-order-field-group">
                         <label className="field-label font-semibold" htmlFor="input-order-delivery-fee">Flat delivery fee</label>
@@ -8620,12 +9132,57 @@ function MultiItemTakeOrderModern() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Desktop Sticky Preview Column */}
+                  <div className="hidden lg:block sticky top-6 self-start w-[410px] shrink-0">
+                    <BuyerCheckoutPreviewStep2
+                      businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
+                      description={seller?.description}
+                      logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
+                      previewItems={previewItems}
+                      total={total}
+                      deliveryFeeAmount={deliveryFeeAmount}
+                      allowReservation={allowReservation}
+                      allowHalfPayment={allowHalfPayment}
+                      halfPaymentPercent={halfPaymentPercent}
+                      deposit={deposit}
+                      customerName={customerName}
+                      customerPhone={customerPhone}
+                      deliveryAddress={deliveryAddress}
+                    />
+                  </div>
                 </div>
+
+                {/* Mobile Preview Sheet */}
+                <Sheet open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
+                  <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-t-[20px] bg-white dark:bg-neutral-900 border-t border-[hsl(var(--border))]">
+                    <SheetHeader className="sr-only">
+                      <SheetTitle>Buyer checkout preview</SheetTitle>
+                    </SheetHeader>
+                    <div className="py-2">
+                      <BuyerCheckoutPreviewStep2
+                        businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
+                        description={seller?.description}
+                        logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
+                        previewItems={previewItems}
+                        total={total}
+                        deliveryFeeAmount={deliveryFeeAmount}
+                        allowReservation={allowReservation}
+                        allowHalfPayment={allowHalfPayment}
+                        halfPaymentPercent={halfPaymentPercent}
+                        deposit={deposit}
+                        customerName={customerName}
+                        customerPhone={customerPhone}
+                        deliveryAddress={deliveryAddress}
+                      />
+                    </div>
+                  </SheetContent>
+                </Sheet>
               </div>
             )}
 
             {step === 3 && (
-              <div className="take-order-preview-stage">
+              <div className="take-order-preview-stage max-w-[1180px] mx-auto">
                 <div className="take-order-section sr-only"><h2>Review checkout.</h2></div>
                 {feedback && (
                   <div className="max-w-[1180px] mx-auto mb-4">
@@ -8633,53 +9190,89 @@ function MultiItemTakeOrderModern() {
                   </div>
                 )}
 
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-border bg-card/80 backdrop-blur-sm shadow-xs">
-                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                {/* Device Switcher & Info Bar */}
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-[hsl(var(--border))] bg-white dark:bg-neutral-900 shadow-xs">
+                  <div className="flex items-center gap-2.5 text-xs text-[hsl(var(--muted-foreground))]">
                     <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 font-bold">
                       <Eye size={14} />
                     </span>
                     <span>
-                      <strong className="font-semibold text-foreground">Interactive Buyer Checkout Preview:</strong> Try selecting options, entering details, or switching between pickup and delivery.
+                      <strong className="font-semibold text-[hsl(var(--foreground))]">Interactive Buyer Checkout Preview:</strong> Test selecting item variants, delivery options, or payment modes.
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-muted text-foreground">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Live Link Preview
-                    </span>
+                    <div className="inline-flex items-center p-0.5 rounded-lg bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewDevice('desktop')}
+                        data-testid="button-preview-device-desktop"
+                        className={cn(
+                          'flex items-center gap-1.5 px-3 py-1 rounded-[6px] font-medium transition cursor-pointer',
+                          previewDevice === 'desktop'
+                            ? 'bg-white dark:bg-neutral-800 text-[hsl(var(--foreground))] shadow-xs font-semibold'
+                            : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
+                        )}
+                      >
+                        <Monitor size={13} />
+                        Desktop
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewDevice('mobile')}
+                        data-testid="button-preview-device-mobile"
+                        className={cn(
+                          'flex items-center gap-1.5 px-3 py-1 rounded-[6px] font-medium transition cursor-pointer',
+                          previewDevice === 'mobile'
+                            ? 'bg-white dark:bg-neutral-800 text-[hsl(var(--foreground))] shadow-xs font-semibold'
+                            : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
+                        )}
+                      >
+                        <Smartphone size={13} />
+                        Mobile
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="take-order-buyer-preview-wrapper">
-                  <BuyerOrderSurface
+                <div className={cn(previewDevice === 'mobile' ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1180px] mx-auto')}>
+                  <BuyerLinkPreviewCard
+                    device={previewDevice}
                     businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
                     description={seller?.description}
                     logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
-                    productName={previewItems[previewIndex]?.productName}
-                    amount={total}
-                    totalAmount={total + deliveryFeeAmount}
-                    paymentMode={paymentMode}
-                    depositAmount={paymentMode === 'deposit' ? deposit : null}
-                    variants={previewItems[previewIndex]?.variants ?? []}
-                    items={previewItems}
-                    previewImages={previewItems.map((p) => p.imageUrl || p.imageUrls?.[0] || '')}
-                    activeIndex={previewIndex}
+                    previewItems={previewItems}
+                    previewIndex={previewIndex}
                     onActiveIndexChange={setPreviewIndex}
-                    customLayout={true}
-                  >
-                    {(activeItem) => (
-                      <TakeOrderBuyerPreviewForm
-                        item={activeItem}
-                        items={previewItems}
-                        paymentMode={paymentMode}
-                        subtotal={total}
-                        deposit={deposit}
-                        deliveryFee={deliveryFeeAmount}
-                        itemIndex={previewIndex}
-                        onActiveIndexChange={setPreviewIndex}
-                      />
-                    )}
-                  </BuyerOrderSurface>
+                    total={total}
+                    deliveryFeeAmount={deliveryFeeAmount}
+                    legacyPaymentMode={legacyPaymentMode}
+                    allowReservation={allowReservation}
+                    allowHalfPayment={allowHalfPayment}
+                    halfPaymentPercent={halfPaymentPercent}
+                    deposit={deposit}
+                    customerName={customerName}
+                    customerPhone={customerPhone}
+                  />
+
+                  <div className="mt-6 flex items-center justify-between gap-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => setStep(2)}
+                    >
+                      <ArrowLeft size={15} /> Back
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={!canContinue || busy}
+                      data-testid="button-create-order-link"
+                      className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white font-medium rounded-[8px] h-10 px-5 gap-1.5 inline-flex items-center text-[13px]"
+                    >
+                      {busy && <Loader2 className="animate-spin" size={14} />}
+                      Create buyer link <ArrowUpRight size={14} />
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -8960,12 +9553,20 @@ function PublicOrderPage() {
   const submit = useSubmitPublicOrder();
   const queryClient = useQueryClient();
   const [submitted, setSubmitted] = useState(false);
+  const [chosenMode, setChosenMode] = useState<PaymentModeChoice>('full');
+  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
   const [form, setForm] = useState<BuyerOrderFormValues>({ name: '', phone: '', deliveryMethod: undefined, address: '', orderDetails: '' });
   const [itemStep, setItemStep] = useState(0);
   const [itemForms, setItemForms] = useState<BuyerItemFormValues[]>([]);
   const [submitError, setSubmitError] = useState('');
   const order = query.data;
   setActiveCurrency(order?.currency ?? 'GHS');
+  const handleEditCustomer = () => {
+    setIsEditingCustomer(true);
+    if (!form.name && order?.savedCustomer?.name) {
+      setForm((f) => ({ ...f, name: order.savedCustomer?.name || '' }));
+    }
+  };
   useEffect(() => {
     if (order) invalidateDashboardSummary(queryClient);
   }, [order, queryClient]);
@@ -9034,13 +9635,16 @@ function PublicOrderPage() {
       }
     }
 
-    if (!form.name.trim()) {
-      setSubmitError('Please enter your name');
-      return;
-    }
-    if (!form.phone.trim() || form.phone.trim().length < 5) {
-      setSubmitError('Please enter your phone number');
-      return;
+    const isUsingSaved = Boolean(order?.savedCustomer && !isEditingCustomer);
+    if (!isUsingSaved) {
+      if (!form.name.trim()) {
+        setSubmitError('Please enter your name');
+        return;
+      }
+      if (!form.phone.trim() || form.phone.trim().length < 5) {
+        setSubmitError('Please enter your phone number');
+        return;
+      }
     }
     if (!form.deliveryMethod) {
       setSubmitError('Please choose a delivery service');
@@ -9051,10 +9655,11 @@ function PublicOrderPage() {
       return;
     }
 
-    const paymentAction = order?.paymentMode === 'reserve' ? 'reserve' : 'pay';
+    const paymentAction = chosenMode === 'reservation' ? 'reserve' : 'pay';
     const data: PublicOrderInput = {
-      customerName: form.name.trim(),
-      customerPhone: form.phone.trim(),
+      customerName: isUsingSaved ? (order?.savedCustomer?.name || '') : form.name.trim(),
+      customerPhone: isUsingSaved ? undefined : form.phone.trim(),
+      useSavedCustomer: isUsingSaved,
       buyerDetails: form.orderDetails?.trim() || undefined,
       deliveryMethod: form.deliveryMethod,
       deliveryAddress: form.deliveryMethod === 'delivery' ? form.address?.trim() || undefined : undefined,
@@ -9066,6 +9671,7 @@ function PublicOrderPage() {
         referenceImage: item.image || undefined,
       })),
       paymentAction,
+      chosenMode: ((chosenMode === 'reservation' ? 'reserve' : chosenMode) as PublicOrderInput['chosenMode']),
     };
     submit.mutate({ token, data }, {
       onSuccess: () => { invalidateDashboardSummary(queryClient); setSubmitted(true); },
@@ -9074,7 +9680,7 @@ function PublicOrderPage() {
   };
   if (query.isLoading) return <div className="min-h-[100dvh] bg-[hsl(var(--background))] p-6"><div className="mx-auto max-w-[480px]"><BrandLockup className="mx-auto mt-14 justify-center" /><Skeleton className="mx-auto mt-8 h-8 w-52" /><Skeleton className="mt-4 h-4 w-full" /><Skeleton className="mt-10 h-64 w-full" /></div></div>;
   if (query.isError || !order) return <div className="flex min-h-[100dvh] items-center justify-center p-6"><div className="text-center"><BrandLockup className="justify-center" /><div className="mt-10 font-display text-2xl font-bold">This link is no longer available.</div><p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">Ask the seller for a fresh order link.</p></div></div>;
-  if (submitted) return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] p-6"><div className="w-full max-w-[480px] text-center page-in"><BrandLockup className="justify-center" /><div className="mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white"><Check size={30} /></div><h1 className="mt-7 font-display text-4xl font-bold tracking-[-.05em]">You’re all set.</h1><p className="mx-auto mt-4 max-w-[350px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{order.paymentMode === 'reserve' ? 'Your details have been sent to the seller. They’ll be in touch with the next step.' : 'Your order and payment details have been sent to the seller. They’ll be in touch with the next step.'}</p><div className="mt-8 font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Order reference · {token.slice(0, 8)}</div></div></div>;
+  if (submitted || order?.isOrderReceived) return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] p-6"><div className="w-full max-w-[480px] text-center page-in"><BrandLockup className="justify-center" /><div className="mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white"><Check size={30} /></div><h1 className="mt-7 font-display text-4xl font-bold tracking-[-.05em]">Order received</h1><p className="mx-auto mt-4 max-w-[350px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{order?.chosenMode === 'reservation' || chosenMode === 'reservation' ? 'Your reservation has been received by the seller. They’ll be in touch with the next step.' : 'Your order and payment details have been received by the seller. They’ll be in touch with the next step.'}</p><div className="mt-8 font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Order reference · {token.slice(0, 8)}</div></div></div>;
   const orderSubtotal = itemForms.length === order.items.length
     ? order.items.reduce((sum, item, index) => sum + item.amount * (itemForms[index]?.quantity ?? item.quantity ?? 1), 0)
     : order.subtotal ?? order.items.reduce((sum, item) => sum + item.amount * (item.quantity ?? 1), 0);
@@ -9103,7 +9709,7 @@ function PublicOrderPage() {
     });
   };
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8"><div className="mx-auto max-w-[1180px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} customLayout={true}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} form={form} itemForm={currentItemForm} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => { setSubmitError(''); setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item)); }} onNextItem={handleNextItem} onPrevItem={handlePrevItem} onBack={handlePrevItem} onReferenceImageChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setSubmitError(''); changeItem('imagePreview', URL.createObjectURL(file)); changeItem('image', file.name); const uploadedUrl = await uploadReferenceImage(file); changeItem('image', uploadedUrl); }} onError={setSubmitError} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] flex flex-wrap items-center justify-center gap-2"><span>Powered by Take Order · made for small businesses</span><span>·</span><Link href="/terms" target="_blank" className="hover:underline">Terms</Link><span>·</span><Link href="/privacy" target="_blank" className="hover:underline">Privacy</Link><span>·</span><Link href="/refund-policy" target="_blank" className="hover:underline">Refund Policy</Link></div></div></div>;
+  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8"><div className="mx-auto max-w-[1180px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription || undefined} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} customLayout={true}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} allowReservation={order.allowReservation} allowHalfPayment={order.allowHalfPayment} halfPaymentPercent={order.halfPaymentPercent} chosenMode={chosenMode} onChosenModeChange={setChosenMode} savedCustomer={order.savedCustomer?.name ? { name: order.savedCustomer.name, phone: order.savedCustomer.phone } : null} isEditingCustomer={isEditingCustomer} onEditCustomer={handleEditCustomer} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} form={form} itemForm={currentItemForm} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => { setSubmitError(''); setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item)); }} onNextItem={handleNextItem} onPrevItem={handlePrevItem} onBack={handlePrevItem} onReferenceImageChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setSubmitError(''); changeItem('imagePreview', URL.createObjectURL(file)); changeItem('image', file.name); const uploadedUrl = await uploadReferenceImage(file); changeItem('image', uploadedUrl); }} onError={setSubmitError} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] flex flex-wrap items-center justify-center gap-2"><span>Powered by Take Order · made for small businesses</span><span>·</span><Link href="/terms" target="_blank" className="hover:underline">Terms</Link><span>·</span><Link href="/privacy" target="_blank" className="hover:underline">Privacy</Link><span>·</span><Link href="/refund-policy" target="_blank" className="hover:underline">Refund Policy</Link></div></div></div>;
 }
 
 export function Connect() {
@@ -10433,8 +11039,8 @@ function ShieldIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" f
 export function OrderReceiptModal({ order, onClose }: { order: Order; onClose: () => void }) {
   const profile = readSellerProfile();
   const [copied, setCopied] = useState(false);
-  const collected = order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0;
-  const balance = Math.max(0, order.amount - collected);
+  const collected = getOrderCollectedAmount(order);
+  const balance = getOrderOutstandingAmount(order);
 
   const copyReceipt = async () => {
     const text = buildTextReceipt({
@@ -10603,8 +11209,8 @@ function OrderDetail() {
     }
   }, [order?.id, order?.fulfillment, order?.status]);
 
-  const collected = order ? (order.status === 'paid' ? order.amount : order.status === 'deposit_paid' ? (order.depositAmount ?? 0) : 0) : 0;
-  const outstanding = order ? Math.max(0, order.amount - collected) : 0;
+  const collected = getOrderCollectedAmount(order);
+  const outstanding = getOrderOutstandingAmount(order);
   const itemSubtotal = order?.items.reduce((sum, item) => sum + item.amount * item.quantity, 0) ?? 0;
   const buyerLink = order ? buildPublicOrderLink(order.token) : '';
   const updateOrder = (data: { status?: 'reserved' | 'deposit_paid' | 'paid'; fulfillment?: 'pending' | 'shipped' | 'delivered' }) => {
@@ -11175,7 +11781,7 @@ function OrderDetail() {
                   <span className={cn(
                     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
                     order.deliveryMethod === 'delivery' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                    order.deliveryMethod === 'pickup' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                    order.deliveryMethod === 'pickup' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
                     'bg-slate-100 text-slate-600'
                   )}>
                     {order.deliveryMethod === 'delivery' ? 'Courier Delivery' : order.deliveryMethod === 'pickup' ? 'Store Pickup' : 'Not selected'}
@@ -11470,6 +12076,11 @@ type MockPaymentValues = {
 
 export function BuyerOrderForm({
   paymentMode,
+  allowReservation,
+  allowHalfPayment,
+  halfPaymentPercent,
+  chosenMode: controlledChosenMode,
+  onChosenModeChange,
   amount,
   depositAmount,
   deliveryFee = 0,
@@ -11493,11 +12104,22 @@ export function BuyerOrderForm({
   onBack = () => undefined,
   onReferenceImageChange,
   itemForms: providedItemForms,
+  savedCustomer,
+  isEditingCustomer = false,
+  onEditCustomer,
   onError,
 }: {
-  paymentMode: 'full' | 'deposit' | 'reserve' | null;
+  paymentMode?: 'full' | 'deposit' | 'reserve' | null;
+  allowReservation?: boolean | null;
+  allowHalfPayment?: boolean | null;
+  halfPaymentPercent?: number | null;
+  chosenMode?: PaymentModeChoice;
+  onChosenModeChange?: (mode: PaymentModeChoice) => void;
+  savedCustomer?: { name: string; phone?: string | null } | null;
+  isEditingCustomer?: boolean;
+  onEditCustomer?: () => void;
   amount: number;
-  depositAmount: number | null | undefined;
+  depositAmount?: number | null | undefined;
   deliveryFee?: number;
   askForDetails?: boolean;
   allowReferenceImages?: boolean;
@@ -11535,12 +12157,64 @@ export function BuyerOrderForm({
   const totalItemCount = providedItems?.length ?? itemCount ?? 1;
   const selectedDeliveryMethod = form.deliveryMethod ?? (deliveryFee === 0 ? 'pickup' : undefined);
   const deliveryCharge = selectedDeliveryMethod === 'delivery' ? deliveryFee : 0;
-  const payableDeposit = Math.min((depositAmount ?? 0) + deliveryCharge, amount);
+  const currentSubtotal = Math.max(0, amount - (selectedDeliveryMethod === 'delivery' ? (deliveryFee || 0) : 0));
+  const currentTotal = amount;
+
+  const allowedModes = useMemo(() => {
+    return getAllowedModesForLink({
+      allowReservation,
+      allowHalfPayment,
+      paymentMode,
+    });
+  }, [allowReservation, allowHalfPayment, paymentMode]);
+
+  const [selectedMode, setSelectedMode] = useState<PaymentModeChoice>(() => {
+    if (controlledChosenMode) return controlledChosenMode;
+    if (paymentMode === 'reserve' && !allowReservation && !allowHalfPayment) return 'reservation';
+    return 'full';
+  });
+
+  useEffect(() => {
+    if (controlledChosenMode && controlledChosenMode !== selectedMode) {
+      setSelectedMode(controlledChosenMode);
+    }
+  }, [controlledChosenMode]);
+
+  const effectivePercent = halfPaymentPercent != null && halfPaymentPercent >= 1 && halfPaymentPercent <= 99
+    ? halfPaymentPercent
+    : 50;
+
+  const totalPesewas = Math.round(currentTotal * 100);
+  const halfCalc = calculatePaymentAmounts(totalPesewas, effectivePercent);
+
+  const dueNow = selectedMode === 'half'
+    ? halfCalc.dueNowAmount
+    : selectedMode === 'reservation'
+      ? 0
+      : currentTotal;
+
+  const balanceRemaining = selectedMode === 'half'
+    ? halfCalc.balanceAmount
+    : selectedMode === 'reservation'
+      ? currentTotal
+      : 0;
+
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const [checkoutStep, setCheckoutStep] = useState<'contact' | 'payment'>('contact');
-  const [paymentProvider, setPaymentProvider] = useState<'momo' | 'card' | 'reserve' | 'bank'>(
-    paymentMode === 'reserve' ? 'reserve' : 'momo'
-  );
+  const [paymentProvider, setPaymentProvider] = useState<'momo' | 'card' | 'reserve' | 'bank'>(() => {
+    if (selectedMode === 'reservation') return 'reserve';
+    return 'momo';
+  });
+
+  const handleSelectMode = (mode: PaymentModeChoice) => {
+    setSelectedMode(mode);
+    onChosenModeChange?.(mode);
+    if (mode === 'reservation') {
+      setPaymentProvider('reserve');
+    } else if (paymentProvider === 'reserve') {
+      setPaymentProvider('momo');
+    }
+  };
   const [momoNetwork, setMomoNetwork] = useState<'mtn' | 'telecel' | 'at'>('mtn');
   const [momoPhone, setMomoPhone] = useState(form.phone || '');
   const [cardData, setCardData] = useState({ number: '', expiry: '', cvc: '', name: form.name || '' });
@@ -11574,17 +12248,20 @@ export function BuyerOrderForm({
         }
       }
 
-      if (!form.name?.trim()) {
-        onError?.('Please enter your name');
-        const el = document.getElementById('buyer-name') as HTMLInputElement;
-        if (el) el.focus();
-        return;
-      }
-      if (!form.phone?.trim() || form.phone.trim().length < 5) {
-        onError?.('Please enter your phone number');
-        const el = document.getElementById('buyer-phone') as HTMLInputElement;
-        if (el) el.focus();
-        return;
+      const hasCustomerPrefill = Boolean(savedCustomer && !isEditingCustomer);
+      if (!hasCustomerPrefill) {
+        if (!form.name?.trim()) {
+          onError?.('Please enter your name');
+          const el = document.getElementById('buyer-name') as HTMLInputElement;
+          if (el) el.focus();
+          return;
+        }
+        if (!form.phone?.trim() || form.phone.trim().length < 5) {
+          onError?.('Please enter your phone number');
+          const el = document.getElementById('buyer-phone') as HTMLInputElement;
+          if (el) el.focus();
+          return;
+        }
       }
       const finalDelivery = form.deliveryMethod ?? (deliveryFee === 0 ? 'pickup' : undefined);
       if (!finalDelivery) {
@@ -11638,13 +12315,41 @@ export function BuyerOrderForm({
   if (!providedItem) {
     return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="space-y-5" data-ask-for-details={askForDetails} data-allow-reference-images={allowReferenceImages}>
       {submitError && <div className="rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-public-order-error">{submitError}</div>}
-      <div><label htmlFor="buyer-name" className="field-label">Your name <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label><input id="buyer-name" data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div>
-      <div><label htmlFor="buyer-phone" className="field-label">Phone number <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label><input id="buyer-phone" data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>
+      {savedCustomer && !isEditingCustomer ? (
+        <div className="rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50/80 dark:bg-neutral-800/40 p-3.5 space-y-1" data-testid="card-saved-customer">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Your details</span>
+            {onEditCustomer && (
+              <button
+                type="button"
+                onClick={onEditCustomer}
+                data-testid="button-edit-customer"
+                className="text-xs font-semibold text-[hsl(var(--primary))] hover:underline cursor-pointer"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+          <div className="text-[14px] font-semibold text-[hsl(var(--foreground))]" data-testid="text-saved-customer-name">
+            {savedCustomer.name}
+          </div>
+          {savedCustomer.phone && (
+            <div className="text-[13px] text-[hsl(var(--muted-foreground))]" data-testid="text-saved-customer-phone">
+              {maskPhone(savedCustomer.phone)}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <div><label htmlFor="buyer-name" className="field-label">Your name <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label><input id="buyer-name" data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div>
+          <div><label htmlFor="buyer-phone" className="field-label">Phone number <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label><input id="buyer-phone" data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>
+        </>
+      )}
       {askForDetails && <div><label htmlFor="buyer-details" className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-details" data-testid="input-buyer-details" value={form.details ?? ''} onChange={(event) => onChange('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>}
       {allowReferenceImages && <div><span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span><label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{form.image ? form.image : 'Attach an image'}</label><input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />{form.imagePreview && <img src={form.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>}
       <Button type="submit" disabled={submitPending} className="w-full py-3.5" data-testid="button-submit-public-order">
         {submitPending && <Loader2 aria-hidden="true" size={15} className="animate-spin" />}
-        {paymentMode === 'reserve' ? 'Reserve order' : paymentMode === 'deposit' ? `Make payment · ${moneyExact(payableDeposit)}` : `Make payment · ${moneyExact(amount)}`} <ArrowUpRight aria-hidden="true" size={15} />
+        {paymentMode === 'reserve' ? 'Reserve order' : paymentMode === 'deposit' ? `Make payment · ${moneyExact(depositAmount ?? 0)}` : `Make payment · ${moneyExact(amount)}`} <ArrowUpRight aria-hidden="true" size={15} />
       </Button>
       <div className="text-center text-[11px] text-neutral-400 pt-1 leading-normal">
         By placing your order, you agree to Take Order's{' '}
@@ -11805,30 +12510,56 @@ export function BuyerOrderForm({
               <p className="text-xs text-slate-500 mt-0.5">Enter your details to complete your order</p>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="buyer-name" className="field-label">Your name <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
-                <input
-                  id="buyer-name"
-                  data-testid="input-buyer-name"
-                  value={form.name}
-                  onChange={(event) => onChange('name', event.target.value)}
-                  placeholder="Full name"
-                  className="field-input"
-                />
+            {savedCustomer && !isEditingCustomer ? (
+              <div className="rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50/80 dark:bg-neutral-800/40 p-3.5 space-y-1" data-testid="card-saved-customer">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Your details</span>
+                  {onEditCustomer && (
+                    <button
+                      type="button"
+                      onClick={onEditCustomer}
+                      data-testid="button-edit-customer"
+                      className="text-xs font-semibold text-[hsl(var(--primary))] hover:underline cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+                <div className="text-[14px] font-semibold text-[hsl(var(--foreground))]" data-testid="text-saved-customer-name">
+                  {savedCustomer.name}
+                </div>
+                {savedCustomer.phone && (
+                  <div className="text-[13px] text-[hsl(var(--muted-foreground))]" data-testid="text-saved-customer-phone">
+                    {maskPhone(savedCustomer.phone)}
+                  </div>
+                )}
               </div>
-              <div>
-                <label htmlFor="buyer-phone" className="field-label">Phone number <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
-                <input
-                  id="buyer-phone"
-                  data-testid="input-buyer-phone"
-                  value={form.phone}
-                  onChange={(event) => onChange('phone', event.target.value)}
-                  placeholder="Best number to reach you"
-                  className="field-input"
-                />
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="buyer-name" className="field-label">Your name <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
+                  <input
+                    id="buyer-name"
+                    data-testid="input-buyer-name"
+                    value={form.name}
+                    onChange={(event) => onChange('name', event.target.value)}
+                    placeholder="Full name"
+                    className="field-input"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="buyer-phone" className="field-label">Phone number <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
+                  <input
+                    id="buyer-phone"
+                    data-testid="input-buyer-phone"
+                    value={form.phone}
+                    onChange={(event) => onChange('phone', event.target.value)}
+                    placeholder="Best number to reach you"
+                    className="field-input"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="pt-2 border-t border-slate-100">
               <div className="field-label mb-2 font-semibold text-slate-800">Delivery service <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></div>
@@ -11941,177 +12672,132 @@ export function BuyerOrderForm({
               </div>
             </div>
 
+            {/* Mode selection radio cards (shown only if more than 1 mode is allowed) */}
+            {allowedModes.size > 1 && (
+              <div className="mb-4" data-testid="payment-mode-radio-cards">
+                <div className="text-[12px] font-semibold text-slate-800 uppercase tracking-wider mb-2">
+                  Choose payment option
+                </div>
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {/* Pay in full */}
+                  <label
+                    className={cn(
+                      'relative flex flex-col p-3 rounded-xl border cursor-pointer transition-all',
+                      selectedMode === 'full'
+                        ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600 shadow-xs'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    )}
+                    data-testid="mode-card-full"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-slate-900">Pay in full</span>
+                      <input
+                        type="radio"
+                        name="buyer-chosen-payment-mode"
+                        value="full"
+                        checked={selectedMode === 'full'}
+                        onChange={() => handleSelectMode('full')}
+                        className="h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="text-sm font-extrabold text-slate-900 font-mono-ui">
+                      {moneyExact(currentTotal)}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      No remaining balance
+                    </div>
+                  </label>
+
+                  {/* Pay {effectivePercent}% now */}
+                  {allowedModes.has('half') && (
+                    <label
+                      className={cn(
+                        'relative flex flex-col p-3 rounded-xl border cursor-pointer transition-all',
+                        selectedMode === 'half'
+                          ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600 shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      )}
+                      data-testid="mode-card-half"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-slate-900">Pay {effectivePercent}% now</span>
+                        <input
+                          type="radio"
+                          name="buyer-chosen-payment-mode"
+                          value="half"
+                          checked={selectedMode === 'half'}
+                          onChange={() => handleSelectMode('half')}
+                          className="h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="text-sm font-extrabold text-slate-900 font-mono-ui">
+                        {moneyExact(halfCalc.dueNowAmount)}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        Balance remaining: {moneyExact(halfCalc.balanceAmount)}
+                      </div>
+                      <div className="text-[10px] text-blue-600 font-medium mt-1">
+                        {effectivePercent}% applies to total including delivery
+                      </div>
+                    </label>
+                  )}
+
+                  {/* Reserve */}
+                  {allowedModes.has('reservation') && (
+                    <label
+                      className={cn(
+                        'relative flex flex-col p-3 rounded-xl border cursor-pointer transition-all',
+                        selectedMode === 'reservation'
+                          ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600 shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      )}
+                      data-testid="mode-card-reservation"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-slate-900">Reserve</span>
+                        <input
+                          type="radio"
+                          name="buyer-chosen-payment-mode"
+                          value="reservation"
+                          checked={selectedMode === 'reservation'}
+                          onChange={() => handleSelectMode('reservation')}
+                          className="h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="text-sm font-extrabold text-slate-900 font-mono-ui">
+                        {moneyExact(0)} now
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        Balance due on delivery: {moneyExact(currentTotal)}
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-1">
+                        Pay on delivery / collection
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="buyer-section-heading">
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-600 mb-1">
                 <span>Step 2 of 2</span>
                 <span className="text-slate-300">·</span>
                 <span className="text-slate-500 font-normal">Payment</span>
               </div>
-              <h2 id="buyer-payment-heading" className="text-base font-bold text-slate-900">Select payment provider</h2>
+              <h2 id="buyer-payment-heading" className="text-base font-bold text-slate-900">
+                {selectedMode === 'reservation' ? 'Settle order on delivery' : 'Select payment provider'}
+              </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                {paymentMode === 'reserve' ? 'Select how you would like to settle your order' : 'Select a provider to make your payment'}
+                {selectedMode === 'reservation' ? 'Confirm your reservation to notify the seller' : 'Select a provider to make your payment'}
               </p>
             </div>
 
-            {/* Payment provider options styled like modern checkout */}
+            {/* Payment provider options */}
             <div className="rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-200/80 bg-white shadow-xs">
-              {/* Option 1: Mobile Money */}
-              <div className={cn('p-3.5 transition-colors', paymentProvider === 'momo' && 'bg-blue-50/20')}>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="buyer-payment-provider"
-                    value="momo"
-                    checked={paymentProvider === 'momo'}
-                    onChange={() => setPaymentProvider('momo')}
-                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-sm text-slate-900 flex items-center gap-2">
-                        <Smartphone size={16} className="text-blue-600" />
-                        Mobile Money
-                      </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Instant</span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">MTN MoMo, Telecel Cash, AT Money</p>
-                  </div>
-                </label>
-                {paymentProvider === 'momo' && (
-                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 page-in">
-                    <div>
-                      <span className="text-[11px] font-medium text-slate-600 mb-1.5 block">Select network provider</span>
-                      <div className="grid grid-cols-3 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setMomoNetwork('mtn')}
-                          className={cn('py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center', momoNetwork === 'mtn' ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-xs' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
-                        >
-                          MTN MoMo
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setMomoNetwork('telecel')}
-                          className={cn('py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center', momoNetwork === 'telecel' ? 'border-rose-400 bg-rose-50 text-rose-900 shadow-xs' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
-                        >
-                          Telecel Cash
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setMomoNetwork('at')}
-                          className={cn('py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center', momoNetwork === 'at' ? 'border-blue-400 bg-blue-50 text-blue-900 shadow-xs' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
-                        >
-                          AT Money
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="momo-phone-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Mobile Money number</label>
-                      <input
-                        id="momo-phone-input"
-                        data-testid="input-momo-phone"
-                        type="tel"
-                        value={momoPhone}
-                        onChange={(e) => setMomoPhone(e.target.value)}
-                        placeholder="024 XXX XXXX"
-                        className="field-input text-sm"
-                      />
-                      <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-                        <Info size={12} className="text-slate-400 shrink-0" />
-                        A prompt will be sent to this number to approve payment.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Option 2: Card Payment */}
-              <div className={cn('p-3.5 transition-colors', paymentProvider === 'card' && 'bg-blue-50/20')}>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="buyer-payment-provider"
-                    value="card"
-                    checked={paymentProvider === 'card'}
-                    onChange={() => setPaymentProvider('card')}
-                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-sm text-slate-900 flex items-center gap-2">
-                        <CreditCard size={16} className="text-slate-700" />
-                        Debit / Credit Card
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">VISA</span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">Mastercard</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">Pay securely with bank card</p>
-                  </div>
-                </label>
-                {paymentProvider === 'card' && (
-                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 page-in">
-                    <div>
-                      <label htmlFor="card-number-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Card number</label>
-                      <input
-                        id="card-number-input"
-                        data-testid="input-card-number"
-                        type="text"
-                        value={cardData.number}
-                        onChange={(e) => setCardData((c) => ({ ...c, number: e.target.value }))}
-                        placeholder="4000 1234 5678 9010"
-                        maxLength={19}
-                        className="field-input text-sm font-mono"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label htmlFor="card-expiry-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Expiry date</label>
-                        <input
-                          id="card-expiry-input"
-                          data-testid="input-card-expiry"
-                          type="text"
-                          value={cardData.expiry}
-                          onChange={(e) => setCardData((c) => ({ ...c, expiry: e.target.value }))}
-                          placeholder="MM / YY"
-                          maxLength={5}
-                          className="field-input text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="card-cvc-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Security code (CVC)</label>
-                        <input
-                          id="card-cvc-input"
-                          data-testid="input-card-cvc"
-                          type="password"
-                          value={cardData.cvc}
-                          onChange={(e) => setCardData((c) => ({ ...c, cvc: e.target.value }))}
-                          placeholder="123"
-                          maxLength={4}
-                          className="field-input text-sm font-mono"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="card-name-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Name on card</label>
-                      <input
-                        id="card-name-input"
-                        data-testid="input-card-name"
-                        type="text"
-                        value={cardData.name}
-                        onChange={(e) => setCardData((c) => ({ ...c, name: e.target.value }))}
-                        placeholder="Full name on card"
-                        className="field-input text-sm"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Option 3: Pay on Delivery / Collection (if reserve mode) or Bank Transfer */}
-              {paymentMode === 'reserve' ? (
-                <div className={cn('p-3.5 transition-colors', paymentProvider === 'reserve' && 'bg-blue-50/20')}>
+              {selectedMode === 'reservation' ? (
+                /* Reservation Mode Provider */
+                <div className="p-3.5 bg-blue-50/20">
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
                       type="radio"
@@ -12134,28 +12820,186 @@ export function BuyerOrderForm({
                   </label>
                 </div>
               ) : (
-                <div className={cn('p-3.5 transition-colors', paymentProvider === 'bank' && 'bg-blue-50/20')}>
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="buyer-payment-provider"
-                      value="bank"
-                      checked={paymentProvider === 'bank'}
-                      onChange={() => setPaymentProvider('bank')}
-                      className="mt-1 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-sm text-slate-900 flex items-center gap-2">
-                          <Building2 size={16} className="text-slate-700" />
-                          Bank Transfer
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Direct</span>
+                /* Full & Half Payment Providers */
+                <>
+                  {/* Option 1: Mobile Money */}
+                  <div className={cn('p-3.5 transition-colors', paymentProvider === 'momo' && 'bg-blue-50/20')}>
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="buyer-payment-provider"
+                        value="momo"
+                        checked={paymentProvider === 'momo'}
+                        onChange={() => setPaymentProvider('momo')}
+                        className="mt-1 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-sm text-slate-900 flex items-center gap-2">
+                            <Smartphone size={16} className="text-blue-600" />
+                            Mobile Money
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Instant</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">MTN MoMo, Telecel Cash, AT Money</p>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">Direct transfer to merchant bank account</p>
-                    </div>
-                  </label>
-                </div>
+                    </label>
+                    {paymentProvider === 'momo' && (
+                      <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 page-in">
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-600 mb-1.5 block">Select network provider</span>
+                          <div className="grid grid-cols-3 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setMomoNetwork('mtn')}
+                              className={cn('py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center', momoNetwork === 'mtn' ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-xs' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
+                            >
+                              MTN MoMo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMomoNetwork('telecel')}
+                              className={cn('py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center', momoNetwork === 'telecel' ? 'border-rose-400 bg-rose-50 text-rose-900 shadow-xs' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
+                            >
+                              Telecel Cash
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMomoNetwork('at')}
+                              className={cn('py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center', momoNetwork === 'at' ? 'border-blue-400 bg-blue-50 text-blue-900 shadow-xs' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
+                            >
+                              AT Money
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label htmlFor="momo-phone-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Mobile Money number</label>
+                          <input
+                            id="momo-phone-input"
+                            data-testid="input-momo-phone"
+                            type="tel"
+                            value={momoPhone}
+                            onChange={(e) => setMomoPhone(e.target.value)}
+                            placeholder="024 XXX XXXX"
+                            className="field-input text-sm"
+                          />
+                          <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                            <Info size={12} className="text-slate-400 shrink-0" />
+                            A prompt will be sent to this number to approve payment.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Option 2: Card Payment */}
+                  <div className={cn('p-3.5 transition-colors', paymentProvider === 'card' && 'bg-blue-50/20')}>
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="buyer-payment-provider"
+                        value="card"
+                        checked={paymentProvider === 'card'}
+                        onChange={() => setPaymentProvider('card')}
+                        className="mt-1 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-sm text-slate-900 flex items-center gap-2">
+                            <CreditCard size={16} className="text-slate-700" />
+                            Debit / Credit Card
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">VISA</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">Mastercard</span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">Pay securely with bank card</p>
+                      </div>
+                    </label>
+                    {paymentProvider === 'card' && (
+                      <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 page-in">
+                        <div>
+                          <label htmlFor="card-number-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Card number</label>
+                          <input
+                            id="card-number-input"
+                            data-testid="input-card-number"
+                            type="text"
+                            value={cardData.number}
+                            onChange={(e) => setCardData((c) => ({ ...c, number: e.target.value }))}
+                            placeholder="4000 1234 5678 9010"
+                            maxLength={19}
+                            className="field-input text-sm font-mono"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label htmlFor="card-expiry-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Expiry date</label>
+                            <input
+                              id="card-expiry-input"
+                              data-testid="input-card-expiry"
+                              type="text"
+                              value={cardData.expiry}
+                              onChange={(e) => setCardData((c) => ({ ...c, expiry: e.target.value }))}
+                              placeholder="MM / YY"
+                              maxLength={5}
+                              className="field-input text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor="card-cvc-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Security code (CVC)</label>
+                            <input
+                              id="card-cvc-input"
+                              data-testid="input-card-cvc"
+                              type="password"
+                              value={cardData.cvc}
+                              onChange={(e) => setCardData((c) => ({ ...c, cvc: e.target.value }))}
+                              placeholder="123"
+                              maxLength={4}
+                              className="field-input text-sm font-mono"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label htmlFor="card-name-input" className="text-[11px] font-medium text-slate-600 mb-1 block">Name on card</label>
+                          <input
+                            id="card-name-input"
+                            data-testid="input-card-name"
+                            type="text"
+                            value={cardData.name}
+                            onChange={(e) => setCardData((c) => ({ ...c, name: e.target.value }))}
+                            placeholder="Full name on card"
+                            className="field-input text-sm"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Option 3: Bank Transfer */}
+                  <div className={cn('p-3.5 transition-colors', paymentProvider === 'bank' && 'bg-blue-50/20')}>
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="buyer-payment-provider"
+                        value="bank"
+                        checked={paymentProvider === 'bank'}
+                        onChange={() => setPaymentProvider('bank')}
+                        className="mt-1 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-sm text-slate-900 flex items-center gap-2">
+                            <Building2 size={16} className="text-slate-700" />
+                            Bank Transfer
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Direct</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">Direct transfer to merchant bank account</p>
+                      </div>
+                    </label>
+                  </div>
+                </>
               )}
             </div>
 
@@ -12163,7 +13007,7 @@ export function BuyerOrderForm({
             <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/80 space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-500">
                 <span>Subtotal</span>
-                <span className="font-mono-ui font-medium">{moneyExact(amount - (selectedDeliveryMethod === 'delivery' ? (deliveryFee || 0) : 0))}</span>
+                <span className="font-mono-ui font-medium">{moneyExact(currentSubtotal)}</span>
               </div>
               {deliveryFee > 0 && (
                 <div className="flex justify-between text-slate-500">
@@ -12172,14 +13016,20 @@ export function BuyerOrderForm({
                 </div>
               )}
               <div className="flex justify-between items-center pt-2 border-t border-slate-200 font-bold text-slate-900 text-sm">
-                <span>{paymentMode === 'deposit' ? 'Deposit payable today' : 'Total payable'}</span>
+                <span>
+                  {selectedMode === 'half'
+                    ? `Deposit due today (${effectivePercent}%)`
+                    : selectedMode === 'reservation'
+                      ? 'Due today'
+                      : 'Total payable'}
+                </span>
                 <span className="font-mono-ui text-base font-extrabold text-slate-900">
-                  {moneyExact(paymentMode === 'deposit' ? payableDeposit : amount)}
+                  {moneyExact(dueNow)}
                 </span>
               </div>
-              {paymentMode === 'deposit' && (
+              {balanceRemaining > 0 && (
                 <p className="text-[11px] text-slate-500 pt-0.5">
-                  Remaining balance of {moneyExact(amount - payableDeposit)} payable upon delivery.
+                  Remaining balance of {moneyExact(balanceRemaining)} payable upon delivery.
                 </p>
               )}
             </div>
@@ -12200,13 +13050,19 @@ export function BuyerOrderForm({
                 data-testid="button-submit-public-order"
               >
                 {submitPending && <Loader2 aria-hidden="true" size={16} className="animate-spin" />}
-                {paymentMode === 'reserve' && paymentProvider === 'reserve'
+                {selectedMode === 'reservation'
                   ? 'Confirm reservation · Pay on delivery'
-                  : paymentProvider === 'momo'
-                    ? `Pay ${moneyExact(payableDeposit || amount)} via Mobile Money`
-                    : paymentProvider === 'card'
-                      ? `Pay ${moneyExact(payableDeposit || amount)} with Card`
-                      : `Make payment · ${moneyExact(payableDeposit || amount)}`}
+                  : selectedMode === 'half'
+                    ? (paymentProvider === 'momo'
+                        ? `Pay ${moneyExact(dueNow)} deposit via Mobile Money`
+                        : paymentProvider === 'card'
+                          ? `Pay ${moneyExact(dueNow)} deposit with Card`
+                          : `Pay ${moneyExact(dueNow)} deposit`)
+                    : (paymentProvider === 'momo'
+                        ? `Pay ${moneyExact(dueNow)} via Mobile Money`
+                        : paymentProvider === 'card'
+                          ? `Pay ${moneyExact(dueNow)} with Card`
+                          : `Make payment · ${moneyExact(dueNow)}`)}
                 <ArrowUpRight aria-hidden="true" size={16} />
               </Button>
 

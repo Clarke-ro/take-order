@@ -16,6 +16,7 @@ import {
   UpdateOrderBody,
   UpdateOrderParams,
   UpdateOrderResponse,
+  WAITING_FOR_BUYER,
 } from "@workspace/api-zod";
 import { stockDeltaForOrderStatusChange } from "../lib/dashboard-analytics";
 import { resolveSellerEntitlement } from "../lib/entitlements.js";
@@ -53,6 +54,12 @@ export function orderResponse(order: typeof ordersTable.$inferSelect, items: Sel
     deliveryAddress: order.deliveryAddress ?? null,
     productCost: toNumber(order.productCost),
     depositAmount: toNumber(order.depositAmount),
+    amountDueNow: toNumber(order.amountDueNow),
+    allowReservation: order.allowReservation ?? null,
+    allowHalfPayment: order.allowHalfPayment ?? null,
+    halfPaymentPercent: order.halfPaymentPercent ?? null,
+    chosenMode: (order.chosenMode as any) ?? null,
+    percentUsed: order.percentUsed ?? null,
     createdAt: order.createdAt.toISOString(),
     linkOpens: order.linkOpens ?? 0,
     shares: order.shares ?? 0,
@@ -262,6 +269,19 @@ export function createOrdersRouter(database: typeof db, requireSellerAuth: Reque
       res.status(400).json({ error: "Deposit cannot exceed the order total" });
       return;
     }
+    const allowHalfPayment = parsed.data.allowHalfPayment ?? null;
+    const allowReservation = parsed.data.allowReservation ?? null;
+    let halfPaymentPercent = parsed.data.halfPaymentPercent ?? null;
+    if (allowHalfPayment) {
+      const pct = halfPaymentPercent != null ? halfPaymentPercent : 50;
+      if (!Number.isInteger(pct) || pct < 1 || pct > 99) {
+        res.status(400).json({ error: "Half payment percent must be a whole number between 1 and 99" });
+        return;
+      }
+      halfPaymentPercent = pct;
+    } else if (allowHalfPayment === false) {
+      halfPaymentPercent = null;
+    }
     const firstProduct = productsById.get(requestedItems[0].productId)!;
     const [order] = await database
       .insert(ordersTable)
@@ -277,9 +297,15 @@ export function createOrdersRouter(database: typeof db, requireSellerAuth: Reque
         deliveryFee: (parsed.data.deliveryFee ?? 0).toFixed(2),
         depositAmount: parsed.data.depositAmount == null ? null : parsed.data.depositAmount.toFixed(2),
         paymentMode: parsed.data.paymentMode,
+        allowReservation,
+        allowHalfPayment,
+        halfPaymentPercent,
+        chosenMode: null,
+        percentUsed: null,
+        amountDueNow: null,
         status: "reserved",
         fulfillment: "pending",
-        customerName: parsed.data.customerName?.trim() || "Waiting for buyer",
+        customerName: parsed.data.customerName?.trim() || WAITING_FOR_BUYER,
         customerPhone: parsed.data.customerPhone?.trim() || null,
         deliveryAddress: parsed.data.deliveryAddress?.trim() || null,
         buyerDetails: parsed.data.buyerDetails?.trim() || null,
