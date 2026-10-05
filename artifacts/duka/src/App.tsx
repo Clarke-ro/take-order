@@ -55,6 +55,7 @@ import {
 } from '@workspace/api-zod';
 import { Switch as UiSwitch } from '@/components/ui/switch';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { NotificationBadge, NotificationDot } from '@/components/notification-badge';
 import { AnalyticsPage } from '@/pages/analytics';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
@@ -714,7 +715,7 @@ export function Sidebar({
   const links = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/catalog', label: 'Catalog', icon: Boxes },
-    { href: '/orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrdersCount > 0 ? String(pendingOrdersCount) : null },
+    { href: '/orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrdersCount > 0 ? pendingOrdersCount : null },
     { href: '/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/clients', label: 'Clients', icon: Users },
     { href: '/expenses', label: 'Expenses', icon: Receipt },
@@ -801,7 +802,7 @@ export function Sidebar({
               aria-current={isActive ? 'page' : undefined}
               title={collapsed ? label : undefined}
               className={cn(
-                'group flex items-center transition-colors rounded-[8px] text-[13.5px]',
+                'group relative flex items-center transition-colors rounded-[8px] text-[13.5px]',
                 collapsed
                   ? 'h-10 w-10 mx-auto justify-center mb-1'
                   : 'gap-2.5 px-3 py-2 mb-0.5',
@@ -816,16 +817,28 @@ export function Sidebar({
                 strokeWidth={isActive ? 2 : 1.7}
                 className="shrink-0"
               />
+              {collapsed && (
+                <>
+                  {badge != null && (
+                    <span className="absolute top-1.5 right-1.5">
+                      <NotificationDot ariaLabel={`${badge} pending orders`} />
+                    </span>
+                  )}
+                  {dot && badge == null && (
+                    <span className="absolute top-2 right-2">
+                      <NotificationDot ariaLabel="New" />
+                    </span>
+                  )}
+                </>
+              )}
               {!collapsed && (
                 <div className="flex items-center justify-between flex-1 min-w-0">
                   <span className="truncate">{label}</span>
-                  {badge && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] shrink-0">
-                      {badge}
-                    </span>
+                  {badge != null && (
+                    <NotificationBadge count={badge} ariaLabel={`${badge} pending orders`} />
                   )}
-                  {dot && !badge && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] shrink-0" />
+                  {dot && badge == null && (
+                    <NotificationDot ariaLabel="New" />
                   )}
                   {!entitlements.isLoading && entitlements.tier === 'free' && (href === '/analytics' || href === '/reports') && (
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[hsl(var(--primary))] text-white shadow-2xs shrink-0">
@@ -3988,9 +4001,9 @@ function Reports() {
               <StatCard
                 label="Average Order Value"
                 value={money(avgOrderValue)}
-                icon={<Percent size={17} className="text-purple-700" />}
-                iconBg="bg-purple-100 text-purple-700"
-                sparklineTone="purple"
+                icon={<Percent size={17} className="text-indigo-700" />}
+                iconBg="bg-indigo-50 text-indigo-700"
+                sparklineTone="indigo"
               />
               <StatCard
                 label="Collection Rate"
@@ -4006,7 +4019,7 @@ function Reports() {
           <section aria-labelledby="analytics-catalog-title" className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-purple-600">Catalog Performance</div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">Catalog Performance</div>
                 <h2 id="analytics-catalog-title" className="text-lg font-bold text-slate-950">Inventory & Catalog Valuation</h2>
               </div>
               <Link href="/catalog" className="text-xs font-semibold text-slate-600 hover:text-slate-950 inline-flex items-center gap-1">
@@ -4017,9 +4030,9 @@ function Reports() {
               <StatCard
                 label="Catalog Value"
                 value={money(inventoryValue)}
-                icon={<Boxes size={17} className="text-purple-700" />}
-                iconBg="bg-purple-100 text-purple-700"
-                sparklineTone="purple"
+                icon={<Boxes size={17} className="text-indigo-700" />}
+                iconBg="bg-indigo-50 text-indigo-700"
+                sparklineTone="indigo"
               />
               <StatCard
                 label="Active Products"
@@ -4255,8 +4268,13 @@ function AlertsRail({ outstanding, lowStock, missingCosts, productLoading, produ
       <div className="border-b border-slate-100 dark:border-slate-800 px-5 py-5 sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+            <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-700">
               <Bell size={13} />
+              {(unfulfilledCount > 0 || alerts.length > 0) && (
+                <span className="absolute -top-0.5 -right-0.5">
+                  <NotificationDot ariaLabel="New updates" />
+                </span>
+              )}
             </span>
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Activity Center</div>
           </div>
@@ -11424,7 +11442,7 @@ function OrderDetail() {
                   <span className={cn(
                     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
                     order.deliveryMethod === 'delivery' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                    order.deliveryMethod === 'pickup' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                    order.deliveryMethod === 'pickup' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
                     'bg-slate-100 text-slate-600'
                   )}>
                     {order.deliveryMethod === 'delivery' ? 'Courier Delivery' : order.deliveryMethod === 'pickup' ? 'Store Pickup' : 'Not selected'}

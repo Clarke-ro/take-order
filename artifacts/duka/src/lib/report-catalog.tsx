@@ -38,8 +38,8 @@ export const REPORT_ICONS: Record<string, { icon: LucideIcon; color: string; bg:
   },
   "product-performance": {
     icon: Package,
-    color: "#8B5CF6", // Purple
-    bg: "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400",
+    color: "#5B5BF0", // Primary Indigo
+    bg: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400",
   },
   "best-times-to-sell": {
     icon: Clock,
