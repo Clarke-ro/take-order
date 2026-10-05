@@ -8033,196 +8033,6 @@ function BuyerLinkPreviewCard({
   );
 }
 
-function BuyerCheckoutPreviewStep2({
-  businessName,
-  description,
-  logoDataUrl,
-  previewItems,
-  total,
-  deliveryFeeAmount,
-  allowReservation,
-  allowHalfPayment,
-  halfPaymentPercent,
-  deposit,
-  customerName,
-  customerPhone,
-  deliveryAddress,
-}: {
-  businessName: string;
-  description?: string;
-  logoDataUrl?: string | null;
-  previewItems: BuyerOrderItem[];
-  total: number;
-  deliveryFeeAmount: number;
-  allowReservation: boolean;
-  allowHalfPayment: boolean;
-  halfPaymentPercent: number;
-  deposit: number;
-  customerName: string;
-  customerPhone: string;
-  deliveryAddress?: string;
-}) {
-  const buyerTotal = total + (deliveryFeeAmount || 0);
-  const totalPesewas = Math.round(buyerTotal * 100);
-  const calcAmounts = calculatePaymentAmounts(totalPesewas, halfPaymentPercent || 50);
-
-  return (
-    <div
-      data-testid="buyer-checkout-preview-step2"
-      className="rounded-[16px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 p-5 shadow-xs overflow-y-auto max-h-[calc(100vh-120px)] w-full"
-    >
-      {/* Top Header Label */}
-      <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[hsl(var(--border))]">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[hsl(var(--foreground))]">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 font-bold">
-            <Eye size={12} />
-          </span>
-          <span>Buyer Checkout Preview</span>
-        </div>
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Live updates
-        </span>
-      </div>
-
-      {/* Seller Identity Lockup */}
-      <div className="flex items-center gap-3 p-3 rounded-[12px] bg-neutral-50 dark:bg-neutral-800/40 border border-[hsl(var(--border))] mb-4">
-        <SellerLogo businessName={businessName} logoDataUrl={logoDataUrl ?? undefined} className="h-9 w-9 rounded-full shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-bold truncate text-[hsl(var(--foreground))]">{businessName}</div>
-          <div className="text-[11px] text-[hsl(var(--muted-foreground))] truncate">
-            {description?.trim() || 'Instant checkout via Take Order'}
-          </div>
-        </div>
-      </div>
-
-      {/* Customer Info Preview Card */}
-      <div className="space-y-1.5 mb-4">
-        <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-          <span>Customer details</span>
-          {customerName.trim() && <span className="text-emerald-600 lowercase font-medium">prefilled</span>}
-        </div>
-        {customerName.trim() ? (
-          <div className="p-3 rounded-[10px] border border-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/10 space-y-1">
-            <div className="text-[13px] font-semibold text-[hsl(var(--foreground))]">
-              {customerName.trim()}
-            </div>
-            {customerPhone.trim() && (
-              <div className="text-xs text-[hsl(var(--muted-foreground))] font-mono">
-                {maskPhone(customerPhone.trim())}
-              </div>
-            )}
-            {deliveryAddress?.trim() && (
-              <div className="text-[11.5px] text-[hsl(var(--muted-foreground))] pt-0.5 truncate">
-                📍 {deliveryAddress.trim()}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] bg-neutral-50/50 dark:bg-neutral-900/30 text-xs text-[hsl(var(--muted-foreground))]">
-            <span className="block font-medium text-[hsl(var(--foreground))]">Buyer fills at checkout</span>
-            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Full name and phone number requested</span>
-          </div>
-        )}
-      </div>
-
-      {/* Delivery Method Choice Preview */}
-      <div className="space-y-1.5 mb-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-          Delivery option
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="p-2.5 rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50/60 dark:bg-neutral-800/40">
-            <div className="font-semibold text-[hsl(var(--foreground))]">Pick up</div>
-            <div className="text-[11px] text-[hsl(var(--muted-foreground))]">Free</div>
-          </div>
-          <div className={cn('p-2.5 rounded-[10px] border transition-colors', deliveryFeeAmount > 0 ? 'border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/5' : 'border-[hsl(var(--border))] bg-neutral-50/60 dark:bg-neutral-800/40')}>
-            <div className="font-semibold text-[hsl(var(--foreground))]">Delivery</div>
-            <div className="text-[11px] font-medium text-[hsl(var(--foreground))]">
-              {deliveryFeeAmount > 0 ? moneyExact(deliveryFeeAmount) : 'Free'}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Payment Options Preview */}
-      <div className="space-y-1.5 mb-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-          Payment options enabled for buyer
-        </div>
-        <div className="space-y-2">
-          {/* Full payment option */}
-          <div className="flex items-center justify-between p-2.5 rounded-[10px] border border-[hsl(var(--border))] bg-white dark:bg-neutral-900 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-              <span className="font-semibold text-[hsl(var(--foreground))]">Pay in full</span>
-            </div>
-            <span className="font-bold text-[hsl(var(--foreground))]">{moneyExact(buyerTotal)}</span>
-          </div>
-
-          {/* Half payment option if enabled */}
-          {allowHalfPayment && (
-            <div className="p-2.5 rounded-[10px] border border-blue-500/30 bg-blue-50/30 dark:bg-blue-950/20 text-xs space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-                  <span className="font-semibold text-[hsl(var(--foreground))]">Pay deposit ({halfPaymentPercent}%)</span>
-                </div>
-                <span className="font-bold text-blue-700 dark:text-blue-300">{moneyExact(calcAmounts.dueNowAmount)}</span>
-              </div>
-              <div className="text-[11px] text-[hsl(var(--muted-foreground))] pl-4 flex items-center justify-between">
-                <span>Balance on delivery:</span>
-                <strong className="text-[hsl(var(--foreground))]">{moneyExact(calcAmounts.balanceAmount)}</strong>
-              </div>
-            </div>
-          )}
-
-          {/* Reservation option if enabled */}
-          {allowReservation && (
-            <div className="flex items-center justify-between p-2.5 rounded-[10px] border border-amber-500/30 bg-amber-50/30 dark:bg-amber-950/20 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-                <span className="font-semibold text-[hsl(var(--foreground))]">Reservation</span>
-              </div>
-              <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">Pay on pickup/delivery</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Order Total Breakdown */}
-      <div className="pt-3 border-t border-[hsl(var(--border))] space-y-2 text-xs">
-        <div className="flex items-center justify-between text-[hsl(var(--muted-foreground))]">
-          <span>Items ({previewItems.length})</span>
-          <span className="font-mono-ui font-medium text-[hsl(var(--foreground))]">{moneyExact(total)}</span>
-        </div>
-        <div className="flex items-center justify-between text-[hsl(var(--muted-foreground))]">
-          <span>Delivery</span>
-          <span className="font-mono-ui font-medium text-[hsl(var(--foreground))]">{deliveryFeeAmount > 0 ? moneyExact(deliveryFeeAmount) : 'GH₵ 0.00'}</span>
-        </div>
-        <div className="flex items-center justify-between font-bold text-sm text-[hsl(var(--foreground))] pt-1 border-t border-dashed border-[hsl(var(--border))]">
-          <span>Total</span>
-          <span className="font-mono-ui text-base">{moneyExact(buyerTotal)}</span>
-        </div>
-
-        {/* Action Button Preview */}
-        <div className="pt-2">
-          <div className="w-full h-10 rounded-[10px] bg-[hsl(var(--primary))] text-white flex items-center justify-center font-semibold text-xs shadow-xs">
-            {allowReservation
-              ? `Pay ${moneyExact(buyerTotal)} or Reserve`
-              : allowHalfPayment
-                ? `Pay ${moneyExact(calcAmounts.dueNowAmount)} deposit`
-                : `Pay ${moneyExact(buyerTotal)}`}
-          </div>
-          <div className="text-[10px] text-center text-[hsl(var(--muted-foreground))] mt-2 flex items-center justify-center gap-1.5">
-            <Lock size={10} />
-            <span>Secure mobile money & card payment</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function MultiItemTakeOrderModern() {
   const { userId } = useAppAuth();
@@ -9099,22 +8909,19 @@ function MultiItemTakeOrderModern() {
                   </div>
 
                   {/* Desktop Sticky Preview Column */}
-                  <div className="hidden lg:block sticky top-6 self-start w-[410px] shrink-0">
-                    <BuyerCheckoutPreviewStep2
-                      businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
-                      description={seller?.description}
-                      logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
-                      previewItems={previewItems}
-                      total={total}
-                      deliveryFeeAmount={deliveryFeeAmount}
-                      allowReservation={allowReservation}
-                      allowHalfPayment={allowHalfPayment}
-                      halfPaymentPercent={halfPaymentPercent}
-                      deposit={deposit}
-                      customerName={customerName}
-                      customerPhone={customerPhone}
-                      deliveryAddress={deliveryAddress}
-                    />
+                  <div className="hidden lg:block sticky top-6 self-start w-[380px] shrink-0">
+                    <div className="take-order-step2-summary take-order-payment-checkout-card">
+                      <TakeOrderCheckoutSummary
+                        items={items}
+                        total={total}
+                        paymentMode={legacyPaymentMode}
+                        allowReservation={allowReservation}
+                        allowHalfPayment={allowHalfPayment}
+                        halfPaymentPercent={halfPaymentPercent}
+                        deposit={deposit}
+                        deliveryFee={deliveryFeeAmount}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -9122,24 +8929,21 @@ function MultiItemTakeOrderModern() {
                 <Sheet open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
                   <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-t-[20px] bg-white dark:bg-neutral-900 border-t border-[hsl(var(--border))]">
                     <SheetHeader className="sr-only">
-                      <SheetTitle>Buyer checkout preview</SheetTitle>
+                      <SheetTitle>Order items summary</SheetTitle>
                     </SheetHeader>
                     <div className="py-2">
-                      <BuyerCheckoutPreviewStep2
-                        businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
-                        description={seller?.description}
-                        logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
-                        previewItems={previewItems}
-                        total={total}
-                        deliveryFeeAmount={deliveryFeeAmount}
-                        allowReservation={allowReservation}
-                        allowHalfPayment={allowHalfPayment}
-                        halfPaymentPercent={halfPaymentPercent}
-                        deposit={deposit}
-                        customerName={customerName}
-                        customerPhone={customerPhone}
-                        deliveryAddress={deliveryAddress}
-                      />
+                      <div className="take-order-step2-summary take-order-payment-checkout-card">
+                        <TakeOrderCheckoutSummary
+                          items={items}
+                          total={total}
+                          paymentMode={legacyPaymentMode}
+                          allowReservation={allowReservation}
+                          allowHalfPayment={allowHalfPayment}
+                          halfPaymentPercent={halfPaymentPercent}
+                          deposit={deposit}
+                          deliveryFee={deliveryFeeAmount}
+                        />
+                      </div>
                     </div>
                   </SheetContent>
                 </Sheet>
