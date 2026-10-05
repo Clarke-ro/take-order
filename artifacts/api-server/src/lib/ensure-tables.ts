@@ -100,6 +100,13 @@ export async function ensureDatabaseSchema(database: typeof db): Promise<void> {
         report_slug text NOT NULL,
         created_at timestamptz NOT NULL DEFAULT now()
       );
+
+      CREATE TABLE IF NOT EXISTS seller_card_seen (
+        id serial PRIMARY KEY,
+        owner_user_id text NOT NULL,
+        card_key text NOT NULL,
+        seen_at timestamptz NOT NULL DEFAULT now()
+      );
     `);
 
     // 2. Ensure all columns exist on previously created tables (idempotent ALTER TABLE)
@@ -183,6 +190,8 @@ export async function ensureDatabaseSchema(database: typeof db): Promise<void> {
       CREATE INDEX IF NOT EXISTS expenses_expense_date_idx ON expenses(expense_date);
       CREATE INDEX IF NOT EXISTS report_favorites_owner_user_id_idx ON report_favorites(owner_user_id);
       CREATE UNIQUE INDEX IF NOT EXISTS report_favorites_owner_slug_idx ON report_favorites(owner_user_id, report_slug);
+      CREATE INDEX IF NOT EXISTS seller_card_seen_owner_user_id_idx ON seller_card_seen(owner_user_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS seller_card_seen_owner_card_idx ON seller_card_seen(owner_user_id, card_key);
     `);
 
     logger.info("Database schema tables and columns verified successfully.");
