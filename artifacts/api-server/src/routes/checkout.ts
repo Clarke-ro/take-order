@@ -16,6 +16,7 @@ import {
   calculatePaymentAmounts,
   getAllowedModesForLink,
   isAwaitingBuyer,
+  maskPhone,
   type PaymentModeChoice,
 } from "@workspace/api-zod";
 import { readSellerSettings } from "./settings";
@@ -79,7 +80,7 @@ export function publicOrderResponse(
     isOrderReceived: isReceived,
     savedCustomer: hasSavedCustomer ? {
       name: order.customerName,
-      phone: order.customerPhone ?? null,
+      phone: maskPhone(order.customerPhone) || null,
     } : null,
     status: order.status,
     businessName: sellerSettings.businessName || "The Sunday Edit",

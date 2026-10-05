@@ -50,6 +50,7 @@ import {
   getOrderOutstandingAmount,
   calculatePaymentAmounts,
   getAllowedModesForLink,
+  maskPhone,
   type PaymentModeChoice,
 } from '@workspace/api-zod';
 import { Switch as UiSwitch } from '@/components/ui/switch';
@@ -4547,7 +4548,7 @@ function RecentTransactions() {
             </thead>
             <tbody className="divide-y divide-[#E8E8EE] dark:divide-neutral-800/80">
               {orders.map((order) => {
-                const isAwaiting = !order.customerPhone && (!order.customerName || order.customerName.toLowerCase() === 'waiting for buyer' || order.customerName.toLowerCase() === 'buyer pending');
+                const isAwaiting = !order.customerPhone && isAwaitingBuyer(order.customerName);
                 return (
                   <tr key={order.id} className="transaction-row hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[56px]" data-testid={`row-transaction-${order.id}`}>
                     <td className="px-4 py-3.5 whitespace-nowrap" data-testid={`text-transaction-order-id-${order.id}`}>
@@ -6801,7 +6802,7 @@ function Orders() {
       id: 'customer',
       header: 'Customer',
       cell: (order) => {
-        const isAwaiting = !order.customerPhone && (!order.customerName || order.customerName.toLowerCase() === 'waiting for buyer' || order.customerName.toLowerCase() === 'buyer pending');
+        const isAwaiting = !order.customerPhone && isAwaitingBuyer(order.customerName);
         return (
           <span
             className={cn('text-[14px] whitespace-nowrap', isAwaiting ? 'italic text-[#9CA3AF] font-normal' : 'font-medium text-[#111827] dark:text-neutral-100')}
@@ -7718,6 +7719,8 @@ function TakeOrderBuyerPreviewForm({
   deliveryFee = 0,
   itemIndex = 0,
   onActiveIndexChange,
+  customerName,
+  customerPhone,
 }: {
   item: BuyerOrderItem;
   items: BuyerOrderItem[];
@@ -7730,7 +7733,15 @@ function TakeOrderBuyerPreviewForm({
   deliveryFee?: number;
   itemIndex?: number;
   onActiveIndexChange?: (index: number) => void;
+  customerName?: string;
+  customerPhone?: string;
 }) {
+  const savedCustomer = customerName?.trim()
+    ? {
+        name: customerName.trim(),
+        phone: customerPhone?.trim() ? maskPhone(customerPhone.trim()) : null,
+      }
+    : null;
   const [form, setForm] = useState<BuyerOrderFormValues>({
     name: '',
     phone: '',
@@ -7791,6 +7802,7 @@ function TakeOrderBuyerPreviewForm({
       allowReservation={allowReservation}
       allowHalfPayment={allowHalfPayment}
       halfPaymentPercent={halfPaymentPercent}
+      savedCustomer={savedCustomer}
       amount={currentTotal}
       depositAmount={allowHalfPayment || paymentMode === 'deposit' ? deposit : null}
       deliveryFee={deliveryFee}
@@ -7882,6 +7894,7 @@ function MultiItemTakeOrderModern() {
   const [deliveryFee, setDeliveryFee] = useState('0');
   const [channel, setChannel] = useState<OrderInput['channel'] | ''>('');
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [showCustomerSection, setShowCustomerSection] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -7944,9 +7957,10 @@ function MultiItemTakeOrderModern() {
   const deliveryFeeAmount = Number(deliveryFee);
   const validDeliveryFee = Number.isFinite(deliveryFeeAmount) && deliveryFeeAmount >= 0;
   const validHalfPercent = !allowHalfPayment || (Number.isInteger(halfPaymentPercent) && halfPaymentPercent >= 1 && halfPaymentPercent <= 99);
+  const validCustomerPhone = !customerPhone.trim() || customerPhone.trim().replace(/\D/g, '').length >= 5;
   const canContinue = step === 1
     ? items.length > 0 && items.every((item) => item.amount > 0)
-    : total > 0 && validDeliveryFee && Boolean(channel) && validHalfPercent;
+    : total > 0 && validDeliveryFee && Boolean(channel) && validHalfPercent && validCustomerPhone;
   const deposit = allowHalfPayment
     ? calculatePaymentAmounts(Math.round(total * 100), halfPaymentPercent).dueNowAmount
     : 0;
@@ -8133,6 +8147,7 @@ function MultiItemTakeOrderModern() {
     setItemSource(null);
     setCustomDraft({ name: '', amount: '', preferences: [] });
     setCatalogSearch('');
+    setShowCustomerSection(false);
     setCustomerName('');
     setCustomerPhone('');
     setDeliveryAddress('');
@@ -8464,59 +8479,97 @@ function MultiItemTakeOrderModern() {
                   </div>
 
                   <div className="take-order-checkout-main">
-                    <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-5 shadow-xs mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-[14px] font-semibold text-[hsl(var(--foreground))]">Customer Details</div>
-                        <span className="text-[12px] text-[hsl(var(--muted-foreground))]">Optional</span>
+                    {!showCustomerSection ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCustomerSection(true);
+                          setFeedback(null);
+                        }}
+                        data-testid="button-add-customer"
+                        className="w-full flex items-center justify-between px-4 py-3 rounded-[12px] border border-dashed border-[hsl(var(--border))] hover:border-[hsl(var(--primary))]/50 bg-neutral-50/50 hover:bg-neutral-50 dark:bg-neutral-900/20 text-left transition-colors mb-4 group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-200/80 group-hover:bg-[hsl(var(--primary))]/10 text-neutral-600 group-hover:text-[hsl(var(--primary))] transition-colors">
+                            <Plus size={14} />
+                          </div>
+                          <span className="text-[13.5px] font-medium text-[hsl(var(--foreground))]">Add customer</span>
+                          <span className="text-[12px] text-[hsl(var(--muted-foreground))]">(optional)</span>
+                        </div>
+                      </button>
+                    ) : (
+                      <div className="rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-5 shadow-xs mb-4" data-testid="section-customer-details">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="text-[14px] font-semibold text-[hsl(var(--foreground))]">Customer Details</div>
+                            <span className="text-[12px] text-[hsl(var(--muted-foreground))]">(optional)</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowCustomerSection(false);
+                              setCustomerName('');
+                              setCustomerPhone('');
+                              setDeliveryAddress('');
+                              setFeedback(null);
+                            }}
+                            aria-label="Remove customer"
+                            title="Remove customer"
+                            data-testid="button-remove-customer"
+                            className="flex h-6 w-6 items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-[hsl(var(--foreground))] transition-colors cursor-pointer"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                        <p className="text-[12.5px] text-[hsl(var(--muted-foreground))] mb-3.5">
+                          Pre-fill customer details from your chat, or leave blank to let the buyer fill them at checkout.
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-customer-name">
+                              Customer Name
+                            </label>
+                            <input
+                              id="input-customer-name"
+                              data-testid="input-customer-name"
+                              type="text"
+                              value={customerName}
+                              onChange={(e) => setCustomerName(e.target.value)}
+                              placeholder="e.g. Sarah Mensah"
+                              className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-customer-phone">
+                              Phone / WhatsApp
+                            </label>
+                            <input
+                              id="input-customer-phone"
+                              data-testid="input-customer-phone"
+                              type="tel"
+                              value={customerPhone}
+                              onChange={(e) => setCustomerPhone(e.target.value)}
+                              placeholder="e.g. +233 24 123 4567"
+                              className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-delivery-address">
+                              Delivery Address
+                            </label>
+                            <input
+                              id="input-delivery-address"
+                              data-testid="input-delivery-address"
+                              type="text"
+                              value={deliveryAddress}
+                              onChange={(e) => setDeliveryAddress(e.target.value)}
+                              placeholder="e.g. House 14, East Legon, Accra"
+                              className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-[12.5px] text-[hsl(var(--muted-foreground))] mb-3.5">
-                        Pre-fill customer details from your chat, or leave blank to let the buyer fill them at checkout.
-                      </p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div>
-                          <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-customer-name">
-                            Customer Name
-                          </label>
-                          <input
-                            id="input-customer-name"
-                            data-testid="input-customer-name"
-                            type="text"
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            placeholder="e.g. Sarah Mensah"
-                            className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-customer-phone">
-                            Phone / WhatsApp
-                          </label>
-                          <input
-                            id="input-customer-phone"
-                            data-testid="input-customer-phone"
-                            type="tel"
-                            value={customerPhone}
-                            onChange={(e) => setCustomerPhone(e.target.value)}
-                            placeholder="e.g. +233 24 123 4567"
-                            className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="block text-[12px] font-medium text-[hsl(var(--foreground))] mb-1" htmlFor="input-delivery-address">
-                            Delivery Address
-                          </label>
-                          <input
-                            id="input-delivery-address"
-                            data-testid="input-delivery-address"
-                            type="text"
-                            value={deliveryAddress}
-                            onChange={(e) => setDeliveryAddress(e.target.value)}
-                            placeholder="e.g. House 14, East Legon, Accra"
-                            className="w-full h-9 px-3 rounded-[8px] border border-[hsl(var(--input))] bg-[hsl(var(--card))] text-[13px] text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/30 transition"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    )}
 
                     <div className="take-order-payment-config-card rounded-[12px] border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-5 shadow-xs mb-4">
                       <div className="take-order-field-group">
@@ -8750,6 +8803,8 @@ function MultiItemTakeOrderModern() {
                         deliveryFee={deliveryFeeAmount}
                         itemIndex={previewIndex}
                         onActiveIndexChange={setPreviewIndex}
+                        customerName={customerName}
+                        customerPhone={customerPhone}
                       />
                     )}
                   </BuyerOrderSurface>
@@ -9034,12 +9089,19 @@ function PublicOrderPage() {
   const queryClient = useQueryClient();
   const [submitted, setSubmitted] = useState(false);
   const [chosenMode, setChosenMode] = useState<PaymentModeChoice>('full');
+  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
   const [form, setForm] = useState<BuyerOrderFormValues>({ name: '', phone: '', deliveryMethod: undefined, address: '', orderDetails: '' });
   const [itemStep, setItemStep] = useState(0);
   const [itemForms, setItemForms] = useState<BuyerItemFormValues[]>([]);
   const [submitError, setSubmitError] = useState('');
   const order = query.data;
   setActiveCurrency(order?.currency ?? 'GHS');
+  const handleEditCustomer = () => {
+    setIsEditingCustomer(true);
+    if (!form.name && order?.savedCustomer?.name) {
+      setForm((f) => ({ ...f, name: order.savedCustomer?.name || '' }));
+    }
+  };
   useEffect(() => {
     if (order) invalidateDashboardSummary(queryClient);
   }, [order, queryClient]);
@@ -9108,13 +9170,16 @@ function PublicOrderPage() {
       }
     }
 
-    if (!form.name.trim()) {
-      setSubmitError('Please enter your name');
-      return;
-    }
-    if (!form.phone.trim() || form.phone.trim().length < 5) {
-      setSubmitError('Please enter your phone number');
-      return;
+    const isUsingSaved = Boolean(order?.savedCustomer && !isEditingCustomer);
+    if (!isUsingSaved) {
+      if (!form.name.trim()) {
+        setSubmitError('Please enter your name');
+        return;
+      }
+      if (!form.phone.trim() || form.phone.trim().length < 5) {
+        setSubmitError('Please enter your phone number');
+        return;
+      }
     }
     if (!form.deliveryMethod) {
       setSubmitError('Please choose a delivery service');
@@ -9127,8 +9192,9 @@ function PublicOrderPage() {
 
     const paymentAction = chosenMode === 'reservation' ? 'reserve' : 'pay';
     const data: PublicOrderInput = {
-      customerName: form.name.trim(),
-      customerPhone: form.phone.trim(),
+      customerName: isUsingSaved ? (order?.savedCustomer?.name || '') : form.name.trim(),
+      customerPhone: isUsingSaved ? undefined : form.phone.trim(),
+      useSavedCustomer: isUsingSaved,
       buyerDetails: form.orderDetails?.trim() || undefined,
       deliveryMethod: form.deliveryMethod,
       deliveryAddress: form.deliveryMethod === 'delivery' ? form.address?.trim() || undefined : undefined,
@@ -9178,7 +9244,7 @@ function PublicOrderPage() {
     });
   };
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8"><div className="mx-auto max-w-[1180px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} customLayout={true}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} allowReservation={order.allowReservation} allowHalfPayment={order.allowHalfPayment} halfPaymentPercent={order.halfPaymentPercent} chosenMode={chosenMode} onChosenModeChange={setChosenMode} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} form={form} itemForm={currentItemForm} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => { setSubmitError(''); setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item)); }} onNextItem={handleNextItem} onPrevItem={handlePrevItem} onBack={handlePrevItem} onReferenceImageChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setSubmitError(''); changeItem('imagePreview', URL.createObjectURL(file)); changeItem('image', file.name); const uploadedUrl = await uploadReferenceImage(file); changeItem('image', uploadedUrl); }} onError={setSubmitError} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] flex flex-wrap items-center justify-center gap-2"><span>Powered by Take Order · made for small businesses</span><span>·</span><Link href="/terms" target="_blank" className="hover:underline">Terms</Link><span>·</span><Link href="/privacy" target="_blank" className="hover:underline">Privacy</Link><span>·</span><Link href="/refund-policy" target="_blank" className="hover:underline">Refund Policy</Link></div></div></div>;
+  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8"><div className="mx-auto max-w-[1180px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} customLayout={true}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} allowReservation={order.allowReservation} allowHalfPayment={order.allowHalfPayment} halfPaymentPercent={order.halfPaymentPercent} chosenMode={chosenMode} onChosenModeChange={setChosenMode} savedCustomer={order.savedCustomer} isEditingCustomer={isEditingCustomer} onEditCustomer={handleEditCustomer} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} form={form} itemForm={currentItemForm} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => { setSubmitError(''); setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item)); }} onNextItem={handleNextItem} onPrevItem={handlePrevItem} onBack={handlePrevItem} onReferenceImageChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setSubmitError(''); changeItem('imagePreview', URL.createObjectURL(file)); changeItem('image', file.name); const uploadedUrl = await uploadReferenceImage(file); changeItem('image', uploadedUrl); }} onError={setSubmitError} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] flex flex-wrap items-center justify-center gap-2"><span>Powered by Take Order · made for small businesses</span><span>·</span><Link href="/terms" target="_blank" className="hover:underline">Terms</Link><span>·</span><Link href="/privacy" target="_blank" className="hover:underline">Privacy</Link><span>·</span><Link href="/refund-policy" target="_blank" className="hover:underline">Refund Policy</Link></div></div></div>;
 }
 
 export function Connect() {
@@ -11561,6 +11627,9 @@ export function BuyerOrderForm({
   onBack = () => undefined,
   onReferenceImageChange,
   itemForms: providedItemForms,
+  savedCustomer,
+  isEditingCustomer = false,
+  onEditCustomer,
   onError,
 }: {
   paymentMode?: 'full' | 'deposit' | 'reserve' | null;
@@ -11569,6 +11638,9 @@ export function BuyerOrderForm({
   halfPaymentPercent?: number | null;
   chosenMode?: PaymentModeChoice;
   onChosenModeChange?: (mode: PaymentModeChoice) => void;
+  savedCustomer?: { name: string; phone?: string | null } | null;
+  isEditingCustomer?: boolean;
+  onEditCustomer?: () => void;
   amount: number;
   depositAmount?: number | null | undefined;
   deliveryFee?: number;
@@ -11699,17 +11771,20 @@ export function BuyerOrderForm({
         }
       }
 
-      if (!form.name?.trim()) {
-        onError?.('Please enter your name');
-        const el = document.getElementById('buyer-name') as HTMLInputElement;
-        if (el) el.focus();
-        return;
-      }
-      if (!form.phone?.trim() || form.phone.trim().length < 5) {
-        onError?.('Please enter your phone number');
-        const el = document.getElementById('buyer-phone') as HTMLInputElement;
-        if (el) el.focus();
-        return;
+      const hasCustomerPrefill = Boolean(savedCustomer && !isEditingCustomer);
+      if (!hasCustomerPrefill) {
+        if (!form.name?.trim()) {
+          onError?.('Please enter your name');
+          const el = document.getElementById('buyer-name') as HTMLInputElement;
+          if (el) el.focus();
+          return;
+        }
+        if (!form.phone?.trim() || form.phone.trim().length < 5) {
+          onError?.('Please enter your phone number');
+          const el = document.getElementById('buyer-phone') as HTMLInputElement;
+          if (el) el.focus();
+          return;
+        }
       }
       const finalDelivery = form.deliveryMethod ?? (deliveryFee === 0 ? 'pickup' : undefined);
       if (!finalDelivery) {
@@ -11763,8 +11838,36 @@ export function BuyerOrderForm({
   if (!providedItem) {
     return <form onSubmit={onSubmit} aria-labelledby="buyer-order-form-heading" aria-busy={submitPending} className="space-y-5" data-ask-for-details={askForDetails} data-allow-reference-images={allowReferenceImages}>
       {submitError && <div className="rounded-[10px] border border-[hsl(var(--destructive))]/20 bg-[hsl(var(--destructive))]/5 px-3 py-2 text-xs text-[hsl(var(--destructive))]" role="alert" data-testid="status-public-order-error">{submitError}</div>}
-      <div><label htmlFor="buyer-name" className="field-label">Your name <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label><input id="buyer-name" data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div>
-      <div><label htmlFor="buyer-phone" className="field-label">Phone number <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label><input id="buyer-phone" data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>
+      {savedCustomer && !isEditingCustomer ? (
+        <div className="rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50/80 dark:bg-neutral-800/40 p-3.5 space-y-1" data-testid="card-saved-customer">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Your details</span>
+            {onEditCustomer && (
+              <button
+                type="button"
+                onClick={onEditCustomer}
+                data-testid="button-edit-customer"
+                className="text-xs font-semibold text-[hsl(var(--primary))] hover:underline cursor-pointer"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+          <div className="text-[14px] font-semibold text-[hsl(var(--foreground))]" data-testid="text-saved-customer-name">
+            {savedCustomer.name}
+          </div>
+          {savedCustomer.phone && (
+            <div className="text-[13px] text-[hsl(var(--muted-foreground))]" data-testid="text-saved-customer-phone">
+              {maskPhone(savedCustomer.phone)}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <div><label htmlFor="buyer-name" className="field-label">Your name <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label><input id="buyer-name" data-testid="input-buyer-name" required minLength={1} value={form.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Full name" className="field-input" /></div>
+          <div><label htmlFor="buyer-phone" className="field-label">Phone number <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label><input id="buyer-phone" data-testid="input-buyer-phone" required minLength={5} value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Best number to reach you" className="field-input" /></div>
+        </>
+      )}
       {askForDetails && <div><label htmlFor="buyer-details" className="field-label">Details for the seller <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></label><textarea id="buyer-details" data-testid="input-buyer-details" value={form.details ?? ''} onChange={(event) => onChange('details', event.target.value)} placeholder="Size, color, delivery note, or anything already agreed..." rows={3} className="field-input resize-none" /></div>}
       {allowReferenceImages && <div><span className="field-label">Reference image <span className="font-normal text-[hsl(var(--muted-foreground))]">(optional)</span></span><label htmlFor="buyer-reference-image" className="buyer-image-upload"><Clipboard aria-hidden="true" size={15} />{form.image ? form.image : 'Attach an image'}</label><input id="buyer-reference-image" data-testid="input-buyer-reference-image" aria-label="Reference image" type="file" accept="image/*" className="hidden" onChange={onReferenceImageChange} />{form.imagePreview && <img src={form.imagePreview} alt="Selected reference" className="mt-3 h-28 w-full rounded-[10px] object-cover" />}</div>}
       <Button type="submit" disabled={submitPending} className="w-full py-3.5" data-testid="button-submit-public-order">
@@ -11930,30 +12033,56 @@ export function BuyerOrderForm({
               <p className="text-xs text-slate-500 mt-0.5">Enter your details to complete your order</p>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="buyer-name" className="field-label">Your name <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
-                <input
-                  id="buyer-name"
-                  data-testid="input-buyer-name"
-                  value={form.name}
-                  onChange={(event) => onChange('name', event.target.value)}
-                  placeholder="Full name"
-                  className="field-input"
-                />
+            {savedCustomer && !isEditingCustomer ? (
+              <div className="rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50/80 dark:bg-neutral-800/40 p-3.5 space-y-1" data-testid="card-saved-customer">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Your details</span>
+                  {onEditCustomer && (
+                    <button
+                      type="button"
+                      onClick={onEditCustomer}
+                      data-testid="button-edit-customer"
+                      className="text-xs font-semibold text-[hsl(var(--primary))] hover:underline cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+                <div className="text-[14px] font-semibold text-[hsl(var(--foreground))]" data-testid="text-saved-customer-name">
+                  {savedCustomer.name}
+                </div>
+                {savedCustomer.phone && (
+                  <div className="text-[13px] text-[hsl(var(--muted-foreground))]" data-testid="text-saved-customer-phone">
+                    {maskPhone(savedCustomer.phone)}
+                  </div>
+                )}
               </div>
-              <div>
-                <label htmlFor="buyer-phone" className="field-label">Phone number <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
-                <input
-                  id="buyer-phone"
-                  data-testid="input-buyer-phone"
-                  value={form.phone}
-                  onChange={(event) => onChange('phone', event.target.value)}
-                  placeholder="Best number to reach you"
-                  className="field-input"
-                />
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="buyer-name" className="field-label">Your name <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
+                  <input
+                    id="buyer-name"
+                    data-testid="input-buyer-name"
+                    value={form.name}
+                    onChange={(event) => onChange('name', event.target.value)}
+                    placeholder="Full name"
+                    className="field-input"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="buyer-phone" className="field-label">Phone number <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></label>
+                  <input
+                    id="buyer-phone"
+                    data-testid="input-buyer-phone"
+                    value={form.phone}
+                    onChange={(event) => onChange('phone', event.target.value)}
+                    placeholder="Best number to reach you"
+                    className="field-input"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="pt-2 border-t border-slate-100">
               <div className="field-label mb-2 font-semibold text-slate-800">Delivery service <b className="text-rose-500 font-bold ml-0.5" aria-hidden="true">*</b></div>

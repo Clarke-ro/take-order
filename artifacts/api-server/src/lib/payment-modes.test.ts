@@ -5,6 +5,9 @@ import {
   getAllowedModesForLink,
   getOrderCollectedAmount,
   getOrderOutstandingAmount,
+  maskPhone,
+  maskEmail,
+  isAwaitingBuyer,
 } from "@workspace/api-zod";
 
 test("calculatePaymentAmounts: even total pesewas with 50%", () => {
@@ -153,4 +156,35 @@ test("getOrderCollectedAmount and getOrderOutstandingAmount: unified calculation
   // Null/undefined order
   assert.equal(getOrderCollectedAmount(null), 0);
   assert.equal(getOrderOutstandingAmount(null), 0);
+});
+
+test("maskPhone: preserves last 4 digits and masks earlier characters", () => {
+  assert.equal(maskPhone("+233 24 123 4567"), "••• ••• 4567");
+  assert.equal(maskPhone("0241234567"), "••• ••• 4567");
+  assert.equal(maskPhone("4567"), "4567");
+  assert.equal(maskPhone("123"), "123");
+  assert.equal(maskPhone(""), "");
+  assert.equal(maskPhone(null), "");
+  assert.equal(maskPhone(undefined), "");
+});
+
+test("maskEmail: masks email address username and keeps domain", () => {
+  assert.equal(maskEmail("john@example.com"), "j•••n@example.com");
+  assert.equal(maskEmail("ab@test.com"), "••@test.com");
+  assert.equal(maskEmail(""), "");
+  assert.equal(maskEmail(null), "");
+  assert.equal(maskEmail(undefined), "");
+});
+
+test("isAwaitingBuyer: correctly recognizes placeholder names and real customer names", () => {
+  assert.equal(isAwaitingBuyer(null), true);
+  assert.equal(isAwaitingBuyer(undefined), true);
+  assert.equal(isAwaitingBuyer(""), true);
+  assert.equal(isAwaitingBuyer("Waiting for buyer"), true);
+  assert.equal(isAwaitingBuyer("waiting for buyer"), true);
+  assert.equal(isAwaitingBuyer("buyer pending"), true);
+  assert.equal(isAwaitingBuyer("awaiting buyer"), true);
+  assert.equal(isAwaitingBuyer("customer"), true);
+  assert.equal(isAwaitingBuyer("Sarah Mensah"), false);
+  assert.equal(isAwaitingBuyer("Kofi Adams"), false);
 });
