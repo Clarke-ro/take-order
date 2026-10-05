@@ -3,6 +3,8 @@
  * Implements canonical definitions documented in docs/METRICS.md.
  */
 
+import { formatCustomerName } from '@/lib/formatters';
+
 export interface MetricOrder {
   id: number;
   token?: string;
@@ -148,6 +150,12 @@ export function sanitizeCsvCell(val: unknown): string {
   return `"${str.replace(/"/g, '""')}"`;
 }
 
+const toFinite = (val: unknown): number => {
+  if (val == null) return 0;
+  const num = typeof val === 'number' ? val : Number(val);
+  return Number.isFinite(num) ? num : 0;
+};
+
 /**
  * Calculates unified financial, operational, and customer metrics.
  */
@@ -173,25 +181,25 @@ export function calculateUnifiedMetrics(params: {
   const paidOrders = placedOrders.filter((o) => o.status === 'paid' || o.status === 'deposit_paid');
 
   // 1. Order Value & Total Orders
-  const orderValue = placedOrders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+  const orderValue = placedOrders.reduce((sum, o) => sum + toFinite(o.amount), 0);
   const totalOrdersCount = placedOrders.length;
   const avgOrderValue = totalOrdersCount > 0 ? orderValue / totalOrdersCount : 0;
 
   // 2. Revenue collected
   const totalRevenue = paidOrders.reduce((sum, o) => {
     if (o.status === 'deposit_paid') {
-      return sum + Number(o.depositAmount || 0);
+      return sum + toFinite(o.depositAmount);
     }
-    return sum + Number(o.amount || 0);
+    return sum + toFinite(o.amount);
   }, 0);
 
   // 3. Outstanding balance on open orders
   const openOrders = placedOrders.filter((o) => o.status === 'deposit_paid' || o.status === 'pending' || o.status === 'unpaid');
   const outstanding = openOrders.reduce((sum, o) => {
     if (o.status === 'deposit_paid') {
-      return sum + Math.max(0, Number(o.amount || 0) - Number(o.depositAmount || 0));
+      return sum + Math.max(0, toFinite(o.amount) - toFinite(o.depositAmount));
     }
-    return sum + Number(o.amount || 0);
+    return sum + toFinite(o.amount);
   }, 0);
 
   // 4. Product Costs (COGS) & Missing Costs Detection
@@ -200,12 +208,12 @@ export function calculateUnifiedMetrics(params: {
 
   let totalProductCosts = 0;
   for (const o of paidOrders) {
-    if (o.productCost != null && Number(o.productCost) > 0) {
-      totalProductCosts += Number(o.productCost);
+    if (o.productCost != null && toFinite(o.productCost) > 0) {
+      totalProductCosts += toFinite(o.productCost);
     } else {
       const prod = productMap.get(o.productId);
-      if (prod?.cost != null && Number(prod.cost) > 0) {
-        totalProductCosts += Number(prod.cost);
+      if (prod?.cost != null && toFinite(prod.cost) > 0) {
+        totalProductCosts += toFinite(prod.cost);
       } else if (prod) {
         missingCostProductIds.add(prod.id);
       }
@@ -218,7 +226,7 @@ export function calculateUnifiedMetrics(params: {
   }));
 
   // 5. Operating Expenses & Net Profit
-  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + toFinite(e.amount), 0);
   const netProfit = totalRevenue - totalProductCosts - totalExpenses;
   const profitMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
 
@@ -229,11 +237,11 @@ export function calculateUnifiedMetrics(params: {
     const phone = o.customerPhone?.trim() || '';
     const name = o.customerName?.trim() || '';
     const key = phone || name;
-    if (!key || key.toLowerCase() === 'waiting for buyer') return;
+    if (!key || key.toLowerCase() === 'waiting for buyer' || key.toLowerCase() === 'awaiting' || key.toLowerCase() === 'buyer pending') return;
 
     const existing = clientMap.get(key) || { name: name || phone, phone, count: 0, totalSpent: 0, lastDate: '' };
     existing.count += 1;
-    existing.totalSpent += Number(o.amount || 0);
+    existing.totalSpent += toFinite(o.amount);
     const orderDate = typeof o.createdAt === 'string' ? o.createdAt.slice(0, 10) : new Date(o.createdAt).toISOString().slice(0, 10);
     if (!existing.lastDate || orderDate > existing.lastDate) {
       existing.lastDate = orderDate;
@@ -297,7 +305,7 @@ export function calculateUnifiedMetrics(params: {
     const summaryItem: OutstandingOrderSummary = {
       id: o.id,
       token: o.token,
-      customerName: o.customerName || 'Customer',
+      customerName: formatCustomerName(o.customerName),
       customerPhone: o.customerPhone || '',
       productName: o.productName,
       amount: totalAmt,

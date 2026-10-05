@@ -109,8 +109,8 @@ export function ComparisonAnalyticsSection({
       cell: (row) => {
         if (row.isNew) {
           return (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-              New
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+              No previous data
             </span>
           );
         }

@@ -820,8 +820,8 @@ export default function ReportInsightPage() {
 
                     <div className="mt-3 flex items-center gap-1.5 text-xs">
                       {kpi.isNew ? (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                          New
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                          No previous data
                         </span>
                       ) : kpi.delta !== undefined && kpi.delta !== null ? (
                         <span
@@ -844,9 +844,11 @@ export default function ReportInsightPage() {
                           </span>
                         </span>
                       ) : null}
-                      <span className="text-[11px] text-[hsl(var(--muted-foreground))]">
-                        vs previous
-                      </span>
+                      {!kpi.isNew && (
+                        <span className="text-[11px] text-[hsl(var(--muted-foreground))]">
+                          vs previous
+                        </span>
+                      )}
                     </div>
                   </div>
                 );

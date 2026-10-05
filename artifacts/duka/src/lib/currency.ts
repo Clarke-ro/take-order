@@ -136,16 +136,18 @@ export function currentCurrency(): CurrencyConfig {
 }
 
 export function formatMoney(value: number | null | undefined): string {
+  const safe = typeof value === 'number' && Number.isFinite(value) ? value : 0;
   return new Intl.NumberFormat(activeCurrency.locale, {
     style: 'currency',
     currency: activeCurrency.currency,
-  }).format(value ?? 0);
+  }).format(safe);
 }
 
 export function formatCompactMoney(value: number | null | undefined): string {
+  const safe = typeof value === 'number' && Number.isFinite(value) ? value : 0;
   return new Intl.NumberFormat(activeCurrency.locale, {
     style: 'currency',
     currency: activeCurrency.currency,
     maximumFractionDigits: 0,
-  }).format(value ?? 0);
+  }).format(safe);
 }
