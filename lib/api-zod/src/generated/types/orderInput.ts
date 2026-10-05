@@ -28,4 +28,14 @@ export interface OrderInput {
   customerPhone?: string;
   deliveryAddress?: string;
   buyerDetails?: string;
+  /** @nullable */
+  allowReservation?: boolean | null;
+  /** @nullable */
+  allowHalfPayment?: boolean | null;
+  /**
+     * @minimum 1
+     * @maximum 99
+     * @nullable
+     */
+  halfPaymentPercent?: number | null;
 }

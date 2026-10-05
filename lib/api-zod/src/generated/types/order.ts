@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { OrderChosenMode } from './orderChosenMode';
 import type { OrderDeliveryMethod } from './orderDeliveryMethod';
 import type { OrderEngagementSource } from './orderEngagementSource';
 import type { OrderFulfillment } from './orderFulfillment';
@@ -55,5 +56,21 @@ export interface Order {
   referenceImage?: string | null;
   /** @nullable */
   buyerDetails?: string | null;
+  /** @nullable */
+  allowReservation?: boolean | null;
+  /** @nullable */
+  allowHalfPayment?: boolean | null;
+  /**
+     * @minimum 1
+     * @maximum 99
+     * @nullable
+     */
+  halfPaymentPercent?: number | null;
+  /** @nullable */
+  chosenMode?: OrderChosenMode;
+  /** @nullable */
+  percentUsed?: number | null;
+  /** @nullable */
+  amountDueNow?: number | null;
   items: OrderLineItem[];
 }

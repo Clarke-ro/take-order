@@ -94,7 +94,6 @@ export const PublicOrderCurrency = {
   MAD: 'MAD',
   MDL: 'MDL',
   MGA: 'MGA',
-  MKD: 'MKD',
   MMK: 'MMK',
   MNT: 'MNT',
   MOP: 'MOP',

@@ -4,7 +4,7 @@ import {
   type AnalyticsExpense,
   type DashboardRange,
 } from "./dashboard-analytics";
-import { type ReportConfig, getReportConfig } from "@workspace/api-zod";
+import { type ReportConfig, getReportConfig, getOrderCollectedAmount, getOrderOutstandingAmount } from "@workspace/api-zod";
 
 export type ReportAnalyticsOrder = AnalyticsOrder & {
   id?: number;
@@ -149,8 +149,7 @@ export function computePeriodComparison(
   const orderDate = (o: AnalyticsOrder) => getLocalDateString(o.createdAt, effectiveTimezone);
   const isOrderPlaced = (o: AnalyticsOrder) => o.status !== "reserved" && o.status !== "cancelled";
   const isOrderPaid = (o: AnalyticsOrder) => o.status === "paid" || o.status === "deposit_paid";
-  const getOrderRev = (o: AnalyticsOrder) =>
-    o.status === "deposit_paid" ? Number(o.depositAmount ?? 0) : Number(o.amount);
+  const getOrderRev = (o: AnalyticsOrder) => getOrderCollectedAmount(o);
 
   const curOrders = orders.filter((o) => {
     const d = orderDate(o);
@@ -202,12 +201,7 @@ export function computePeriodComparison(
   const getOutstanding = (placed: AnalyticsOrder[]) =>
     placed
       .filter((o) => o.status === "deposit_paid" || o.status === "pending" || o.status === "unpaid")
-      .reduce((s, o) => {
-        if (o.status === "deposit_paid") {
-          return s + Math.max(0, Number(o.amount) - Number(o.depositAmount ?? 0));
-        }
-        return s + Number(o.amount);
-      }, 0);
+      .reduce((s, o) => s + getOrderOutstandingAmount(o), 0);
 
   const curOutstanding = getOutstanding(curPlaced);
   const prevOutstanding = getOutstanding(prevPlaced);
@@ -392,9 +386,7 @@ export function computePeriodComparison(
   const overdueOrders = curPlaced
     .filter((o) => o.status === "pending" || o.status === "unpaid" || o.status === "deposit_paid")
     .map((o: any) => {
-      const tot = Number(o.amount);
-      const col = o.status === "deposit_paid" ? Number(o.depositAmount || 0) : 0;
-      const due = Math.max(0, tot - col);
+      const due = getOrderOutstandingAmount(o);
       const d = Math.max(0, Math.floor((effectiveNow.getTime() - new Date(o.createdAt).getTime()) / 86400000));
       return {
         id: o.id || 0,
@@ -603,8 +595,7 @@ export function generateReportDetailData(params: {
   const productMap = new Map(products.map((p) => [p.id, p]));
   const isPaid = (o: AnalyticsOrder) => o.status === "paid" || o.status === "deposit_paid";
   const isPlaced = (o: AnalyticsOrder) => o.status !== "reserved" && o.status !== "cancelled";
-  const getRev = (o: AnalyticsOrder) =>
-    o.status === "deposit_paid" ? Number(o.depositAmount ?? 0) : Number(o.amount);
+  const getRev = (o: AnalyticsOrder) => getOrderCollectedAmount(o);
 
   const curPlaced = curOrders.filter(isPlaced);
   const prevPlaced = prevOrders.filter(isPlaced);
@@ -677,7 +668,7 @@ export function generateReportDetailData(params: {
     case "sales-summary": {
       const breakdown = [
         { name: "Settled in full", value: curPaid.filter((o) => o.status === "paid").reduce((s, o) => s + Number(o.amount), 0), count: curPaid.filter((o) => o.status === "paid").length, share: 0, color: "#10B981" },
-        { name: "Deposits collected", value: curPaid.filter((o) => o.status === "deposit_paid").reduce((s, o) => s + Number(o.depositAmount || 0), 0), count: curPaid.filter((o) => o.status === "deposit_paid").length, share: 0, color: "#3B82F6" },
+        { name: "Deposits collected", value: curPaid.filter((o) => o.status === "deposit_paid").reduce((s, o) => s + getOrderCollectedAmount(o), 0), count: curPaid.filter((o) => o.status === "deposit_paid").length, share: 0, color: "#3B82F6" },
       ];
       breakdown.forEach((b) => {
         b.share = curRevenue > 0 ? Math.round((b.value / curRevenue) * 100) : 0;

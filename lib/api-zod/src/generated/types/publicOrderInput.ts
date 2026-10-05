@@ -5,19 +5,20 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PublicOrderInputChosenMode } from './publicOrderInputChosenMode';
 import type { PublicOrderInputDeliveryMethod } from './publicOrderInputDeliveryMethod';
 import type { PublicOrderInputPaymentAction } from './publicOrderInputPaymentAction';
 import type { PublicOrderItemDetails } from './publicOrderItemDetails';
 
 export interface PublicOrderInput {
-  /** @minLength 1 */
-  customerName: string;
-  /** @minLength 5 */
-  customerPhone: string;
+  customerName?: string;
+  customerPhone?: string;
+  useSavedCustomer?: boolean;
   buyerDetails?: string;
   deliveryMethod?: PublicOrderInputDeliveryMethod;
   deliveryAddress?: string;
   referenceImage?: string;
   itemDetails?: PublicOrderItemDetails[];
   paymentAction?: PublicOrderInputPaymentAction;
+  chosenMode?: PublicOrderInputChosenMode;
 }
