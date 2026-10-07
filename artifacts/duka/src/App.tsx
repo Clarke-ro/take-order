@@ -25,7 +25,7 @@ import {
   useListExpenses, useGetSellerSettings, useSubmitPublicOrder, useUpdateExpense, useUpdateOrder, useUpdateProduct,
   useUpdateSellerSettings, customFetch, setAuthTokenGetter
 } from '@workspace/api-client-react';
-import type { Expense, ExpenseInput, ExpenseUpdate, Order, OrderInput, Product, ProductInput, ProductPreferenceGroup, PublicOrderInput, SellerSettings } from '@workspace/api-client-react';
+import type { Expense, ExpenseInput, ExpenseUpdate, Order, OrderInput, Product, ProductInput, ProductPreferenceGroup, PublicOrder, PublicOrderInput, SellerSettings } from '@workspace/api-client-react';
 import NotFound from '@/pages/not-found';
 import { TermsPage } from '@/pages/terms';
 import { PrivacyPage } from '@/pages/privacy';
@@ -58,6 +58,8 @@ import {
 import { Switch as UiSwitch } from '@/components/ui/switch';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { NotificationBadge, NotificationDot } from '@/components/notification-badge';
+import { useBuyerOrderState } from '@/hooks/use-buyer-order-state';
+import { BuyerOrderMobileLayout } from '@/components/buyer-order-mobile-layout';
 import { AnalyticsPage } from '@/pages/analytics';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
@@ -8013,12 +8015,99 @@ function BuyerLinkPreviewCard({
   customerPhone: string;
   device?: 'desktop' | 'mobile';
 }) {
+  const previewOrder = useMemo<PublicOrder>(() => {
+    return {
+      token: 'preview-token',
+      currency: (currentCurrency()?.currency ?? 'GHS') as PublicOrder['currency'],
+      businessName: businessName || 'The Sunday Edit',
+      businessDescription: description || null,
+      logoDataUrl: logoDataUrl || null,
+      productName: previewItems[0]?.productName || 'Order item',
+      amount: total,
+      subtotal: total,
+      deliveryFee: deliveryFeeAmount,
+      status: 'paid',
+      deliveryDefault: 'pickup',
+      variants: previewItems[0]?.variants || [],
+      items: previewItems.map((p) => ({
+        productId: p.productId,
+        productName: p.productName,
+        amount: p.amount,
+        quantity: 1,
+        imageUrls: p.imageUrls || (p.imageUrl ? [p.imageUrl] : []),
+        preferences: p.preferences || [],
+        variants: p.variants || [],
+        description: p.description || null,
+        sku: p.sku || null,
+        compareAtPrice: p.compareAtPrice || null,
+        source: p.source || 'catalog',
+        stock: p.stock ?? 1,
+        available: p.available ?? true,
+      })),
+      paymentMode: legacyPaymentMode,
+      allowReservation: Boolean(allowReservation),
+      allowHalfPayment: Boolean(allowHalfPayment),
+      halfPaymentPercent: halfPaymentPercent || 50,
+      depositAmount: allowHalfPayment ? deposit : null,
+      checkoutAskForDetails: true,
+      checkoutAllowReferenceImages: true,
+      savedCustomer: customerName ? { name: customerName, phone: customerPhone } : undefined,
+      isOrderReceived: false,
+    };
+  }, [
+    businessName,
+    description,
+    logoDataUrl,
+    previewItems,
+    total,
+    deliveryFeeAmount,
+    legacyPaymentMode,
+    allowReservation,
+    allowHalfPayment,
+    halfPaymentPercent,
+    deposit,
+    customerName,
+    customerPhone,
+  ]);
+
+  const previewForm: BuyerOrderFormValues = useMemo(() => ({
+    name: customerName,
+    phone: customerPhone,
+    deliveryMethod: deliveryFeeAmount > 0 ? 'delivery' : 'pickup',
+    address: '',
+    orderDetails: '',
+  }), [customerName, customerPhone, deliveryFeeAmount]);
+
+  const previewItemForms: BuyerItemFormValues[] = useMemo(() => {
+    return previewItems.map(() => ({
+      preferences: {},
+      details: '',
+      image: '',
+      imagePreview: '',
+      quantity: 1,
+    }));
+  }, [previewItems]);
+
+  const previewChosenMode: 'full' | 'half' | 'reservation' = 
+    legacyPaymentMode === 'reserve' ? 'reservation' : (legacyPaymentMode === 'deposit' ? 'half' : 'full');
+
+  const previewAllowedModes = useMemo(() => {
+    const modes = new Set<'full' | 'half' | 'reservation'>(['full']);
+    if (allowHalfPayment) modes.add('half');
+    if (allowReservation) modes.add('reservation');
+    return modes;
+  }, [allowHalfPayment, allowReservation]);
+
+  const previewBuyerTotal = total + deliveryFeeAmount;
+  const previewDueNow = previewChosenMode === 'half' ? deposit : (previewChosenMode === 'reservation' ? 0 : previewBuyerTotal);
+  const previewBalance = previewChosenMode === 'half' ? Math.max(0, previewBuyerTotal - deposit) : (previewChosenMode === 'reservation' ? previewBuyerTotal : 0);
+
   return (
     <div
       data-testid="buyer-link-preview-card"
       className={cn(
         "rounded-[12px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 shadow-xs overflow-y-auto w-full",
-        device === 'mobile' ? "p-4 sm:p-6 max-h-[calc(100vh-120px)] max-w-[420px] mx-auto" : "p-6 sm:p-8"
+        device === 'mobile' ? "p-0 max-h-[calc(100vh-120px)] max-w-[420px] mx-auto" : "p-6 sm:p-8"
       )}
     >
       <div
@@ -8029,235 +8118,75 @@ function BuyerLinkPreviewCard({
           device === 'mobile' ? "is-mobile" : "is-desktop"
         )}
       >
-        <BuyerOrderSurface
-          businessName={businessName}
-          description={description}
-          logoDataUrl={logoDataUrl}
-          productName={previewItems[previewIndex]?.productName}
-          amount={total}
-          totalAmount={total + deliveryFeeAmount}
-          paymentMode={legacyPaymentMode}
-          depositAmount={allowHalfPayment ? deposit : null}
-          variants={previewItems[previewIndex]?.variants ?? []}
-          items={previewItems}
-          previewImages={previewItems.map((p) => p.imageUrl || p.imageUrls?.[0] || '')}
-          activeIndex={previewIndex}
-          onActiveIndexChange={onActiveIndexChange}
-          customLayout={true}
-        >
-          {(activeItem) => (
-            <TakeOrderBuyerPreviewForm
-              item={activeItem}
-              items={previewItems}
-              paymentMode={legacyPaymentMode}
-              allowReservation={allowReservation}
-              allowHalfPayment={allowHalfPayment}
-              halfPaymentPercent={halfPaymentPercent}
-              subtotal={total}
-              deposit={deposit}
-              deliveryFee={deliveryFeeAmount}
-              itemIndex={previewIndex}
-              onActiveIndexChange={onActiveIndexChange}
-              customerName={customerName}
-              customerPhone={customerPhone}
+        {device === 'mobile' ? (
+          <div className="w-full max-w-[390px] mx-auto py-2">
+            <BuyerOrderMobileLayout
+              order={previewOrder}
+              form={previewForm}
+              itemForms={previewItemForms}
+              changeField={() => {}}
+              changeItemPreference={() => {}}
+              changeItemQuantity={() => {}}
+              changeItemDetails={() => {}}
+              changeItemImage={() => {}}
+              isEditingCustomer={false}
+              onEditCustomer={() => {}}
+              chosenMode={previewChosenMode}
+              onChosenModeChange={() => {}}
+              allowedModes={previewAllowedModes}
+              orderSubtotal={total}
+              buyerDeliveryFee={deliveryFeeAmount}
+              buyerTotal={previewBuyerTotal}
+              effectivePercent={halfPaymentPercent || 50}
+              halfCalc={{ dueNowAmount: deposit, balanceAmount: previewBalance }}
+              dueNow={previewDueNow}
+              balanceRemaining={previewBalance}
+              submitError=""
+              submitPending={false}
+              onSubmit={(e) => e.preventDefault()}
             />
-          )}
-        </BuyerOrderSurface>
-      </div>
-    </div>
-  );
-}
-
-function BuyerCheckoutPreviewStep2({
-  businessName,
-  description,
-  logoDataUrl,
-  previewItems,
-  total,
-  deliveryFeeAmount,
-  allowReservation,
-  allowHalfPayment,
-  halfPaymentPercent,
-  deposit,
-  customerName,
-  customerPhone,
-  deliveryAddress,
-}: {
-  businessName: string;
-  description?: string;
-  logoDataUrl?: string | null;
-  previewItems: BuyerOrderItem[];
-  total: number;
-  deliveryFeeAmount: number;
-  allowReservation: boolean;
-  allowHalfPayment: boolean;
-  halfPaymentPercent: number;
-  deposit: number;
-  customerName: string;
-  customerPhone: string;
-  deliveryAddress?: string;
-}) {
-  const buyerTotal = total + (deliveryFeeAmount || 0);
-  const totalPesewas = Math.round(buyerTotal * 100);
-  const calcAmounts = calculatePaymentAmounts(totalPesewas, halfPaymentPercent || 50);
-
-  return (
-    <div
-      data-testid="buyer-checkout-preview-step2"
-      className="rounded-[16px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 p-5 shadow-xs overflow-y-auto max-h-[calc(100vh-120px)] w-full"
-    >
-      {/* Top Header Label */}
-      <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[hsl(var(--border))]">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[hsl(var(--foreground))]">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 font-bold">
-            <Eye size={12} />
-          </span>
-          <span>Buyer Checkout Preview</span>
-        </div>
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Live updates
-        </span>
-      </div>
-
-      {/* Seller Identity Lockup */}
-      <div className="flex items-center gap-3 p-3 rounded-[12px] bg-neutral-50 dark:bg-neutral-800/40 border border-[hsl(var(--border))] mb-4">
-        <SellerLogo businessName={businessName} logoDataUrl={logoDataUrl ?? undefined} className="h-9 w-9 rounded-full shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-bold truncate text-[hsl(var(--foreground))]">{businessName}</div>
-          <div className="text-[11px] text-[hsl(var(--muted-foreground))] truncate">
-            {description?.trim() || 'Instant checkout via Take Order'}
-          </div>
-        </div>
-      </div>
-
-      {/* Customer Info Preview Card */}
-      <div className="space-y-1.5 mb-4">
-        <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-          <span>Customer details</span>
-          {customerName.trim() && <span className="text-emerald-600 lowercase font-medium">prefilled</span>}
-        </div>
-        {customerName.trim() ? (
-          <div className="p-3 rounded-[10px] border border-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/10 space-y-1">
-            <div className="text-[13px] font-semibold text-[hsl(var(--foreground))]">
-              {customerName.trim()}
-            </div>
-            {customerPhone.trim() && (
-              <div className="text-xs text-[hsl(var(--muted-foreground))] font-mono">
-                {maskPhone(customerPhone.trim())}
-              </div>
-            )}
-            {deliveryAddress?.trim() && (
-              <div className="text-[11.5px] text-[hsl(var(--muted-foreground))] pt-0.5 truncate">
-                📍 {deliveryAddress.trim()}
-              </div>
-            )}
           </div>
         ) : (
-          <div className="p-3 rounded-[10px] border border-dashed border-[hsl(var(--border))] bg-neutral-50/50 dark:bg-neutral-900/30 text-xs text-[hsl(var(--muted-foreground))]">
-            <span className="block font-medium text-[hsl(var(--foreground))]">Buyer fills at checkout</span>
-            <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Full name and phone number requested</span>
-          </div>
+          <BuyerOrderSurface
+            businessName={businessName}
+            description={description}
+            logoDataUrl={logoDataUrl}
+            productName={previewItems[previewIndex]?.productName}
+            amount={total}
+            totalAmount={total + deliveryFeeAmount}
+            paymentMode={legacyPaymentMode}
+            depositAmount={allowHalfPayment ? deposit : null}
+            variants={previewItems[previewIndex]?.variants ?? []}
+            items={previewItems}
+            previewImages={previewItems.map((p) => p.imageUrl || p.imageUrls?.[0] || '')}
+            activeIndex={previewIndex}
+            onActiveIndexChange={onActiveIndexChange}
+            customLayout={true}
+          >
+            {(activeItem) => (
+              <TakeOrderBuyerPreviewForm
+                item={activeItem}
+                items={previewItems}
+                paymentMode={legacyPaymentMode}
+                allowReservation={allowReservation}
+                allowHalfPayment={allowHalfPayment}
+                halfPaymentPercent={halfPaymentPercent}
+                subtotal={total}
+                deposit={deposit}
+                deliveryFee={deliveryFeeAmount}
+                itemIndex={previewIndex}
+                onActiveIndexChange={onActiveIndexChange}
+                customerName={customerName}
+                customerPhone={customerPhone}
+              />
+            )}
+          </BuyerOrderSurface>
         )}
-      </div>
-
-      {/* Delivery Method Choice Preview */}
-      <div className="space-y-1.5 mb-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-          Delivery option
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="p-2.5 rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50/60 dark:bg-neutral-800/40">
-            <div className="font-semibold text-[hsl(var(--foreground))]">Pick up</div>
-            <div className="text-[11px] text-[hsl(var(--muted-foreground))]">Free</div>
-          </div>
-          <div className={cn('p-2.5 rounded-[10px] border transition-colors', deliveryFeeAmount > 0 ? 'border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/5' : 'border-[hsl(var(--border))] bg-neutral-50/60 dark:bg-neutral-800/40')}>
-            <div className="font-semibold text-[hsl(var(--foreground))]">Delivery</div>
-            <div className="text-[11px] font-medium text-[hsl(var(--foreground))]">
-              {deliveryFeeAmount > 0 ? moneyExact(deliveryFeeAmount) : 'Free'}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Payment Options Preview */}
-      <div className="space-y-1.5 mb-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
-          Payment options enabled for buyer
-        </div>
-        <div className="space-y-2">
-          {/* Full payment option */}
-          <div className="flex items-center justify-between p-2.5 rounded-[10px] border border-[hsl(var(--border))] bg-white dark:bg-neutral-900 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-              <span className="font-semibold text-[hsl(var(--foreground))]">Pay in full</span>
-            </div>
-            <span className="font-bold text-[hsl(var(--foreground))]">{moneyExact(buyerTotal)}</span>
-          </div>
-
-          {/* Half payment option if enabled */}
-          {allowHalfPayment && (
-            <div className="p-2.5 rounded-[10px] border border-blue-500/30 bg-blue-50/30 dark:bg-blue-950/20 text-xs space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-                  <span className="font-semibold text-[hsl(var(--foreground))]">Pay deposit ({halfPaymentPercent}%)</span>
-                </div>
-                <span className="font-bold text-blue-700 dark:text-blue-300">{moneyExact(calcAmounts.dueNowAmount)}</span>
-              </div>
-              <div className="text-[11px] text-[hsl(var(--muted-foreground))] pl-4 flex items-center justify-between">
-                <span>Balance on delivery:</span>
-                <strong className="text-[hsl(var(--foreground))]">{moneyExact(calcAmounts.balanceAmount)}</strong>
-              </div>
-            </div>
-          )}
-
-          {/* Reservation option if enabled */}
-          {allowReservation && (
-            <div className="flex items-center justify-between p-2.5 rounded-[10px] border border-amber-500/30 bg-amber-50/30 dark:bg-amber-950/20 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-                <span className="font-semibold text-[hsl(var(--foreground))]">Reservation</span>
-              </div>
-              <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">Pay on pickup/delivery</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Order Total Breakdown */}
-      <div className="pt-3 border-t border-[hsl(var(--border))] space-y-2 text-xs">
-        <div className="flex items-center justify-between text-[hsl(var(--muted-foreground))]">
-          <span>Items ({previewItems.length})</span>
-          <span className="font-mono-ui font-medium text-[hsl(var(--foreground))]">{moneyExact(total)}</span>
-        </div>
-        <div className="flex items-center justify-between text-[hsl(var(--muted-foreground))]">
-          <span>Delivery</span>
-          <span className="font-mono-ui font-medium text-[hsl(var(--foreground))]">{deliveryFeeAmount > 0 ? moneyExact(deliveryFeeAmount) : 'GH₵ 0.00'}</span>
-        </div>
-        <div className="flex items-center justify-between font-bold text-sm text-[hsl(var(--foreground))] pt-1 border-t border-dashed border-[hsl(var(--border))]">
-          <span>Total</span>
-          <span className="font-mono-ui text-base">{moneyExact(buyerTotal)}</span>
-        </div>
-
-        {/* Action Button Preview */}
-        <div className="pt-2">
-          <div className="w-full h-10 rounded-[10px] bg-[hsl(var(--primary))] text-white flex items-center justify-center font-semibold text-xs shadow-xs">
-            {allowReservation
-              ? `Pay ${moneyExact(buyerTotal)} or Reserve`
-              : allowHalfPayment
-                ? `Pay ${moneyExact(calcAmounts.dueNowAmount)} deposit`
-                : `Pay ${moneyExact(buyerTotal)}`}
-          </div>
-          <div className="text-[10px] text-center text-[hsl(var(--muted-foreground))] mt-2 flex items-center justify-center gap-1.5">
-            <Lock size={10} />
-            <span>Secure mobile money & card payment</span>
-          </div>
-        </div>
       </div>
     </div>
   );
 }
+
 
 function MultiItemTakeOrderModern() {
   const { userId } = useAppAuth();
@@ -9134,22 +9063,19 @@ function MultiItemTakeOrderModern() {
                   </div>
 
                   {/* Desktop Sticky Preview Column */}
-                  <div className="hidden lg:block sticky top-6 self-start w-[410px] shrink-0">
-                    <BuyerCheckoutPreviewStep2
-                      businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
-                      description={seller?.description}
-                      logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
-                      previewItems={previewItems}
-                      total={total}
-                      deliveryFeeAmount={deliveryFeeAmount}
-                      allowReservation={allowReservation}
-                      allowHalfPayment={allowHalfPayment}
-                      halfPaymentPercent={halfPaymentPercent}
-                      deposit={deposit}
-                      customerName={customerName}
-                      customerPhone={customerPhone}
-                      deliveryAddress={deliveryAddress}
-                    />
+                  <div className="hidden lg:block sticky top-6 self-start w-[380px] shrink-0">
+                    <div className="take-order-step2-summary take-order-payment-checkout-card">
+                      <TakeOrderCheckoutSummary
+                        items={items}
+                        total={total}
+                        paymentMode={legacyPaymentMode}
+                        allowReservation={allowReservation}
+                        allowHalfPayment={allowHalfPayment}
+                        halfPaymentPercent={halfPaymentPercent}
+                        deposit={deposit}
+                        deliveryFee={deliveryFeeAmount}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -9157,24 +9083,21 @@ function MultiItemTakeOrderModern() {
                 <Sheet open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
                   <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-t-[20px] bg-white dark:bg-neutral-900 border-t border-[hsl(var(--border))]">
                     <SheetHeader className="sr-only">
-                      <SheetTitle>Buyer checkout preview</SheetTitle>
+                      <SheetTitle>Order items summary</SheetTitle>
                     </SheetHeader>
                     <div className="py-2">
-                      <BuyerCheckoutPreviewStep2
-                        businessName={settingsQuery.data?.businessName || seller?.businessName || 'The Sunday Edit'}
-                        description={seller?.description}
-                        logoDataUrl={settingsQuery.data?.logoDataUrl || seller?.logoDataUrl}
-                        previewItems={previewItems}
-                        total={total}
-                        deliveryFeeAmount={deliveryFeeAmount}
-                        allowReservation={allowReservation}
-                        allowHalfPayment={allowHalfPayment}
-                        halfPaymentPercent={halfPaymentPercent}
-                        deposit={deposit}
-                        customerName={customerName}
-                        customerPhone={customerPhone}
-                        deliveryAddress={deliveryAddress}
-                      />
+                      <div className="take-order-step2-summary take-order-payment-checkout-card">
+                        <TakeOrderCheckoutSummary
+                          items={items}
+                          total={total}
+                          paymentMode={legacyPaymentMode}
+                          allowReservation={allowReservation}
+                          allowHalfPayment={allowHalfPayment}
+                          halfPaymentPercent={halfPaymentPercent}
+                          deposit={deposit}
+                          deliveryFee={deliveryFeeAmount}
+                        />
+                      </div>
                     </div>
                   </SheetContent>
                 </Sheet>
@@ -9547,170 +9470,268 @@ type BuyerItemFormValues = {
 
 const emptyBuyerItemForm = (): BuyerItemFormValues => ({ preferences: {}, details: '', image: '', imagePreview: '', quantity: 1 });
 
-function PublicOrderPage() {
+function PublicOrderPage({
+  layout = 'auto',
+  ...rest
+}: {
+  layout?: 'auto' | 'mobile' | 'desktop';
+  [key: string]: any;
+} = {}) {
   const { token = '' } = useParams<{ token: string }>();
   const query = useGetPublicOrder(token, { query: { enabled: Boolean(token), queryKey: getGetPublicOrderQueryKey(token) } });
   const submit = useSubmitPublicOrder();
   const queryClient = useQueryClient();
   const [submitted, setSubmitted] = useState(false);
-  const [chosenMode, setChosenMode] = useState<PaymentModeChoice>('full');
-  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
-  const [form, setForm] = useState<BuyerOrderFormValues>({ name: '', phone: '', deliveryMethod: undefined, address: '', orderDetails: '' });
-  const [itemStep, setItemStep] = useState(0);
-  const [itemForms, setItemForms] = useState<BuyerItemFormValues[]>([]);
-  const [submitError, setSubmitError] = useState('');
   const order = query.data;
   setActiveCurrency(order?.currency ?? 'GHS');
-  const handleEditCustomer = () => {
-    setIsEditingCustomer(true);
-    if (!form.name && order?.savedCustomer?.name) {
-      setForm((f) => ({ ...f, name: order.savedCustomer?.name || '' }));
-    }
-  };
+
+  const {
+    form,
+    changeField,
+    itemStep,
+    setItemStep,
+    itemForms,
+    setItemForms,
+    changeItemPreference,
+    changeItemQuantity,
+    changeItemDetails,
+    changeItemImage,
+    handleNextItem,
+    handlePrevItem,
+    isEditingCustomer,
+    handleEditCustomer,
+    chosenMode,
+    setChosenMode,
+    allowedModes,
+    orderSubtotal,
+    buyerDeliveryFee,
+    buyerTotal,
+    effectivePercent,
+    halfCalc,
+    dueNow,
+    balanceRemaining,
+    submitError,
+    setSubmitError,
+    validate,
+    buildSubmitPayload,
+  } = useBuyerOrderState({
+    order,
+    token,
+  });
+
   useEffect(() => {
     if (order) invalidateDashboardSummary(queryClient);
   }, [order, queryClient]);
-  useEffect(() => {
-    if (!order) return;
-    setItemForms((current) => order.items.map((_, index) => current[index] ?? emptyBuyerItemForm()));
-    setItemStep(0);
-    setForm({ name: '', phone: '', deliveryMethod: undefined, address: '', orderDetails: '' });
-  }, [order?.token, order?.items.length]);
-  const change = (key: 'name' | 'phone' | 'deliveryMethod' | 'address' | 'orderDetails' | 'details', value: string) => {
-    setSubmitError('');
-    if (key === 'details') {
-      setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, details: value } : item));
-      return;
-    }
-    setForm((current) => ({ ...current, [key]: key === 'deliveryMethod' ? value as 'pickup' | 'delivery' : value }));
-  };
-  const changeItem = (key: Exclude<keyof BuyerItemFormValues, 'quantity'>, value: string) => {
-    setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, [key]: value } : item));
-  };
-  const changeQuantity = (value: number) => {
-    setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, quantity: value } : item));
-  };
-  const handleNextItem = () => {
-    if (order && itemStep < order.items.length - 1) {
-      const activeItem = order.items[itemStep];
-      const activeForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-      const missingPref = activeItem?.preferences.find((p) => !activeForm.preferences[p.label]);
-      if (missingPref) {
-        setSubmitError(`Please choose an option for ${missingPref.label}`);
-        return;
-      }
-      const missingImg = order.checkoutAllowReferenceImages !== false && activeItem?.source === 'custom' && !activeForm.imagePreview;
-      if (missingImg) {
-        setSubmitError(`Please attach a reference photo for ${activeItem.productName}`);
-        return;
-      }
-      setSubmitError('');
-      setItemStep((prev) => prev + 1);
-    }
-  };
-  const handlePrevItem = () => {
-    setSubmitError('');
-    setItemStep((prev) => Math.max(0, prev - 1));
-  };
-  const submitForm = (event: React.FormEvent) => {
-    event.preventDefault();
+
+  const submitForm = (event?: React.FormEvent) => {
+    if (event) event.preventDefault();
     setSubmitError('');
 
-    if (order?.items) {
-      for (let i = 0; i < order.items.length; i++) {
-        const itm = order.items[i];
-        const f = itemForms[i] ?? emptyBuyerItemForm();
-        const missingPref = itm.preferences.find((p) => !f.preferences[p.label]);
-        if (missingPref) {
-          setItemStep(i);
-          setSubmitError(`Please choose an option for ${missingPref.label}`);
-          return;
-        }
-        const missingImg = order.checkoutAllowReferenceImages !== false && itm.source === 'custom' && !f.imagePreview;
-        if (missingImg) {
-          setItemStep(i);
-          setSubmitError(`Please attach a reference photo for ${itm.productName}`);
-          return;
-        }
-      }
-    }
-
-    const isUsingSaved = Boolean(order?.savedCustomer && !isEditingCustomer);
-    if (!isUsingSaved) {
-      if (!form.name.trim()) {
-        setSubmitError('Please enter your name');
-        return;
-      }
-      if (!form.phone.trim() || form.phone.trim().length < 5) {
-        setSubmitError('Please enter your phone number');
-        return;
-      }
-    }
-    if (!form.deliveryMethod) {
-      setSubmitError('Please choose a delivery service');
-      return;
-    }
-    if (form.deliveryMethod === 'delivery' && !form.address?.trim()) {
-      setSubmitError('Please enter your delivery address');
+    const validationErr = validate();
+    if (validationErr) {
+      setSubmitError(validationErr);
       return;
     }
 
-    const paymentAction = chosenMode === 'reservation' ? 'reserve' : 'pay';
-    const data: PublicOrderInput = {
-      customerName: isUsingSaved ? (order?.savedCustomer?.name || '') : form.name.trim(),
-      customerPhone: isUsingSaved ? undefined : form.phone.trim(),
-      useSavedCustomer: isUsingSaved,
-      buyerDetails: form.orderDetails?.trim() || undefined,
-      deliveryMethod: form.deliveryMethod,
-      deliveryAddress: form.deliveryMethod === 'delivery' ? form.address?.trim() || undefined : undefined,
-      itemDetails: itemForms.map((item, itemIndex) => ({
-        itemIndex,
-        quantity: item.quantity,
-        variant: Object.values(item.preferences).filter(Boolean).join(' · ') || undefined,
-        details: item.details || undefined,
-        referenceImage: item.image || undefined,
-      })),
-      paymentAction,
-      chosenMode: ((chosenMode === 'reservation' ? 'reserve' : chosenMode) as PublicOrderInput['chosenMode']),
-    };
+    const data = buildSubmitPayload();
     submit.mutate({ token, data }, {
       onSuccess: () => { invalidateDashboardSummary(queryClient); setSubmitted(true); },
       onError: (error) => setSubmitError(error instanceof Error && error.message ? error.message : 'Your order could not be sent. Check your connection and try again.'),
     });
   };
-  if (query.isLoading) return <div className="min-h-[100dvh] bg-[hsl(var(--background))] p-6"><div className="mx-auto max-w-[480px]"><BrandLockup className="mx-auto mt-14 justify-center" /><Skeleton className="mx-auto mt-8 h-8 w-52" /><Skeleton className="mt-4 h-4 w-full" /><Skeleton className="mt-10 h-64 w-full" /></div></div>;
-  if (query.isError || !order) return <div className="flex min-h-[100dvh] items-center justify-center p-6"><div className="text-center"><BrandLockup className="justify-center" /><div className="mt-10 font-display text-2xl font-bold">This link is no longer available.</div><p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">Ask the seller for a fresh order link.</p></div></div>;
-  if (submitted || order?.isOrderReceived) return <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] p-6"><div className="w-full max-w-[480px] text-center page-in"><BrandLockup className="justify-center" /><div className="mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white"><Check size={30} /></div><h1 className="mt-7 font-display text-4xl font-bold tracking-[-.05em]">Order received</h1><p className="mx-auto mt-4 max-w-[350px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">{(order?.chosenMode as any) === 'reservation' || chosenMode === 'reservation' ? 'Your reservation has been received by the seller. They’ll be in touch with the next step.' : 'Your order and payment details have been received by the seller. They’ll be in touch with the next step.'}</p><div className="mt-8 font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Order reference · {token.slice(0, 8)}</div></div></div>;
-  const orderSubtotal = itemForms.length === order.items.length
-    ? order.items.reduce((sum, item, index) => sum + item.amount * (itemForms[index]?.quantity ?? item.quantity ?? 1), 0)
-    : order.subtotal ?? order.items.reduce((sum, item) => sum + item.amount * (item.quantity ?? 1), 0);
-  const buyerDeliveryFee = form.deliveryMethod === 'delivery' ? order.deliveryFee : 0;
-  const buyerTotal = orderSubtotal + buyerDeliveryFee;
-  const uploadReferenceImage = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const base64Data = reader.result as string;
-          const res = await customFetch<{ url: string }>('/api/upload', {
-            method: 'POST',
-            body: JSON.stringify({
-              data: base64Data,
-              filename: file.name,
-            }),
-          });
-          resolve(res.url);
-        } catch {
-          resolve(file.name);
-        }
-      };
-      reader.onerror = () => resolve(file.name);
-      reader.readAsDataURL(file);
-    });
-  };
+
+  if (query.isLoading) {
+    return (
+      <div className={cn("buyer-page-layout-root min-h-[100dvh] bg-[hsl(var(--background))]", layout === 'mobile' && 'is-mobile', layout === 'desktop' && 'is-desktop', (layout === 'auto' || !layout) && 'is-auto')}>
+        <div className="buyer-layout-mobile p-4 max-w-[430px] mx-auto">
+          <div className="flex items-center justify-between py-2 mb-4">
+            <Skeleton className="h-7 w-28 rounded-lg" />
+            <Skeleton className="h-4 w-24 rounded-full" />
+          </div>
+          <div className="rounded-[16px] bg-white dark:bg-neutral-900 border border-[hsl(var(--border))] p-4 space-y-4">
+            <Skeleton className="w-full aspect-square rounded-[12px]" />
+            <Skeleton className="h-6 w-3/4 rounded-md" />
+            <Skeleton className="h-6 w-1/3 rounded-md" />
+            <Skeleton className="h-10 w-full rounded-md" />
+          </div>
+          <div className="mt-4 rounded-[16px] bg-white dark:bg-neutral-900 border border-[hsl(var(--border))] p-4 space-y-3">
+            <Skeleton className="h-5 w-1/3 rounded-md" />
+            <Skeleton className="h-10 w-full rounded-md" />
+            <Skeleton className="h-10 w-full rounded-md" />
+          </div>
+        </div>
+        <div className="buyer-layout-desktop p-6">
+          <div className="mx-auto max-w-[480px]">
+            <BrandLockup className="mx-auto mt-14 justify-center" />
+            <Skeleton className="mx-auto mt-8 h-8 w-52" />
+            <Skeleton className="mt-4 h-4 w-full" />
+            <Skeleton className="mt-10 h-64 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (query.isError || !order) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center p-6">
+        <div className="text-center">
+          <BrandLockup className="justify-center" />
+          <div className="mt-10 font-display text-2xl font-bold">This link is no longer available.</div>
+          <p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">Ask the seller for a fresh order link.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (submitted || order?.isOrderReceived) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-[hsl(var(--background))] p-6">
+        <div className="w-full max-w-[480px] text-center page-in">
+          <BrandLockup className="justify-center" />
+          <div className="mx-auto mt-10 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[hsl(var(--accent))] text-white">
+            <Check size={30} />
+          </div>
+          <h1 className="mt-7 font-display text-4xl font-bold tracking-[-.05em]">Order received</h1>
+          <p className="mx-auto mt-4 max-w-[350px] text-sm leading-6 text-[hsl(var(--muted-foreground))]">
+            {(order?.chosenMode as any) === 'reservation' || chosenMode === 'reservation'
+              ? 'Your reservation has been received by the seller. They’ll be in touch with the next step.'
+              : 'Your order and payment details have been received by the seller. They’ll be in touch with the next step.'}
+          </p>
+          <div className="mt-8 font-mono-ui text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">
+            Order reference · {token.slice(0, 8)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const currentItemForm = itemForms[itemStep] ?? emptyBuyerItemForm();
-  return <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8"><div className="mx-auto max-w-[1180px]"><BuyerOrderSurface businessName={order.businessName || 'The Sunday Edit'} description={order.businessDescription || undefined} logoDataUrl={order.logoDataUrl} productName={order.productName} amount={orderSubtotal} totalAmount={buyerTotal} paymentMode={order.paymentMode} depositAmount={order.depositAmount} variants={order.variants} items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))} previewImages={itemForms.map((item) => item.imagePreview)} activeIndex={itemStep} onActiveIndexChange={() => undefined} customLayout={true}>{(activeItem) => <BuyerOrderForm paymentMode={order.paymentMode} allowReservation={order.allowReservation} allowHalfPayment={order.allowHalfPayment} halfPaymentPercent={order.halfPaymentPercent} chosenMode={chosenMode} onChosenModeChange={setChosenMode} savedCustomer={order.savedCustomer?.name ? { name: order.savedCustomer.name, phone: order.savedCustomer.phone ?? undefined } : null} isEditingCustomer={isEditingCustomer} onEditCustomer={handleEditCustomer} amount={buyerTotal} depositAmount={order.depositAmount ?? 0} deliveryFee={order.deliveryFee} askForDetails={order.checkoutAskForDetails} allowReferenceImages={order.checkoutAllowReferenceImages} item={activeItem} itemIndex={itemStep} itemCount={order.items.length} items={order.items} itemForms={itemForms} form={form} itemForm={currentItemForm} submitPending={submit.isPending} submitError={submitError} onSubmit={submitForm} onChange={change} onItemChange={changeItem} onQuantityChange={changeQuantity} onPreferenceChange={(label, value) => { setSubmitError(''); setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, preferences: { ...item.preferences, [label]: value } } : item)); }} onNextItem={handleNextItem} onPrevItem={handlePrevItem} onBack={handlePrevItem} onReferenceImageChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setSubmitError(''); changeItem('imagePreview', URL.createObjectURL(file)); changeItem('image', file.name); const uploadedUrl = await uploadReferenceImage(file); changeItem('image', uploadedUrl); }} onError={setSubmitError} />}</BuyerOrderSurface><div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] flex flex-wrap items-center justify-center gap-2"><span>Powered by Take Order · made for small businesses</span><span>·</span><Link href="/terms" target="_blank" className="hover:underline">Terms</Link><span>·</span><Link href="/privacy" target="_blank" className="hover:underline">Privacy</Link><span>·</span><Link href="/refund-policy" target="_blank" className="hover:underline">Refund Policy</Link></div></div></div>;
+
+  return (
+    <div
+      data-testid="buyer-order-root"
+      className={cn(
+        "buyer-page-layout-root",
+        layout === 'mobile' && 'is-mobile',
+        layout === 'desktop' && 'is-desktop',
+        (layout === 'auto' || !layout) && 'is-auto'
+      )}
+    >
+      {/* Mobile Layout */}
+      <div className="buyer-layout-mobile">
+        <BuyerOrderMobileLayout
+          order={order}
+          form={form}
+          itemForms={itemForms}
+          changeField={changeField}
+          changeItemPreference={changeItemPreference}
+          changeItemQuantity={changeItemQuantity}
+          changeItemDetails={changeItemDetails}
+          changeItemImage={changeItemImage}
+          isEditingCustomer={isEditingCustomer}
+          onEditCustomer={handleEditCustomer}
+          chosenMode={chosenMode}
+          onChosenModeChange={setChosenMode}
+          allowedModes={allowedModes}
+          orderSubtotal={orderSubtotal}
+          buyerDeliveryFee={buyerDeliveryFee}
+          buyerTotal={buyerTotal}
+          effectivePercent={effectivePercent}
+          halfCalc={halfCalc}
+          dueNow={dueNow}
+          balanceRemaining={balanceRemaining}
+          submitError={submitError}
+          submitPending={submit.isPending}
+          onSubmit={submitForm}
+          onProceedToPayment={submitForm}
+        />
+      </div>
+
+      {/* Desktop Layout - Untouched markup & classes */}
+      <div className="buyer-layout-desktop">
+        <div className="min-h-[100dvh] bg-[hsl(var(--background))] px-4 sm:px-6 py-4 sm:py-8">
+          <div className="mx-auto max-w-[1180px]">
+            <BuyerOrderSurface
+              businessName={order.businessName || 'The Sunday Edit'}
+              description={order.businessDescription || undefined}
+              logoDataUrl={order.logoDataUrl}
+              productName={order.productName}
+              amount={orderSubtotal}
+              totalAmount={buyerTotal}
+              paymentMode={order.paymentMode}
+              depositAmount={order.depositAmount}
+              variants={order.variants}
+              items={order.items.map((item, index) => ({ ...item, quantity: itemForms[index]?.quantity ?? item.quantity ?? 1 }))}
+              previewImages={itemForms.map((item) => item.imagePreview)}
+              activeIndex={itemStep}
+              onActiveIndexChange={() => undefined}
+              customLayout={true}
+            >
+              {(activeItem) => (
+                <BuyerOrderForm
+                  paymentMode={order.paymentMode}
+                  allowReservation={order.allowReservation}
+                  allowHalfPayment={order.allowHalfPayment}
+                  halfPaymentPercent={order.halfPaymentPercent}
+                  chosenMode={chosenMode}
+                  onChosenModeChange={setChosenMode}
+                  savedCustomer={order.savedCustomer?.name ? { name: order.savedCustomer.name, phone: order.savedCustomer.phone ?? undefined } : null}
+                  isEditingCustomer={isEditingCustomer}
+                  onEditCustomer={handleEditCustomer}
+                  amount={buyerTotal}
+                  depositAmount={order.depositAmount ?? 0}
+                  deliveryFee={order.deliveryFee}
+                  askForDetails={order.checkoutAskForDetails}
+                  allowReferenceImages={order.checkoutAllowReferenceImages}
+                  item={activeItem}
+                  itemIndex={itemStep}
+                  itemCount={order.items.length}
+                  items={order.items}
+                  itemForms={itemForms}
+                  form={form}
+                  itemForm={currentItemForm}
+                  submitPending={submit.isPending}
+                  submitError={submitError}
+                  onSubmit={submitForm}
+                  onChange={changeField}
+                  onItemChange={(key, value) => {
+                    setItemForms((current) => current.map((item, index) => index === itemStep ? { ...item, [key]: value } : item));
+                  }}
+                  onQuantityChange={(qty) => changeItemQuantity(itemStep, qty)}
+                  onPreferenceChange={(label, value) => {
+                    setSubmitError('');
+                    changeItemPreference(itemStep, label, value);
+                  }}
+                  onNextItem={handleNextItem}
+                  onPrevItem={handlePrevItem}
+                  onBack={handlePrevItem}
+                  onReferenceImageChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    await changeItemImage(itemStep, file);
+                  }}
+                  onError={setSubmitError}
+                />
+              )}
+            </BuyerOrderSurface>
+            <div className="mt-6 text-center font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] flex flex-wrap items-center justify-center gap-2">
+              <span>Powered by Take Order · made for small businesses</span>
+              <span>·</span>
+              <Link href="/terms" target="_blank" className="hover:underline">Terms</Link>
+              <span>·</span>
+              <Link href="/privacy" target="_blank" className="hover:underline">Privacy</Link>
+              <span>·</span>
+              <Link href="/refund-policy" target="_blank" className="hover:underline">Refund Policy</Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
+
+export const BuyerPage = PublicOrderPage;
 
 export function Connect() {
   const health = useHealthCheck();
