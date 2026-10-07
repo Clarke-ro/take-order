@@ -8222,7 +8222,7 @@ function BuyerLinkPreviewCard({
               balanceRemaining={previewBalance}
               submitError=""
               submitPending={false}
-              onSubmit={(e) => e.preventDefault()}
+              onSubmit={(e) => e?.preventDefault()}
             />
           </div>
         ) : (
@@ -9724,6 +9724,12 @@ function PublicOrderPage({
           submitPending={submit.isPending}
           onSubmit={submitForm}
           onProceedToPayment={submitForm}
+          itemStep={itemStep}
+          setItemStep={setItemStep}
+          handleNextItem={handleNextItem}
+          handlePrevItem={handlePrevItem}
+          validate={validate}
+          setSubmitError={setSubmitError}
         />
       </div>
 

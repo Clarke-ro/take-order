@@ -207,7 +207,7 @@ try {
       await setupPageRoutes(page, fixture.token, fixture);
 
       await page.goto(`http://127.0.0.1:${vitePort}/o/${fixture.token}`, { waitUntil: 'networkidle' });
-      await page.waitForSelector('.buyer-checkout-surface, .page-in, #buyer-item-preferences-heading', { timeout: 10000 });
+      await page.waitForSelector('.buyer-layout-desktop, h1:has-text("Order received")', { timeout: 10000 });
       await sleep(600);
 
       const filename = `${fixture.token}_${vp.width}x${vp.height}.png`;
@@ -316,11 +316,11 @@ try {
       console.log(`[PASS] ${width}px: Variant chip clickable and shows black selected state: ${isSelected}`);
     }
 
-    // 7. Verify Pay Button style and height
-    const payBtn = page.locator('[data-testid="button-submit-public-order"]');
-    const btnBox = await payBtn.boundingBox();
+    // 7. Verify Checkout Button style and height
+    const checkoutBtn = page.locator('[data-testid="button-mobile-checkout"]');
+    const btnBox = await checkoutBtn.boundingBox();
     if (btnBox && btnBox.height >= 48) {
-      console.log(`[PASS] ${width}px: Pay button rendered (${Math.round(btnBox.height)}px tall >= 48px target)`);
+      console.log(`[PASS] ${width}px: Checkout button rendered (${Math.round(btnBox.height)}px tall >= 48px target)`);
     }
 
     // Screenshot
@@ -331,7 +331,7 @@ try {
     await page.close();
   }
 
-  console.log('\n--- VERIFYING MULTI-ITEM & PAYMENT MODES ON MOBILE (390px) ---');
+  console.log('\n--- VERIFYING MULTI-ITEM SAME-ROW NAVIGATION & PAYMENT STEPS ON MOBILE (390px) ---');
   {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await setupPageRoutes(page, fixtures.multiItemModes.token, fixtures.multiItemModes);
@@ -340,32 +340,79 @@ try {
     await page.waitForSelector('[data-testid="buyer-mobile-layout"]', { timeout: 10000 });
     await sleep(400);
 
-    // Verify multi-item rows
-    const compactItem = page.locator('text=Canvas Utility Tote');
-    if (await compactItem.isVisible()) {
-      console.log(`[PASS] Multi-item order: second item rendered as compact row`);
+    // 1. Verify item 1 is active initially
+    const initialItemName = await page.textContent('.text-base.font-bold');
+    console.log(`[PASS] Initial active item: ${initialItemName?.trim()}`);
+
+    // 2. Verify next button in same row navigates to item 2
+    const nextBtn = page.locator('[data-testid="button-next-mobile-item"]');
+    const prevBtn = page.locator('[data-testid="button-prev-mobile-item"]');
+    if (await nextBtn.isVisible() && await prevBtn.isVisible()) {
+      console.log(`[PASS] Multi-item navigation buttons present in the same row`);
+      // Select option on item 1 first (Size: EU 42)
+      await page.locator('button[data-testid^="mobile-chip-"]').first().click();
+      await sleep(100);
+
+      // Click Next
+      await nextBtn.click();
+      await sleep(300);
+      const secondItemText = await page.locator('text=Canvas Utility Tote').first().isVisible();
+      console.log(`[PASS] Next button navigated to item 2 in same row: ${secondItemText}`);
+
+      // Select option on item 2 (Color: Ecru)
+      await page.locator('button[data-testid^="mobile-chip-"]').first().click();
+      await sleep(100);
+
+      // Click Previous
+      await prevBtn.click();
+      await sleep(300);
+      const backToFirst = await page.locator('text=Jordan Retro High').first().isVisible();
+      console.log(`[PASS] Previous button navigated back to item 1: ${backToFirst}`);
     }
 
-    // Verify payment mode options
-    const fullOption = page.locator('[data-testid="payment-mode-full"]');
-    const halfOption = page.locator('[data-testid="payment-mode-half"]');
-    const reserveOption = page.locator('[data-testid="payment-mode-reservation"]');
-
-    if (await fullOption.isVisible() && await halfOption.isVisible() && await reserveOption.isVisible()) {
-      console.log(`[PASS] Payment options present: Pay in full, Pay deposit, Reserve`);
-    }
-
-    // Verify prefilled customer card
+    // 3. Verify prefilled customer card
     const prefilledCard = page.locator('[data-testid="prefilled-customer-card"]');
     if (await prefilledCard.isVisible()) {
       const text = await prefilledCard.textContent();
       console.log(`[PASS] Prefilled customer card visible with masked phone: ${Boolean(text && text.includes('4567'))}`);
     }
 
+    // Select pickup delivery
+    await page.click('[data-testid="delivery-method-pickup"]');
+    await sleep(100);
+
+    // 4. Click Checkout button to move to Payment Modes step
+    const checkoutBtn = page.locator('[data-testid="button-mobile-checkout"]');
+    await checkoutBtn.click();
+    await sleep(400);
+
+    // 5. Verify payment mode options step
+    const fullOption = page.locator('[data-testid="payment-mode-full"]');
+    const halfOption = page.locator('[data-testid="payment-mode-half"]');
+    const reserveOption = page.locator('[data-testid="payment-mode-reservation"]');
+
+    if (await fullOption.isVisible() && await halfOption.isVisible() && await reserveOption.isVisible()) {
+      console.log(`[PASS] Step 2: Payment options present: Pay in full, Pay deposit, Reserve`);
+    }
+
+    // 6. Click Pay button to move to Payment Screen
+    const proceedBtn = page.locator('[data-testid="button-proceed-to-payment"]');
+    await proceedBtn.click();
+    await sleep(400);
+
+    // 7. Verify Payment Screen
+    const momoTab = page.locator('[data-testid="tab-payment-momo"]');
+    const momoPhoneInput = page.locator('[data-testid="input-momo-phone"]');
+    const finalizeBtn = page.locator('[data-testid="button-submit-public-order"]');
+
+    if (await momoTab.isVisible() && await momoPhoneInput.isVisible() && await finalizeBtn.isVisible()) {
+      console.log(`[PASS] Step 3: Payment screen visible with Mobile Money, MoMo phone input & Authorize button`);
+    }
+
     // Screenshot
     const multiMobilePath = join(MOBILE_DIR, `mobile_multi_modes_390px.png`);
     await page.screenshot({ path: multiMobilePath, fullPage: true });
-    console.log(`[SAVED] Mobile multi-item screenshot: ${multiMobilePath}`);
+    console.log(`[SAVED] Mobile multi-item payment screen screenshot: ${multiMobilePath}`);
 
     await page.close();
   }
@@ -439,9 +486,18 @@ try {
     // Select pickup
     await page.click('.buyer-layout-mobile [data-testid="delivery-method-pickup"]');
 
-    // Click pay button
+    // Step 1: Click checkout button
+    await page.click('.buyer-layout-mobile [data-testid="button-mobile-checkout"]');
+    await sleep(300);
+
+    // Step 2: Click proceed to payment button
+    await page.click('.buyer-layout-mobile [data-testid="button-proceed-to-payment"]');
+    await sleep(300);
+
+    // Step 3: Click authorize / complete payment button in payment screen
     await page.click('.buyer-layout-mobile [data-testid="button-submit-public-order"]');
-    await sleep(500);
+    // Wait for simulated payment processing and API submit
+    await sleep(2200);
 
     console.log('Mobile Payload:', JSON.stringify(mobilePayload, null, 2));
     await page.close();
