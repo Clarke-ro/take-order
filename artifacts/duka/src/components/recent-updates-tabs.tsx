@@ -3,7 +3,7 @@ import { Link } from 'wouter';
 import { ChevronRight, ArrowRight } from 'lucide-react';
 import type { Order, Product } from '@workspace/api-client-react';
 import { moneyExact, formatCustomerName } from '@/lib/formatters';
-import { useAttentionSummary, useMarkCardSeen, useMarkOrderRead, type AttentionCardKey } from '@/lib/attention-hooks';
+import { useAttentionSummary, useMarkCardSeen, useMarkOrderRead, useReadOrders, isOrderUnread, type AttentionCardKey } from '@/lib/attention-hooks';
 
 /**
  * RecentUpdatesTabs: Renders the 2x2 grid of standalone activity cards:
@@ -105,6 +105,7 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
   const { data: attention } = useAttentionSummary();
   const { mutate: markSeen } = useMarkCardSeen();
   const { mutate: markOrderRead } = useMarkOrderRead();
+  const readOrderIds = useReadOrders();
 
   // Baseline data from props as fallback
   const pendingOrders = orders.filter((o) => o.fulfillment === 'pending');
@@ -179,7 +180,7 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
           ) : (
             <div className="mt-5 flex-1 flex flex-col justify-end divide-y divide-[hsl(var(--border))]">
               {pendingOrders.slice(0, 3).map((order) => {
-                const isNew = newOrderToShipIds.has(order.id);
+                const isUnread = isOrderUnread(order, readOrderIds, attention?.unreadOrderIds);
                 return (
                   <Link
                     key={order.id}
@@ -193,10 +194,12 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
                     <div className="flex items-center min-w-0 pr-3">
                       {/* Fixed 12px gutter reserved on every row so text never shifts */}
                       <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true">
-                        <span
-                          data-testid={`row-indicator-ship-${order.id}`}
-                          className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade"
-                        />
+                        {isUnread && (
+                          <span
+                            data-testid={`row-indicator-ship-${order.id}`}
+                            className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade"
+                          />
+                        )}
                       </span>
                       <span className="truncate font-medium">
                         {formatCustomerName(order.customerName)}
@@ -286,7 +289,7 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
           ) : (
             <div className="mt-5 flex-1 flex flex-col justify-end divide-y divide-[hsl(var(--border))]">
               {unpaidOrders.slice(0, 3).map((order) => {
-                const isNew = newUnpaidOrderIds.has(order.id);
+                const isUnread = isOrderUnread(order, readOrderIds, attention?.unreadOrderIds);
                 return (
                   <Link
                     key={order.id}
@@ -300,10 +303,12 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
                     <div className="flex items-center min-w-0 pr-3">
                       {/* Fixed 12px gutter reserved on every row so text never shifts */}
                       <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true">
-                        <span
-                          data-testid={`row-indicator-unpaid-${order.id}`}
-                          className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade"
-                        />
+                        {isUnread && (
+                          <span
+                            data-testid={`row-indicator-unpaid-${order.id}`}
+                            className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade"
+                          />
+                        )}
                       </span>
                       <span className="truncate font-medium">
                         {formatCustomerName(order.customerName)}

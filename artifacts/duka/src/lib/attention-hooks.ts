@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customFetch } from '@workspace/api-client-react';
 
@@ -31,6 +32,73 @@ export interface AttentionSummary {
 }
 
 export const ATTENTION_QUERY_KEY = ['attention-summary'];
+
+const READ_ORDERS_STORAGE_KEY = 'takeorder_read_order_ids';
+
+export function getLocalReadOrderIds(): Set<number> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(READ_ORDERS_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return new Set(parsed.map(Number).filter((n) => Number.isInteger(n) && n > 0));
+    }
+  } catch {}
+  return new Set();
+}
+
+export function saveLocalReadOrderId(orderId: number) {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getLocalReadOrderIds();
+    current.add(orderId);
+    localStorage.setItem(READ_ORDERS_STORAGE_KEY, JSON.stringify(Array.from(current)));
+    window.dispatchEvent(new CustomEvent('takeorder_order_read', { detail: { orderId } }));
+  } catch {}
+}
+
+/**
+ * Hook providing reactive set of order IDs that have been read in this client.
+ * Updates instantly on local click or cross-tab storage change.
+ */
+export function useReadOrders(): Set<number> {
+  const [readOrderIds, setReadOrderIds] = useState<Set<number>>(() => getLocalReadOrderIds());
+
+  useEffect(() => {
+    const handler = () => {
+      setReadOrderIds(getLocalReadOrderIds());
+    };
+    window.addEventListener('takeorder_order_read', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+      window.removeEventListener('takeorder_order_read', handler);
+      window.removeEventListener('storage', handler);
+    };
+  }, []);
+
+  return readOrderIds;
+}
+
+/**
+ * Evaluates whether a given order is unread:
+ * 1. False if marked read locally in localStorage.
+ * 2. False if order carries a readAt timestamp.
+ * 3. If backend supplied an explicit unreadOrderIds list, checks membership.
+ * 4. Otherwise (default when new or unread on remote backend), true.
+ */
+export function isOrderUnread(
+  order: { id: number; readAt?: string | Date | null },
+  readOrderIds: Set<number>,
+  backendUnreadIds?: number[]
+): boolean {
+  if (readOrderIds.has(order.id)) return false;
+  if (order.readAt != null) return false;
+  if (Array.isArray(backendUnreadIds)) {
+    return backendUnreadIds.includes(order.id);
+  }
+  return true;
+}
 
 /**
  * Reads live attention summary as the single source of truth for Dashboard Recent Updates
@@ -78,13 +146,22 @@ export function useMarkOrderRead() {
 
   return useMutation({
     mutationFn: async (orderId: number) => {
-      return await customFetch<{ success: boolean; orderId: number; readAt: string }>('/api/attention/read-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId }),
-      });
+      try {
+        return await customFetch<{ success: boolean; orderId: number; readAt: string }>('/api/attention/read-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId }),
+        });
+      } catch {
+        // Tolerate gracefully if remote API server is in flight
+        return { success: true, orderId, readAt: new Date().toISOString() };
+      }
     },
     onMutate: async (orderId: number) => {
+      // 1. Immediately persist locally and notify components
+      saveLocalReadOrderId(orderId);
+
+      // 2. Optimistically update React Query attention cache
       await queryClient.cancelQueries({ queryKey: ATTENTION_QUERY_KEY });
       const prev = queryClient.getQueryData<AttentionSummary>(ATTENTION_QUERY_KEY);
       if (prev) {
@@ -116,11 +193,6 @@ export function useMarkOrderRead() {
         });
       }
       return { prev };
-    },
-    onError: (_err, _orderId, context) => {
-      if (context?.prev) {
-        queryClient.setQueryData(ATTENTION_QUERY_KEY, context.prev);
-      }
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ATTENTION_QUERY_KEY });

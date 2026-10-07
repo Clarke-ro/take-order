@@ -35,7 +35,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { StatCard } from '@/components/stat-card';
 import { SidebarProCard } from '@/components/sidebar-pro-card';
 import { RecentUpdatesTabs } from '@/components/recent-updates-tabs';
-import { useAttentionSummary, useMarkCardSeen, useMarkOrderRead } from '@/lib/attention-hooks';
+import { useAttentionSummary, useMarkCardSeen, useMarkOrderRead, useReadOrders, isOrderUnread } from '@/lib/attention-hooks';
 import { formatCustomerName, AWAITING_LABEL } from '@/lib/formatters';
 import { PageHeader, MobileNavContext } from '@/components/page-header';
 import { DataTable, type DataTableColumn } from '@/components/data-table';
@@ -4518,15 +4518,20 @@ export function ChannelConversionRefreshStatus({ refreshing }: { refreshing: boo
 }
 
 function RecentTransactions() {
+  const [, setLocation] = useLocation();
   const query = useListOrders();
   const { data: attention } = useAttentionSummary();
   const { mutate: markOrderRead } = useMarkOrderRead();
   const { mutate: markCardSeen } = useMarkCardSeen();
+  const readOrderIds = useReadOrders();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const allOrders = query.data ?? [];
-  const unreadSet = useMemo(() => new Set(attention?.unreadOrderIds ?? []), [attention?.unreadOrderIds]);
-  const unreadCount = attention?.cards?.recent_transactions?.newCount ?? 0;
+  const unreadOrders = useMemo(
+    () => allOrders.filter((o) => isOrderUnread(o, readOrderIds, attention?.unreadOrderIds)),
+    [allOrders, readOrderIds, attention?.unreadOrderIds]
+  );
+  const unreadCount = unreadOrders.length;
   const hasNew = unreadCount > 0;
   const isZero = allOrders.length === 0;
 
@@ -4629,9 +4634,20 @@ function RecentTransactions() {
               {orders.map((order) => {
                 const name = formatCustomerName(order.customerName);
                 const isAwaiting = name === AWAITING_LABEL;
-                const isUnread = unreadSet.has(order.id);
+                const isUnread = isOrderUnread(order, readOrderIds, attention?.unreadOrderIds);
                 return (
-                  <tr key={order.id} className="transaction-row hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[56px]" data-testid={`row-transaction-${order.id}`}>
+                  <tr
+                    key={order.id}
+                    className="transaction-row hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[56px] cursor-pointer"
+                    data-testid={`row-transaction-${order.id}`}
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement;
+                      if (!target.closest('a, button')) {
+                        markOrderRead(order.id);
+                        setLocation(`/orders/${order.id}`);
+                      }
+                    }}
+                  >
                     <td className="px-4 py-3.5 whitespace-nowrap" data-testid={`text-transaction-order-id-${order.id}`}>
                       <div className="flex items-center">
                         <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true">
@@ -6847,7 +6863,7 @@ function Orders() {
   const markSeen = useMarkCardSeen();
   const { data: attention } = useAttentionSummary();
   const { mutate: markOrderRead } = useMarkOrderRead();
-  const unreadSet = useMemo(() => new Set(attention?.unreadOrderIds ?? []), [attention?.unreadOrderIds]);
+  const readOrderIds = useReadOrders();
   const [activeFilter, setActiveFilter] = useState(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
@@ -6956,7 +6972,7 @@ function Orders() {
       id: 'id',
       header: 'Order ID',
       cell: (order) => {
-        const isUnread = unreadSet.has(order.id);
+        const isUnread = isOrderUnread(order, readOrderIds, attention?.unreadOrderIds);
         return (
           <div className="flex items-center">
             <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true">
@@ -7080,7 +7096,7 @@ function Orders() {
         </span>
       ),
     },
-  ], [update.isPending, unreadSet, markOrderRead]);
+  ], [update.isPending, readOrderIds, attention?.unreadOrderIds, markOrderRead]);
 
   return <Shell>
     <div data-route="/orders">
