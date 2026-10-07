@@ -448,73 +448,6 @@ export function BuyerOrderMobileLayout({
         <div className="space-y-4 page-in">
           {/* 2. PRODUCT SECTION (white card, 16px radius) */}
           <section className="rounded-[16px] border border-[hsl(var(--card-border))] bg-white dark:bg-neutral-900 p-4 shadow-xs space-y-4">
-            {/* MULTI-ITEM NAVIGATION: In the same row with Next and Previous buttons */}
-            {totalItemCount > 1 && (
-              <div className="p-2.5 rounded-[12px] bg-neutral-50 dark:bg-neutral-800/60 border border-[hsl(var(--border))] space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    disabled={activeItemIndex === 0}
-                    onClick={handleItemPrev}
-                    data-testid="button-prev-mobile-item"
-                    className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold bg-white dark:bg-neutral-900 border border-[hsl(var(--border))] text-[hsl(var(--foreground))] disabled:opacity-35 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer shadow-2xs"
-                    aria-label="Previous item"
-                  >
-                    <ChevronLeft size={15} />
-                    <span>Previous</span>
-                  </button>
-
-                  <div className="flex flex-col items-center text-center min-w-0 px-1">
-                    <span className="text-xs font-bold text-[hsl(var(--foreground))]">
-                      Item {activeItemIndex + 1} of {totalItemCount}
-                    </span>
-                    <span className="text-[11px] text-[hsl(var(--muted-foreground))] truncate max-w-[130px]">
-                      {currentItem?.productName}
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={activeItemIndex === totalItemCount - 1}
-                    onClick={handleItemNext}
-                    data-testid="button-next-mobile-item"
-                    className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold bg-white dark:bg-neutral-900 border border-[hsl(var(--border))] text-[hsl(var(--foreground))] disabled:opacity-35 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer shadow-2xs"
-                    aria-label="Next item"
-                  >
-                    <span>Next</span>
-                    <ChevronRight size={15} />
-                  </button>
-                </div>
-
-                {/* Thumbnail pills strip placed in the same row */}
-                <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar">
-                  {order.items.map((item, idx) => {
-                    const isSelected = idx === activeItemIndex;
-                    const itemThumb = item.imageUrls?.[0] || (item as any).imageUrl;
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setActiveItem(idx)}
-                        data-testid={`mobile-item-nav-${idx}`}
-                        className={cn(
-                          'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0 border transition cursor-pointer',
-                          isSelected
-                            ? 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900 font-bold'
-                            : 'border-[hsl(var(--border))] bg-white dark:bg-neutral-900 text-[hsl(var(--muted-foreground))] hover:bg-neutral-100'
-                        )}
-                      >
-                        {itemThumb && (
-                          <img src={itemThumb} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
-                        )}
-                        <span className="truncate max-w-[80px]">Item {idx + 1}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* Gallery for current item */}
             {currentItemImages.length > 0 && (
               <div className="space-y-2">
@@ -745,6 +678,39 @@ export function BuyerOrderMobileLayout({
                     className="w-full rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50 dark:bg-neutral-800/50 p-2.5 text-[16px] sm:text-xs leading-normal resize-none focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
                   />
                 </div>
+
+                {/* Multi-item Previous & Next buttons under Note for seller */}
+                {totalItemCount > 1 && (
+                  <div className="pt-3 border-t border-[hsl(var(--border))] flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      disabled={activeItemIndex === 0}
+                      onClick={handleItemPrev}
+                      data-testid="button-prev-mobile-item"
+                      className="inline-flex items-center gap-1.5 h-10 px-4 rounded-[10px] text-xs font-semibold border border-[hsl(var(--border))] bg-white dark:bg-neutral-900 text-[hsl(var(--foreground))] disabled:opacity-30 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition cursor-pointer shadow-2xs"
+                      aria-label="Previous item"
+                    >
+                      <ChevronLeft size={16} />
+                      <span>Previous</span>
+                    </button>
+
+                    <span className="text-xs font-medium text-[hsl(var(--muted-foreground))]">
+                      Item {activeItemIndex + 1} of {totalItemCount}
+                    </span>
+
+                    <button
+                      type="button"
+                      disabled={activeItemIndex === totalItemCount - 1}
+                      onClick={handleItemNext}
+                      data-testid="button-next-mobile-item"
+                      className="inline-flex items-center gap-1.5 h-10 px-4 rounded-[10px] text-xs font-semibold bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 disabled:opacity-30 hover:opacity-90 transition cursor-pointer shadow-2xs"
+                      aria-label="Next item"
+                    >
+                      <span>Next</span>
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </section>

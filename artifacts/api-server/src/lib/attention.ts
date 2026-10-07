@@ -99,7 +99,7 @@ export function calculateAttentionSummary(
   const missingCostProducts = products.filter((p) => p.cost == null || Number(p.cost || 0) <= 0);
 
   // 5. Unread orders & Recent Transactions
-  const unreadOrders = orders.filter((o) => !o.readAt && getEffectiveTime(o) >= cutoffMs);
+  const unreadOrders = orders.filter((o) => !o.readAt);
   const unreadOrderIds = unreadOrders.map((o) => o.id);
   const unreadOrderIdSet = new Set(unreadOrderIds);
 

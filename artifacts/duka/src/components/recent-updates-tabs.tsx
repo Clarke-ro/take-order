@@ -59,7 +59,7 @@ function CardHeader({
           ) : isZero ? (
             <span className="block h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-[hsl(var(--card))]" />
           ) : (
-            <span className="block h-2 w-2 rounded-full bg-[hsl(var(--muted-foreground))] ring-2 ring-[hsl(var(--card))]" />
+            <span className="block h-2 w-2 rounded-full bg-[var(--notification)] ring-2 ring-[hsl(var(--card))]" />
           )}
         </div>
 
@@ -183,9 +183,10 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
                     <div className="flex items-center min-w-0 pr-3">
                       {/* Fixed 12px gutter reserved on every row so text never shifts */}
                       <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true">
-                        {isNew && (
-                          <span className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade" />
-                        )}
+                        <span
+                          data-testid={`row-indicator-ship-${order.id}`}
+                          className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade"
+                        />
                       </span>
                       <span className="truncate font-medium">
                         {formatCustomerName(order.customerName)}
@@ -233,8 +234,13 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
                   className="flex h-[44px] items-center justify-between text-[13px] text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition"
                 >
                   <div className="flex items-center min-w-0 pr-3">
-                    {/* Fixed 12px gutter reserved on every row */}
-                    <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true" />
+                    {/* Fixed 12px gutter reserved on every row with Pinterest red dot */}
+                    <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true">
+                      <span
+                        data-testid={`row-indicator-lowstock-${product.id}`}
+                        className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade"
+                      />
+                    </span>
                     <span className="truncate font-medium">{product.name}</span>
                   </div>
                   <span className="shrink-0 text-[12.5px] font-medium text-amber-600 dark:text-amber-400">
@@ -284,9 +290,10 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
                     <div className="flex items-center min-w-0 pr-3">
                       {/* Fixed 12px gutter reserved on every row so text never shifts */}
                       <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true">
-                        {isNew && (
-                          <span className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade" />
-                        )}
+                        <span
+                          data-testid={`row-indicator-unpaid-${order.id}`}
+                          className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade"
+                        />
                       </span>
                       <span className="truncate font-medium">
                         {formatCustomerName(order.customerName)}
@@ -334,8 +341,13 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
                   className="flex h-[44px] items-center justify-between text-[13px] text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition"
                 >
                   <div className="flex items-center min-w-0 pr-3">
-                    {/* Fixed 12px gutter reserved on every row */}
-                    <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true" />
+                    {/* Fixed 12px gutter reserved on every row with Pinterest red dot */}
+                    <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true">
+                      <span
+                        data-testid={`row-indicator-cost-${product.id}`}
+                        className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade"
+                      />
+                    </span>
                     <span className="truncate font-medium">{product.name}</span>
                   </div>
                   <span className="shrink-0 text-[12.5px] font-medium text-[hsl(var(--primary))] hover:underline">
