@@ -153,6 +153,7 @@ export async function ensureDatabaseSchema(database: typeof db): Promise<void> {
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS chosen_mode text;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS percent_used integer;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS amount_due_now numeric(12, 2);
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS read_at timestamptz;
 
       -- Order items column migrations
       ALTER TABLE order_items ADD COLUMN IF NOT EXISTS source text DEFAULT 'catalog';

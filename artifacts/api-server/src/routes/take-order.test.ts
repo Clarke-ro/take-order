@@ -23,6 +23,7 @@ type SeedOrder = Omit<
   | "chosenMode"
   | "percentUsed"
   | "amountDueNow"
+  | "readAt"
 > &
   Partial<
     Pick<
@@ -34,6 +35,7 @@ type SeedOrder = Omit<
       | "chosenMode"
       | "percentUsed"
       | "amountDueNow"
+      | "readAt"
     >
   >;
 type SeedExpense = Omit<typeof expensesTable.$inferSelect, "ownerUserId"> & Partial<Pick<typeof expensesTable.$inferSelect, "ownerUserId">>;

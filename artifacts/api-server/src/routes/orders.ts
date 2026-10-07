@@ -346,8 +346,29 @@ export function createOrdersRouter(database: typeof db, requireSellerAuth: Reque
       res.status(404).json({ error: "Order not found" });
       return;
     }
+    if (!order.readAt) {
+      order.readAt = new Date();
+      await database
+        .update(ordersTable)
+        .set({ readAt: order.readAt })
+        .where(eq(ordersTable.id, order.id));
+    }
     const items = await sellerItemsForOrder(order, database);
     res.json(GetOrderResponse.parse(orderResponse(order, items)));
+  });
+
+  router.post("/orders/:id/read", requireSellerAuth, async (req, res): Promise<void> => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid order ID" });
+      return;
+    }
+    const now = new Date();
+    await database
+      .update(ordersTable)
+      .set({ readAt: now })
+      .where(and(eq(ordersTable.id, id), eq(ordersTable.ownerUserId, sellerId(res))));
+    res.json({ success: true, id, readAt: now.toISOString() });
   });
 
   router.patch("/orders/:id", requireSellerAuth, async (req, res): Promise<void> => {

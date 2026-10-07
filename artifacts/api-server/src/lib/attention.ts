@@ -3,7 +3,8 @@ export type AttentionCardKey =
   | 'low_stock'
   | 'unpaid_orders'
   | 'missing_costs'
-  | 'orders';
+  | 'orders'
+  | 'recent_transactions';
 
 export interface AttentionOrderInput {
   id: number;
@@ -12,6 +13,7 @@ export interface AttentionOrderInput {
   amount: number | string;
   createdAt: Date | string;
   updatedAt?: Date | string | null;
+  readAt?: Date | string | null;
 }
 
 export interface AttentionProductInput {
@@ -32,7 +34,9 @@ export interface AttentionSummary {
     low_stock: CardAttention;
     unpaid_orders: CardAttention;
     missing_costs: CardAttention;
+    recent_transactions: CardAttention;
   };
+  unreadOrderIds: number[];
   sidebarOrders: {
     count: number;
     newCount: number;
@@ -72,6 +76,7 @@ export function calculateAttentionSummary(
   const ordersToShipSeenMs = Math.max(getSeenMs('orders_to_ship'), getSeenMs('orders'));
   const pendingOrders = orders.filter((o) => o.fulfillment === 'pending');
   const newPendingOrders = pendingOrders.filter((o) => {
+    if (o.readAt) return false;
     const time = getEffectiveTime(o);
     return time > ordersToShipSeenMs && time >= cutoffMs;
   });
@@ -82,6 +87,7 @@ export function calculateAttentionSummary(
     (o) => o.status === 'reserved' || o.status === 'deposit_paid' || (o.status !== 'paid' && Number(o.amount || 0) > 0)
   );
   const newUnpaidOrders = unpaidOrders.filter((o) => {
+    if (o.readAt) return false;
     const time = getEffectiveTime(o);
     return time > unpaidSeenMs && time >= cutoffMs;
   });
@@ -91,6 +97,14 @@ export function calculateAttentionSummary(
 
   // 4. Missing costs: cost == null || <= 0 (no reliable transition timestamp; newCount skipped)
   const missingCostProducts = products.filter((p) => p.cost == null || Number(p.cost || 0) <= 0);
+
+  // 5. Unread orders & Recent Transactions
+  const unreadOrders = orders.filter((o) => !o.readAt && getEffectiveTime(o) >= cutoffMs);
+  const unreadOrderIds = unreadOrders.map((o) => o.id);
+  const unreadOrderIdSet = new Set(unreadOrderIds);
+
+  const recentOrders = orders.slice(0, 6);
+  const newRecentOrders = recentOrders.filter((o) => unreadOrderIdSet.has(o.id));
 
   const cards = {
     orders_to_ship: {
@@ -113,10 +127,16 @@ export function calculateAttentionSummary(
       newCount: 0,
       newItemIds: [],
     },
+    recent_transactions: {
+      count: recentOrders.length,
+      newCount: newRecentOrders.length,
+      newItemIds: newRecentOrders.map((o) => o.id),
+    },
   };
 
   return {
     cards,
+    unreadOrderIds,
     sidebarOrders: {
       count: cards.orders_to_ship.count,
       newCount: cards.orders_to_ship.newCount,

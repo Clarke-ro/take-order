@@ -149,3 +149,32 @@ test("calculateAttentionSummary: sidebar badge strictly agrees with cards.orders
   assert.equal(summary.sidebarOrders.newCount, 2);
   assert.equal(summary.sidebarOrders.newCount, summary.cards.orders_to_ship.newCount);
 });
+
+test("calculateAttentionSummary: individual orders with readAt are not marked as unread", () => {
+  const now = new Date("2026-10-05T12:00:00Z");
+  const oneHourAgo = new Date("2026-10-05T11:00:00Z");
+
+  const orders: AttentionOrderInput[] = [
+    // Order 1 is unread (readAt is null)
+    { id: 1, fulfillment: "pending", status: "paid", amount: 100, createdAt: oneHourAgo, readAt: null },
+    // Order 2 has been read (readAt is set)
+    { id: 2, fulfillment: "pending", status: "paid", amount: 120, createdAt: oneHourAgo, readAt: new Date("2026-10-05T11:15:00Z") },
+    // Order 3 is unread (readAt is undefined)
+    { id: 3, fulfillment: "shipped", status: "paid", amount: 150, createdAt: oneHourAgo },
+  ];
+
+  const summary = calculateAttentionSummary(orders, [], {}, now);
+
+  // unreadOrderIds includes only order 1 and 3 (order 2 is read)
+  assert.deepEqual(summary.unreadOrderIds, [1, 3]);
+
+  // recent_transactions card attention:
+  assert.equal(summary.cards.recent_transactions.count, 3);
+  assert.equal(summary.cards.recent_transactions.newCount, 2);
+  assert.deepEqual(summary.cards.recent_transactions.newItemIds, [1, 3]);
+
+  // orders_to_ship card attention: order 1 is pending & unread, order 2 is pending & read
+  assert.equal(summary.cards.orders_to_ship.count, 2);
+  assert.equal(summary.cards.orders_to_ship.newCount, 1);
+  assert.deepEqual(summary.cards.orders_to_ship.newItemIds, [1]);
+});

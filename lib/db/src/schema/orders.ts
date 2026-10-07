@@ -35,6 +35,7 @@ export const ordersTable = pgTable(
     chosenMode: text("chosen_mode"),
     percentUsed: integer("percent_used"),
     amountDueNow: numeric("amount_due_now", { precision: 12, scale: 2 }),
+    readAt: timestamp("read_at", { withTimezone: true }),
   },
   (table) => [
     index("orders_owner_user_id_idx").on(table.ownerUserId),

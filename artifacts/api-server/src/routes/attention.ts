@@ -1,5 +1,5 @@
 import { Router, type IRouter, type RequestHandler, type Response } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ordersTable, productsTable, sellerCardSeenTable } from "@workspace/db/schema";
 import type { db } from "@workspace/db";
 import { calculateAttentionSummary, type AttentionCardKey } from "../lib/attention";
@@ -18,6 +18,7 @@ function normalizeCardKey(raw: string | undefined): AttentionCardKey | null {
   if (key === "unpaid_orders" || key === "unpaid" || key === "open") return "unpaid_orders";
   if (key === "missing_costs" || key === "missing-costs") return "missing_costs";
   if (key === "orders") return "orders";
+  if (key === "recent_transactions" || key === "recent-transactions" || key === "transactions") return "recent_transactions";
   return null;
 }
 
@@ -37,6 +38,7 @@ export function createAttentionRouter(database: typeof db, requireSellerAuth: Re
             status: ordersTable.status,
             amount: ordersTable.amount,
             createdAt: ordersTable.createdAt,
+            readAt: ordersTable.readAt,
           })
           .from(ordersTable)
           .where(eq(ordersTable.ownerUserId, ownerUserId)),
@@ -112,6 +114,31 @@ export function createAttentionRouter(database: typeof db, requireSellerAuth: Re
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to mark card as seen" });
+    }
+  });
+
+  // POST /api/attention/read-order: Idempotent mark an order as read
+  router.post("/attention/read-order", requireSellerAuth, async (req, res): Promise<void> => {
+    try {
+      const ownerUserId = sellerId(res);
+      const orderId = Number(req.body?.orderId || req.body?.id);
+      if (!Number.isInteger(orderId) || orderId <= 0) {
+        res.status(400).json({ error: "Invalid orderId" });
+        return;
+      }
+      const now = new Date();
+      await database
+        .update(ordersTable)
+        .set({ readAt: now })
+        .where(
+          and(
+            eq(ordersTable.id, orderId),
+            eq(ordersTable.ownerUserId, ownerUserId),
+          ),
+        );
+      res.json({ success: true, orderId, readAt: now.toISOString() });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark order as read" });
     }
   });
 
