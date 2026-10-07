@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link } from 'wouter';
 import { ChevronRight, ArrowRight } from 'lucide-react';
+import type { Order, Product } from '@workspace/api-client-react';
 import { moneyExact, formatCustomerName } from '@/lib/formatters';
-import type { Order, Product } from '@/lib/types';
-import { useAttentionSummary, useMarkCardSeen, type AttentionCardKey } from '@/lib/attention-hooks';
+import { useAttentionSummary, useMarkCardSeen, useMarkOrderRead, type AttentionCardKey } from '@/lib/attention-hooks';
 
 export type RecentUpdatesTabsProps = {
   orders: Order[];
@@ -94,6 +94,7 @@ function CardHeader({
 export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) {
   const { data: attention } = useAttentionSummary();
   const { mutate: markSeen } = useMarkCardSeen();
+  const { mutate: markOrderRead } = useMarkOrderRead();
 
   // Baseline data from props as fallback
   const pendingOrders = orders.filter((o) => o.fulfillment === 'pending');
@@ -173,7 +174,10 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
                   <Link
                     key={order.id}
                     href={`/orders/${order.id}`}
-                    onClick={() => handleCardSeen('orders_to_ship')}
+                    onClick={() => {
+                      markOrderRead(order.id);
+                      handleCardSeen('orders_to_ship');
+                    }}
                     className="flex h-[44px] items-center justify-between text-[13px] text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition"
                   >
                     <div className="flex items-center min-w-0 pr-3">
@@ -271,7 +275,10 @@ export function RecentUpdatesTabs({ orders, products }: RecentUpdatesTabsProps) 
                   <Link
                     key={order.id}
                     href={`/orders/${order.id}`}
-                    onClick={() => handleCardSeen('unpaid_orders')}
+                    onClick={() => {
+                      markOrderRead(order.id);
+                      handleCardSeen('unpaid_orders');
+                    }}
                     className="flex h-[44px] items-center justify-between text-[13px] text-[hsl(var(--foreground))] hover:text-[hsl(var(--primary))] transition"
                   >
                     <div className="flex items-center min-w-0 pr-3">

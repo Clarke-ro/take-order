@@ -35,7 +35,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { StatCard } from '@/components/stat-card';
 import { SidebarProCard } from '@/components/sidebar-pro-card';
 import { RecentUpdatesTabs } from '@/components/recent-updates-tabs';
-import { useAttentionSummary, useMarkCardSeen } from '@/lib/attention-hooks';
+import { useAttentionSummary, useMarkCardSeen, useMarkOrderRead } from '@/lib/attention-hooks';
 import { formatCustomerName, AWAITING_LABEL } from '@/lib/formatters';
 import { PageHeader, MobileNavContext } from '@/components/page-header';
 import { DataTable, type DataTableColumn } from '@/components/data-table';
@@ -4519,18 +4519,60 @@ export function ChannelConversionRefreshStatus({ refreshing }: { refreshing: boo
 
 function RecentTransactions() {
   const query = useListOrders();
+  const { data: attention } = useAttentionSummary();
+  const { mutate: markOrderRead } = useMarkOrderRead();
+  const { mutate: markCardSeen } = useMarkCardSeen();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const allOrders = query.data ?? [];
+  const unreadSet = useMemo(() => new Set(attention?.unreadOrderIds ?? []), [attention?.unreadOrderIds]);
+  const unreadCount = attention?.cards?.recent_transactions?.newCount ?? 0;
+  const hasNew = unreadCount > 0;
+  const isZero = allOrders.length === 0;
+
   const orders = useMemo(() => allOrders.filter((order) => {
     const matchesFilter = filter === 'all' || (filter === 'paid' ? order.status === 'paid' : order.status !== 'paid');
     return matchesFilter && `${order.customerName} ${order.productName} ${order.channel}`.toLowerCase().includes(search.trim().toLowerCase());
   }).slice(0, 6), [allOrders, filter, search]);
   const filterOptions = [{ value: 'all', label: 'All' }, { value: 'paid', label: 'Paid' }, { value: 'open', label: 'Open' }];
+
+  const srText = `Recent transactions, ${allOrders.length}${hasNew ? `, ${unreadCount} new` : ''}`;
+
   return <div className="mt-8 sm:mt-10 space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><div className="type-eyebrow">Latest activity</div><h3 className="type-h3 mt-1 text-lg font-bold">Recent transactions</h3></div>
-      <Link href="/orders" data-testid="link-see-all-orders"><Button variant="ghost">See all <ArrowUpRight size={15} /></Button></Link>
+      <div>
+        <div className="type-eyebrow">Latest activity</div>
+        <span className="sr-only">{srText}</span>
+        <div className="mt-1 flex items-center gap-2">
+          <div
+            data-testid="status-dot-recent-transactions"
+            aria-hidden="true"
+            className="relative flex items-center justify-center shrink-0 w-2 h-2"
+          >
+            {hasNew ? (
+              <>
+                <span className="absolute inset-0 rounded-full bg-[var(--notification)] indicator-pulse-ring" />
+                <span className="relative block h-2 w-2 rounded-full bg-[var(--notification)] ring-2 ring-[hsl(var(--background))]" />
+              </>
+            ) : isZero ? (
+              <span className="block h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-[hsl(var(--background))]" />
+            ) : (
+              <span className="block h-2 w-2 rounded-full bg-[hsl(var(--muted-foreground))] ring-2 ring-[hsl(var(--background))]" />
+            )}
+          </div>
+          <h3 className="type-h3 text-lg font-bold">Recent transactions</h3>
+          {hasNew && (
+            <span
+              data-testid="header-pill-recent-transactions"
+              aria-hidden="true"
+              className="h-[18px] px-1.5 rounded-full bg-[var(--notification)] text-white text-[12px] font-semibold leading-none inline-flex items-center justify-center select-none whitespace-nowrap shrink-0 live-indicator-fade"
+            >
+              {unreadCount} new
+            </span>
+          )}
+        </div>
+      </div>
+      <Link href="/orders" onClick={() => markCardSeen('recent_transactions')} data-testid="link-see-all-orders"><Button variant="ghost">See all <ArrowUpRight size={15} /></Button></Link>
     </div>
     <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div className="relative w-full sm:max-w-[320px]">
@@ -4587,12 +4629,29 @@ function RecentTransactions() {
               {orders.map((order) => {
                 const name = formatCustomerName(order.customerName);
                 const isAwaiting = name === AWAITING_LABEL;
+                const isUnread = unreadSet.has(order.id);
                 return (
                   <tr key={order.id} className="transaction-row hover:bg-[#F9F9FC] dark:hover:bg-neutral-800/40 transition-colors h-[56px]" data-testid={`row-transaction-${order.id}`}>
                     <td className="px-4 py-3.5 whitespace-nowrap" data-testid={`text-transaction-order-id-${order.id}`}>
-                      <Link href={`/orders/${order.id}`} className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200" data-testid={`link-recent-order-${order.id}`} aria-label={`Open order ${order.id}`}>
-                        #{String(order.id).padStart(7, '0')}
-                      </Link>
+                      <div className="flex items-center">
+                        <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true">
+                          {isUnread && (
+                            <span
+                              data-testid={`row-indicator-transaction-${order.id}`}
+                              className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade"
+                            />
+                          )}
+                        </span>
+                        <Link
+                          href={`/orders/${order.id}`}
+                          onClick={() => markOrderRead(order.id)}
+                          className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200"
+                          data-testid={`link-recent-order-${order.id}`}
+                          aria-label={`Open order ${order.id}${isUnread ? ', unread' : ''}`}
+                        >
+                          #{String(order.id).padStart(7, '0')}
+                        </Link>
+                      </div>
                     </td>
                     <td className="px-4 py-3.5 min-w-0">
                       <div className={cn("text-[14px] truncate whitespace-nowrap", isAwaiting ? "italic text-[#9CA3AF] font-normal" : "font-medium text-[#111827] dark:text-neutral-100")} title={isAwaiting ? AWAITING_LABEL : order.customerName}>
@@ -6786,6 +6845,9 @@ function Orders() {
   const update = useUpdateOrder();
   const queryClient = useQueryClient();
   const markSeen = useMarkCardSeen();
+  const { data: attention } = useAttentionSummary();
+  const { mutate: markOrderRead } = useMarkOrderRead();
+  const unreadSet = useMemo(() => new Set(attention?.unreadOrderIds ?? []), [attention?.unreadOrderIds]);
   const [activeFilter, setActiveFilter] = useState(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
@@ -6893,16 +6955,30 @@ function Orders() {
     {
       id: 'id',
       header: 'Order ID',
-      cell: (order) => (
-        <Link
-          href={`/orders/${order.id}`}
-          className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200 whitespace-nowrap"
-          data-testid={`link-order-${order.id}`}
-          aria-label={`Open order ${order.id}`}
-        >
-          #{String(order.id).padStart(7, '0')}
-        </Link>
-      ),
+      cell: (order) => {
+        const isUnread = unreadSet.has(order.id);
+        return (
+          <div className="flex items-center">
+            <span className="w-[12px] shrink-0 flex items-center justify-start" aria-hidden="true">
+              {isUnread && (
+                <span
+                  data-testid={`row-indicator-order-${order.id}`}
+                  className="h-[6px] w-[6px] rounded-full bg-[var(--notification)] live-indicator-fade"
+                />
+              )}
+            </span>
+            <Link
+              href={`/orders/${order.id}`}
+              onClick={() => markOrderRead(order.id)}
+              className="orders-order-id orders-order-id-link text-[13.5px] font-mono-ui font-medium text-[#111827] hover:text-[hsl(var(--primary))] dark:text-neutral-200 whitespace-nowrap"
+              data-testid={`link-order-${order.id}`}
+              aria-label={`Open order ${order.id}${isUnread ? ', unread' : ''}`}
+            >
+              #{String(order.id).padStart(7, '0')}
+            </Link>
+          </div>
+        );
+      },
     },
     {
       id: 'customer',
@@ -7004,7 +7080,7 @@ function Orders() {
         </span>
       ),
     },
-  ], [update.isPending]);
+  ], [update.isPending, unreadSet, markOrderRead]);
 
   return <Shell>
     <div data-route="/orders">
@@ -7073,7 +7149,10 @@ function Orders() {
             columns={orderColumns}
             data={orders}
             keyExtractor={(order) => order.id}
-            onRowClick={(order) => setLocation(`/orders/${order.id}`)}
+            onRowClick={(order) => {
+              markOrderRead(order.id);
+              setLocation(`/orders/${order.id}`);
+            }}
             rowAriaLabel={(order) => `Open order ${order.id} details`}
             rowTestId={(order) => `row-orders-order-${order.id}`}
             ariaLabel="Orders"
@@ -11218,9 +11297,11 @@ function OrderDetail() {
   const [actionError, setActionError] = useState('');
   const order = validOrderId ? query.data : undefined;
   const markSeen = useMarkCardSeen();
+  const markOrderRead = useMarkOrderRead();
 
   useEffect(() => {
     if (order) {
+      markOrderRead.mutate(order.id);
       if (order.fulfillment === 'pending') {
         markSeen.mutate('orders_to_ship');
       }
