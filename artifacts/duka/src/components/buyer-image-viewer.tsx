@@ -146,6 +146,7 @@ export function BuyerImageViewer({
       role="dialog"
       aria-modal="true"
       aria-label={`${productName} image viewer`}
+      data-testid="buyer-lightbox"
       className="fixed inset-0 z-50 flex flex-col justify-between bg-black/95 text-white backdrop-blur-md select-none touch-none"
       style={{
         paddingTop: 'max(env(safe-area-inset-top, 0px), 16px)',
@@ -156,7 +157,10 @@ export function BuyerImageViewer({
     >
       {/* Top Header Row */}
       <div className="flex items-center justify-between px-2 py-2">
-        <div className="text-xs font-semibold tracking-wider font-mono-ui text-neutral-300">
+        <div
+          data-testid="buyer-lightbox-counter"
+          className="text-xs font-semibold tracking-wider font-mono-ui text-neutral-300"
+        >
           {currentIndex + 1} / {images.length}
         </div>
 

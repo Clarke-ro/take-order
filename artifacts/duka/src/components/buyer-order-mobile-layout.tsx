@@ -207,7 +207,10 @@ export function BuyerOrderMobileLayout({
   }, [order.items, order.savedCustomer, isEditingCustomer, itemForms, form, selectedDeliveryMethod]);
 
   return (
-    <div className="w-full max-w-[430px] mx-auto px-4 py-4 space-y-4 font-sans text-[hsl(var(--foreground))] select-text">
+    <div
+      data-testid="buyer-mobile-layout"
+      className="w-full max-w-[430px] mx-auto px-4 py-4 space-y-4 font-sans text-[hsl(var(--foreground))] select-text"
+    >
       {/* 1. SELLER HEADER */}
       <header className="flex items-center justify-between pb-1 border-b border-[hsl(var(--border))]">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -276,6 +279,7 @@ export function BuyerOrderMobileLayout({
                   <button
                     key={`${thumb}-${idx}`}
                     type="button"
+                    data-testid={`mobile-thumb-${idx}`}
                     onClick={() => handleSelectThumbnail(idx)}
                     aria-label={`Select product image ${idx + 1}`}
                     className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition cursor-pointer ${
@@ -515,7 +519,10 @@ export function BuyerOrderMobileLayout({
         </div>
 
         {order.savedCustomer && !isEditingCustomer ? (
-          <div className="rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50 dark:bg-neutral-800/40 p-3 space-y-1">
+          <div
+            data-testid="prefilled-customer-card"
+            className="rounded-[10px] border border-[hsl(var(--border))] bg-neutral-50 dark:bg-neutral-800/40 p-3 space-y-1"
+          >
             <div className="text-sm font-semibold text-[hsl(var(--foreground))]">
               {order.savedCustomer.name}
             </div>
@@ -569,6 +576,7 @@ export function BuyerOrderMobileLayout({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
+              data-testid="delivery-method-pickup"
               onClick={() => changeField('deliveryMethod', 'pickup')}
               className={`p-3 rounded-[10px] border text-left transition cursor-pointer min-h-[44px] ${
                 selectedDeliveryMethod === 'pickup'
@@ -584,6 +592,7 @@ export function BuyerOrderMobileLayout({
 
             <button
               type="button"
+              data-testid="delivery-method-delivery"
               onClick={() => changeField('deliveryMethod', 'delivery')}
               className={`p-3 rounded-[10px] border text-left transition cursor-pointer min-h-[44px] ${
                 selectedDeliveryMethod === 'delivery'
@@ -645,6 +654,7 @@ export function BuyerOrderMobileLayout({
           <div className="space-y-2">
             {/* Full Payment */}
             <label
+              data-testid="payment-mode-full"
               className={`flex items-start gap-3 p-3 rounded-[12px] border cursor-pointer transition min-h-[44px] ${
                 chosenMode === 'full'
                   ? 'border-[hsl(var(--primary))] bg-blue-50/20 dark:bg-blue-950/20 ring-1 ring-[hsl(var(--primary))]'
@@ -675,6 +685,7 @@ export function BuyerOrderMobileLayout({
             {/* Half Payment */}
             {allowedModes.has('half') && (
               <label
+                data-testid="payment-mode-half"
                 className={`flex items-start gap-3 p-3 rounded-[12px] border cursor-pointer transition min-h-[44px] ${
                   chosenMode === 'half'
                     ? 'border-[hsl(var(--primary))] bg-blue-50/20 dark:bg-blue-950/20 ring-1 ring-[hsl(var(--primary))]'
@@ -708,6 +719,7 @@ export function BuyerOrderMobileLayout({
             {/* Reservation */}
             {allowedModes.has('reservation') && (
               <label
+                data-testid="payment-mode-reservation"
                 className={`flex items-start gap-3 p-3 rounded-[12px] border cursor-pointer transition min-h-[44px] ${
                   chosenMode === 'reservation'
                     ? 'border-[hsl(var(--primary))] bg-blue-50/20 dark:bg-blue-950/20 ring-1 ring-[hsl(var(--primary))]'
