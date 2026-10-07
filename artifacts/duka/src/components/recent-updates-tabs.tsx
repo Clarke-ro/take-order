@@ -5,6 +5,16 @@ import type { Order, Product } from '@workspace/api-client-react';
 import { moneyExact, formatCustomerName } from '@/lib/formatters';
 import { useAttentionSummary, useMarkCardSeen, useMarkOrderRead, type AttentionCardKey } from '@/lib/attention-hooks';
 
+/**
+ * RecentUpdatesTabs: Renders the 2x2 grid of standalone activity cards:
+ * 1. Orders to Ship (pending fulfillment)
+ * 2. Low Stock (inventory <= 3)
+ * 3. Unpaid Orders (open balance)
+ * 4. Missing Costs (untracked cost price)
+ *
+ * Each card displays the Pinterest red notification dot (--notification / #E60023)
+ * against every item to convey urgency, with a reserved 12px gutter to prevent layout shift.
+ */
 export type RecentUpdatesTabsProps = {
   orders: Order[];
   products: Product[];
